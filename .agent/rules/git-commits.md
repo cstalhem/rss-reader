@@ -1,4 +1,5 @@
 ---
+trigger: model_decision
 description: When committing code changes to git
 ---
 
