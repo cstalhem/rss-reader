@@ -30,7 +30,7 @@ Build a working RSS reader with a single feed displayed in a Next.js UI, backed 
    ├── pyproject.toml      # Created by uv init
    ├── uv.lock             # Created by uv
    ├── src/
-   │   └── rss_reader/
+   │   └── backend/            # Package name matches directory
    │       ├── __init__.py
    │       ├── main.py         # FastAPI app entry point
    │       ├── models.py       # SQLModel definitions
@@ -76,7 +76,7 @@ Build a working RSS reader with a single feed displayed in a Next.js UI, backed 
 
 ### Phase 2: Backend Implementation
 
-#### [NEW] [database.py](file:///Users/cstalhem/projects/rss-reader/backend/src/rss_reader/database.py)
+#### [NEW] [database.py](file:///Users/cstalhem/projects/rss-reader/backend/src/backend/database.py)
 
 SQLite setup with SQLModel:
 - Create engine with `sqlite:///./data/rss.db`
@@ -84,27 +84,27 @@ SQLite setup with SQLModel:
 - `create_db_and_tables()` function for initialization
 - `get_session()` dependency generator for FastAPI endpoints
 
-#### [NEW] [models.py](file:///Users/cstalhem/projects/rss-reader/backend/src/rss_reader/models.py)
+#### [NEW] [models.py](file:///Users/cstalhem/projects/rss-reader/backend/src/backend/models.py)
 
 SQLModel definitions matching PRD data model:
 - `Feed` — id, url, title, last_fetched_at
 - `Article` — id, feed_id, title, url, author, published_at, summary, content, is_read
 
-#### [NEW] [feeds.py](file:///Users/cstalhem/projects/rss-reader/backend/src/rss_reader/feeds.py)
+#### [NEW] [feeds.py](file:///Users/cstalhem/projects/rss-reader/backend/src/backend/feeds.py)
 
 Feed fetching logic:
 - `fetch_feed(url: str)` — Uses feedparser to fetch and parse RSS
 - `save_articles(feed_id: int, entries: list)` — Deduplicates and stores articles
 - Handles common RSS quirks (missing fields, date parsing)
 
-#### [NEW] [scheduler.py](file:///Users/cstalhem/projects/rss-reader/backend/src/rss_reader/scheduler.py)
+#### [NEW] [scheduler.py](file:///Users/cstalhem/projects/rss-reader/backend/src/backend/scheduler.py)
 
 APScheduler integration:
 - Background job to refresh feeds every 30 minutes
 - Runs within FastAPI lifespan context
 - Manual trigger endpoint for testing
 
-#### [NEW] [main.py](file:///Users/cstalhem/projects/rss-reader/backend/src/rss_reader/main.py)
+#### [NEW] [main.py](file:///Users/cstalhem/projects/rss-reader/backend/src/backend/main.py)
 
 FastAPI application:
 - **Endpoints:**
@@ -208,7 +208,7 @@ uv run pytest
 1. **Local development** (without Docker):
    ```bash
    # Terminal 1: Backend
-   cd backend && uv run uvicorn rss_reader.main:app --reload --port 8912
+   cd backend && uv run uvicorn backend.main:app --reload --port 8912
 
    # Terminal 2: Frontend
    cd frontend && bun dev --port 3210
