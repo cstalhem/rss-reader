@@ -1,7 +1,5 @@
 # AGENTS.md
 
-> Agent instructions for working in this codebase.
-
 ## Project Overview
 
 A personal RSS reader with LLM-powered relevance scoring. Local-first, simple, maintainable.
