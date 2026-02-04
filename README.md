@@ -27,3 +27,13 @@ A simple, local-first RSS reader designed for personal use. The application help
 - **Local-first** — No cloud dependencies; everything runs on your machine
 - **Simple** — Minimal moving parts; no microservices or message queues
 - **Maintainable** — Clean architecture suitable for a solo developer
+
+## Local Development
+
+### Backend
+
+```bash
+cd backend && uv run uvicorn backend.main:app --reload --port 8912
+```
+
+The API will be available at `http://localhost:8912` with auto-generated docs at `/docs`.
