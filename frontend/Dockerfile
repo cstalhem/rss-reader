@@ -1,8 +1,14 @@
-# Dependencies stage - build locally on host instead
+# Dependencies stage
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# Copy everything (dependencies already installed on host)
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install dependencies
+RUN npm ci --omit=dev
+
+# Copy application code
 COPY . .
 
 # Disable telemetry during build

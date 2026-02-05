@@ -1,0 +1,13 @@
+# RSS Reader Configuration
+# Environment variables override these settings (e.g., DATABASE__PATH)
+
+database:
+  path: /data/rss-reader.db
+
+logging:
+  level: INFO
+  format: plain
+
+scheduler:
+  feed_refresh_interval: 1800  # 30 minutes
+  log_job_execution: false

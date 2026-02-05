@@ -47,3 +47,5 @@ frontend/bun.lockb
 
 # Data (keep directory, ignore contents)
 data/*.db
+data/*.db-wal
+data/*.db-shm

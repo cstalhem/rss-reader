@@ -1,0 +1,59 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: rss-reader-backend:latest
+    container_name: rss-reader-backend
+    restart: unless-stopped
+    volumes:
+      - db-data:/data
+      - ./config:/config:ro
+    environment:
+      - CONFIG_FILE=/config/app.yaml
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    stop_grace_period: 30s
+    ports:
+      - "8000:8000"
+    networks:
+      - rss-reader
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: rss-reader-frontend:latest
+    container_name: rss-reader-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+        restart: true
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    stop_grace_period: 10s
+    ports:
+      - "3000:3000"
+    networks:
+      - rss-reader
+
+volumes:
+  db-data:
+    driver: local
+
+networks:
+  rss-reader:
+    driver: bridge
