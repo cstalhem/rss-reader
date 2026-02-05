@@ -29,10 +29,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. SQLite database persists across container restarts (data survives `docker-compose down && docker-compose up`)
   3. Health checks confirm services are ready before accepting traffic
   4. SQLite WAL mode prevents "database is locked" errors during concurrent access
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] TBD
+- [ ] 01-01-PLAN.md — Backend infrastructure (config, WAL mode, health endpoint, Dockerfile)
+- [ ] 01-02-PLAN.md — Frontend Dockerfile with standalone output
+- [ ] 01-03-PLAN.md — Docker Compose orchestration with health checks
 
 ### Phase 2: Article Reading UI
 **Goal**: Users can browse and read articles in a clean interface with theme control
@@ -95,7 +97,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Production Infrastructure | 0/TBD | Not started | - |
+| 1. Production Infrastructure | 0/3 | Planned | - |
 | 2. Article Reading UI | 0/TBD | Not started | - |
 | 3. Feed Management | 0/TBD | Not started | - |
 | 4. LLM Content Curation | 0/TBD | Not started | - |
