@@ -7,13 +7,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
+from backend.config import get_settings
 from backend.database import create_db_and_tables, get_session
 from backend.feeds import refresh_feed
 from backend.models import Article, Feed
 from backend.scheduler import shutdown_scheduler, start_scheduler
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+settings = get_settings()
+
+# Configure logging from settings
+logging.basicConfig(
+    level=getattr(logging, settings.logging.level),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 # Hardcoded feed URL for MVP
@@ -25,8 +31,10 @@ async def lifespan(app: FastAPI):
     """Initialize database and seed data on startup."""
     logger.info("Starting up...")
 
-    # Ensure data directory exists
-    os.makedirs("./data", exist_ok=True)
+    # Ensure data directory exists (extract from database path)
+    data_dir = os.path.dirname(settings.database.path)
+    if data_dir:  # Only create if path has a directory component
+        os.makedirs(data_dir, exist_ok=True)
 
     # Create tables
     create_db_and_tables()
@@ -75,6 +83,10 @@ app.add_middleware(
 
 
 # Pydantic models for request/response
+class HealthResponse(BaseModel):
+    status: str
+
+
 class ArticleUpdate(BaseModel):
     is_read: bool
 
@@ -85,6 +97,13 @@ class RefreshResponse(BaseModel):
 
 
 # API Endpoints
+
+
+@app.get("/health", response_model=HealthResponse, status_code=200, tags=["monitoring"])
+def health_check():
+    """Health check endpoint for monitoring and container orchestration."""
+    return HealthResponse(status="healthy")
+
 
 @app.get("/api/articles")
 def list_articles(
@@ -171,7 +190,3 @@ async def manual_refresh(
     )
 
 
-@app.get("/")
-def root():
-    """Health check endpoint."""
-    return {"status": "ok", "message": "RSS Reader API"}

@@ -16,7 +16,7 @@ from pydantic_settings import (
 class DatabaseConfig(BaseModel):
     """Database configuration."""
 
-    path: str = "/data/rss-reader.db"
+    path: str = "./data/rss-reader.db"
 
 
 class LoggingConfig(BaseModel):
