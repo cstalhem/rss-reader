@@ -12,7 +12,7 @@ This roadmap takes the RSS Reader from backend completion to a production-ready 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Production Infrastructure** - Docker deployment with persistent storage
+- [x] **Phase 1: Production Infrastructure** - Docker deployment with persistent storage
 - [ ] **Phase 2: Article Reading UI** - Browse and read articles with theme support
 - [ ] **Phase 3: Feed Management** - Add and remove feed subscriptions
 - [ ] **Phase 4: LLM Content Curation** - Automatic interest scoring with Ollama
@@ -32,9 +32,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Backend infrastructure (config, WAL mode, health endpoint, Dockerfile)
-- [ ] 01-02-PLAN.md — Frontend Dockerfile with standalone output
-- [ ] 01-03-PLAN.md — Docker Compose orchestration with health checks
+- [x] 01-01-PLAN.md — Backend infrastructure (config, WAL mode, health endpoint, Dockerfile)
+- [x] 01-02-PLAN.md — Frontend Dockerfile with standalone output
+- [x] 01-03-PLAN.md — Docker Compose orchestration with health checks
 
 ### Phase 2: Article Reading UI
 **Goal**: Users can browse and read articles in a clean interface with theme control
@@ -97,7 +97,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Production Infrastructure | 0/3 | Planned | - |
+| 1. Production Infrastructure | 3/3 | ✓ Complete | 2026-02-05 |
 | 2. Article Reading UI | 0/TBD | Not started | - |
 | 3. Feed Management | 0/TBD | Not started | - |
 | 4. LLM Content Curation | 0/TBD | Not started | - |

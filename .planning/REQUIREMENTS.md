@@ -30,15 +30,15 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Infrastructure
 
-- [ ] **INFR-01**: Application runs via Docker Compose with backend and frontend services
-- [ ] **INFR-02**: Docker setup uses persistent named volumes for SQLite database
-- [ ] **INFR-03**: Docker services auto-restart on failure (restart: unless-stopped)
-- [ ] **INFR-04**: Docker services include health checks with proper startup ordering
+- [x] **INFR-01**: Application runs via Docker Compose with backend and frontend services
+- [x] **INFR-02**: Docker setup uses persistent named volumes for SQLite database
+- [x] **INFR-03**: Docker services auto-restart on failure (restart: unless-stopped)
+- [x] **INFR-04**: Docker services include health checks with proper startup ordering
 - [ ] **INFR-05**: Frontend supports dark/light theme toggle
 
 ### Backend Hardening
 
-- [ ] **BACK-01**: SQLite configured with WAL mode for concurrent read/write safety
+- [x] **BACK-01**: SQLite configured with WAL mode for concurrent read/write safety
 
 ## v2 Requirements
 
@@ -104,12 +104,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LLM-03 | Phase 4 | Pending |
 | LLM-04 | Phase 5 | Pending |
 | LLM-05 | Phase 4 | Pending |
-| INFR-01 | Phase 1 | Pending |
-| INFR-02 | Phase 1 | Pending |
-| INFR-03 | Phase 1 | Pending |
-| INFR-04 | Phase 1 | Pending |
+| INFR-01 | Phase 1 | Complete |
+| INFR-02 | Phase 1 | Complete |
+| INFR-03 | Phase 1 | Complete |
+| INFR-04 | Phase 1 | Complete |
 | INFR-05 | Phase 2 | Pending |
-| BACK-01 | Phase 1 | Pending |
+| BACK-01 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 18 total
