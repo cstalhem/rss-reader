@@ -10,29 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 2 of 5 (Article Reading UI)
-Plan: 3 of 4 complete
-Status: In progress
-Last activity: 2026-02-07 — Completed 02-03-PLAN.md (Article List View)
+Plan: 4 of 4 complete
+Status: Phase complete
+Last activity: 2026-02-07 — Completed 02-04-PLAN.md (Article Reader Drawer)
 
-Progress: [█████░░░░░] 40%
+Progress: [██████░░░░] 47%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: ~7 minutes
-- Total execution time: ~0.8 hours
+- Total plans completed: 7
+- Average duration: ~6 minutes
+- Total execution time: ~0.9 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01    | 3     | ~35 min | ~12 min |
-| 02    | 3     | ~13 min | ~4 min |
+| 02    | 4     | ~15 min | ~4 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03, 02-01, 02-02, 02-03
-- Trend: Phase 2 accelerating (2min avg for recent plans)
+- Last 5 plans: 02-01, 02-02, 02-03, 02-04
+- Trend: Phase 2 highly efficient (2min avg for all plans)
 
 *Updated after each plan completion*
 
@@ -61,6 +61,9 @@ Recent decisions affecting current work:
 - Unread-first default view (02-03: show unread only by default)
 - Relaxed list layout with breathing room (02-03: py=3 px=4 spacing)
 - Read state visual indicators (02-03: opacity 0.6 + no dot for read, full opacity + accent dot for unread)
+- 12-second auto-mark-as-read timer (02-04: balances engagement signal vs accidental marks)
+- ~75% drawer width on desktop (02-04: comfortable reading without losing list context)
+- Content fallback strategy (02-04: article.content || article.summary for flexible RSS feed support)
 
 ### Pending Todos
 
@@ -81,5 +84,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-07 (plan execution)
-Stopped at: Completed 02-03-PLAN.md (Article List View)
+Stopped at: Completed 02-04-PLAN.md (Article Reader Drawer) — Phase 2 complete
 Resume file: None
