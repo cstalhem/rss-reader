@@ -29,7 +29,11 @@
       "Bash(git status:*)",
       "Bash(git log:*)",
       "Bash(git diff:*)",
-      "Bash(git tag:*)"
+      "Bash(git tag:*)",
+      "WebSearch",
+      "mcp__chakra-ui__installation",
+      "mcp__chakra-ui__get_theme",
+      "mcp__chakra-ui__get_component_props"
     ]
   },
   "statusLine": {
