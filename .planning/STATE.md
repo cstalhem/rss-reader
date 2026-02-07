@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 2 of 5 (Article Reading UI)
-Plan: 1 of 4 complete
+Plan: 2 of 4 complete
 Status: In progress
-Last activity: 2026-02-07 — Completed 02-01-PLAN.md (Theme and Shell)
+Last activity: 2026-02-07 — Completed 02-02-PLAN.md (API Filter and Data Layer)
 
-Progress: [███░░░░░░░] 27%
+Progress: [████░░░░░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: ~11 minutes
+- Total plans completed: 5
+- Average duration: ~9 minutes
 - Total execution time: ~0.7 hours
 
 **By Phase:**
@@ -28,11 +28,11 @@ Progress: [███░░░░░░░] 27%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01    | 3     | ~35 min | ~12 min |
-| 02    | 1     | ~9 min | ~9 min |
+| 02    | 2     | ~11 min | ~6 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01, 01-02, 01-03, 02-01
-- Trend: Phase 2 underway, faster execution
+- Last 5 plans: 01-02, 01-03, 02-01, 02-02
+- Trend: Phase 2 accelerating (2min for 02-02)
 
 *Updated after each plan completion*
 
@@ -54,6 +54,9 @@ Recent decisions affecting current work:
 - Dark mode default for UI (02-01: user preference, typical RSS reader use case)
 - Orange accent color oklch(64.6% 0.222 41.116) (02-01: brand consistency)
 - Dual font system: Inter for UI, Lora for article reader (02-01: readability)
+- TanStack Query for data layer (02-02: caching, background sync, optimistic updates)
+- Optional filter pattern for backward compatibility (02-02: is_read parameter None by default)
+- QueryClient staleTime 30s (02-02: responsive UX without excessive requests)
 
 ### Pending Todos
 
@@ -74,5 +77,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-07 (plan execution)
-Stopped at: Completed 02-01-PLAN.md (Theme and Shell)
+Stopped at: Completed 02-02-PLAN.md (API Filter and Data Layer)
 Resume file: None
