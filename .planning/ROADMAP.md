@@ -46,10 +46,13 @@ Plans:
   3. User can open an article to read full content in the in-app reader
   4. User can click link in reader view to open original article URL in new tab
   5. User can toggle between dark and light themes with preference persisting across sessions
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] TBD
+- [ ] 02-01-PLAN.md — Chakra UI setup, custom theme (dark default, orange accent), app shell layout (Wave 1)
+- [ ] 02-02-PLAN.md — Backend read-status filter, frontend data layer with TanStack Query (Wave 1)
+- [ ] 02-03-PLAN.md — Article list with rows, read/unread state, filtering, load-more (Wave 2)
+- [ ] 02-04-PLAN.md — Article reader drawer with auto-mark-as-read, prev/next navigation (Wave 2)
 
 ### Phase 3: Feed Management
 **Goal**: Users can manage their feed subscriptions through the UI
@@ -98,7 +101,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Production Infrastructure | 3/3 | ✓ Complete | 2026-02-05 |
-| 2. Article Reading UI | 0/TBD | Not started | - |
+| 2. Article Reading UI | 0/4 | Planned | - |
 | 3. Feed Management | 0/TBD | Not started | - |
 | 4. LLM Content Curation | 0/TBD | Not started | - |
 | 5. Interest-Driven UI | 0/TBD | Not started | - |
