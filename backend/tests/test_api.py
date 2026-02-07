@@ -55,6 +55,47 @@ def test_list_articles_pagination(test_client: TestClient, sample_articles):
     assert articles[0]["title"] == "Older Article"
 
 
+def test_list_articles_filter_unread(test_client: TestClient, sample_articles):
+    """Test filtering articles by is_read=false (unread only)."""
+    response = test_client.get("/api/articles?is_read=false")
+    assert response.status_code == 200
+
+    articles = response.json()
+    assert len(articles) == 2
+
+    # Should return only unread articles
+    assert articles[0]["title"] == "Recent Article"
+    assert articles[0]["is_read"] is False
+    assert articles[1]["title"] == "Older Article"
+    assert articles[1]["is_read"] is False
+
+
+def test_list_articles_filter_read(test_client: TestClient, sample_articles):
+    """Test filtering articles by is_read=true (read only)."""
+    response = test_client.get("/api/articles?is_read=true")
+    assert response.status_code == 200
+
+    articles = response.json()
+    assert len(articles) == 1
+
+    # Should return only read articles
+    assert articles[0]["title"] == "Read Article"
+    assert articles[0]["is_read"] is True
+
+
+def test_list_articles_no_filter(test_client: TestClient, sample_articles):
+    """Test that omitting is_read filter returns all articles."""
+    response = test_client.get("/api/articles")
+    assert response.status_code == 200
+
+    articles = response.json()
+    assert len(articles) == 3
+
+    # Should return all articles
+    titles = {article["title"] for article in articles}
+    assert titles == {"Recent Article", "Older Article", "Read Article"}
+
+
 def test_get_article_success(test_client: TestClient, sample_articles):
     """Test getting a single article by ID."""
     article_id = sample_articles[0].id

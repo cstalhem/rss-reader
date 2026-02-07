@@ -109,6 +109,7 @@ def health_check():
 def list_articles(
     skip: int = 0,
     limit: int = 50,
+    is_read: bool | None = None,
     session: Session = Depends(get_session),
 ):
     """
@@ -117,13 +118,14 @@ def list_articles(
     Query params:
         skip: Number of articles to skip (default: 0)
         limit: Maximum number of articles to return (default: 50)
+        is_read: Filter by read status (optional). If not provided, returns all articles.
     """
-    statement = (
-        select(Article)
-        .order_by(Article.published_at.desc())
-        .offset(skip)
-        .limit(limit)
-    )
+    statement = select(Article).order_by(Article.published_at.desc())
+
+    if is_read is not None:
+        statement = statement.where(Article.is_read == is_read)
+
+    statement = statement.offset(skip).limit(limit)
     articles = session.exec(statement).all()
     return articles
 
