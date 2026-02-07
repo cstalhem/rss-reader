@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Lora } from "next/font/google";
 import { Provider } from "@/components/ui/provider";
+import { QueryProvider } from "./providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -27,7 +28,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${lora.variable}`}>
         <Provider defaultTheme="dark">
-          {children}
+          <QueryProvider>{children}</QueryProvider>
         </Provider>
       </body>
     </html>
