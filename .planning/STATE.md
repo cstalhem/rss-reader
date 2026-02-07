@@ -10,29 +10,29 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 2 of 5 (Article Reading UI)
-Plan: 2 of 4 complete
+Plan: 3 of 4 complete
 Status: In progress
-Last activity: 2026-02-07 — Completed 02-02-PLAN.md (API Filter and Data Layer)
+Last activity: 2026-02-07 — Completed 02-03-PLAN.md (Article List View)
 
-Progress: [████░░░░░░] 33%
+Progress: [█████░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: ~9 minutes
-- Total execution time: ~0.7 hours
+- Total plans completed: 6
+- Average duration: ~7 minutes
+- Total execution time: ~0.8 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01    | 3     | ~35 min | ~12 min |
-| 02    | 2     | ~11 min | ~6 min |
+| 02    | 3     | ~13 min | ~4 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02, 01-03, 02-01, 02-02
-- Trend: Phase 2 accelerating (2min for 02-02)
+- Last 5 plans: 01-03, 02-01, 02-02, 02-03
+- Trend: Phase 2 accelerating (2min avg for recent plans)
 
 *Updated after each plan completion*
 
@@ -57,6 +57,10 @@ Recent decisions affecting current work:
 - TanStack Query for data layer (02-02: caching, background sync, optimistic updates)
 - Optional filter pattern for backward compatibility (02-02: is_read parameter None by default)
 - QueryClient staleTime 30s (02-02: responsive UX without excessive requests)
+- Load-more pagination pattern (02-03: user preference over infinite scroll)
+- Unread-first default view (02-03: show unread only by default)
+- Relaxed list layout with breathing room (02-03: py=3 px=4 spacing)
+- Read state visual indicators (02-03: opacity 0.6 + no dot for read, full opacity + accent dot for unread)
 
 ### Pending Todos
 
@@ -77,5 +81,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-07 (plan execution)
-Stopped at: Completed 02-02-PLAN.md (API Filter and Data Layer)
+Stopped at: Completed 02-03-PLAN.md (Article List View)
 Resume file: None
