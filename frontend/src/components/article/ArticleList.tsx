@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Box, Flex, Button, Text, Skeleton, Stack } from "@chakra-ui/react";
 import { useArticles, useMarkAsRead } from "@/hooks/useArticles";
 import { ArticleRow } from "./ArticleRow";
+import { ArticleReader } from "./ArticleReader";
 import { Article } from "@/lib/types";
 
 export function ArticleList() {
@@ -22,7 +23,6 @@ export function ArticleList() {
 
   const handleSelect = (article: Article) => {
     setSelectedArticle(article);
-    // Drawer integration will come in Plan 02-04
   };
 
   const articleCount = articles?.length ?? 0;
@@ -115,6 +115,14 @@ export function ArticleList() {
           </Text>
         </Flex>
       )}
+
+      {/* Article reader drawer */}
+      <ArticleReader
+        article={selectedArticle}
+        articles={articles ?? []}
+        onClose={() => setSelectedArticle(null)}
+        onNavigate={(article) => setSelectedArticle(article)}
+      />
     </Box>
   );
 }
