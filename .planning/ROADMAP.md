@@ -13,7 +13,7 @@ This roadmap takes the RSS Reader from backend completion to a production-ready 
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Production Infrastructure** - Docker deployment with persistent storage
-- [ ] **Phase 2: Article Reading UI** - Browse and read articles with theme support
+- [x] **Phase 2: Article Reading UI** - Browse and read articles with theme support
 - [ ] **Phase 3: Feed Management** - Add and remove feed subscriptions
 - [ ] **Phase 4: LLM Content Curation** - Automatic interest scoring with Ollama
 - [ ] **Phase 5: Interest-Driven UI** - Visual presentation by relevance
@@ -49,10 +49,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Chakra UI setup, custom theme (dark default, orange accent), app shell layout (Wave 1)
-- [ ] 02-02-PLAN.md — Backend read-status filter, frontend data layer with TanStack Query (Wave 1)
-- [ ] 02-03-PLAN.md — Article list with rows, read/unread state, filtering, load-more (Wave 2)
-- [ ] 02-04-PLAN.md — Article reader drawer with auto-mark-as-read, prev/next navigation (Wave 2)
+- [x] 02-01-PLAN.md — Chakra UI setup, custom theme (dark default, orange accent), app shell layout (Wave 1)
+- [x] 02-02-PLAN.md — Backend read-status filter, frontend data layer with TanStack Query (Wave 1)
+- [x] 02-03-PLAN.md — Article list with rows, read/unread state, filtering, load-more (Wave 2)
+- [x] 02-04-PLAN.md — Article reader drawer with auto-mark-as-read, prev/next navigation (Wave 2)
 
 ### Phase 3: Feed Management
 **Goal**: Users can manage their feed subscriptions through the UI
@@ -101,7 +101,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Production Infrastructure | 3/3 | ✓ Complete | 2026-02-05 |
-| 2. Article Reading UI | 0/4 | Planned | - |
+| 2. Article Reading UI | 4/4 | ✓ Complete | 2026-02-07 |
 | 3. Feed Management | 0/TBD | Not started | - |
 | 4. LLM Content Curation | 0/TBD | Not started | - |
 | 5. Interest-Driven UI | 0/TBD | Not started | - |

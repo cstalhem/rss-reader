@@ -9,10 +9,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Article Browsing
 
-- [ ] **BRWS-01**: User can view articles in a preview card layout showing title, snippet, source, and date
-- [ ] **BRWS-02**: User can mark articles as read/unread from the article list
-- [ ] **BRWS-03**: User can read article content in an in-app reader view
-- [ ] **BRWS-04**: User can open the original article URL in a new tab from the reader view
+- [x] **BRWS-01**: User can view articles in a preview card layout showing title, snippet, source, and date
+- [x] **BRWS-02**: User can mark articles as read/unread from the article list
+- [x] **BRWS-03**: User can read article content in an in-app reader view
+- [x] **BRWS-04**: User can open the original article URL in a new tab from the reader view
 - [ ] **BRWS-05**: User can see an interest score indicator on each article card (requires LLM scoring)
 
 ### Feed Management
@@ -34,7 +34,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **INFR-02**: Docker setup uses persistent named volumes for SQLite database
 - [x] **INFR-03**: Docker services auto-restart on failure (restart: unless-stopped)
 - [x] **INFR-04**: Docker services include health checks with proper startup ordering
-- [ ] **INFR-05**: Frontend supports dark/light theme toggle
+- [x] **INFR-05**: Frontend supports dark/light theme toggle
 
 ### Backend Hardening
 
@@ -92,10 +92,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BRWS-01 | Phase 2 | Pending |
-| BRWS-02 | Phase 2 | Pending |
-| BRWS-03 | Phase 2 | Pending |
-| BRWS-04 | Phase 2 | Pending |
+| BRWS-01 | Phase 2 | Complete |
+| BRWS-02 | Phase 2 | Complete |
+| BRWS-03 | Phase 2 | Complete |
+| BRWS-04 | Phase 2 | Complete |
 | BRWS-05 | Phase 5 | Pending |
 | FEED-01 | Phase 3 | Pending |
 | FEED-02 | Phase 3 | Pending |
@@ -108,7 +108,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFR-02 | Phase 1 | Complete |
 | INFR-03 | Phase 1 | Complete |
 | INFR-04 | Phase 1 | Complete |
-| INFR-05 | Phase 2 | Pending |
+| INFR-05 | Phase 2 | Complete |
 | BACK-01 | Phase 1 | Complete |
 
 **Coverage:**
