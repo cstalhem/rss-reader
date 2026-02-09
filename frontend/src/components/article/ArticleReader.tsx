@@ -73,7 +73,7 @@ export function ArticleReader({
           }}
         >
           <Drawer.Header borderBottomWidth="1px">
-            <Flex direction="column" gap={3} pr={8}>
+            <Flex direction="column" gap={4} py={6} pr={8}>
               {/* Title */}
               <Text
                 textStyle="reader.heading"
@@ -137,7 +137,7 @@ export function ArticleReader({
             <Drawer.CloseTrigger />
           </Drawer.Header>
 
-          <Drawer.Body>
+          <Drawer.Body px={{ base: 6, md: 12 }} py={{ base: 6, md: 8 }}>
             <Box
               textStyle="reader"
               css={{
@@ -163,8 +163,8 @@ export function ArticleReader({
                 "& h2": { fontSize: "xl" },
                 "& h3": { fontSize: "lg" },
                 "& p": {
-                  mb: 4,
-                  lineHeight: "1.8",
+                  mb: 5,
+                  lineHeight: "1.85",
                 },
                 "& ul, & ol": {
                   pl: 6,
