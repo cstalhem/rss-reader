@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 Phase: 2 of 5 complete (Article Reading UI)
 Plan: All 4 plans complete, verified
 Status: Phase 2 verified ✓ — ready for Phase 3
-Last activity: 2026-02-09 - Completed quick task 2: Fix reader header padding and accent hover states
+Last activity: 2026-02-09 - Completed quick task 2: Fix reader header padding and accent orange link/button hover
 
 Progress: [████░░░░░░] 40%
 
