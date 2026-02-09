@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 Phase: 2 of 5 complete (Article Reading UI)
 Plan: All 4 plans complete, verified
 Status: Phase 2 verified ✓ — ready for Phase 3
-Last activity: 2026-02-09 - Completed quick task 1: Refine reading panel design for airy feel with generous padding
+Last activity: 2026-02-09 - Completed quick task 2: Fix reader header padding and accent hover states
 
 Progress: [████░░░░░░] 40%
 
@@ -86,6 +86,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | Refine reading panel design for airy feel with generous padding | 2026-02-09 | 2a0e2e4 | [1-refine-reading-panel-design-for-airy-fee](./quick/1-refine-reading-panel-design-for-airy-fee/) |
+| 2 | Fix reader header padding and accent hover states | 2026-02-09 | a22cc9a | [2-fix-reader-header-padding-and-accent-ora](./quick/2-fix-reader-header-padding-and-accent-ora/) |
 
 ## Session Continuity
 
