@@ -11,7 +11,7 @@ export interface ColorModeProviderProps extends ThemeProviderProps {}
 
 export function ColorModeProvider(props: ColorModeProviderProps) {
   return (
-    <ThemeProvider attribute="class" disableTransitionOnChange {...props} />
+    <ThemeProvider attribute="class" disableTransitionOnChange enableSystem={false} {...props} />
   )
 }
 
@@ -46,12 +46,12 @@ export function ColorModeIcon() {
   return colorMode === "dark" ? <LuMoon /> : <LuSun />
 }
 
-interface ColorModeButtonProps extends Omit<IconButtonProps, "aria-label"> {}
+interface ThemeToggleProps extends Omit<IconButtonProps, "aria-label"> {}
 
-export const ColorModeButton = React.forwardRef<
+export const ThemeToggle = React.forwardRef<
   HTMLButtonElement,
-  ColorModeButtonProps
->(function ColorModeButton(props, ref) {
+  ThemeToggleProps
+>(function ThemeToggle(props, ref) {
   const { toggleColorMode } = useColorMode()
   return (
     <ClientOnly fallback={<Skeleton boxSize="9" />}>

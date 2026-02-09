@@ -1,7 +1,7 @@
 "use client"
 
 import { Box, Flex, Heading } from "@chakra-ui/react"
-import { ThemeToggle } from "@/components/theme/ThemeToggle"
+import { ThemeToggle } from "@/components/ui/color-mode"
 
 export function Header() {
   return (
@@ -26,7 +26,7 @@ export function Header() {
         <Heading size="lg" fontWeight="semibold">
           RSS Reader
         </Heading>
-        <ThemeToggle />
+        <ThemeToggle colorPalette="accent" />
       </Flex>
     </Box>
   )
