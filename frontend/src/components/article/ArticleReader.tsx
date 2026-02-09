@@ -72,8 +72,8 @@ export function ArticleReader({
             maxWidth: { base: "100%", md: "75vw" },
           }}
         >
-          <Drawer.Header borderBottomWidth="1px">
-            <Flex direction="column" gap={4} py={6} pr={8}>
+          <Drawer.Header borderBottomWidth="1px" px={{ base: 6, md: 12 }}>
+            <Flex direction="column" gap={4} py={6} pr={16}>
               {/* Title */}
               <Text
                 textStyle="reader.heading"
@@ -106,6 +106,7 @@ export function ArticleReader({
                   fontSize="sm"
                   colorPalette="accent"
                   fontWeight="medium"
+                  _hover={{ color: "accent.emphasized" }}
                 >
                   Open original →
                 </Link>
@@ -117,6 +118,8 @@ export function ArticleReader({
                   aria-label="Previous article"
                   size="sm"
                   variant="ghost"
+                  colorPalette="accent"
+                  _hover={{ bg: "accent.subtle" }}
                   disabled={!prevArticle}
                   onClick={() => prevArticle && onNavigate(prevArticle)}
                 >
@@ -126,6 +129,8 @@ export function ArticleReader({
                   aria-label="Next article"
                   size="sm"
                   variant="ghost"
+                  colorPalette="accent"
+                  _hover={{ bg: "accent.subtle" }}
                   disabled={!nextArticle}
                   onClick={() => nextArticle && onNavigate(nextArticle)}
                 >
@@ -152,6 +157,9 @@ export function ArticleReader({
                 "& a": {
                   color: "colorPalette.solid",
                   textDecoration: "underline",
+                  _hover: {
+                    color: "colorPalette.emphasized",
+                  },
                 },
                 "& h1, & h2, & h3, & h4, & h5, & h6": {
                   fontWeight: "600",
