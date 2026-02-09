@@ -1,86 +1,111 @@
 <purpose>
-Add a new integer phase to the end of the current milestone.
-
-Appends sequential phases, automatically calculating next phase number.
+Add a new integer phase to the end of the current milestone in the roadmap. Automatically calculates next phase number, creates phase directory, and updates roadmap structure.
 </purpose>
+
+<required_reading>
+Read all files referenced by the invoking prompt's execution_context before starting.
+</required_reading>
 
 <process>
 
-## Step 1: Parse Arguments
+<step name="parse_arguments">
+Parse the command arguments:
+- All arguments become the phase description
+- Example: `/gsd:add-phase Add authentication` → description = "Add authentication"
+- Example: `/gsd:add-phase Fix critical performance issues` → description = "Fix critical performance issues"
 
-All arguments become the description.
+If no arguments provided:
 
 ```
 ERROR: Phase description required
 Usage: /gsd:add-phase <description>
+Example: /gsd:add-phase Add authentication system
 ```
 
-## Step 2: Load Roadmap
+Exit.
+</step>
+
+<step name="init_context">
+Load phase operation context:
 
 ```bash
-cat .planning/ROADMAP.md
+INIT=$(node ./.claude/get-shit-done/bin/gsd-tools.js init phase-op "0")
 ```
 
-Error if not found.
+Check `roadmap_exists` from init JSON. If false:
+```
+ERROR: No roadmap found (.planning/ROADMAP.md)
+Run /gsd:new-project to initialize.
+```
+Exit.
+</step>
 
-## Step 3: Find Current Milestone
-
-Locate `## Current Milestone:` heading.
-Identify all phases in this milestone.
-
-## Step 4: Calculate Next Phase
-
-Find highest integer phase, add 1.
-Format as two-digit: `printf "%02d" $next`
-
-## Step 5: Generate Slug
+<step name="add_phase">
+**Delegate the phase addition to gsd-tools:**
 
 ```bash
-slug=$(echo "$description" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//')
+RESULT=$(node ./.claude/get-shit-done/bin/gsd-tools.js phase add "${description}")
 ```
 
-## Step 6: Create Directory
+The CLI handles:
+- Finding the highest existing integer phase number
+- Calculating next phase number (max + 1)
+- Generating slug from description
+- Creating the phase directory (`.planning/phases/{NN}-{slug}/`)
+- Inserting the phase entry into ROADMAP.md with Goal, Depends on, and Plans sections
 
-```bash
-mkdir -p ".planning/phases/${phase_num}-${slug}"
-```
+Extract from result: `phase_number`, `padded`, `name`, `slug`, `directory`.
+</step>
 
-## Step 7: Update ROADMAP.md
+<step name="update_project_state">
+Update STATE.md to reflect the new phase:
 
-Insert at end of milestone:
+1. Read `.planning/STATE.md`
+2. Under "## Accumulated Context" → "### Roadmap Evolution" add entry:
+   ```
+   - Phase {N} added: {description}
+   ```
 
-```markdown
-### Phase {N}: {Description}
+If "Roadmap Evolution" section doesn't exist, create it.
+</step>
 
-**Goal:** [To be planned]
-**Depends on:** Phase {N-1}
-**Plans:** 0 plans
-```
-
-## Step 8: Update STATE.md
-
-Add to "Roadmap Evolution":
-```
-- Phase {N} added: {description}
-```
-
-## Step 9: Completion
+<step name="completion">
+Present completion summary:
 
 ```
 Phase {N} added to current milestone:
-- Directory: .planning/phases/{NN}-{slug}/
+- Description: {description}
+- Directory: .planning/phases/{phase-num}-{slug}/
 - Status: Not planned yet
+
+Roadmap updated: .planning/ROADMAP.md
 
 ---
 
 ## ▶ Next Up
 
-/gsd:plan-phase {N}
+**Phase {N}: {description}**
+
+`/gsd:plan-phase {N}`
+
+<sub>`/clear` first → fresh context window</sub>
 
 ---
 
 **Also available:**
-- /gsd:add-phase <description> — add another
+- `/gsd:add-phase <description>` — add another phase
+- Review roadmap
+
+---
 ```
+</step>
 
 </process>
+
+<success_criteria>
+- [ ] `gsd-tools phase add` executed successfully
+- [ ] Phase directory created
+- [ ] Roadmap updated with new phase entry
+- [ ] STATE.md updated with roadmap evolution note
+- [ ] User informed of next steps
+</success_criteria>

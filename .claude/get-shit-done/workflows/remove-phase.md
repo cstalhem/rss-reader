@@ -1,46 +1,50 @@
 <purpose>
-Remove an unstarted future phase from the roadmap and renumber all subsequent phases.
-
-Purpose: Clean removal of work decided not to do, without polluting context with cancelled markers.
-Output: Phase deleted, subsequent phases renumbered, git commit as historical record.
+Remove an unstarted future phase from the project roadmap, delete its directory, renumber all subsequent phases to maintain a clean linear sequence, and commit the change. The git commit serves as the historical record of removal.
 </purpose>
+
+<required_reading>
+Read all files referenced by the invoking prompt's execution_context before starting.
+</required_reading>
 
 <process>
 
-## Step 1: Parse Arguments
+<step name="parse_arguments">
+Parse the command arguments:
+- Argument is the phase number to remove (integer or decimal)
+- Example: `/gsd:remove-phase 17` → phase = 17
+- Example: `/gsd:remove-phase 16.1` → phase = 16.1
 
-@./.claude/get-shit-done/references/phase-argument-parsing.md
+If no argument provided:
 
-Phase number required. Error if not provided:
 ```
 ERROR: Phase number required
 Usage: /gsd:remove-phase <phase-number>
+Example: /gsd:remove-phase 17
 ```
 
-## Step 2: Load State
+Exit.
+</step>
+
+<step name="init_context">
+Load phase operation context:
 
 ```bash
-cat .planning/STATE.md
-cat .planning/ROADMAP.md
+INIT=$(node ./.claude/get-shit-done/bin/gsd-tools.js init phase-op "${target}")
 ```
 
-Parse current phase from STATE.md.
+Extract: `phase_found`, `phase_dir`, `phase_number`, `commit_docs`, `roadmap_exists`.
 
-## Step 3: Validate Phase Exists
+Also read STATE.md and ROADMAP.md content for parsing current position.
+</step>
 
-Search for `### Phase {target}:` heading.
+<step name="validate_future_phase">
+Verify the phase is a future phase (not started):
 
-If not found:
-```
-ERROR: Phase {target} not found in roadmap
-Available phases: [list]
-```
+1. Compare target phase to current phase from STATE.md
+2. Target must be > current phase number
 
-## Step 4: Validate Future Phase
+If target <= current phase:
 
-Target must be > current phase number.
-
-If target <= current:
 ```
 ERROR: Cannot remove Phase {target}
 
@@ -51,128 +55,100 @@ Only future phases can be removed:
 To abandon current work, use /gsd:pause-work instead.
 ```
 
-Check for SUMMARY.md files:
-```bash
-ls .planning/phases/{target}-*/*-SUMMARY.md 2>/dev/null
-```
+Exit.
+</step>
 
-If any exist:
-```
-ERROR: Phase {target} has completed work
-Cannot remove phases with completed work.
-```
-
-## Step 5: Gather Phase Info
-
-Extract phase name from heading.
-Find phase directory.
-Find all subsequent phases needing renumbering.
-
-**Subsequent phase detection:**
-- For integer removal (17): Find phases > 17, decimals 17.x → 16.x
-- For decimal removal (17.1): Find decimals > 17.1 within same integer
-
-## Step 6: Confirm Removal
+<step name="confirm_removal">
+Present removal summary and confirm:
 
 ```
 Removing Phase {target}: {Name}
 
 This will:
 - Delete: .planning/phases/{target}-{slug}/
-- Renumber {N} subsequent phases:
-  - Phase 18 → Phase 17
-  - Phase 19 → Phase 18
+- Renumber all subsequent phases
+- Update: ROADMAP.md, STATE.md
 
 Proceed? (y/n)
 ```
 
-## Step 7: Delete Phase Directory
+Wait for confirmation.
+</step>
+
+<step name="execute_removal">
+**Delegate the entire removal operation to gsd-tools:**
 
 ```bash
-if [ -d ".planning/phases/{target}-{slug}" ]; then
-  rm -rf ".planning/phases/{target}-{slug}"
-fi
+RESULT=$(node ./.claude/get-shit-done/bin/gsd-tools.js phase remove "${target}")
 ```
 
-## Step 8: Renumber Directories
+If the phase has executed plans (SUMMARY.md files), gsd-tools will error. Use `--force` only if the user confirms:
 
-Process in descending order to avoid overwrites:
 ```bash
-mv ".planning/phases/20-name" ".planning/phases/19-name"
-mv ".planning/phases/19-name" ".planning/phases/18-name"
-mv ".planning/phases/18-name" ".planning/phases/17-name"
+RESULT=$(node ./.claude/get-shit-done/bin/gsd-tools.js phase remove "${target}" --force)
 ```
 
-Handle decimal directories:
-- `17.1-fix-bug` → `16.1-fix-bug` (if removing integer 17)
-- `17.2-hotfix` → `17.1-hotfix` (if removing decimal 17.1)
+The CLI handles:
+- Deleting the phase directory
+- Renumbering all subsequent directories (in reverse order to avoid conflicts)
+- Renaming all files inside renumbered directories (PLAN.md, SUMMARY.md, etc.)
+- Updating ROADMAP.md (removing section, renumbering all phase references, updating dependencies)
+- Updating STATE.md (decrementing phase count)
 
-## Step 9: Rename Files in Directories
+Extract from result: `removed`, `directory_deleted`, `renamed_directories`, `renamed_files`, `roadmap_updated`, `state_updated`.
+</step>
 
-Inside each renumbered directory:
+<step name="commit">
+Stage and commit the removal:
+
 ```bash
-mv "18-01-PLAN.md" "17-01-PLAN.md"
-mv "18-02-PLAN.md" "17-02-PLAN.md"
+node ./.claude/get-shit-done/bin/gsd-tools.js commit "chore: remove phase {target} ({original-phase-name})" --files .planning/
 ```
 
-## Step 10: Update ROADMAP.md
+The commit message preserves the historical record of what was removed.
+</step>
 
-1. Remove the phase section entirely
-2. Remove from phase list
-3. Remove from Progress table
-4. Renumber all subsequent phases in headings, lists, tables
-5. Update dependency references
-
-## Step 11: Update STATE.md
-
-Update total phase count and progress percentage.
-Do NOT add "Roadmap Evolution" note — git commit is the record.
-
-## Step 12: Update File Contents
-
-Search for and update internal phase references:
-```bash
-grep -r "Phase 18" .planning/phases/17-*/
-```
-
-## Step 13: Commit
-
-@./.claude/get-shit-done/references/git-planning-commit.md
-
-If committing:
-```bash
-git add .planning/
-git commit -m "chore: remove phase {target} ({original-name})"
-```
-
-## Step 14: Completion
+<step name="completion">
+Present completion summary:
 
 ```
-Phase {target} ({name}) removed.
+Phase {target} ({original-name}) removed.
 
 Changes:
 - Deleted: .planning/phases/{target}-{slug}/
-- Renumbered: Phases {X}-{Y} → {X-1}-{Y-1}
+- Renumbered: {N} directories and {M} files
 - Updated: ROADMAP.md, STATE.md
-- Committed: chore: remove phase {target}
-
-Current roadmap: {total} phases
-Current position: Phase {current} of {new-total}
+- Committed: chore: remove phase {target} ({original-name})
 
 ---
 
 ## What's Next
 
-- /gsd:progress — see updated status
+Would you like to:
+- `/gsd:progress` — see updated roadmap status
 - Continue with current phase
+- Review roadmap
+
+---
 ```
+</step>
 
 </process>
 
 <anti_patterns>
-- Don't remove completed phases (have SUMMARY.md)
+
+- Don't remove completed phases (have SUMMARY.md files) without --force
 - Don't remove current or past phases
-- Don't leave gaps in numbering
-- Don't add "removed phase" notes to STATE.md
+- Don't manually renumber — use `gsd-tools phase remove` which handles all renumbering
+- Don't add "removed phase" notes to STATE.md — git commit is the record
 - Don't modify completed phase directories
 </anti_patterns>
+
+<success_criteria>
+Phase removal is complete when:
+
+- [ ] Target phase validated as future/unstarted
+- [ ] `gsd-tools phase remove` executed successfully
+- [ ] Changes committed with descriptive message
+- [ ] User informed of changes
+</success_criteria>

@@ -1,104 +1,124 @@
 <purpose>
-Execute small, ad-hoc tasks with GSD guarantees (atomic commits, STATE.md tracking) while skipping optional agents.
-
-Quick mode is the same system with a shorter path:
-- Spawns gsd-planner (quick mode) + gsd-executor(s)
-- Skips research, plan-checker, verifier
-- Quick tasks live in `.planning/quick/` separate from planned phases
-- Updates STATE.md "Quick Tasks Completed" table
+Execute small, ad-hoc tasks with GSD guarantees (atomic commits, STATE.md tracking) while skipping optional agents (research, plan-checker, verifier). Quick mode spawns gsd-planner (quick mode) + gsd-executor(s), tracks tasks in `.planning/quick/`, and updates STATE.md's "Quick Tasks Completed" table.
 </purpose>
 
+<required_reading>
+Read all files referenced by the invoking prompt's execution_context before starting.
+</required_reading>
+
 <process>
+**Step 1: Get task description**
 
-## Step 0: Resolve Model Profile
-
-@./.claude/get-shit-done/references/model-profile-resolution.md
-
-Resolve models for:
-- `gsd-planner`
-- `gsd-executor`
-
-## Step 1: Pre-flight Validation
-
-```bash
-if [ ! -f .planning/ROADMAP.md ]; then
-  echo "Quick mode requires an active project with ROADMAP.md."
-  echo "Run /gsd:new-project first."
-  exit 1
-fi
-```
-
-## Step 2: Get Task Description
+Prompt user interactively for the task description:
 
 ```
 AskUserQuestion(
   header: "Quick Task",
-  question: "What do you want to do?"
+  question: "What do you want to do?",
+  followUp: null
 )
 ```
 
-Store as `$DESCRIPTION`.
+Store response as `$DESCRIPTION`.
 
-Generate slug:
+If empty, re-prompt: "Please provide a task description."
+
+---
+
+**Step 2: Initialize**
+
 ```bash
-slug=$(echo "$DESCRIPTION" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//;s/-$//' | cut -c1-40)
+INIT=$(node ./.claude/get-shit-done/bin/gsd-tools.js init quick "$DESCRIPTION")
 ```
 
-## Step 3: Calculate Next Number
+Parse JSON for: `planner_model`, `executor_model`, `commit_docs`, `next_num`, `slug`, `date`, `timestamp`, `quick_dir`, `task_dir`, `roadmap_exists`, `planning_exists`.
+
+**If `roadmap_exists` is false:** Error — Quick mode requires an active project with ROADMAP.md. Run `/gsd:new-project` first.
+
+Quick tasks can run mid-phase - validation only checks ROADMAP.md exists, not phase status.
+
+---
+
+**Step 3: Create task directory**
 
 ```bash
-mkdir -p .planning/quick
-last=$(ls -1d .planning/quick/[0-9][0-9][0-9]-* 2>/dev/null | sort -r | head -1 | xargs -I{} basename {} | grep -oE '^[0-9]+')
-if [ -z "$last" ]; then
-  next_num="001"
-else
-  next_num=$(printf "%03d" $((10#$last + 1)))
-fi
+mkdir -p "${task_dir}"
 ```
 
-## Step 4: Create Directory
+---
+
+**Step 4: Create quick task directory**
+
+Create the directory for this quick task:
 
 ```bash
 QUICK_DIR=".planning/quick/${next_num}-${slug}"
 mkdir -p "$QUICK_DIR"
 ```
 
-Report: `Creating quick task ${next_num}: ${DESCRIPTION}`
+Report to user:
+```
+Creating quick task ${next_num}: ${DESCRIPTION}
+Directory: ${QUICK_DIR}
+```
 
-## Step 5: Spawn Planner
+Store `$QUICK_DIR` for use in orchestration.
+
+---
+
+**Step 5: Spawn planner (quick mode)**
+
+Spawn gsd-planner with quick mode context:
 
 ```
 Task(
-  prompt="<planning_context>
+  prompt="
+<planning_context>
+
 **Mode:** quick
 **Directory:** ${QUICK_DIR}
 **Description:** ${DESCRIPTION}
 
-**Project State:** @.planning/STATE.md
+**Project State:**
+@.planning/STATE.md
+
 </planning_context>
 
 <constraints>
 - Create a SINGLE plan with 1-3 focused tasks
-- Quick tasks are atomic and self-contained
-- Target ~30% context usage
+- Quick tasks should be atomic and self-contained
+- No research phase, no checker phase
+- Target ~30% context usage (simple, focused)
 </constraints>
 
 <output>
 Write plan to: ${QUICK_DIR}/${next_num}-PLAN.md
-Return: ## PLANNING COMPLETE
-</output>",
+Return: ## PLANNING COMPLETE with plan path
+</output>
+",
   subagent_type="gsd-planner",
-  model="{planner_model}"
+  model="{planner_model}",
+  description="Quick plan: ${DESCRIPTION}"
 )
 ```
 
-Verify plan exists.
+After planner returns:
+1. Verify plan exists at `${QUICK_DIR}/${next_num}-PLAN.md`
+2. Extract plan count (typically 1 for quick tasks)
+3. Report: "Plan created: ${QUICK_DIR}/${next_num}-PLAN.md"
 
-## Step 6: Spawn Executor
+If plan not found, error: "Planner failed to create ${next_num}-PLAN.md"
+
+---
+
+**Step 6: Spawn executor**
+
+Spawn gsd-executor with plan reference:
 
 ```
 Task(
-  prompt="Execute quick task ${next_num}.
+  prompt="
+Execute quick task ${next_num}.
 
 Plan: @${QUICK_DIR}/${next_num}-PLAN.md
 Project state: @.planning/STATE.md
@@ -107,20 +127,39 @@ Project state: @.planning/STATE.md
 - Execute all tasks in the plan
 - Commit each task atomically
 - Create summary at: ${QUICK_DIR}/${next_num}-SUMMARY.md
-- Do NOT update ROADMAP.md
-</constraints>",
+- Do NOT update ROADMAP.md (quick tasks are separate from planned phases)
+</constraints>
+",
   subagent_type="gsd-executor",
-  model="{executor_model}"
+  model="{executor_model}",
+  description="Execute: ${DESCRIPTION}"
 )
 ```
 
-Verify summary exists.
+After executor returns:
+1. Verify summary exists at `${QUICK_DIR}/${next_num}-SUMMARY.md`
+2. Extract commit hash from executor output
+3. Report completion status
 
-## Step 7: Update STATE.md
+**Known Claude Code bug (classifyHandoffIfNeeded):** If executor reports "failed" with error `classifyHandoffIfNeeded is not defined`, this is a Claude Code runtime bug — not a real failure. Check if summary file exists and git log shows commits. If so, treat as successful.
 
-**Check for "Quick Tasks Completed" section:**
+If summary not found, error: "Executor failed to create ${next_num}-SUMMARY.md"
 
-If missing, insert after `### Blockers/Concerns`:
+Note: For quick tasks producing multiple plans (rare), spawn executors in parallel waves per execute-phase patterns.
+
+---
+
+**Step 7: Update STATE.md**
+
+Update STATE.md with quick task completion record.
+
+**7a. Check if "Quick Tasks Completed" section exists:**
+
+Read STATE.md and check for `### Quick Tasks Completed` section.
+
+**7b. If section doesn't exist, create it:**
+
+Insert after `### Blockers/Concerns` section:
 
 ```markdown
 ### Quick Tasks Completed
@@ -129,33 +168,63 @@ If missing, insert after `### Blockers/Concerns`:
 |---|-------------|------|--------|-----------|
 ```
 
-**Append row:**
+**7c. Append new row to table:**
+
+Use `date` from init:
 ```markdown
-| ${next_num} | ${DESCRIPTION} | $(date +%Y-%m-%d) | ${commit_hash} | [${next_num}-${slug}](./quick/${next_num}-${slug}/) |
+| ${next_num} | ${DESCRIPTION} | ${date} | ${commit_hash} | [${next_num}-${slug}](./quick/${next_num}-${slug}/) |
 ```
 
-**Update "Last activity" line.**
+**7d. Update "Last activity" line:**
 
-## Step 8: Final Commit
+Use `date` from init:
+```
+Last activity: ${date} - Completed quick task ${next_num}: ${DESCRIPTION}
+```
 
-@./.claude/get-shit-done/references/git-planning-commit.md
+Use Edit tool to make these changes atomically
+
+---
+
+**Step 8: Final commit and completion**
+
+Stage and commit quick task artifacts:
 
 ```bash
-git add ${QUICK_DIR}/${next_num}-PLAN.md
-git add ${QUICK_DIR}/${next_num}-SUMMARY.md
-git add .planning/STATE.md
-git commit -m "docs(quick-${next_num}): ${DESCRIPTION}"
+node ./.claude/get-shit-done/bin/gsd-tools.js commit "docs(quick-${next_num}): ${DESCRIPTION}" --files ${QUICK_DIR}/${next_num}-PLAN.md ${QUICK_DIR}/${next_num}-SUMMARY.md .planning/STATE.md
 ```
 
-Display completion:
+Get final commit hash:
+```bash
+commit_hash=$(git rev-parse --short HEAD)
 ```
-GSD ► QUICK TASK COMPLETE
+
+Display completion output:
+```
+---
+
+GSD > QUICK TASK COMPLETE
 
 Quick Task ${next_num}: ${DESCRIPTION}
+
 Summary: ${QUICK_DIR}/${next_num}-SUMMARY.md
 Commit: ${commit_hash}
 
-Ready for next: /gsd:quick
+---
+
+Ready for next task: /gsd:quick
 ```
 
 </process>
+
+<success_criteria>
+- [ ] ROADMAP.md validation passes
+- [ ] User provides task description
+- [ ] Slug generated (lowercase, hyphens, max 40 chars)
+- [ ] Next number calculated (001, 002, 003...)
+- [ ] Directory created at `.planning/quick/NNN-slug/`
+- [ ] `${next_num}-PLAN.md` created by planner
+- [ ] `${next_num}-SUMMARY.md` created by executor
+- [ ] STATE.md updated with quick task row
+- [ ] Artifacts committed
+</success_criteria>
