@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Production Infrastructure** - Docker deployment with persistent storage
 - [x] **Phase 2: Article Reading UI** - Browse and read articles with theme support
-- [ ] **Phase 3: Feed Management** - Add and remove feed subscriptions
+- [x] **Phase 3: Feed Management** - Add and remove feed subscriptions
 - [ ] **Phase 4: LLM Content Curation** - Automatic interest scoring with Ollama
 - [ ] **Phase 5: Interest-Driven UI** - Visual presentation by relevance
 
@@ -64,10 +64,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Backend feed CRUD endpoints (model updates, API, cascade delete, unread counts)
-- [ ] 03-02-PLAN.md — Frontend data layer, sidebar with feed list, mobile drawer, add feed dialog
-- [ ] 03-03-PLAN.md — Feed row interactions (drag-reorder, hover/swipe actions, delete, rename, mark-all-read)
-- [ ] 03-04-PLAN.md — Human verification checkpoint for complete feed management flow
+- [x] 03-01-PLAN.md — Backend feed CRUD endpoints (model updates, API, cascade delete, unread counts)
+- [x] 03-02-PLAN.md — Frontend data layer, sidebar with feed list, mobile drawer, add feed dialog
+- [x] 03-03-PLAN.md — Feed row interactions (drag-reorder, hover/swipe actions, delete, rename, mark-all-read)
+- [x] 03-04-PLAN.md — Human verification checkpoint for complete feed management flow
 
 ### Phase 4: LLM Content Curation
 **Goal**: Articles are automatically scored by local LLM based on user interests
@@ -105,6 +105,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Production Infrastructure | 3/3 | ✓ Complete | 2026-02-05 |
 | 2. Article Reading UI | 4/4 | ✓ Complete | 2026-02-07 |
-| 3. Feed Management | 0/4 | Planned | - |
+| 3. Feed Management | 4/4 | ✓ Complete | 2026-02-10 |
 | 4. LLM Content Curation | 0/TBD | Not started | - |
 | 5. Interest-Driven UI | 0/TBD | Not started | - |
