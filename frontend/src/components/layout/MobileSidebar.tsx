@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Flex, IconButton, Text, Badge, Drawer } from "@chakra-ui/react";
-import { LuPlus, LuX } from "react-icons/lu";
+import { Box, Flex, Button, Text, Badge, CloseButton, Drawer } from "@chakra-ui/react";
+import { LuPlus } from "react-icons/lu";
 import { useFeeds } from "@/hooks/useFeeds";
 import {
   useDeleteFeed,
@@ -70,25 +70,11 @@ export function MobileSidebar({
       <Drawer.Positioner>
         <Drawer.Content>
           <Drawer.Header>
-            <Flex alignItems="center" justifyContent="space-between" width="100%">
-              <Drawer.Title>Feeds</Drawer.Title>
-              <Flex gap={2}>
-                <IconButton
-                  aria-label="Add feed"
-                  onClick={onAddFeedClick}
-                  size="sm"
-                  variant="ghost"
-                >
-                  <LuPlus />
-                </IconButton>
-                <Drawer.CloseTrigger asChild>
-                  <IconButton aria-label="Close sidebar" size="sm" variant="ghost">
-                    <LuX />
-                  </IconButton>
-                </Drawer.CloseTrigger>
-              </Flex>
-            </Flex>
+            <Drawer.Title>Feeds</Drawer.Title>
           </Drawer.Header>
+          <Drawer.CloseTrigger asChild>
+            <CloseButton size="sm" />
+          </Drawer.CloseTrigger>
 
           <Drawer.Body>
             {isLoading ? (
@@ -142,6 +128,11 @@ export function MobileSidebar({
               <EmptyFeedState />
             )}
           </Drawer.Body>
+          <Drawer.Footer>
+            <Button variant="outline" width="100%" onClick={onAddFeedClick}>
+              <LuPlus /> Add feed
+            </Button>
+          </Drawer.Footer>
         </Drawer.Content>
       </Drawer.Positioner>
 
