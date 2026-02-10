@@ -35,6 +35,12 @@ export const system = createSystem(defaultConfig, {
       maxWidth: "100vw",
       overflowX: "hidden",
     },
+    a: {
+      color: "{colors.accent.500}",
+      _hover: {
+        color: "{colors.accent.400}",
+      },
+    },
   },
 })
 
