@@ -78,10 +78,14 @@ Plans:
   2. User can write prose-style preferences describing their interests in natural language
   3. System applies keyword filters before LLM scoring to reduce processing load
   4. Articles are auto-categorized by topic (tags visible in article metadata)
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] TBD
+- [ ] 04-01-PLAN.md — Backend data models, preferences/categories API, Ollama Docker service (Wave 1)
+- [ ] 04-02-PLAN.md — LLM scoring engine: prompts, two-step pipeline, queue, scheduler (Wave 2)
+- [ ] 04-03-PLAN.md — Settings page UI with preferences editor and topic weights (Wave 2)
+- [ ] 04-04-PLAN.md — Article UI: tag chips, scoring state indicators, quick-block/boost (Wave 3)
+- [ ] 04-05-PLAN.md — Human verification checkpoint for complete LLM curation flow (Wave 4)
 
 ### Phase 5: Interest-Driven UI
 **Goal**: Articles are visually presented by relevance based on LLM scores
@@ -106,5 +110,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Production Infrastructure | 3/3 | ✓ Complete | 2026-02-05 |
 | 2. Article Reading UI | 4/4 | ✓ Complete | 2026-02-07 |
 | 3. Feed Management | 4/4 | ✓ Complete | 2026-02-10 |
-| 4. LLM Content Curation | 0/TBD | Not started | - |
+| 4. LLM Content Curation | 0/5 | Planning complete | - |
 | 5. Interest-Driven UI | 0/TBD | Not started | - |
