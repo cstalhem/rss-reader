@@ -11,6 +11,7 @@ class Feed(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     url: str = Field(unique=True, index=True)
     title: str
+    display_order: int = Field(default=0)
     last_fetched_at: datetime | None = None
 
 
@@ -20,7 +21,7 @@ class Article(SQLModel, table=True):
     __tablename__ = "articles"
 
     id: int | None = Field(default=None, primary_key=True)
-    feed_id: int = Field(foreign_key="feeds.id", index=True)
+    feed_id: int = Field(foreign_key="feeds.id", index=True, ondelete="CASCADE")
     title: str
     url: str = Field(unique=True, index=True)
     author: str | None = None

@@ -23,6 +23,7 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
     by allowing concurrent reads while writing.
     """
     cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")  # Enable CASCADE delete
     cursor.execute("PRAGMA journal_mode=WAL")
     cursor.execute("PRAGMA synchronous=NORMAL")  # Performance optimization
     cursor.execute("PRAGMA cache_size=-64000")  # 64MB cache
