@@ -3,19 +3,15 @@ import { colorTokens, semanticTokens } from "./colors"
 import { fontTokens, textStyles } from "./typography"
 
 const buttonRecipe = defineRecipe({
-  base: {},
   variants: {
     size: {
       sm: {
-        px: "4",  // was 3.5 in Chakra default
+        px: "4",
       },
       md: {
-        px: "5",  // was 4 in Chakra default
+        px: "5",
       },
     },
-  },
-  defaultVariants: {
-    colorPalette: "accent",
   },
 })
 
