@@ -126,6 +126,7 @@ export function FeedRow({
       ref={mergedRef}
       style={style}
       position="relative"
+      overflow="hidden"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onMouseDown={swipeHandlers.onMouseDown}
@@ -218,8 +219,10 @@ export function FeedRow({
               top="50%"
               transform="translateY(-50%)"
               gap={1}
-              opacity={1}
-              transition="opacity 0.2s ease"
+              bg="bg.subtle"
+              borderRadius="md"
+              px={1}
+              py={0.5}
             >
               <IconButton
                 aria-label="Mark all as read"

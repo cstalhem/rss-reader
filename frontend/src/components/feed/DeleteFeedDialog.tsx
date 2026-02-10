@@ -22,7 +22,7 @@ export function DeleteFeedDialog({
   };
 
   return (
-    <Dialog.Root open={!!feed} onOpenChange={({ open }) => !open && onClose()}>
+    <Dialog.Root open={!!feed} onOpenChange={({ open }) => !open && onClose()} placement="center">
       <Dialog.Backdrop />
       <Dialog.Positioner>
         <Dialog.Content>
