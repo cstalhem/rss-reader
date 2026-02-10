@@ -61,10 +61,13 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. User can add a new RSS feed by entering its URL and see articles from that feed appear
   2. User can remove an existing feed subscription and see its articles disappear from the list
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] TBD
+- [ ] 03-01-PLAN.md — Backend feed CRUD endpoints (model updates, API, cascade delete, unread counts)
+- [ ] 03-02-PLAN.md — Frontend data layer, sidebar with feed list, mobile drawer, add feed dialog
+- [ ] 03-03-PLAN.md — Feed row interactions (drag-reorder, hover/swipe actions, delete, rename, mark-all-read)
+- [ ] 03-04-PLAN.md — Human verification checkpoint for complete feed management flow
 
 ### Phase 4: LLM Content Curation
 **Goal**: Articles are automatically scored by local LLM based on user interests
@@ -102,6 +105,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Production Infrastructure | 3/3 | ✓ Complete | 2026-02-05 |
 | 2. Article Reading UI | 4/4 | ✓ Complete | 2026-02-07 |
-| 3. Feed Management | 0/TBD | Not started | - |
+| 3. Feed Management | 0/4 | Planned | - |
 | 4. LLM Content Curation | 0/TBD | Not started | - |
 | 5. Interest-Driven UI | 0/TBD | Not started | - |
