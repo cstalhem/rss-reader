@@ -7,16 +7,24 @@ import { Article } from "@/lib/types";
 
 interface UseArticlesOptions {
   showAll?: boolean;
+  feedId?: number;
 }
 
 export function useArticles(options: UseArticlesOptions = {}) {
-  const { showAll = false } = options;
+  const { showAll = false, feedId } = options;
   const [limit, setLimit] = useState(50);
 
   const query = useQuery({
-    queryKey: ["articles", { is_read: showAll ? undefined : false, limit }],
+    queryKey: [
+      "articles",
+      { is_read: showAll ? undefined : false, limit, feed_id: feedId },
+    ],
     queryFn: () =>
-      fetchArticles({ is_read: showAll ? undefined : false, limit }),
+      fetchArticles({
+        is_read: showAll ? undefined : false,
+        limit,
+        feed_id: feedId,
+      }),
   });
 
   const loadMore = () => {

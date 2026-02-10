@@ -15,4 +15,6 @@ export interface Feed {
   url: string;
   title: string;
   last_fetched_at: string | null;
+  display_order: number;
+  unread_count: number;
 }
