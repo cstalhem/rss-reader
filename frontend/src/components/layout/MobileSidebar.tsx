@@ -129,7 +129,7 @@ export function MobileSidebar({
             )}
           </Drawer.Body>
           <Drawer.Footer>
-            <Button variant="outline" width="100%" onClick={onAddFeedClick}>
+            <Button variant="outline" width="100%" onClick={onAddFeedClick} colorPalette="accent">
               <LuPlus /> Add feed
             </Button>
           </Drawer.Footer>

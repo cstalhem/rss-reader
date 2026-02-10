@@ -155,6 +155,7 @@ export function Sidebar({
                 onClick={onAddFeedClick}
                 size="sm"
                 variant="ghost"
+                colorPalette="accent"
               >
                 <LuPlus />
               </IconButton>
