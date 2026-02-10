@@ -27,6 +27,7 @@ import {
 } from "@/hooks/useFeedMutations";
 import { EmptyFeedState } from "@/components/feed/EmptyFeedState";
 import { FeedRow } from "@/components/feed/FeedRow";
+import { DeleteFeedDialog } from "@/components/feed/DeleteFeedDialog";
 import { Feed } from "@/lib/types";
 
 interface SidebarProps {
@@ -224,6 +225,13 @@ export function Sidebar({
           </Flex>
         )}
       </Flex>
+
+      {/* Delete confirmation dialog */}
+      <DeleteFeedDialog
+        feed={feedToDelete}
+        onClose={() => setFeedToDelete(null)}
+        onConfirm={handleDeleteConfirm}
+      />
     </Box>
   );
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Box, Flex, Button, Text, Skeleton, Stack } from "@chakra-ui/react";
 import { useArticles, useMarkAsRead } from "@/hooks/useArticles";
+import { useMarkAllRead } from "@/hooks/useFeedMutations";
 import { ArticleRow } from "./ArticleRow";
 import { ArticleReader } from "./ArticleReader";
 import { Article } from "@/lib/types";
@@ -20,6 +21,7 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
     feedId: selectedFeedId ?? undefined,
   });
   const markAsRead = useMarkAsRead();
+  const markAllRead = useMarkAllRead();
 
   const handleToggleRead = (article: Article) => {
     markAsRead.mutate({
@@ -30,6 +32,12 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
 
   const handleSelect = (article: Article) => {
     setSelectedArticle(article);
+  };
+
+  const handleMarkAllAsRead = () => {
+    if (selectedFeedId) {
+      markAllRead.mutate(selectedFeedId);
+    }
   };
 
   const articleCount = articles?.length ?? 0;
@@ -65,6 +73,16 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
           >
             All
           </Button>
+          {selectedFeedId && articleCount > 0 && !showAll && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleMarkAllAsRead}
+              disabled={markAllRead.isPending}
+            >
+              Mark all read
+            </Button>
+          )}
         </Flex>
 
         <Text fontSize="sm" color="fg.muted">

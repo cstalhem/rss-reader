@@ -11,6 +11,7 @@ import {
 } from "@/hooks/useFeedMutations";
 import { EmptyFeedState } from "@/components/feed/EmptyFeedState";
 import { FeedRow } from "@/components/feed/FeedRow";
+import { DeleteFeedDialog } from "@/components/feed/DeleteFeedDialog";
 import { Feed } from "@/lib/types";
 
 interface MobileSidebarProps {
@@ -143,6 +144,13 @@ export function MobileSidebar({
           </Drawer.Body>
         </Drawer.Content>
       </Drawer.Positioner>
+
+      {/* Delete confirmation dialog */}
+      <DeleteFeedDialog
+        feed={feedToDelete}
+        onClose={() => setFeedToDelete(null)}
+        onConfirm={handleDeleteConfirm}
+      />
     </Drawer.Root>
   );
 }
