@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter, Lora } from "next/font/google";
 import { Provider } from "@/components/ui/provider";
 import { QueryProvider } from "./providers";
-import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],

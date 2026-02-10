@@ -16,6 +16,8 @@ export const system = createSystem(defaultConfig, {
   globalCss: {
     "html, body": {
       colorScheme: "dark",
+      maxWidth: "100vw",
+      overflowX: "hidden",
     },
   },
 })
