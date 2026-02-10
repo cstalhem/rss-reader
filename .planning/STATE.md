@@ -79,6 +79,8 @@ Recent decisions affecting current work:
 - [Quick-03]: Use defineRecipe to override Chakra component defaults (button: orange accent, increased padding)
 - [Quick-04]: Complete semantic token set (solid, contrast, focusRing) required for Chakra v3 colorPalette resolution
 - [Quick-04]: Global link styling via globalCss — accent.500 default, accent.400 on hover
+- [Quick-05]: All CTA/add-feed buttons use colorPalette="accent" for design system consistency
+- [Quick-05]: ArticleReader inherits global link colors — only adds textDecoration: underline locally
 
 ### Pending Todos
 
