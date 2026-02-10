@@ -1,15 +1,16 @@
 import logging
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from backend.config import get_settings
 from backend.database import create_db_and_tables, get_session
-from backend.feeds import refresh_feed
+from backend.feeds import fetch_feed, refresh_feed, save_articles
 from backend.models import Article, Feed
 from backend.scheduler import shutdown_scheduler, start_scheduler
 
@@ -22,13 +23,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Hardcoded feed URL for MVP
-HARDCODED_FEED_URL = "https://simonwillison.net/atom/everything/"
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize database and seed data on startup."""
+    """Initialize database and scheduler on startup."""
     logger.info("Starting up...")
 
     # Ensure data directory exists (extract from database path)
@@ -38,23 +36,6 @@ async def lifespan(app: FastAPI):
 
     # Create tables
     create_db_and_tables()
-
-    # Seed the hardcoded feed if it doesn't exist
-    with next(get_session()) as session:
-        existing_feed = session.exec(
-            select(Feed).where(Feed.url == HARDCODED_FEED_URL)
-        ).first()
-
-        if not existing_feed:
-            feed = Feed(
-                url=HARDCODED_FEED_URL,
-                title="Simon Willison's Weblog",
-            )
-            session.add(feed)
-            session.commit()
-            logger.info(f"Seeded feed: {feed.title}")
-        else:
-            logger.info(f"Feed already exists: {existing_feed.title}")
 
     # Start the scheduler
     start_scheduler()
@@ -96,6 +77,28 @@ class RefreshResponse(BaseModel):
     new_articles: int
 
 
+class FeedCreate(BaseModel):
+    url: str
+
+
+class FeedUpdate(BaseModel):
+    title: str | None = None
+    display_order: int | None = None
+
+
+class FeedReorder(BaseModel):
+    feed_ids: list[int]
+
+
+class FeedResponse(BaseModel):
+    id: int
+    url: str
+    title: str
+    display_order: int
+    last_fetched_at: datetime | None
+    unread_count: int
+
+
 # API Endpoints
 
 
@@ -110,6 +113,7 @@ def list_articles(
     skip: int = 0,
     limit: int = 50,
     is_read: bool | None = None,
+    feed_id: int | None = None,
     session: Session = Depends(get_session),
 ):
     """
@@ -119,11 +123,15 @@ def list_articles(
         skip: Number of articles to skip (default: 0)
         limit: Maximum number of articles to return (default: 50)
         is_read: Filter by read status (optional). If not provided, returns all articles.
+        feed_id: Filter by feed ID (optional). If not provided, returns articles from all feeds.
     """
     statement = select(Article).order_by(Article.published_at.desc())
 
     if is_read is not None:
         statement = statement.where(Article.is_read == is_read)
+
+    if feed_id is not None:
+        statement = statement.where(Article.feed_id == feed_id)
 
     statement = statement.offset(skip).limit(limit)
     articles = session.exec(statement).all()
@@ -162,6 +170,216 @@ def update_article(
     session.refresh(article)
 
     return article
+
+
+@app.get("/api/feeds", response_model=list[FeedResponse])
+def list_feeds(
+    session: Session = Depends(get_session),
+):
+    """List all feeds with unread count, ordered by display_order."""
+    feeds = session.exec(
+        select(Feed).order_by(Feed.display_order, Feed.id)
+    ).all()
+
+    # Build response with unread counts
+    feed_responses = []
+    for feed in feeds:
+        unread_count = session.exec(
+            select(func.count(Article.id))
+            .where(Article.feed_id == feed.id)
+            .where(Article.is_read == False)
+        ).one()
+
+        feed_responses.append(
+            FeedResponse(
+                id=feed.id,
+                url=feed.url,
+                title=feed.title,
+                display_order=feed.display_order,
+                last_fetched_at=feed.last_fetched_at,
+                unread_count=unread_count,
+            )
+        )
+
+    return feed_responses
+
+
+@app.post("/api/feeds", response_model=FeedResponse, status_code=201)
+async def create_feed(
+    feed_create: FeedCreate,
+    session: Session = Depends(get_session),
+):
+    """Create a new feed by URL, validate it, and fetch initial articles."""
+    url = feed_create.url.strip()
+
+    # Validate URL format
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid URL format. Must start with http:// or https://",
+        )
+
+    # Check for duplicate URL
+    existing_feed = session.exec(
+        select(Feed).where(Feed.url == url)
+    ).first()
+
+    if existing_feed:
+        raise HTTPException(
+            status_code=400,
+            detail="Feed with this URL already exists",
+        )
+
+    # Fetch and validate the feed
+    try:
+        parsed_feed = await fetch_feed(url)
+
+        # Check if feed is valid and has entries
+        if parsed_feed.bozo and not parsed_feed.entries:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid RSS feed or feed has no entries: {parsed_feed.get('bozo_exception', 'Unknown error')}",
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to fetch feed {url}: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to fetch feed: {str(e)}",
+        )
+
+    # Get max display_order for new feed
+    max_order_result = session.exec(
+        select(func.max(Feed.display_order))
+    ).one()
+    next_order = (max_order_result or 0) + 1
+
+    # Create feed
+    feed_title = parsed_feed.feed.get("title", "Untitled Feed")
+    feed = Feed(
+        url=url,
+        title=feed_title,
+        display_order=next_order,
+        last_fetched_at=datetime.now(),
+    )
+    session.add(feed)
+    session.commit()
+    session.refresh(feed)
+
+    # Save initial articles
+    article_count = save_articles(session, feed.id, parsed_feed.entries)
+    logger.info(f"Created feed {feed.title} with {article_count} articles")
+
+    # Return feed with unread count
+    return FeedResponse(
+        id=feed.id,
+        url=feed.url,
+        title=feed.title,
+        display_order=feed.display_order,
+        last_fetched_at=feed.last_fetched_at,
+        unread_count=article_count,
+    )
+
+
+@app.patch("/api/feeds/reorder")
+def reorder_feeds(
+    feed_reorder: FeedReorder,
+    session: Session = Depends(get_session),
+):
+    """Reorder feeds by updating display_order based on provided feed_ids order."""
+    for index, feed_id in enumerate(feed_reorder.feed_ids):
+        feed = session.get(Feed, feed_id)
+        if feed:
+            feed.display_order = index
+            session.add(feed)
+
+    session.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/feeds/{feed_id}")
+def delete_feed(
+    feed_id: int,
+    session: Session = Depends(get_session),
+):
+    """Delete a feed and all its articles (CASCADE)."""
+    feed = session.get(Feed, feed_id)
+
+    if not feed:
+        raise HTTPException(status_code=404, detail="Feed not found")
+
+    session.delete(feed)
+    session.commit()
+
+    return {"ok": True}
+
+
+@app.patch("/api/feeds/{feed_id}", response_model=FeedResponse)
+def update_feed(
+    feed_id: int,
+    feed_update: FeedUpdate,
+    session: Session = Depends(get_session),
+):
+    """Update feed title and/or display_order."""
+    feed = session.get(Feed, feed_id)
+
+    if not feed:
+        raise HTTPException(status_code=404, detail="Feed not found")
+
+    # Update only non-None fields
+    if feed_update.title is not None:
+        feed.title = feed_update.title
+
+    if feed_update.display_order is not None:
+        feed.display_order = feed_update.display_order
+
+    session.add(feed)
+    session.commit()
+    session.refresh(feed)
+
+    # Calculate unread count for response
+    unread_count = session.exec(
+        select(func.count(Article.id))
+        .where(Article.feed_id == feed.id)
+        .where(Article.is_read == False)
+    ).one()
+
+    return FeedResponse(
+        id=feed.id,
+        url=feed.url,
+        title=feed.title,
+        display_order=feed.display_order,
+        last_fetched_at=feed.last_fetched_at,
+        unread_count=unread_count,
+    )
+
+
+@app.post("/api/feeds/{feed_id}/mark-all-read")
+def mark_feed_read(
+    feed_id: int,
+    session: Session = Depends(get_session),
+):
+    """Mark all articles in a feed as read."""
+    feed = session.get(Feed, feed_id)
+
+    if not feed:
+        raise HTTPException(status_code=404, detail="Feed not found")
+
+    # Update all unread articles for this feed
+    articles = session.exec(
+        select(Article)
+        .where(Article.feed_id == feed_id)
+        .where(Article.is_read == False)
+    ).all()
+
+    count = len(articles)
+    for article in articles:
+        article.is_read = True
+        session.add(article)
+
+    session.commit()
+
+    return {"ok": True, "count": count}
 
 
 @app.post("/api/feeds/refresh", response_model=RefreshResponse)
