@@ -77,6 +77,8 @@ Recent decisions affecting current work:
 - [Quick-03]: Delete globals.css entirely — Chakra's @layer reset sufficient, unlayered CSS breaks recipes
 - [Quick-03]: All app-wide CSS in Chakra's globalCss for proper layering (no separate CSS files)
 - [Quick-03]: Use defineRecipe to override Chakra component defaults (button: orange accent, increased padding)
+- [Quick-04]: Complete semantic token set (solid, contrast, focusRing) required for Chakra v3 colorPalette resolution
+- [Quick-04]: Global link styling via globalCss — accent.500 default, accent.400 on hover
 
 ### Pending Todos
 
