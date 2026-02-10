@@ -1,9 +1,33 @@
 "use client";
 
+import { useState } from "react";
 import { Box, Flex, IconButton, Text, Badge } from "@chakra-ui/react";
 import { LuChevronLeft, LuChevronRight, LuPlus } from "react-icons/lu";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+  sortableKeyboardCoordinates,
+} from "@dnd-kit/sortable";
 import { useFeeds } from "@/hooks/useFeeds";
+import {
+  useReorderFeeds,
+  useDeleteFeed,
+  useMarkAllRead,
+  useUpdateFeed,
+} from "@/hooks/useFeedMutations";
 import { EmptyFeedState } from "@/components/feed/EmptyFeedState";
+import { FeedRow } from "@/components/feed/FeedRow";
+import { Feed } from "@/lib/types";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -21,9 +45,61 @@ export function Sidebar({
   onAddFeedClick,
 }: SidebarProps) {
   const { data: feeds, isLoading } = useFeeds();
+  const reorderFeeds = useReorderFeeds();
+  const deleteFeed = useDeleteFeed();
+  const markAllRead = useMarkAllRead();
+  const updateFeed = useUpdateFeed();
+
+  const [feedToDelete, setFeedToDelete] = useState<Feed | null>(null);
 
   // Calculate aggregate unread count
   const totalUnread = feeds?.reduce((sum, feed) => sum + feed.unread_count, 0) ?? 0;
+
+  // Configure drag sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // Prevent accidental drags on click
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || !feeds || active.id === over.id) return;
+
+    const oldIndex = feeds.findIndex((f) => f.id === active.id);
+    const newIndex = feeds.findIndex((f) => f.id === over.id);
+
+    const reorderedFeeds = arrayMove(feeds, oldIndex, newIndex);
+    const feedIds = reorderedFeeds.map((f) => f.id);
+
+    reorderFeeds.mutate(feedIds);
+  };
+
+  const handleDelete = (feed: Feed) => {
+    setFeedToDelete(feed);
+  };
+
+  const handleDeleteConfirm = (feedId: number) => {
+    deleteFeed.mutate(feedId);
+    if (selectedFeedId === feedId) {
+      onSelectFeed(null);
+    }
+    setFeedToDelete(null);
+  };
+
+  const handleMarkAllRead = (feedId: number) => {
+    markAllRead.mutate(feedId);
+  };
+
+  const handleRename = (id: number, title: string) => {
+    updateFeed.mutate({ id, data: { title } });
+  };
 
   return (
     <Box
@@ -117,45 +193,30 @@ export function Sidebar({
                   )}
                 </Flex>
 
-                {/* Feed rows */}
-                {feeds.map((feed) => (
-                  <Flex
-                    key={feed.id}
-                    alignItems="center"
-                    justifyContent="space-between"
-                    px={4}
-                    py={3}
-                    cursor="pointer"
-                    bg={
-                      selectedFeedId === feed.id
-                        ? "colorPalette.subtle"
-                        : "transparent"
-                    }
-                    _hover={{ bg: "bg.muted" }}
-                    onClick={() => onSelectFeed(feed.id)}
-                    borderLeftWidth="3px"
-                    borderLeftColor={
-                      selectedFeedId === feed.id
-                        ? "colorPalette.solid"
-                        : "transparent"
-                    }
+                {/* Feed rows with drag-to-reorder */}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={feeds.map((f) => f.id)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <Text
-                      fontSize="sm"
-                      fontWeight="medium"
-                      flex={1}
-                      truncate
-                      mr={2}
-                    >
-                      {feed.title}
-                    </Text>
-                    {feed.unread_count > 0 && (
-                      <Badge colorPalette="accent" size="sm">
-                        {feed.unread_count}
-                      </Badge>
-                    )}
-                  </Flex>
-                ))}
+                    {feeds.map((feed) => (
+                      <FeedRow
+                        key={feed.id}
+                        feed={feed}
+                        isSelected={selectedFeedId === feed.id}
+                        onSelect={onSelectFeed}
+                        onDelete={handleDelete}
+                        onMarkAllRead={handleMarkAllRead}
+                        onRename={handleRename}
+                        isDraggable={true}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               </Box>
             ) : (
               <EmptyFeedState />

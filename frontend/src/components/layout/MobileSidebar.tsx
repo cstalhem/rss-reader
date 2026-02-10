@@ -1,9 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { Box, Flex, IconButton, Text, Badge, Drawer } from "@chakra-ui/react";
 import { LuPlus, LuX } from "react-icons/lu";
 import { useFeeds } from "@/hooks/useFeeds";
+import {
+  useDeleteFeed,
+  useMarkAllRead,
+  useUpdateFeed,
+} from "@/hooks/useFeedMutations";
 import { EmptyFeedState } from "@/components/feed/EmptyFeedState";
+import { FeedRow } from "@/components/feed/FeedRow";
+import { Feed } from "@/lib/types";
 
 interface MobileSidebarProps {
   isOpen: boolean;
@@ -21,6 +29,11 @@ export function MobileSidebar({
   onAddFeedClick,
 }: MobileSidebarProps) {
   const { data: feeds, isLoading } = useFeeds();
+  const deleteFeed = useDeleteFeed();
+  const markAllRead = useMarkAllRead();
+  const updateFeed = useUpdateFeed();
+
+  const [feedToDelete, setFeedToDelete] = useState<Feed | null>(null);
 
   // Calculate aggregate unread count
   const totalUnread = feeds?.reduce((sum, feed) => sum + feed.unread_count, 0) ?? 0;
@@ -28,6 +41,26 @@ export function MobileSidebar({
   const handleFeedClick = (feedId: number | null) => {
     onSelectFeed(feedId);
     onClose();
+  };
+
+  const handleDelete = (feed: Feed) => {
+    setFeedToDelete(feed);
+  };
+
+  const handleDeleteConfirm = (feedId: number) => {
+    deleteFeed.mutate(feedId);
+    if (selectedFeedId === feedId) {
+      onSelectFeed(null);
+    }
+    setFeedToDelete(null);
+  };
+
+  const handleMarkAllRead = (feedId: number) => {
+    markAllRead.mutate(feedId);
+  };
+
+  const handleRename = (id: number, title: string) => {
+    updateFeed.mutate({ id, data: { title } });
   };
 
   return (
@@ -90,44 +123,18 @@ export function MobileSidebar({
                   )}
                 </Flex>
 
-                {/* Feed rows */}
+                {/* Feed rows with swipe actions */}
                 {feeds.map((feed) => (
-                  <Flex
+                  <FeedRow
                     key={feed.id}
-                    alignItems="center"
-                    justifyContent="space-between"
-                    px={4}
-                    py={3}
-                    cursor="pointer"
-                    bg={
-                      selectedFeedId === feed.id
-                        ? "colorPalette.subtle"
-                        : "transparent"
-                    }
-                    _hover={{ bg: "bg.muted" }}
-                    onClick={() => handleFeedClick(feed.id)}
-                    borderLeftWidth="3px"
-                    borderLeftColor={
-                      selectedFeedId === feed.id
-                        ? "colorPalette.solid"
-                        : "transparent"
-                    }
-                  >
-                    <Text
-                      fontSize="sm"
-                      fontWeight="medium"
-                      flex={1}
-                      truncate
-                      mr={2}
-                    >
-                      {feed.title}
-                    </Text>
-                    {feed.unread_count > 0 && (
-                      <Badge colorPalette="accent" size="sm">
-                        {feed.unread_count}
-                      </Badge>
-                    )}
-                  </Flex>
+                    feed={feed}
+                    isSelected={selectedFeedId === feed.id}
+                    onSelect={handleFeedClick}
+                    onDelete={handleDelete}
+                    onMarkAllRead={handleMarkAllRead}
+                    onRename={handleRename}
+                    isDraggable={false}
+                  />
                 ))}
               </Box>
             ) : (
