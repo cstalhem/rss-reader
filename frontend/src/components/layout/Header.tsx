@@ -1,9 +1,14 @@
-"use client"
+"use client";
 
-import { Box, Flex, Heading } from "@chakra-ui/react"
-import { ThemeToggle } from "@/components/ui/color-mode"
+import { Box, Flex, Heading, IconButton } from "@chakra-ui/react";
+import { LuMenu } from "react-icons/lu";
+import { ThemeToggle } from "@/components/ui/color-mode";
 
-export function Header() {
+interface HeaderProps {
+  onMenuToggle?: () => void;
+}
+
+export function Header({ onMenuToggle }: HeaderProps) {
   return (
     <Box
       as="header"
@@ -23,11 +28,24 @@ export function Header() {
         justifyContent="space-between"
         px={6}
       >
-        <Heading size="lg" fontWeight="semibold">
-          RSS Reader
-        </Heading>
+        <Flex alignItems="center" gap={3}>
+          {onMenuToggle && (
+            <IconButton
+              aria-label="Open menu"
+              onClick={onMenuToggle}
+              size="sm"
+              variant="ghost"
+              display={{ base: "flex", md: "none" }}
+            >
+              <LuMenu />
+            </IconButton>
+          )}
+          <Heading size="lg" fontWeight="semibold">
+            RSS Reader
+          </Heading>
+        </Flex>
         <ThemeToggle colorPalette="accent" />
       </Flex>
     </Box>
-  )
+  );
 }

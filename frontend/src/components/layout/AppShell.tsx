@@ -1,23 +1,44 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Box } from "@chakra-ui/react"
-import { Header } from "./Header"
-import { Sidebar } from "./Sidebar"
+import { useState, ReactNode } from "react";
+import { Box } from "@chakra-ui/react";
+import { Header } from "./Header";
+import { Sidebar } from "./Sidebar";
+import { MobileSidebar } from "./MobileSidebar";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 interface AppShellProps {
-  children: React.ReactNode
+  children: ((selectedFeedId: number | null) => ReactNode) | ReactNode;
 }
 
 export default function AppShell({ children }: AppShellProps) {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useLocalStorage(
+    "sidebar-collapsed",
+    false
+  );
+  const [selectedFeedId, setSelectedFeedId] = useState<number | null>(null);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   return (
     <Box minHeight="100vh" bg="bg">
-      <Header />
+      <Header onMenuToggle={() => setIsMobileSidebarOpen(true)} />
       <Sidebar
         isCollapsed={isSidebarCollapsed}
         onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        selectedFeedId={selectedFeedId}
+        onSelectFeed={setSelectedFeedId}
+        onAddFeedClick={() => setIsAddDialogOpen(true)}
+      />
+      <MobileSidebar
+        isOpen={isMobileSidebarOpen}
+        onClose={() => setIsMobileSidebarOpen(false)}
+        selectedFeedId={selectedFeedId}
+        onSelectFeed={setSelectedFeedId}
+        onAddFeedClick={() => {
+          setIsAddDialogOpen(true);
+          setIsMobileSidebarOpen(false);
+        }}
       />
       <Box
         as="main"
@@ -27,8 +48,8 @@ export default function AppShell({ children }: AppShellProps) {
         overflowY="auto"
         transition="margin-left 0.2s ease"
       >
-        {children}
+        {typeof children === "function" ? children(selectedFeedId) : children}
       </Box>
     </Box>
-  )
+  );
 }

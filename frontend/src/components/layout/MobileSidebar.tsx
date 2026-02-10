@@ -1,89 +1,62 @@
 "use client";
 
-import { Box, Flex, IconButton, Text, Badge } from "@chakra-ui/react";
-import { LuChevronLeft, LuChevronRight, LuPlus } from "react-icons/lu";
+import { Box, Flex, IconButton, Text, Badge, Drawer } from "@chakra-ui/react";
+import { LuPlus, LuX } from "react-icons/lu";
 import { useFeeds } from "@/hooks/useFeeds";
 import { EmptyFeedState } from "@/components/feed/EmptyFeedState";
 
-interface SidebarProps {
-  isCollapsed: boolean;
-  onToggle: () => void;
+interface MobileSidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
   selectedFeedId: number | null;
   onSelectFeed: (feedId: number | null) => void;
   onAddFeedClick: () => void;
 }
 
-export function Sidebar({
-  isCollapsed,
-  onToggle,
+export function MobileSidebar({
+  isOpen,
+  onClose,
   selectedFeedId,
   onSelectFeed,
   onAddFeedClick,
-}: SidebarProps) {
+}: MobileSidebarProps) {
   const { data: feeds, isLoading } = useFeeds();
 
   // Calculate aggregate unread count
   const totalUnread = feeds?.reduce((sum, feed) => sum + feed.unread_count, 0) ?? 0;
 
+  const handleFeedClick = (feedId: number | null) => {
+    onSelectFeed(feedId);
+    onClose();
+  };
+
   return (
-    <Box
-      as="aside"
-      position="fixed"
-      top="64px"
-      left={0}
-      bottom={0}
-      width={isCollapsed ? "48px" : "240px"}
-      bg="bg.subtle"
-      borderRightWidth="1px"
-      borderRightColor="border.subtle"
-      transition="width 0.2s ease"
-      display={{ base: "none", md: "block" }}
-      zIndex={5}
-    >
-      <Flex direction="column" height="100%">
-        {/* Collapse/Expand Toggle */}
-        <Flex
-          justifyContent={isCollapsed ? "center" : "flex-end"}
-          p={2}
-          borderBottomWidth="1px"
-          borderBottomColor="border.subtle"
-        >
-          <IconButton
-            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            onClick={onToggle}
-            size="sm"
-            variant="ghost"
-          >
-            {isCollapsed ? <LuChevronRight /> : <LuChevronLeft />}
-          </IconButton>
-        </Flex>
-
-        {/* Sidebar Content */}
-        {!isCollapsed && (
-          <Flex direction="column" height="100%" overflow="hidden">
-            {/* Header with "Feeds" label and + button */}
-            <Flex
-              alignItems="center"
-              justifyContent="space-between"
-              px={4}
-              py={3}
-              borderBottomWidth="1px"
-              borderBottomColor="border.subtle"
-            >
-              <Text fontSize="sm" fontWeight="semibold" color="fg.muted">
-                Feeds
-              </Text>
-              <IconButton
-                aria-label="Add feed"
-                onClick={onAddFeedClick}
-                size="sm"
-                variant="ghost"
-              >
-                <LuPlus />
-              </IconButton>
+    <Drawer.Root open={isOpen} onOpenChange={({ open }) => !open && onClose()} placement="start" size={{ base: "full", sm: "xs" }}>
+      <Drawer.Backdrop />
+      <Drawer.Positioner>
+        <Drawer.Content>
+          <Drawer.Header>
+            <Flex alignItems="center" justifyContent="space-between" width="100%">
+              <Drawer.Title>Feeds</Drawer.Title>
+              <Flex gap={2}>
+                <IconButton
+                  aria-label="Add feed"
+                  onClick={onAddFeedClick}
+                  size="sm"
+                  variant="ghost"
+                >
+                  <LuPlus />
+                </IconButton>
+                <Drawer.CloseTrigger asChild>
+                  <IconButton aria-label="Close sidebar" size="sm" variant="ghost">
+                    <LuX />
+                  </IconButton>
+                </Drawer.CloseTrigger>
+              </Flex>
             </Flex>
+          </Drawer.Header>
 
-            {/* Feed list */}
+          <Drawer.Body>
             {isLoading ? (
               <Box px={4} py={3}>
                 <Text fontSize="sm" color="fg.muted">
@@ -91,7 +64,7 @@ export function Sidebar({
                 </Text>
               </Box>
             ) : feeds && feeds.length > 0 ? (
-              <Box overflowY="auto" flex={1}>
+              <Box>
                 {/* "All Articles" row */}
                 <Flex
                   alignItems="center"
@@ -101,7 +74,7 @@ export function Sidebar({
                   cursor="pointer"
                   bg={selectedFeedId === null ? "colorPalette.subtle" : "transparent"}
                   _hover={{ bg: "bg.muted" }}
-                  onClick={() => onSelectFeed(null)}
+                  onClick={() => handleFeedClick(null)}
                   borderLeftWidth="3px"
                   borderLeftColor={
                     selectedFeedId === null ? "colorPalette.solid" : "transparent"
@@ -132,7 +105,7 @@ export function Sidebar({
                         : "transparent"
                     }
                     _hover={{ bg: "bg.muted" }}
-                    onClick={() => onSelectFeed(feed.id)}
+                    onClick={() => handleFeedClick(feed.id)}
                     borderLeftWidth="3px"
                     borderLeftColor={
                       selectedFeedId === feed.id
@@ -160,9 +133,9 @@ export function Sidebar({
             ) : (
               <EmptyFeedState />
             )}
-          </Flex>
-        )}
-      </Flex>
-    </Box>
+          </Drawer.Body>
+        </Drawer.Content>
+      </Drawer.Positioner>
+    </Drawer.Root>
   );
 }

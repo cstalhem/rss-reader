@@ -4,7 +4,7 @@ import { ArticleList } from "@/components/article/ArticleList";
 export default function Home() {
   return (
     <AppShell>
-      <ArticleList />
+      {(selectedFeedId) => <ArticleList selectedFeedId={selectedFeedId} />}
     </AppShell>
   );
 }

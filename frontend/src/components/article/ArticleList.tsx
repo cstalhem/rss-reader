@@ -7,11 +7,18 @@ import { ArticleRow } from "./ArticleRow";
 import { ArticleReader } from "./ArticleReader";
 import { Article } from "@/lib/types";
 
-export function ArticleList() {
+interface ArticleListProps {
+  selectedFeedId?: number | null;
+}
+
+export function ArticleList({ selectedFeedId }: ArticleListProps) {
   const [showAll, setShowAll] = useState(false);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
 
-  const { data: articles, isLoading, loadMore, hasMore } = useArticles({ showAll });
+  const { data: articles, isLoading, loadMore, hasMore } = useArticles({
+    showAll,
+    feedId: selectedFeedId ?? undefined,
+  });
   const markAsRead = useMarkAsRead();
 
   const handleToggleRead = (article: Article) => {
