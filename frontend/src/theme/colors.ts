@@ -21,6 +21,15 @@ export const semanticTokens = defineSemanticTokens.colors({
     DEFAULT: {
       value: { _light: "{colors.accent.500}", _dark: "{colors.accent.500}" },
     },
+    solid: {
+      value: { _light: "{colors.accent.500}", _dark: "{colors.accent.500}" },
+    },
+    contrast: {
+      value: { _light: "white", _dark: "white" },
+    },
+    focusRing: {
+      value: { _light: "{colors.accent.500}", _dark: "{colors.accent.500}" },
+    },
     emphasized: {
       value: { _light: "{colors.accent.600}", _dark: "{colors.accent.400}" },
     },
