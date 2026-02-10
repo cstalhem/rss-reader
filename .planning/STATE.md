@@ -74,6 +74,9 @@ Recent decisions affecting current work:
 - [Phase 03-03]: Drag-to-reorder on desktop only, mobile swipe actions
 - [Phase 03-03]: 5px drag activation constraint to prevent accidental drags
 - [Phase 03-03]: Inline rename via double-click (desktop) and long-press (mobile)
+- [Quick-03]: Delete globals.css entirely — Chakra's @layer reset sufficient, unlayered CSS breaks recipes
+- [Quick-03]: All app-wide CSS in Chakra's globalCss for proper layering (no separate CSS files)
+- [Quick-03]: Use defineRecipe to override Chakra component defaults (button: orange accent, increased padding)
 
 ### Pending Todos
 
@@ -97,9 +100,10 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 1 | Refine reading panel design for airy feel with generous padding | 2026-02-09 | 2a0e2e4 | [1-refine-reading-panel-design-for-airy-fee](./quick/1-refine-reading-panel-design-for-airy-fee/) |
 | 2 | Fix reader header padding and accent hover states | 2026-02-09 | a22cc9a | [2-fix-reader-header-padding-and-accent-ora](./quick/2-fix-reader-header-padding-and-accent-ora/) |
+| 3 | Fix design system spacing defaults by removing rogue CSS reset | 2026-02-10 | b635c15 | [3-improve-design-system-spacing-defaults-f](./quick/3-improve-design-system-spacing-defaults-f/) |
 
 ## Session Continuity
 
-Last session: 2026-02-10 (phase execution + verification)
-Stopped at: Phase 3 complete and verified — ready for Phase 4
+Last session: 2026-02-10 (quick task execution)
+Stopped at: Quick task 3 complete — awaiting verification
 Resume file: None
