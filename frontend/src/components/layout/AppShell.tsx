@@ -5,6 +5,7 @@ import { Box } from "@chakra-ui/react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { MobileSidebar } from "./MobileSidebar";
+import { AddFeedDialog } from "@/components/feed/AddFeedDialog";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 interface AppShellProps {
@@ -50,6 +51,10 @@ export default function AppShell({ children }: AppShellProps) {
       >
         {typeof children === "function" ? children(selectedFeedId) : children}
       </Box>
+      <AddFeedDialog
+        isOpen={isAddDialogOpen}
+        onClose={() => setIsAddDialogOpen(false)}
+      />
     </Box>
   );
 }
