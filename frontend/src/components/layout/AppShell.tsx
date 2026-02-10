@@ -1,18 +1,15 @@
 "use client";
 
-import { useState, ReactNode } from "react";
+import { useState } from "react";
 import { Box } from "@chakra-ui/react";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { MobileSidebar } from "./MobileSidebar";
 import { AddFeedDialog } from "@/components/feed/AddFeedDialog";
+import { ArticleList } from "@/components/article/ArticleList";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 
-interface AppShellProps {
-  children: ((selectedFeedId: number | null) => ReactNode) | ReactNode;
-}
-
-export default function AppShell({ children }: AppShellProps) {
+export default function AppShell() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useLocalStorage(
     "sidebar-collapsed",
     false
@@ -49,7 +46,7 @@ export default function AppShell({ children }: AppShellProps) {
         overflowY="auto"
         transition="margin-left 0.2s ease"
       >
-        {typeof children === "function" ? children(selectedFeedId) : children}
+        <ArticleList selectedFeedId={selectedFeedId} />
       </Box>
       <AddFeedDialog
         isOpen={isAddDialogOpen}
