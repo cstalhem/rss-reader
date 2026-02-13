@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 5 of 5 in progress (Interest-Driven UI)
-Plan: 1 of 3 complete
-Status: Sort and filter data layer complete — backend and frontend wired up
-Last activity: 2026-02-13 - Plan 05-01 complete (server-side sort/filter + localStorage persistence)
+Plan: 2 of 3 complete
+Status: Visual UI components complete — score badges, filter bar, and sort dropdown integrated
+Last activity: 2026-02-13 - Plan 05-02 complete (score badges, 4-tab filter bar, sort dropdown)
 
-Progress: [████████░░] 83%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16
+- Total plans completed: 17
 - Average duration: ~3.3 minutes
 - Total execution time: ~1.8 hours
 
@@ -31,11 +31,11 @@ Progress: [████████░░] 83%
 | 02    | 4     | ~15 min | ~4 min |
 | 03    | 4     | ~20 min | ~5 min |
 | 04    | 5     | ~57 min | ~11 min |
-| 05    | 1     | ~2 min | ~2 min |
+| 05    | 2     | ~5 min | ~2.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-03, 04-04, 04-05, 05-01
-- Trend: Phase 5 plans fast on Sonnet 4.5 (~2 min)
+- Last 5 plans: 04-04, 04-05, 05-01, 05-02
+- Trend: Phase 5 plans fast on Sonnet 4.5 (~2-3 min)
 
 *Updated after each plan completion*
 
@@ -109,6 +109,11 @@ Recent decisions affecting current work:
 - [Phase 05-01]: Secondary sorts for stability (score→published_at ASC, date→id)
 - [Phase 05-01]: useSortPreference hook wraps useLocalStorage with "score_desc" default
 - [Phase 05-01]: TanStack Query queryKey includes sort/filter params for cache correctness
+- [Phase 05-02]: Score badge color tiers: >=15 accent solid, >=8 gray subtle, <8 gray outline
+- [Phase 05-02]: Accent.subtle background tint for high-scored rows (>=15) with hover override
+- [Phase 05-02]: Blocked articles hidden from Unread/All via exclude_blocked=true default
+- [Phase 05-02]: Scoring tab count = unscored+queued+scoring, tabs disabled when count=0
+- [Phase 05-02]: Chakra v3 Tooltip.Root/Trigger/Content pattern for score badge tooltips
 
 ### Pending Todos
 
@@ -142,5 +147,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-13 (plan execution)
-Stopped at: Completed Phase 05 Plan 01 (Sort and Filter Data Layer)
+Stopped at: Completed Phase 05 Plan 02 (Interest-Driven UI Components)
 Resume file: None
