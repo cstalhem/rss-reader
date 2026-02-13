@@ -87,7 +87,7 @@ def build_categorization_prompt(
 1. ONLY categorize the article's PRIMARY topics — what the article is fundamentally about.
 2. IGNORE incidental mentions, anecdotes, metaphors, and examples used to illustrate a point.
 3. REUSE existing categories from the list below. Strongly prefer existing categories.
-4. All categories MUST use kebab-case format (e.g., "ai-ml", "web-development", "open-source"). No underscores, no slashes, no spaces.
+4. All categories MUST be in English and use kebab-case format (e.g., "ai-ml", "web-development", "open-source"). No underscores, no slashes, no spaces. Even if the article is in another language, always use English category names.
 5. Keep categories BROAD. Use "ai-ml" not "ai-assisted-programming" or "generative-ai". Use "programming" not "python-development".
 6. Only suggest a new category if NO existing category covers the article's primary topic AND the topic is likely to recur across many articles.
 7. Maximum 4 categories per article. Fewer is better.
