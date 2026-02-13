@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 4 of 5 in progress (LLM Content Curation)
-Plan: 1 of 5 complete
-Status: Plan 04-01 complete — data foundation ready
-Last activity: 2026-02-13 - Completed plan 04-01: Data Foundation for LLM Content Curation
+Plan: 2 of 5 complete
+Status: Plan 04-02 complete — scoring engine operational
+Last activity: 2026-02-13 - Completed plan 04-02: Two-Step LLM Scoring Pipeline
 
-Progress: [██████░░░░] 64%
+Progress: [███████░░░] 68%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: ~5 minutes
-- Total execution time: ~1.5 hours
+- Total execution time: ~1.6 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [██████░░░░] 64%
 | 01    | 3     | ~35 min | ~12 min |
 | 02    | 4     | ~15 min | ~4 min |
 | 03    | 4     | ~20 min | ~5 min |
-| 04    | 1     | ~4 min | ~4 min |
+| 04    | 2     | ~8 min | ~4 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02, 03-03, 03-04, 04-01
+- Last 5 plans: 03-03, 03-04, 04-01, 04-02
 - Trend: Consistent fast execution (~4 min average for recent plans)
 
 *Updated after each plan completion*
@@ -86,6 +86,9 @@ Recent decisions affecting current work:
 - [Phase 04-01]: SQLAlchemy JSON columns for list/dict fields (categories, topic_weights)
 - [Phase 04-01]: Case-insensitive category keys normalized to lowercase
 - [Phase 04-01]: No health check on Ollama service — scoring queue handles unavailability via retry
+- [Phase 04-02]: Two-step LLM pipeline: categorize all articles, score non-blocked only
+- [Phase 04-02]: Composite score formula: interest * category_weight * quality_multiplier (cap 20.0)
+- [Phase 04-02]: Scoring queue processes oldest articles first (batch size 5, every 30s)
 
 ### Pending Todos
 
@@ -117,5 +120,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-13 (plan execution)
-Stopped at: Completed 04-01-PLAN.md — data foundation for LLM content curation
+Stopped at: Completed 04-02-PLAN.md — two-step LLM scoring pipeline
 Resume file: None
