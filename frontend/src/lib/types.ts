@@ -8,6 +8,14 @@ export interface Article {
   summary: string | null;
   content: string | null;
   is_read: boolean;
+  // LLM scoring fields
+  categories: string[] | null;
+  interest_score: number | null;
+  quality_score: number | null;
+  composite_score: number | null;
+  score_reasoning: string | null;
+  scoring_state: string;
+  scored_at: string | null;
 }
 
 export interface Feed {
@@ -17,4 +25,11 @@ export interface Feed {
   last_fetched_at: string | null;
   display_order: number;
   unread_count: number;
+}
+
+export interface UserPreferences {
+  interests: string;
+  anti_interests: string;
+  topic_weights: Record<string, string> | null;
+  updated_at: string;
 }

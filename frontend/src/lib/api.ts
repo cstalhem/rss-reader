@@ -1,4 +1,4 @@
-import { Article, Feed } from "./types";
+import { Article, Feed, UserPreferences } from "./types";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8912";
@@ -152,4 +152,66 @@ export async function markAllFeedRead(feedId: number): Promise<void> {
   if (!response.ok) {
     throw new Error(`Failed to mark all feed read: ${response.statusText}`);
   }
+}
+
+export async function fetchPreferences(): Promise<UserPreferences> {
+  const response = await fetch(`${API_BASE_URL}/api/preferences`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch preferences: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function updatePreferences(
+  data: Partial<UserPreferences>
+): Promise<UserPreferences> {
+  const response = await fetch(`${API_BASE_URL}/api/preferences`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update preferences: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchCategories(): Promise<string[]> {
+  const response = await fetch(`${API_BASE_URL}/api/categories`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch categories: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function updateCategoryWeight(
+  category: string,
+  weight: string
+): Promise<UserPreferences> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/categories/${encodeURIComponent(category)}/weight`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ weight }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to update category weight: ${response.statusText}`
+    );
+  }
+
+  return response.json();
 }

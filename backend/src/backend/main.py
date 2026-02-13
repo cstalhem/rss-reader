@@ -11,7 +11,7 @@ from sqlmodel import Session, func, select
 from backend.config import get_settings
 from backend.database import create_db_and_tables, get_session
 from backend.feeds import fetch_feed, refresh_feed, save_articles
-from backend.models import Article, Feed
+from backend.models import Article, Feed, UserPreferences
 from backend.scheduler import shutdown_scheduler, start_scheduler
 
 settings = get_settings()
@@ -97,6 +97,23 @@ class FeedResponse(BaseModel):
     display_order: int
     last_fetched_at: datetime | None
     unread_count: int
+
+
+class PreferencesResponse(BaseModel):
+    interests: str
+    anti_interests: str
+    topic_weights: dict[str, str] | None
+    updated_at: datetime
+
+
+class PreferencesUpdate(BaseModel):
+    interests: str | None = None
+    anti_interests: str | None = None
+    topic_weights: dict[str, str] | None = None
+
+
+class CategoryWeightUpdate(BaseModel):
+    weight: str
 
 
 # API Endpoints
@@ -407,6 +424,137 @@ async def manual_refresh(
     return RefreshResponse(
         message=f"Refreshed {len(feeds)} feed(s)",
         new_articles=total_new,
+    )
+
+
+@app.get("/api/preferences", response_model=PreferencesResponse)
+def get_preferences(
+    session: Session = Depends(get_session),
+):
+    """Get user preferences. Creates default preferences if none exist."""
+    preferences = session.exec(select(UserPreferences)).first()
+
+    if not preferences:
+        # Create default preferences
+        preferences = UserPreferences(
+            interests="",
+            anti_interests="",
+            topic_weights=None,
+            updated_at=datetime.now(),
+        )
+        session.add(preferences)
+        session.commit()
+        session.refresh(preferences)
+
+    return PreferencesResponse(
+        interests=preferences.interests,
+        anti_interests=preferences.anti_interests,
+        topic_weights=preferences.topic_weights,
+        updated_at=preferences.updated_at,
+    )
+
+
+@app.put("/api/preferences", response_model=PreferencesResponse)
+def update_preferences(
+    update: PreferencesUpdate,
+    session: Session = Depends(get_session),
+):
+    """Update user preferences. Merges non-None fields."""
+    preferences = session.exec(select(UserPreferences)).first()
+
+    if not preferences:
+        # Create if doesn't exist
+        preferences = UserPreferences(
+            interests="",
+            anti_interests="",
+            topic_weights=None,
+            updated_at=datetime.now(),
+        )
+        session.add(preferences)
+
+    # Update non-None fields
+    if update.interests is not None:
+        preferences.interests = update.interests
+
+    if update.anti_interests is not None:
+        preferences.anti_interests = update.anti_interests
+
+    if update.topic_weights is not None:
+        preferences.topic_weights = update.topic_weights
+
+    preferences.updated_at = datetime.now()
+
+    session.add(preferences)
+    session.commit()
+    session.refresh(preferences)
+
+    return PreferencesResponse(
+        interests=preferences.interests,
+        anti_interests=preferences.anti_interests,
+        topic_weights=preferences.topic_weights,
+        updated_at=preferences.updated_at,
+    )
+
+
+@app.get("/api/categories")
+def get_categories(
+    session: Session = Depends(get_session),
+):
+    """Get list of unique categories from all scored articles."""
+    articles = session.exec(
+        select(Article).where(Article.categories.is_not(None))
+    ).all()
+
+    # Collect unique categories (case-insensitive but preserve first occurrence)
+    categories_seen = {}
+    for article in articles:
+        if article.categories:
+            for category in article.categories:
+                lower_cat = category.lower()
+                if lower_cat not in categories_seen:
+                    categories_seen[lower_cat] = category
+
+    # Return sorted list
+    unique_categories = sorted(categories_seen.values(), key=str.lower)
+    return unique_categories
+
+
+@app.patch("/api/categories/{category_name}/weight", response_model=PreferencesResponse)
+def update_category_weight(
+    category_name: str,
+    weight_update: CategoryWeightUpdate,
+    session: Session = Depends(get_session),
+):
+    """Update weight for a single category."""
+    preferences = session.exec(select(UserPreferences)).first()
+
+    if not preferences:
+        # Create if doesn't exist
+        preferences = UserPreferences(
+            interests="",
+            anti_interests="",
+            topic_weights={},
+            updated_at=datetime.now(),
+        )
+        session.add(preferences)
+
+    # Initialize topic_weights if None
+    if preferences.topic_weights is None:
+        preferences.topic_weights = {}
+
+    # Update the specific category weight (case-insensitive key)
+    preferences.topic_weights[category_name.lower()] = weight_update.weight
+    preferences.updated_at = datetime.now()
+
+    session.add(preferences)
+    session.commit()
+    session.refresh(preferences)
+
+    return PreferencesResponse(
+        interests=preferences.interests,
+        anti_interests=preferences.anti_interests,
+        topic_weights=preferences.topic_weights,
+        updated_at=preferences.updated_at,
     )
 
 
