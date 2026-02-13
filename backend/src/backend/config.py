@@ -37,8 +37,8 @@ class OllamaConfig(BaseModel):
     """Ollama LLM configuration."""
 
     host: str = "http://localhost:11434"
-    categorization_model: str = "qwen2.5:7b"
-    scoring_model: str = "qwen2.5:14b"
+    categorization_model: str = "deepseek-r1:8b"
+    scoring_model: str = "deepseek-r1:8b"
     timeout: float = 120.0
 
 

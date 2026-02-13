@@ -144,9 +144,10 @@ class ScoringQueue:
                     settings,
                 )
 
-                # Store categories (normalized to lowercase)
+                # Store categories (normalized to kebab-case)
                 article.categories = [
-                    cat.lower() for cat in categorization.categories
+                    cat.lower().replace("_", "-").replace(" ", "-").replace("/", "-")
+                    for cat in categorization.categories
                 ]
 
                 # Step 2: Check if blocked

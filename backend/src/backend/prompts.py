@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, Field
 
-# Default seed categories to bootstrap the system
+# Default seed categories to bootstrap the system (kebab-case)
 DEFAULT_CATEGORIES = [
     "technology",
     "science",
@@ -15,7 +15,7 @@ DEFAULT_CATEGORIES = [
     "culture",
     "gaming",
     "programming",
-    "ai/ml",
+    "ai-ml",
     "cybersecurity",
     "climate",
     "space",
@@ -36,13 +36,13 @@ class CategoryResponse(BaseModel):
     """Response schema for article categorization."""
 
     categories: list[str] = Field(
-        description="1-6 topic categories from existing list",
-        max_length=10,
+        description="1-4 broad topic categories in kebab-case from existing list",
+        max_length=4,
     )
     suggested_new: list[str] = Field(
         default=[],
-        description="New categories not in existing list (suggest sparingly)",
-        max_length=3,
+        description="New kebab-case categories only if nothing existing fits a primary topic",
+        max_length=2,
     )
 
 
@@ -81,14 +81,16 @@ def build_categorization_prompt(
     # Format existing categories
     categories_list = ", ".join(sorted(existing_categories))
 
-    prompt = f"""Categorize this article into 1-6 topic categories.
+    prompt = f"""Categorize this article into 1-4 topic categories.
 
-**Instructions:**
-- Choose from the existing categories list below (reuse these whenever possible)
-- Normalize all categories to lowercase
-- Only suggest new categories if none of the existing ones fit well
-- Maximum 6 categories per article
-- Return categories that accurately describe the article's main topics
+**Rules (follow strictly):**
+1. ONLY categorize the article's PRIMARY topics — what the article is fundamentally about.
+2. IGNORE incidental mentions, anecdotes, metaphors, and examples used to illustrate a point.
+3. REUSE existing categories from the list below. Strongly prefer existing categories.
+4. All categories MUST use kebab-case format (e.g., "ai-ml", "web-development", "open-source"). No underscores, no slashes, no spaces.
+5. Keep categories BROAD. Use "ai-ml" not "ai-assisted-programming" or "generative-ai". Use "programming" not "python-development".
+6. Only suggest a new category if NO existing category covers the article's primary topic AND the topic is likely to recur across many articles.
+7. Maximum 4 categories per article. Fewer is better.
 
 **Existing categories:** {categories_list}
 

@@ -509,23 +509,22 @@ async def update_preferences(
 def get_categories(
     session: Session = Depends(get_session),
 ):
-    """Get list of unique categories from all scored articles."""
+    """Get list of unique categories, seeded with defaults."""
+    from backend.prompts import DEFAULT_CATEGORIES
+
+    # Start with default seed categories
+    categories_seen = {cat.lower(): cat for cat in DEFAULT_CATEGORIES}
+
+    # Merge in categories from scored articles (overrides preserve article casing)
     articles = session.exec(
         select(Article).where(Article.categories.is_not(None))
     ).all()
-
-    # Collect unique categories (case-insensitive but preserve first occurrence)
-    categories_seen = {}
     for article in articles:
         if article.categories:
             for category in article.categories:
-                lower_cat = category.lower()
-                if lower_cat not in categories_seen:
-                    categories_seen[lower_cat] = category
+                categories_seen[category.lower()] = category
 
-    # Return sorted list
-    unique_categories = sorted(categories_seen.values(), key=str.lower)
-    return unique_categories
+    return sorted(categories_seen.values(), key=str.lower)
 
 
 @app.patch("/api/categories/{category_name}/weight", response_model=PreferencesResponse)
@@ -547,12 +546,10 @@ def update_category_weight(
         )
         session.add(preferences)
 
-    # Initialize topic_weights if None
-    if preferences.topic_weights is None:
-        preferences.topic_weights = {}
-
-    # Update the specific category weight (case-insensitive key)
-    preferences.topic_weights[category_name.lower()] = weight_update.weight
+    # Reassign dict to ensure SQLAlchemy detects the change on JSON column
+    new_weights = dict(preferences.topic_weights or {})
+    new_weights[category_name.lower()] = weight_update.weight
+    preferences.topic_weights = new_weights
     preferences.updated_at = datetime.now()
 
     session.add(preferences)
