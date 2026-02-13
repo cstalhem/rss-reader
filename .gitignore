@@ -32,6 +32,9 @@ frontend/out/
 frontend/.bun/
 frontend/bun.lockb
 
+# MCP plugins
+.playwright-mcp/
+
 # IDE
 .idea/
 .vscode/
