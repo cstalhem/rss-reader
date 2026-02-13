@@ -1,7 +1,6 @@
 "use client";
 
-import { Badge, MenuRoot, MenuTrigger, MenuContent, MenuItem } from "@chakra-ui/react";
-import { LuCheck } from "react-icons/lu";
+import { Badge, Menu, Portal } from "@chakra-ui/react";
 
 interface TagChipProps {
   label: string;
@@ -59,32 +58,38 @@ export function TagChip({
   }
 
   return (
-    <MenuRoot>
-      <MenuTrigger
+    <Menu.Root
+      onSelect={(details) => {
+        onWeightChange?.(details.value);
+      }}
+    >
+      <Menu.Trigger
         asChild
         onClick={(e: React.MouseEvent) => {
           e.stopPropagation();
         }}
       >
         {chip}
-      </MenuTrigger>
-      <MenuContent>
-        {weightOptions.map((option) => (
-          <MenuItem
-            key={option.value}
-            value={option.value}
-            onClick={(e) => {
-              e.stopPropagation();
-              onWeightChange?.(option.value);
-            }}
-          >
-            {option.label}
-            {normalizedWeight === option.value && (
-              <LuCheck style={{ marginLeft: "auto" }} />
-            )}
-          </MenuItem>
-        ))}
-      </MenuContent>
-    </MenuRoot>
+      </Menu.Trigger>
+      <Portal>
+        <Menu.Positioner>
+          <Menu.Content>
+            <Menu.RadioItemGroup
+              value={normalizedWeight}
+              onValueChange={(details) => {
+                onWeightChange?.(details.value);
+              }}
+            >
+              {weightOptions.map((option) => (
+                <Menu.RadioItem key={option.value} value={option.value}>
+                  {option.label}
+                  <Menu.ItemIndicator />
+                </Menu.RadioItem>
+              ))}
+            </Menu.RadioItemGroup>
+          </Menu.Content>
+        </Menu.Positioner>
+      </Portal>
+    </Menu.Root>
   );
 }

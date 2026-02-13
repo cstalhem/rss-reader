@@ -2,14 +2,15 @@
 
 import { Box, Flex, Text, Spinner } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
+import { LuClock } from "react-icons/lu";
 import { Article } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
 import { TagChip } from "./TagChip";
 import { ScoreBadge } from "./ScoreBadge";
 
-const pulsingDot = keyframes`
-  0%, 100% { background-color: var(--chakra-colors-fg-muted); opacity: 0.4; }
-  50% { background-color: var(--chakra-colors-accent-solid); opacity: 1; }
+const pulsingIcon = keyframes`
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
 `;
 
 const scoreReveal = keyframes`
@@ -120,12 +121,12 @@ export function ArticleRow({
         )}
         {(article.scoring_state === "queued" || article.scoring_state === "unscored") && (
           <Box
-            w="8px"
-            h="8px"
-            borderRadius="full"
-            bg="fg.muted"
-            css={{ animation: `${pulsingDot} 2s ease-in-out infinite` }}
-          />
+            color="white"
+            fontSize="sm"
+            css={{ animation: `${pulsingIcon} 2s ease-in-out infinite` }}
+          >
+            <LuClock />
+          </Box>
         )}
         {article.scoring_state === "failed" && (
           <Text fontSize="xs" color="red.fg">✕</Text>
