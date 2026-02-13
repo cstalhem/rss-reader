@@ -11,10 +11,11 @@ interface UseArticlesOptions {
   sortBy?: string;
   order?: string;
   scoringState?: string;
+  excludeBlocked?: boolean;
 }
 
 export function useArticles(options: UseArticlesOptions = {}) {
-  const { showAll = false, feedId, sortBy, order, scoringState } = options;
+  const { showAll = false, feedId, sortBy, order, scoringState, excludeBlocked = true } = options;
   const [limit, setLimit] = useState(50);
 
   const query = useQuery({
@@ -27,6 +28,7 @@ export function useArticles(options: UseArticlesOptions = {}) {
         sort_by: sortBy,
         order: order,
         scoring_state: scoringState,
+        exclude_blocked: excludeBlocked,
       },
     ],
     queryFn: () =>
@@ -37,6 +39,7 @@ export function useArticles(options: UseArticlesOptions = {}) {
         sort_by: sortBy,
         order: order,
         scoring_state: scoringState,
+        exclude_blocked: excludeBlocked,
       }),
     // Poll every 5s while any article is actively scoring, stop when done
     refetchInterval: (query) => {

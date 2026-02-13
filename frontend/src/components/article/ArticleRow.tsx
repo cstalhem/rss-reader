@@ -5,6 +5,7 @@ import { LuClock } from "react-icons/lu";
 import { Article } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
 import { TagChip } from "./TagChip";
+import { ScoreBadge } from "./ScoreBadge";
 
 interface ArticleRowProps {
   article: Article;
@@ -19,6 +20,11 @@ export function ArticleRow({
   onSelect,
   onToggleRead,
 }: ArticleRowProps) {
+  // Add subtle accent background tint for high-scored rows
+  const isHighScored = article.scoring_state === "scored" &&
+    article.composite_score !== null &&
+    article.composite_score >= 15;
+
   return (
     <Flex
       py={3}
@@ -28,6 +34,7 @@ export function ArticleRow({
       borderColor="border.subtle"
       cursor="pointer"
       opacity={article.is_read ? 0.6 : 1}
+      bg={isHighScored ? "accent.subtle" : undefined}
       _hover={{ bg: "bg.subtle" }}
       onClick={() => onSelect(article)}
     >
@@ -88,37 +95,28 @@ export function ArticleRow({
         </Flex>
       </Flex>
 
-      {/* Scoring state indicator and toggle read/unread button */}
+      {/* Scoring state indicator and score badge */}
       <Flex flexShrink={0} alignItems="center" gap={2}>
-        {/* Scoring state indicator */}
-        <Box fontSize="xs" color="fg.muted">
-          {article.scoring_state === "scoring" && (
-            <Spinner size="xs" colorPalette="accent" />
-          )}
-          {article.scoring_state === "queued" && (
-            <LuClock size={14} />
-          )}
-          {article.scoring_state === "unscored" && (
-            <Text>—</Text>
-          )}
-          {article.scoring_state === "failed" && (
-            <Text color="red.fg">✕</Text>
-          )}
-          {article.scoring_state === "scored" && article.composite_score !== null && (
-            <Text
-              fontWeight="medium"
-              color={
-                article.composite_score >= 15
-                  ? "accent.fg"
-                  : article.composite_score >= 10
-                  ? "fg.default"
-                  : "fg.muted"
-              }
-            >
-              {article.composite_score.toFixed(1)}
-            </Text>
-          )}
-        </Box>
+        {/* Scoring state indicators for non-scored states */}
+        {article.scoring_state === "scoring" && (
+          <Spinner size="xs" colorPalette="accent" />
+        )}
+        {article.scoring_state === "queued" && (
+          <LuClock size={14} color="var(--chakra-colors-fg-muted)" />
+        )}
+        {article.scoring_state === "unscored" && (
+          <Text fontSize="xs" color="fg.muted">—</Text>
+        )}
+        {article.scoring_state === "failed" && (
+          <Text fontSize="xs" color="red.fg">✕</Text>
+        )}
+
+        {/* Score badge for scored articles */}
+        <ScoreBadge
+          score={article.composite_score}
+          scoringState={article.scoring_state}
+          size="sm"
+        />
       </Flex>
     </Flex>
   );

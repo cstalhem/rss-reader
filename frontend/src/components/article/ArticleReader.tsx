@@ -15,6 +15,7 @@ import { formatRelativeDate } from "@/lib/utils";
 import { useAutoMarkAsRead } from "@/hooks/useAutoMarkAsRead";
 import { usePreferences } from "@/hooks/usePreferences";
 import { TagChip } from "./TagChip";
+import { ScoreBadge } from "./ScoreBadge";
 
 interface ArticleReaderProps {
   article: Article | null;
@@ -128,28 +129,22 @@ export function ArticleReader({
               {/* Score Display */}
               {article.scoring_state === "scored" ? (
                 <Box mt={3}>
-                  <Flex gap={3} alignItems="baseline">
-                    <Text fontSize="md" fontWeight="medium" color="fg.default">
-                      Score:{" "}
-                      <Text
-                        as="span"
-                        fontSize="lg"
-                        fontWeight="semibold"
-                        color={
-                          article.composite_score! >= 15
-                            ? "accent.fg"
-                            : article.composite_score! >= 10
-                            ? "fg.default"
-                            : "fg.muted"
-                        }
-                      >
-                        {article.composite_score?.toFixed(1)}/20
-                      </Text>
+                  <Flex gap={3} alignItems="center">
+                    <ScoreBadge
+                      score={article.composite_score}
+                      scoringState={article.scoring_state}
+                      size="md"
+                    />
+                    <Text fontSize="md" color="fg.muted">
+                      /20
                     </Text>
                     {article.quality_score !== null && (
-                      <Text fontSize="sm" color="fg.muted">
-                        Quality: {article.quality_score.toFixed(0)}/10
-                      </Text>
+                      <>
+                        <Text fontSize="sm" color="fg.muted">•</Text>
+                        <Text fontSize="sm" color="fg.muted">
+                          Quality: {article.quality_score.toFixed(0)}/10
+                        </Text>
+                      </>
                     )}
                   </Flex>
                   {article.score_reasoning && (

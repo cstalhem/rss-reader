@@ -135,6 +135,7 @@ def list_articles(
     sort_by: str = "composite_score",
     order: str = "desc",
     scoring_state: str | None = None,
+    exclude_blocked: bool = True,
     session: Session = Depends(get_session),
 ):
     """
@@ -150,6 +151,7 @@ def list_articles(
         scoring_state: Filter by scoring state (optional). Special values:
             - "pending": filters to unscored, queued, or scoring
             - "blocked": filters to scored articles with composite_score == 0
+        exclude_blocked: Exclude blocked articles (composite_score=0 + scored) from results (default: True)
     """
     statement = select(Article)
 
@@ -165,8 +167,15 @@ def list_articles(
         statement = statement.where(Article.scoring_state.in_(["unscored", "queued", "scoring"]))
     elif scoring_state == "blocked":
         statement = statement.where(Article.scoring_state == "scored").where(Article.composite_score == 0)
+        exclude_blocked = False  # Override: when explicitly viewing blocked tab, show them
     elif scoring_state is not None:
         statement = statement.where(Article.scoring_state == scoring_state)
+
+    # Exclude blocked articles from main views (unless explicitly requesting them)
+    if exclude_blocked and scoring_state != "blocked":
+        statement = statement.where(
+            (Article.scoring_state != "scored") | (Article.composite_score != 0)
+        )
 
     # Apply sorting
     # For pending tab, default to oldest-first if sort_by is still default
@@ -632,6 +641,14 @@ def get_scoring_status(
             .where(Article.scoring_state == state)
         ).one()
         counts[state] = count
+
+    # Add blocked count: scored articles with composite_score == 0
+    blocked_count = session.exec(
+        select(func.count(Article.id))
+        .where(Article.scoring_state == "scored")
+        .where(Article.composite_score == 0)
+    ).one()
+    counts["blocked"] = blocked_count
 
     return counts
 

@@ -1,27 +1,52 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Box, Flex, Button, Text, Skeleton, Stack } from "@chakra-ui/react";
-import { useMemo } from "react";
+import { keyframes } from "@emotion/react";
 import { useArticles, useMarkAsRead } from "@/hooks/useArticles";
 import { useMarkAllRead } from "@/hooks/useFeedMutations";
 import { useFeeds } from "@/hooks/useFeeds";
+import { useSortPreference } from "@/hooks/useSortPreference";
+import { useScoringStatus } from "@/hooks/useScoringStatus";
 import { ArticleRow } from "./ArticleRow";
 import { ArticleReader } from "./ArticleReader";
-import { Article } from "@/lib/types";
+import { SortSelect } from "./SortSelect";
+import { Article, parseSortOption } from "@/lib/types";
 
 interface ArticleListProps {
   selectedFeedId?: number | null;
 }
 
+type FilterTab = "unread" | "all" | "scoring" | "blocked";
+
+const pulse = keyframes`
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+`;
+
 export function ArticleList({ selectedFeedId }: ArticleListProps) {
-  const [showAll, setShowAll] = useState(false);
+  const [filter, setFilter] = useState<FilterTab>("unread");
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const { sortOption, setSortOption } = useSortPreference();
+  const { data: scoringStatus } = useScoringStatus();
+
+  // Derive useArticles options from filter state
+  const showAll = filter !== "unread";
+  const scoringState = filter === "scoring" ? "pending" : filter === "blocked" ? "blocked" : undefined;
+  const excludeBlocked = filter === "unread" || filter === "all";
+
+  // Parse sort option for backend
+  const { sort_by, order } = parseSortOption(sortOption);
 
   const { data: articles, isLoading, loadMore, hasMore } = useArticles({
     showAll,
     feedId: selectedFeedId ?? undefined,
+    sortBy: sort_by,
+    order: order,
+    scoringState: scoringState,
+    excludeBlocked: excludeBlocked,
   });
+
   const { data: feeds } = useFeeds();
   const markAsRead = useMarkAsRead();
   const markAllRead = useMarkAllRead();
@@ -35,6 +60,10 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
     }
     return map;
   }, [feeds]);
+
+  // Calculate tab counts
+  const scoringCount = (scoringStatus?.unscored ?? 0) + (scoringStatus?.queued ?? 0) + (scoringStatus?.scoring ?? 0);
+  const blockedCount = scoringStatus?.blocked ?? 0;
 
   const handleToggleRead = (article: Article) => {
     markAsRead.mutate({
@@ -54,13 +83,28 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
   };
 
   const articleCount = articles?.length ?? 0;
-  const countLabel = showAll
-    ? `${articleCount} article${articleCount !== 1 ? "s" : ""}`
-    : `${articleCount} unread article${articleCount !== 1 ? "s" : ""}`;
+  const countLabel =
+    filter === "unread"
+      ? `${articleCount} unread article${articleCount !== 1 ? "s" : ""}`
+      : filter === "scoring"
+      ? `${articleCount} pending article${articleCount !== 1 ? "s" : ""}`
+      : filter === "blocked"
+      ? `${articleCount} blocked article${articleCount !== 1 ? "s" : ""}`
+      : `${articleCount} article${articleCount !== 1 ? "s" : ""}`;
+
+  // Empty state messages by filter
+  const emptyMessage =
+    filter === "unread"
+      ? "No unread articles. You're all caught up!"
+      : filter === "all"
+      ? "No articles yet. Add some feeds to get started."
+      : filter === "scoring"
+      ? "No articles awaiting scoring."
+      : "No blocked articles.";
 
   return (
     <Box>
-      {/* Top bar with filter toggle and count */}
+      {/* Top bar with filter tabs, sort, and count */}
       <Flex
         px={4}
         py={3}
@@ -69,33 +113,60 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
         alignItems="center"
         justifyContent="space-between"
       >
-        <Flex gap={2}>
+        <Flex gap={2} alignItems="center" flexWrap="wrap">
+          {/* Filter tabs */}
           <Button
             size="sm"
-            variant={!showAll ? "solid" : "ghost"}
-            colorPalette={!showAll ? "accent" : undefined}
-            onClick={() => setShowAll(false)}
+            variant={filter === "unread" ? "solid" : "ghost"}
+            colorPalette={filter === "unread" ? "accent" : undefined}
+            onClick={() => setFilter("unread")}
           >
             Unread
           </Button>
           <Button
             size="sm"
-            variant={showAll ? "solid" : "ghost"}
-            colorPalette={showAll ? "accent" : undefined}
-            onClick={() => setShowAll(true)}
+            variant={filter === "all" ? "solid" : "ghost"}
+            colorPalette={filter === "all" ? "accent" : undefined}
+            onClick={() => setFilter("all")}
           >
             All
           </Button>
-          {selectedFeedId && articleCount > 0 && !showAll && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleMarkAllAsRead}
-              disabled={markAllRead.isPending}
-            >
-              Mark all read
-            </Button>
-          )}
+          <Button
+            size="sm"
+            variant={filter === "scoring" ? "solid" : "ghost"}
+            colorPalette={filter === "scoring" ? "accent" : undefined}
+            onClick={() => setFilter("scoring")}
+            disabled={scoringCount === 0}
+          >
+            Scoring{scoringCount > 0 ? ` (${scoringCount})` : ""}
+          </Button>
+          <Button
+            size="sm"
+            variant={filter === "blocked" ? "solid" : "ghost"}
+            colorPalette={filter === "blocked" ? "accent" : undefined}
+            onClick={() => setFilter("blocked")}
+            disabled={blockedCount === 0}
+          >
+            Blocked{blockedCount > 0 ? ` (${blockedCount})` : ""}
+          </Button>
+
+          {/* Mark all read button - only for unread/all tabs */}
+          {(filter === "unread" || filter === "all") &&
+            selectedFeedId &&
+            articleCount > 0 &&
+            filter === "unread" && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleMarkAllAsRead}
+                disabled={markAllRead.isPending}
+              >
+                Mark all read
+              </Button>
+            )}
+
+          {/* Sort dropdown */}
+          <SortSelect value={sortOption} onChange={setSortOption} />
         </Flex>
 
         <Text fontSize="sm" color="fg.muted">
@@ -148,9 +219,7 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
           p={8}
         >
           <Text fontSize="lg" color="fg.muted">
-            {showAll
-              ? "No articles yet. Add some feeds to get started."
-              : "No unread articles. You're all caught up!"}
+            {emptyMessage}
           </Text>
         </Flex>
       )}

@@ -11,6 +11,7 @@ interface FetchArticlesParams {
   sort_by?: string;
   order?: string;
   scoring_state?: string;
+  exclude_blocked?: boolean;
 }
 
 export async function fetchArticles(
@@ -38,6 +39,9 @@ export async function fetchArticles(
   }
   if (params.scoring_state !== undefined) {
     searchParams.set("scoring_state", params.scoring_state);
+  }
+  if (params.exclude_blocked !== undefined) {
+    searchParams.set("exclude_blocked", params.exclude_blocked.toString());
   }
 
   const url = `${API_BASE_URL}/api/articles${
@@ -223,6 +227,25 @@ export async function updateCategoryWeight(
     throw new Error(
       `Failed to update category weight: ${response.statusText}`
     );
+  }
+
+  return response.json();
+}
+
+export interface ScoringStatus {
+  unscored: number;
+  queued: number;
+  scoring: number;
+  scored: number;
+  failed: number;
+  blocked: number;
+}
+
+export async function fetchScoringStatus(): Promise<ScoringStatus> {
+  const response = await fetch(`${API_BASE_URL}/api/scoring/status`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch scoring status: ${response.statusText}`);
   }
 
   return response.json();
