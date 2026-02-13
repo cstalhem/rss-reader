@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { Box, Flex, Button, Text, Skeleton, Stack } from "@chakra-ui/react";
-import { keyframes } from "@emotion/react";
 import { useArticles, useMarkAsRead } from "@/hooks/useArticles";
 import { useMarkAllRead } from "@/hooks/useFeedMutations";
 import { useFeeds } from "@/hooks/useFeeds";
@@ -18,11 +17,6 @@ interface ArticleListProps {
 }
 
 type FilterTab = "unread" | "all" | "scoring" | "blocked";
-
-const pulse = keyframes`
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
-`;
 
 export function ArticleList({ selectedFeedId }: ArticleListProps) {
   const [filter, setFilter] = useState<FilterTab>("unread");
