@@ -1,7 +1,8 @@
 "use client";
 
 import { Box, Flex, Heading, IconButton } from "@chakra-ui/react";
-import { LuMenu } from "react-icons/lu";
+import { LuMenu, LuSettings } from "react-icons/lu";
+import Link from "next/link";
 import { ThemeToggle } from "@/components/ui/color-mode";
 
 interface HeaderProps {
@@ -44,7 +45,14 @@ export function Header({ onMenuToggle }: HeaderProps) {
             RSS Reader
           </Heading>
         </Flex>
-        <ThemeToggle colorPalette="accent" />
+        <Flex alignItems="center" gap={1}>
+          <Link href="/settings">
+            <IconButton aria-label="Settings" size="sm" variant="ghost">
+              <LuSettings />
+            </IconButton>
+          </Link>
+          <ThemeToggle colorPalette="accent" />
+        </Flex>
       </Flex>
     </Box>
   );
