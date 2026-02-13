@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 
 ## Current Position
 
-Phase: 3 of 5 complete (Feed Management)
-Plan: All 4 plans complete, verified
-Status: Phase 3 verified ✓ — ready for Phase 4
-Last activity: 2026-02-10 - Completed quick task 5: Add accent colorPalette to add-feed buttons
+Phase: 4 of 5 in progress (LLM Content Curation)
+Plan: 1 of 5 complete
+Status: Plan 04-01 complete — data foundation ready
+Last activity: 2026-02-13 - Completed plan 04-01: Data Foundation for LLM Content Curation
 
-Progress: [██████░░░░] 60%
+Progress: [██████░░░░] 64%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: ~5 minutes
-- Total execution time: ~1.4 hours
+- Total execution time: ~1.5 hours
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [██████░░░░] 60%
 | 01    | 3     | ~35 min | ~12 min |
 | 02    | 4     | ~15 min | ~4 min |
 | 03    | 4     | ~20 min | ~5 min |
+| 04    | 1     | ~4 min | ~4 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01, 03-02, 03-03, 03-04
-- Trend: Consistent 5 min agent execution + verification fixes
+- Last 5 plans: 03-02, 03-03, 03-04, 04-01
+- Trend: Consistent fast execution (~4 min average for recent plans)
 
 *Updated after each plan completion*
 
@@ -81,6 +82,10 @@ Recent decisions affecting current work:
 - [Quick-04]: Global link styling via globalCss — accent.500 default, accent.400 on hover
 - [Quick-05]: All CTA/add-feed buttons use colorPalette="accent" for design system consistency
 - [Quick-05]: ArticleReader inherits global link colors — only adds textDecoration: underline locally
+- [Phase 04-01]: Single-row UserPreferences table (single-user app)
+- [Phase 04-01]: SQLAlchemy JSON columns for list/dict fields (categories, topic_weights)
+- [Phase 04-01]: Case-insensitive category keys normalized to lowercase
+- [Phase 04-01]: No health check on Ollama service — scoring queue handles unavailability via retry
 
 ### Pending Todos
 
@@ -111,6 +116,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-10 (quick task execution)
-Stopped at: Quick task 5 complete — accent colors applied to add-feed buttons, link styling simplified
+Last session: 2026-02-13 (plan execution)
+Stopped at: Completed 04-01-PLAN.md — data foundation for LLM content curation
 Resume file: None
