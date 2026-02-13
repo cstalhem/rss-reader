@@ -98,9 +98,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Backend sort API + frontend data layer (sort params, useSortParams hook, useArticles update)
-- [ ] 05-02-PLAN.md — UI components (ScoreBadge, SortSelect dropdown, ArticleList/ArticleRow updates)
-- [ ] 05-03-PLAN.md — Human verification checkpoint for interest-driven UI
+- [ ] 05-01-PLAN.md — Backend sort/filter API + frontend data layer (sort params, useSortPreference hook, useArticles update) (Wave 1)
+- [ ] 05-02-PLAN.md — UI components: ScoreBadge, SortSelect, extended filter bar, ArticleRow/List/Reader integration (Wave 2)
+- [ ] 05-03-PLAN.md — Human verification checkpoint for interest-driven UI (Wave 3)
 
 ## Progress
 
