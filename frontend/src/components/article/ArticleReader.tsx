@@ -8,10 +8,13 @@ import {
   IconButton,
   Link,
   Drawer,
+  Separator,
 } from "@chakra-ui/react";
 import { Article } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
 import { useAutoMarkAsRead } from "@/hooks/useAutoMarkAsRead";
+import { usePreferences } from "@/hooks/usePreferences";
+import { TagChip } from "./TagChip";
 
 interface ArticleReaderProps {
   article: Article | null;
@@ -30,6 +33,9 @@ export function ArticleReader({
 
   // Trigger auto-mark as read when article is displayed
   useAutoMarkAsRead(article?.id ?? 0, article?.is_read ?? true);
+
+  // Get preferences for tag weights
+  const { preferences, updateCategoryWeight } = usePreferences();
 
   // Determine prev/next articles
   const { prevArticle, nextArticle } = useMemo(() => {
@@ -97,8 +103,82 @@ export function ArticleReader({
                 )}
               </Flex>
 
+              {/* Category Tags */}
+              {article.categories && article.categories.length > 0 && (
+                <Flex gap={2} flexWrap="wrap" mt={2}>
+                  {article.categories.map((category, index) => {
+                    const currentWeight =
+                      preferences?.topic_weights?.[category.toLowerCase()] || "neutral";
+                    return (
+                      <TagChip
+                        key={index}
+                        label={category}
+                        size="md"
+                        interactive={true}
+                        currentWeight={currentWeight}
+                        onWeightChange={(weight) =>
+                          updateCategoryWeight({ category: category.toLowerCase(), weight })
+                        }
+                      />
+                    );
+                  })}
+                </Flex>
+              )}
+
+              {/* Score Display */}
+              {article.scoring_state === "scored" ? (
+                <Box mt={3}>
+                  <Flex gap={3} alignItems="baseline">
+                    <Text fontSize="md" fontWeight="medium" color="fg.default">
+                      Score:{" "}
+                      <Text
+                        as="span"
+                        fontSize="lg"
+                        fontWeight="semibold"
+                        color={
+                          article.composite_score! >= 15
+                            ? "accent.fg"
+                            : article.composite_score! >= 10
+                            ? "fg.default"
+                            : "fg.muted"
+                        }
+                      >
+                        {article.composite_score?.toFixed(1)}/20
+                      </Text>
+                    </Text>
+                    {article.quality_score !== null && (
+                      <Text fontSize="sm" color="fg.muted">
+                        Quality: {article.quality_score.toFixed(0)}/10
+                      </Text>
+                    )}
+                  </Flex>
+                  {article.score_reasoning && (
+                    <Text
+                      mt={2}
+                      fontSize="sm"
+                      color="fg.muted"
+                      fontStyle="italic"
+                      lineHeight="1.6"
+                    >
+                      {article.score_reasoning}
+                    </Text>
+                  )}
+                </Box>
+              ) : (
+                <Box mt={3}>
+                  <Text fontSize="sm" color="fg.muted">
+                    {article.scoring_state === "scoring" && "Scoring in progress..."}
+                    {article.scoring_state === "queued" && "Queued for scoring..."}
+                    {article.scoring_state === "unscored" && "Not yet scored"}
+                    {article.scoring_state === "failed" && "Scoring failed"}
+                  </Text>
+                </Box>
+              )}
+
+              <Separator mt={4} />
+
               {/* Actions */}
-              <Flex gap={2} mt={1}>
+              <Flex gap={2} mt={4}>
                 <Link
                   href={article.url}
                   target="_blank"
