@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-04)
 
 **Core value:** Surface interesting articles and hide noise automatically via local LLM curation
-**Current focus:** Phase 4 - LLM Content Curation
+**Current focus:** Phase 5 - Interest-Driven UI
 
 ## Current Position
 
-Phase: 4 of 5 in progress (LLM Content Curation)
-Plan: 4 of 5 complete
-Status: Plan 04-04 complete — visual scoring display with tags and indicators
-Last activity: 2026-02-13 - Completed plan 04-04: Visual Scoring Display
+Phase: 4 of 5 complete (LLM Content Curation)
+Plan: 5 of 5 complete
+Status: Phase 4 verified — LLM content curation system fully operational
+Last activity: 2026-02-13 - Phase 4 verified (28/28 must-haves passed)
 
 Progress: [████████░░] 80%
 
@@ -30,14 +30,13 @@ Progress: [████████░░] 80%
 | 01    | 3     | ~35 min | ~12 min |
 | 02    | 4     | ~15 min | ~4 min |
 | 03    | 4     | ~20 min | ~5 min |
-| 04    | 4     | ~12 min | ~3 min |
+| 04    | 5     | ~57 min | ~11 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-01, 04-02, 04-03, 04-04
-- Trend: Consistent fast execution (~2.5 min average for recent plans)
+- Last 5 plans: 04-02, 04-03, 04-04, 04-05
+- Trend: Plan 04-05 (verification) took ~45 min due to interactive bug fixing
 
 *Updated after each plan completion*
-| Phase 04-llm-content-curation P04-04 | 141 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -95,6 +94,14 @@ Recent decisions affecting current work:
 - [Phase 04-03]: Empty state guidance for categories before LLM scoring runs
 - [Phase 04-04]: Color-coded tag weights (blocked=red/strikethrough, high=accent, neutral=default)
 - [Phase 04-04]: Score display with color intensity based on value (>15=accent, >10=default, else=muted)
+- [Phase 04-05]: SQLite busy_timeout=5000ms for concurrent scoring/API writes
+- [Phase 04-05]: Startup recovery resets orphaned scoring→queued state
+- [Phase 04-05]: Reassign JSON dicts (not mutate in-place) for SQLAlchemy change detection
+- [Phase 04-05]: Default Ollama model deepseek-r1:8b (user's available model)
+- [Phase 04-05]: Categorization prompt: max 4 broad kebab-case categories, ignore incidental mentions
+- [Phase 04-05]: Conditional TanStack Query polling (5s) during active scoring
+- [Phase 04-05]: Single orange toggle dot for read/unread state (replaces dual indicators)
+- [Phase 04-05]: Feed name shown only in all-articles view, hidden for single-feed
 
 ### Pending Todos
 
@@ -108,9 +115,11 @@ None yet.
 - ✅ Health check endpoint with proper startup ordering
 - ✅ Docker builds verified working (user environment)
 
-**Phase 4 considerations (future):**
-- Ollama model quality depends on quantization level (Q6/Q8 recommended per research)
-- LLM scoring latency must use batch processing, not on-demand during page load
+**Phase 4 - RESOLVED:**
+- ✅ Ollama scoring operational with deepseek-r1:8b
+- ✅ Batch processing via scoring queue (5 articles per batch, 30s interval)
+- ✅ SQLite concurrency resolved via busy_timeout pragma
+- ✅ Startup recovery for orphaned scoring states
 
 ### Quick Tasks Completed
 
@@ -126,5 +135,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-13 (plan execution)
-Stopped at: Completed 04-04-PLAN.md — visual scoring display with tags and indicators
+Stopped at: Phase 4 complete — ready for Phase 5 (Interest-Driven UI)
 Resume file: None

@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Production Infrastructure** - Docker deployment with persistent storage
 - [x] **Phase 2: Article Reading UI** - Browse and read articles with theme support
 - [x] **Phase 3: Feed Management** - Add and remove feed subscriptions
-- [ ] **Phase 4: LLM Content Curation** - Automatic interest scoring with Ollama
+- [x] **Phase 4: LLM Content Curation** - Automatic interest scoring with Ollama
 - [ ] **Phase 5: Interest-Driven UI** - Visual presentation by relevance
 
 ## Phase Details
@@ -81,11 +81,11 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Backend data models, preferences/categories API, Ollama Docker service (Wave 1)
-- [ ] 04-02-PLAN.md — LLM scoring engine: prompts, two-step pipeline, queue, scheduler (Wave 2)
-- [ ] 04-03-PLAN.md — Settings page UI with preferences editor and topic weights (Wave 2)
-- [ ] 04-04-PLAN.md — Article UI: tag chips, scoring state indicators, quick-block/boost (Wave 3)
-- [ ] 04-05-PLAN.md — Human verification checkpoint for complete LLM curation flow (Wave 4)
+- [x] 04-01-PLAN.md — Backend data models, preferences/categories API, Ollama Docker service (Wave 1)
+- [x] 04-02-PLAN.md — LLM scoring engine: prompts, two-step pipeline, queue, scheduler (Wave 2)
+- [x] 04-03-PLAN.md — Settings page UI with preferences editor and topic weights (Wave 2)
+- [x] 04-04-PLAN.md — Article UI: tag chips, scoring state indicators, quick-block/boost (Wave 3)
+- [x] 04-05-PLAN.md — Human verification checkpoint for complete LLM curation flow (Wave 4)
 
 ### Phase 5: Interest-Driven UI
 **Goal**: Articles are visually presented by relevance based on LLM scores
@@ -110,5 +110,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Production Infrastructure | 3/3 | ✓ Complete | 2026-02-05 |
 | 2. Article Reading UI | 4/4 | ✓ Complete | 2026-02-07 |
 | 3. Feed Management | 4/4 | ✓ Complete | 2026-02-10 |
-| 4. LLM Content Curation | 0/5 | Planning complete | - |
+| 4. LLM Content Curation | 5/5 | ✓ Complete | 2026-02-13 |
 | 5. Interest-Driven UI | 0/TBD | Not started | - |
