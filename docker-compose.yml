@@ -1,4 +1,15 @@
 services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: rss-reader-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - rss-reader
+
   backend:
     build:
       context: ./backend
@@ -6,12 +17,15 @@ services:
     image: rss-reader-backend:latest
     container_name: rss-reader-backend
     restart: unless-stopped
+    depends_on:
+      - ollama
     volumes:
       - db-data:/data
       - ./config:/config:ro
     environment:
       - CONFIG_FILE=/config/app.yaml
       - PYTHONUNBUFFERED=1
+      - OLLAMA__HOST=http://ollama:11434
     env_file:
       - .env
     healthcheck:
@@ -52,6 +66,8 @@ services:
 
 volumes:
   db-data:
+    driver: local
+  ollama-data:
     driver: local
 
 networks:
