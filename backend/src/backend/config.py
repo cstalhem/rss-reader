@@ -33,6 +33,15 @@ class SchedulerConfig(BaseModel):
     log_job_execution: bool = False
 
 
+class OllamaConfig(BaseModel):
+    """Ollama LLM configuration."""
+
+    host: str = "http://localhost:11434"
+    categorization_model: str = "qwen2.5:7b"
+    scoring_model: str = "qwen2.5:14b"
+    timeout: float = 120.0
+
+
 class Settings(BaseSettings):
     """Application settings with nested configuration sections.
 
@@ -55,6 +64,7 @@ class Settings(BaseSettings):
     database: DatabaseConfig = DatabaseConfig()
     logging: LoggingConfig = LoggingConfig()
     scheduler: SchedulerConfig = SchedulerConfig()
+    ollama: OllamaConfig = OllamaConfig()
 
     @classmethod
     def settings_customise_sources(

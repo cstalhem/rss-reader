@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
 
 
@@ -20,6 +21,8 @@ class Article(SQLModel, table=True):
 
     __tablename__ = "articles"
 
+    model_config = {"arbitrary_types_allowed": True}
+
     id: int | None = Field(default=None, primary_key=True)
     feed_id: int = Field(foreign_key="feeds.id", index=True, ondelete="CASCADE")
     title: str
@@ -29,3 +32,26 @@ class Article(SQLModel, table=True):
     summary: str | None = None
     content: str | None = None
     is_read: bool = Field(default=False)
+
+    # LLM scoring fields
+    categories: list[str] | None = Field(default=None, sa_column=Column(JSON))
+    interest_score: int | None = Field(default=None)
+    quality_score: int | None = Field(default=None)
+    composite_score: float | None = Field(default=None)
+    score_reasoning: str | None = Field(default=None)
+    scoring_state: str = Field(default="unscored")
+    scored_at: datetime | None = Field(default=None)
+
+
+class UserPreferences(SQLModel, table=True):
+    """User preferences for content curation (single-row table)."""
+
+    __tablename__ = "user_preferences"
+
+    model_config = {"arbitrary_types_allowed": True}
+
+    id: int | None = Field(default=None, primary_key=True)
+    interests: str = Field(default="")
+    anti_interests: str = Field(default="")
+    topic_weights: dict[str, str] | None = Field(default=None, sa_column=Column(JSON))
+    updated_at: datetime = Field(default_factory=datetime.now)
