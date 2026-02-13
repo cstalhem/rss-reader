@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 
 ## Current Position
 
-Phase: 4 of 5 complete (LLM Content Curation)
-Plan: 5 of 5 complete
-Status: Phase 4 verified — LLM content curation system fully operational
-Last activity: 2026-02-13 - Phase 4 verified (28/28 must-haves passed)
+Phase: 5 of 5 in progress (Interest-Driven UI)
+Plan: 1 of 3 complete
+Status: Sort and filter data layer complete — backend and frontend wired up
+Last activity: 2026-02-13 - Plan 05-01 complete (server-side sort/filter + localStorage persistence)
 
-Progress: [████████░░] 80%
+Progress: [████████░░] 83%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
-- Average duration: ~3.5 minutes
-- Total execution time: ~1.75 hours
+- Total plans completed: 16
+- Average duration: ~3.3 minutes
+- Total execution time: ~1.8 hours
 
 **By Phase:**
 
@@ -31,10 +31,11 @@ Progress: [████████░░] 80%
 | 02    | 4     | ~15 min | ~4 min |
 | 03    | 4     | ~20 min | ~5 min |
 | 04    | 5     | ~57 min | ~11 min |
+| 05    | 1     | ~2 min | ~2 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-02, 04-03, 04-04, 04-05
-- Trend: Plan 04-05 (verification) took ~45 min due to interactive bug fixing
+- Last 5 plans: 04-03, 04-04, 04-05, 05-01
+- Trend: Phase 5 plans fast on Sonnet 4.5 (~2 min)
 
 *Updated after each plan completion*
 
@@ -102,6 +103,12 @@ Recent decisions affecting current work:
 - [Phase 04-05]: Conditional TanStack Query polling (5s) during active scoring
 - [Phase 04-05]: Single orange toggle dot for read/unread state (replaces dual indicators)
 - [Phase 04-05]: Feed name shown only in all-articles view, hidden for single-feed
+- [Phase 05-01]: Default sort: composite_score descending (score-first workflow)
+- [Phase 05-01]: NULL composite_scores pushed to end with nulls_last() (SQLAlchemy)
+- [Phase 05-01]: Pending tab auto-overrides to oldest-first (published_at ASC) for catch-up workflow
+- [Phase 05-01]: Secondary sorts for stability (score→published_at ASC, date→id)
+- [Phase 05-01]: useSortPreference hook wraps useLocalStorage with "score_desc" default
+- [Phase 05-01]: TanStack Query queryKey includes sort/filter params for cache correctness
 
 ### Pending Todos
 
@@ -135,5 +142,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-13 (plan execution)
-Stopped at: Phase 4 complete — ready for Phase 5 (Interest-Driven UI)
+Stopped at: Completed Phase 05 Plan 01 (Sort and Filter Data Layer)
 Resume file: None
