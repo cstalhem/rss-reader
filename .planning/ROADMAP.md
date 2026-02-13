@@ -95,10 +95,12 @@ Plans:
   1. User can see interest score indicator on each article card (visual badge or color coding)
   2. Article list is sorted by interest score with high-interest articles appearing first
   3. User can filter or re-sort articles by different criteria (newest, highest score, category)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] TBD
+- [ ] 05-01-PLAN.md — Backend sort API + frontend data layer (sort params, useSortParams hook, useArticles update)
+- [ ] 05-02-PLAN.md — UI components (ScoreBadge, SortSelect dropdown, ArticleList/ArticleRow updates)
+- [ ] 05-03-PLAN.md — Human verification checkpoint for interest-driven UI
 
 ## Progress
 
@@ -111,4 +113,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Article Reading UI | 4/4 | ✓ Complete | 2026-02-07 |
 | 3. Feed Management | 4/4 | ✓ Complete | 2026-02-10 |
 | 4. LLM Content Curation | 5/5 | ✓ Complete | 2026-02-13 |
-| 5. Interest-Driven UI | 0/TBD | Not started | - |
+| 5. Interest-Driven UI | 0/3 | Not started | - |
