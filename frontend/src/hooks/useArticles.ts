@@ -12,10 +12,11 @@ interface UseArticlesOptions {
   order?: string;
   scoringState?: string;
   excludeBlocked?: boolean;
+  scoringActive?: boolean;
 }
 
 export function useArticles(options: UseArticlesOptions = {}) {
-  const { showAll = false, feedId, sortBy, order, scoringState, excludeBlocked = true } = options;
+  const { showAll = false, feedId, sortBy, order, scoringState, excludeBlocked = true, scoringActive = false } = options;
   const [limit, setLimit] = useState(50);
 
   const query = useQuery({
@@ -41,8 +42,12 @@ export function useArticles(options: UseArticlesOptions = {}) {
         scoring_state: scoringState,
         exclude_blocked: excludeBlocked,
       }),
-    // Poll every 5s while any article is actively scoring, stop when done
     refetchInterval: (query) => {
+      // When scoring is active globally, poll for newly scored articles
+      // (main views filter to scored-only, so they need external polling)
+      if (scoringActive) return 10000;
+
+      // For Scoring tab: poll while articles are actively being processed
       const articles = query.state.data;
       if (!articles) return false;
       const hasActiveScoring = articles.some(
