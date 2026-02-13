@@ -6,6 +6,7 @@ from datetime import datetime
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlalchemy import desc, nulls_last
 from sqlmodel import Session, func, select
 
 from backend.config import get_settings
@@ -131,24 +132,66 @@ def list_articles(
     limit: int = 50,
     is_read: bool | None = None,
     feed_id: int | None = None,
+    sort_by: str = "composite_score",
+    order: str = "desc",
+    scoring_state: str | None = None,
     session: Session = Depends(get_session),
 ):
     """
-    List articles, paginated and sorted by published_at desc.
+    List articles, paginated and sorted by composite_score or published_at.
 
     Query params:
         skip: Number of articles to skip (default: 0)
         limit: Maximum number of articles to return (default: 50)
         is_read: Filter by read status (optional). If not provided, returns all articles.
         feed_id: Filter by feed ID (optional). If not provided, returns articles from all feeds.
+        sort_by: Sort field - "composite_score" or "published_at" (default: composite_score)
+        order: Sort order - "desc" or "asc" (default: desc)
+        scoring_state: Filter by scoring state (optional). Special values:
+            - "pending": filters to unscored, queued, or scoring
+            - "blocked": filters to scored articles with composite_score == 0
     """
-    statement = select(Article).order_by(Article.published_at.desc())
+    statement = select(Article)
 
+    # Apply filters
     if is_read is not None:
         statement = statement.where(Article.is_read == is_read)
 
     if feed_id is not None:
         statement = statement.where(Article.feed_id == feed_id)
+
+    # Apply scoring_state filter
+    if scoring_state == "pending":
+        statement = statement.where(Article.scoring_state.in_(["unscored", "queued", "scoring"]))
+    elif scoring_state == "blocked":
+        statement = statement.where(Article.scoring_state == "scored").where(Article.composite_score == 0)
+    elif scoring_state is not None:
+        statement = statement.where(Article.scoring_state == scoring_state)
+
+    # Apply sorting
+    # For pending tab, default to oldest-first if sort_by is still default
+    if scoring_state == "pending" and sort_by == "composite_score":
+        sort_by = "published_at"
+        order = "asc"
+
+    if sort_by == "composite_score":
+        # Primary: composite_score with NULLs last, secondary: published_at ASC (oldest first)
+        if order == "desc":
+            statement = statement.order_by(
+                nulls_last(desc(Article.composite_score)),
+                Article.published_at.asc()
+            )
+        else:
+            statement = statement.order_by(
+                nulls_last(Article.composite_score),
+                Article.published_at.asc()
+            )
+    elif sort_by == "published_at":
+        # Primary: published_at, secondary: id for stability
+        if order == "desc":
+            statement = statement.order_by(Article.published_at.desc(), Article.id)
+        else:
+            statement = statement.order_by(Article.published_at.asc(), Article.id)
 
     statement = statement.offset(skip).limit(limit)
     articles = session.exec(statement).all()
