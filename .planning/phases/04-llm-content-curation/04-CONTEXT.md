@@ -52,7 +52,7 @@ Automatic interest scoring of articles using a local LLM (Ollama). Users define 
 - Tags are display-only in this phase (click-to-filter deferred to Phase 5)
 
 ### Claude's Discretion
-- Ollama model selection and prompt engineering
+- Ollama model selection and prompt engineering. Model has to fit in 8Gb of RAM maximum.
 - Exact composite score formula and weight multipliers
 - Queue implementation details (in-memory vs database-backed)
 - Category normalization/deduplication strategy
