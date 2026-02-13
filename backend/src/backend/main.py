@@ -151,7 +151,8 @@ def list_articles(
         scoring_state: Filter by scoring state (optional). Special values:
             - "pending": filters to unscored, queued, or scoring
             - "blocked": filters to scored articles with composite_score == 0
-        exclude_blocked: Exclude blocked articles (composite_score=0 + scored) from results (default: True)
+        exclude_blocked: When True (default), only show scored non-blocked articles in main views.
+            Unscored/queued/scoring articles are hidden until scoring completes.
     """
     statement = select(Article)
 
@@ -171,10 +172,13 @@ def list_articles(
     elif scoring_state is not None:
         statement = statement.where(Article.scoring_state == scoring_state)
 
-    # Exclude blocked articles from main views (unless explicitly requesting them)
-    if exclude_blocked and scoring_state != "blocked":
+    # In main views (Unread/All), only show scored non-blocked articles.
+    # Articles still being scored belong in the Scoring tab, not the main feed.
+    if exclude_blocked and scoring_state is None:
         statement = statement.where(
-            (Article.scoring_state != "scored") | (Article.composite_score != 0)
+            Article.scoring_state == "scored"
+        ).where(
+            Article.composite_score != 0
         )
 
     # Apply sorting
