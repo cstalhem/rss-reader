@@ -8,6 +8,9 @@ interface FetchArticlesParams {
   limit?: number;
   is_read?: boolean;
   feed_id?: number;
+  sort_by?: string;
+  order?: string;
+  scoring_state?: string;
 }
 
 export async function fetchArticles(
@@ -26,6 +29,15 @@ export async function fetchArticles(
   }
   if (params.feed_id !== undefined) {
     searchParams.set("feed_id", params.feed_id.toString());
+  }
+  if (params.sort_by !== undefined) {
+    searchParams.set("sort_by", params.sort_by);
+  }
+  if (params.order !== undefined) {
+    searchParams.set("order", params.order);
+  }
+  if (params.scoring_state !== undefined) {
+    searchParams.set("scoring_state", params.scoring_state);
   }
 
   const url = `${API_BASE_URL}/api/articles${

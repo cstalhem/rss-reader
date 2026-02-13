@@ -33,3 +33,14 @@ export interface UserPreferences {
   topic_weights: Record<string, string> | null;
   updated_at: string;
 }
+
+export type SortOption = "score_desc" | "score_asc" | "date_desc" | "date_asc";
+
+export function parseSortOption(option: SortOption): { sort_by: string; order: string } {
+  switch (option) {
+    case "score_desc": return { sort_by: "composite_score", order: "desc" };
+    case "score_asc": return { sort_by: "composite_score", order: "asc" };
+    case "date_desc": return { sort_by: "published_at", order: "desc" };
+    case "date_asc": return { sort_by: "published_at", order: "asc" };
+  }
+}

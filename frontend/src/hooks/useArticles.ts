@@ -8,22 +8,35 @@ import { Article } from "@/lib/types";
 interface UseArticlesOptions {
   showAll?: boolean;
   feedId?: number;
+  sortBy?: string;
+  order?: string;
+  scoringState?: string;
 }
 
 export function useArticles(options: UseArticlesOptions = {}) {
-  const { showAll = false, feedId } = options;
+  const { showAll = false, feedId, sortBy, order, scoringState } = options;
   const [limit, setLimit] = useState(50);
 
   const query = useQuery({
     queryKey: [
       "articles",
-      { is_read: showAll ? undefined : false, limit, feed_id: feedId },
+      {
+        is_read: showAll ? undefined : false,
+        limit,
+        feed_id: feedId,
+        sort_by: sortBy,
+        order: order,
+        scoring_state: scoringState,
+      },
     ],
     queryFn: () =>
       fetchArticles({
         is_read: showAll ? undefined : false,
         limit,
         feed_id: feedId,
+        sort_by: sortBy,
+        order: order,
+        scoring_state: scoringState,
       }),
     // Poll every 5s while any article is actively scoring, stop when done
     refetchInterval: (query) => {
