@@ -11,6 +11,7 @@ interface ArticleRowProps {
   feedName?: string;
   onSelect: (article: Article) => void;
   onToggleRead: (article: Article) => void;
+  isCompleting?: boolean;
 }
 
 export function ArticleRow({
@@ -18,6 +19,7 @@ export function ArticleRow({
   feedName,
   onSelect,
   onToggleRead,
+  isCompleting = false,
 }: ArticleRowProps) {
   // Add subtle accent background tint for high-scored rows
   const isHighScored = article.scoring_state === "scored" &&
@@ -32,10 +34,30 @@ export function ArticleRow({
       borderBottom="1px solid"
       borderColor="border.subtle"
       cursor="pointer"
-      opacity={article.is_read ? 0.6 : 1}
+      opacity={article.is_read && !isCompleting ? 0.6 : 1}
       bg={isHighScored ? "accent.subtle" : undefined}
       _hover={{ bg: "bg.subtle" }}
       onClick={() => onSelect(article)}
+      css={isCompleting ? {
+        animation: "scoreReveal 3s ease-out forwards",
+        "@keyframes scoreReveal": {
+          "0%": {
+            backgroundColor: "color-mix(in srgb, var(--chakra-colors-accent-solid) 20%, transparent)",
+          },
+          "40%": {
+            backgroundColor: "color-mix(in srgb, var(--chakra-colors-accent-solid) 5%, transparent)",
+            opacity: 1,
+          },
+          "80%": {
+            opacity: 1,
+            backgroundColor: "transparent",
+          },
+          "100%": {
+            opacity: 0,
+            backgroundColor: "transparent",
+          },
+        },
+      } : undefined}
     >
       {/* Read/unread toggle dot */}
       <Box

@@ -7,6 +7,7 @@ import { useMarkAllRead } from "@/hooks/useFeedMutations";
 import { useFeeds } from "@/hooks/useFeeds";
 import { useSortPreference } from "@/hooks/useSortPreference";
 import { useScoringStatus } from "@/hooks/useScoringStatus";
+import { useCompletingArticles } from "@/hooks/useCompletingArticles";
 import { ArticleRow } from "./ArticleRow";
 import { ArticleReader } from "./ArticleReader";
 import { SortSelect } from "./SortSelect";
@@ -40,6 +41,19 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
     scoringState: scoringState,
     excludeBlocked: excludeBlocked,
   });
+
+  // Track articles completing scoring (for animation in Scoring tab)
+  const { completingArticles, completingIds } = useCompletingArticles(
+    articles,
+    filter === "scoring"
+  );
+
+  // Merge completing articles into the display list
+  const displayArticles = useMemo(() => {
+    if (!articles) return completingArticles.length > 0 ? completingArticles : undefined;
+    if (completingArticles.length === 0) return articles;
+    return [...articles, ...completingArticles];
+  }, [articles, completingArticles]);
 
   const { data: feeds } = useFeeds();
   const markAsRead = useMarkAsRead();
@@ -76,7 +90,7 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
     }
   };
 
-  const articleCount = articles?.length ?? 0;
+  const articleCount = displayArticles?.length ?? 0;
   const countLabel =
     filter === "unread"
       ? `${articleCount} unread article${articleCount !== 1 ? "s" : ""}`
@@ -178,16 +192,17 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
             </Box>
           ))}
         </Stack>
-      ) : articles && articles.length > 0 ? (
+      ) : displayArticles && displayArticles.length > 0 ? (
         <>
           <Box>
-            {articles.map((article) => (
+            {displayArticles.map((article) => (
               <ArticleRow
                 key={article.id}
                 article={article}
                 feedName={selectedFeedId ? undefined : feedNames[article.feed_id]}
                 onSelect={handleSelect}
                 onToggleRead={handleToggleRead}
+                isCompleting={completingIds.has(article.id)}
               />
             ))}
           </Box>
@@ -221,7 +236,7 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
       {/* Article reader drawer */}
       <ArticleReader
         article={selectedArticle}
-        articles={articles ?? []}
+        articles={displayArticles ?? []}
         onClose={() => setSelectedArticle(null)}
         onNavigate={(article) => setSelectedArticle(article)}
       />
