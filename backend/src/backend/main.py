@@ -283,9 +283,14 @@ async def create_feed(
     session.commit()
     session.refresh(feed)
 
-    # Save initial articles
-    article_count = save_articles(session, feed.id, parsed_feed.entries)
+    # Save initial articles and enqueue for scoring
+    article_count, new_article_ids = save_articles(session, feed.id, parsed_feed.entries)
     logger.info(f"Created feed {feed.title} with {article_count} articles")
+
+    # Enqueue new articles for scoring
+    if new_article_ids:
+        from backend.scheduler import scoring_queue
+        await scoring_queue.enqueue_articles(session, new_article_ids)
 
     # Return feed with unread count
     return FeedResponse(
@@ -455,11 +460,11 @@ def get_preferences(
 
 
 @app.put("/api/preferences", response_model=PreferencesResponse)
-def update_preferences(
+async def update_preferences(
     update: PreferencesUpdate,
     session: Session = Depends(get_session),
 ):
-    """Update user preferences. Merges non-None fields."""
+    """Update user preferences. Merges non-None fields and triggers re-scoring."""
     preferences = session.exec(select(UserPreferences)).first()
 
     if not preferences:
@@ -487,6 +492,10 @@ def update_preferences(
     session.add(preferences)
     session.commit()
     session.refresh(preferences)
+
+    # Trigger re-scoring of recent articles
+    from backend.scheduler import scoring_queue
+    await scoring_queue.enqueue_recent_for_rescoring(session)
 
     return PreferencesResponse(
         interests=preferences.interests,
@@ -556,5 +565,34 @@ def update_category_weight(
         topic_weights=preferences.topic_weights,
         updated_at=preferences.updated_at,
     )
+
+
+@app.post("/api/scoring/rescore")
+async def rescore_articles(
+    session: Session = Depends(get_session),
+):
+    """Manually trigger re-scoring of recent unread articles."""
+    from backend.scheduler import scoring_queue
+    queued = await scoring_queue.enqueue_recent_for_rescoring(session)
+    return {"queued": queued}
+
+
+@app.get("/api/scoring/status")
+def get_scoring_status(
+    session: Session = Depends(get_session),
+):
+    """Get counts of articles by scoring state."""
+    # Query counts by scoring_state
+    states = ["unscored", "queued", "scoring", "scored", "failed"]
+    counts = {}
+
+    for state in states:
+        count = session.exec(
+            select(func.count(Article.id))
+            .where(Article.scoring_state == state)
+        ).one()
+        counts[state] = count
+
+    return counts
 
 

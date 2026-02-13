@@ -50,7 +50,7 @@ async def fetch_feed(url: str) -> feedparser.FeedParserDict:
     return feed
 
 
-def save_articles(session: Session, feed_id: int, entries: list[dict]) -> int:
+def save_articles(session: Session, feed_id: int, entries: list[dict]) -> tuple[int, list[int]]:
     """
     Save articles from feed entries, deduplicating by URL.
 
@@ -60,9 +60,10 @@ def save_articles(session: Session, feed_id: int, entries: list[dict]) -> int:
         entries: List of feedparser entry dictionaries
 
     Returns:
-        Number of new articles saved
+        Tuple of (number of new articles saved, list of new article IDs)
     """
     new_count = 0
+    new_article_ids = []
 
     for entry in entries:
         # Skip entries without a link (URL)
@@ -92,12 +93,14 @@ def save_articles(session: Session, feed_id: int, entries: list[dict]) -> int:
         )
 
         session.add(article)
+        session.flush()  # Flush to get ID without committing
+        new_article_ids.append(article.id)
         new_count += 1
 
     session.commit()
     logger.info(f"Saved {new_count} new articles from feed {feed_id}")
 
-    return new_count
+    return new_count, new_article_ids
 
 
 async def refresh_feed(session: Session, feed: Feed) -> int:
@@ -121,8 +124,14 @@ async def refresh_feed(session: Session, feed: Feed) -> int:
         session.add(feed)
         session.commit()
 
-        # Save articles
-        new_count = save_articles(session, feed.id, parsed_feed.entries)
+        # Save articles and enqueue for scoring
+        new_count, new_article_ids = save_articles(session, feed.id, parsed_feed.entries)
+
+        # Enqueue new articles for scoring
+        if new_article_ids:
+            # Import here to avoid circular dependency
+            from backend.scheduler import scoring_queue
+            await scoring_queue.enqueue_articles(session, new_article_ids)
 
         return new_count
 

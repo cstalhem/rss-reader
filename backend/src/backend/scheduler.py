@@ -7,11 +7,13 @@ from backend.config import get_settings
 from backend.database import get_session
 from backend.feeds import refresh_feed
 from backend.models import Feed
+from backend.scoring_queue import ScoringQueue
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
 scheduler = AsyncIOScheduler()
+scoring_queue = ScoringQueue()
 
 
 async def refresh_all_feeds():
@@ -37,6 +39,20 @@ async def refresh_all_feeds():
                 # Continue with other feeds
 
 
+async def process_scoring_queue():
+    """Background job to process scoring queue."""
+    if settings.scheduler.log_job_execution:
+        logger.info("Running scoring queue processor...")
+
+    with next(get_session()) as session:
+        try:
+            processed = await scoring_queue.process_next_batch(session, batch_size=5)
+            if settings.scheduler.log_job_execution and processed > 0:
+                logger.info(f"Processed {processed} articles from scoring queue")
+        except Exception as e:
+            logger.error(f"Failed to process scoring queue: {e}")
+
+
 def start_scheduler():
     """Start the background scheduler."""
     # Add job to refresh feeds at configured interval
@@ -49,9 +65,19 @@ def start_scheduler():
         replace_existing=True,
     )
 
+    # Add job to process scoring queue every 30 seconds
+    scheduler.add_job(
+        process_scoring_queue,
+        "interval",
+        seconds=30,
+        id="process_scoring",
+        replace_existing=True,
+    )
+
     scheduler.start()
     logger.info(
-        f"Scheduler started - feeds will refresh every {interval_seconds} seconds"
+        f"Scheduler started - feeds will refresh every {interval_seconds} seconds, "
+        f"scoring queue will process every 30 seconds"
     )
 
 
