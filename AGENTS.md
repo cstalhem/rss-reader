@@ -56,3 +56,10 @@ From the PRD — follow these when writing tests:
 3. **Async-first** — Use `pytest-asyncio` for FastAPI endpoints
 4. **Test important paths** — Feed fetching, article display, read/unread state
 5. **Don't over-invest** — Skip exhaustive CRUD unit tests and UI snapshots
+
+---
+
+## Available tools
+
+1. The Chakra MCP - Use this to lookup ChakraUI documentation
+2. Context7 MCP - Use this to lookup other documentation that is not Chakra
