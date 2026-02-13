@@ -79,8 +79,47 @@ export function ArticleReader({
             maxWidth: { base: "100%", md: "75vw" },
           }}
         >
-          <Drawer.Header borderBottomWidth="1px" px={{ base: 6, md: 12 }}>
-            <Flex direction="column" gap={4} py={6} pr={16}>
+          {/* Pinned nav bar with close + prev/next */}
+          <Flex
+            position="sticky"
+            top={0}
+            zIndex={1}
+            bg="bg.panel"
+            px={{ base: 6, md: 12 }}
+            py={2}
+            justifyContent="flex-end"
+            gap={2}
+            borderBottomWidth="1px"
+            borderColor="border.subtle"
+          >
+            <IconButton
+              aria-label="Previous article"
+              size="sm"
+              variant="ghost"
+              colorPalette="accent"
+              _hover={{ bg: "accent.subtle" }}
+              disabled={!prevArticle}
+              onClick={() => prevArticle && onNavigate(prevArticle)}
+            >
+              ←
+            </IconButton>
+            <IconButton
+              aria-label="Next article"
+              size="sm"
+              variant="ghost"
+              colorPalette="accent"
+              _hover={{ bg: "accent.subtle" }}
+              disabled={!nextArticle}
+              onClick={() => nextArticle && onNavigate(nextArticle)}
+            >
+              →
+            </IconButton>
+            <Drawer.CloseTrigger position="static" />
+          </Flex>
+
+          <Drawer.Body px={{ base: 6, md: 12 }} py={{ base: 6, md: 8 }}>
+            {/* Article header — scrolls with content */}
+            <Flex direction="column" gap={4} mb={8}>
               {/* Title */}
               <Text
                 textStyle="reader.heading"
@@ -170,54 +209,25 @@ export function ArticleReader({
                 </Box>
               )}
 
-              <Separator mt={4} />
+              <Separator />
 
               {/* Actions */}
-              <Flex gap={2} mt={4}>
-                <Link
-                  href={article.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  fontSize="sm"
-                  colorPalette="accent"
-                  fontWeight="medium"
-                  _hover={{ color: "accent.emphasized" }}
-                >
-                  Open original →
-                </Link>
-              </Flex>
+              <Link
+                href={article.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                fontSize="sm"
+                colorPalette="accent"
+                fontWeight="medium"
+                _hover={{ color: "accent.emphasized" }}
+              >
+                Open original →
+              </Link>
 
-              {/* Navigation arrows */}
-              <Flex gap={2} position="absolute" top={4} right={12}>
-                <IconButton
-                  aria-label="Previous article"
-                  size="sm"
-                  variant="ghost"
-                  colorPalette="accent"
-                  _hover={{ bg: "accent.subtle" }}
-                  disabled={!prevArticle}
-                  onClick={() => prevArticle && onNavigate(prevArticle)}
-                >
-                  ←
-                </IconButton>
-                <IconButton
-                  aria-label="Next article"
-                  size="sm"
-                  variant="ghost"
-                  colorPalette="accent"
-                  _hover={{ bg: "accent.subtle" }}
-                  disabled={!nextArticle}
-                  onClick={() => nextArticle && onNavigate(nextArticle)}
-                >
-                  →
-                </IconButton>
-              </Flex>
+              <Separator />
             </Flex>
 
-            <Drawer.CloseTrigger />
-          </Drawer.Header>
-
-          <Drawer.Body px={{ base: 6, md: 12 }} py={{ base: 6, md: 8 }}>
+            {/* Article body */}
             <Box
               textStyle="reader"
               css={{

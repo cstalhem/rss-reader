@@ -7,6 +7,9 @@ import {
   SelectValueText,
   SelectContent,
   SelectItem,
+  SelectIndicator,
+  SelectItemIndicator,
+  SelectItemText,
 } from "@chakra-ui/react";
 import { SortOption } from "@/lib/types";
 
@@ -39,13 +42,15 @@ export function SortSelect({ value, onChange }: SortSelectProps) {
       width="auto"
       minWidth="160px"
     >
-      <SelectTrigger>
+      <SelectTrigger height="32px">
         <SelectValueText placeholder="Sort by..." />
+        <SelectIndicator />
       </SelectTrigger>
       <SelectContent>
         {sortOptions.items.map((option) => (
           <SelectItem key={option.value} item={option}>
-            {option.label}
+            <SelectItemText>{option.label}</SelectItemText>
+            <SelectItemIndicator />
           </SelectItem>
         ))}
       </SelectContent>

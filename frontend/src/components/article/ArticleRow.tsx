@@ -1,7 +1,6 @@
 "use client";
 
 import { Box, Flex, Text, Spinner } from "@chakra-ui/react";
-import { LuClock } from "react-icons/lu";
 import { Article } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
 import { TagChip } from "./TagChip";
@@ -101,11 +100,20 @@ export function ArticleRow({
         {article.scoring_state === "scoring" && (
           <Spinner size="xs" colorPalette="accent" />
         )}
-        {article.scoring_state === "queued" && (
-          <LuClock size={14} color="var(--chakra-colors-fg-muted)" />
-        )}
-        {article.scoring_state === "unscored" && (
-          <Text fontSize="xs" color="fg.muted">—</Text>
+        {(article.scoring_state === "queued" || article.scoring_state === "unscored") && (
+          <Box
+            w="8px"
+            h="8px"
+            borderRadius="full"
+            bg="fg.muted"
+            css={{
+              animation: "pulse 2s ease-in-out infinite",
+              "@keyframes pulse": {
+                "0%, 100%": { opacity: 0.4 },
+                "50%": { opacity: 1 },
+              },
+            }}
+          />
         )}
         {article.scoring_state === "failed" && (
           <Text fontSize="xs" color="red.fg">✕</Text>
