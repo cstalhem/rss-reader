@@ -79,46 +79,35 @@ export function ArticleReader({
             maxWidth: { base: "100%", md: "75vw" },
           }}
         >
-          {/* Pinned nav bar with close + prev/next */}
-          <Flex
-            position="sticky"
-            top={0}
-            zIndex={1}
-            bg="bg.panel"
-            px={{ base: 6, md: 12 }}
-            py={2}
-            justifyContent="flex-end"
-            gap={2}
-            borderBottomWidth="1px"
-            borderColor="border.subtle"
-          >
-            <IconButton
-              aria-label="Previous article"
-              size="sm"
-              variant="ghost"
-              colorPalette="accent"
-              _hover={{ bg: "accent.subtle" }}
-              disabled={!prevArticle}
-              onClick={() => prevArticle && onNavigate(prevArticle)}
-            >
-              ←
-            </IconButton>
-            <IconButton
-              aria-label="Next article"
-              size="sm"
-              variant="ghost"
-              colorPalette="accent"
-              _hover={{ bg: "accent.subtle" }}
-              disabled={!nextArticle}
-              onClick={() => nextArticle && onNavigate(nextArticle)}
-            >
-              →
-            </IconButton>
-            <Drawer.CloseTrigger position="static" />
-          </Flex>
-
           <Drawer.Body px={{ base: 6, md: 12 }} py={{ base: 6, md: 8 }}>
-            {/* Article header — scrolls with content */}
+            {/* Nav buttons — scroll with content */}
+            <Flex justifyContent="flex-end" gap={2} mb={6}>
+              <IconButton
+                aria-label="Previous article"
+                size="sm"
+                variant="ghost"
+                colorPalette="accent"
+                _hover={{ bg: "accent.subtle" }}
+                disabled={!prevArticle}
+                onClick={() => prevArticle && onNavigate(prevArticle)}
+              >
+                ←
+              </IconButton>
+              <IconButton
+                aria-label="Next article"
+                size="sm"
+                variant="ghost"
+                colorPalette="accent"
+                _hover={{ bg: "accent.subtle" }}
+                disabled={!nextArticle}
+                onClick={() => nextArticle && onNavigate(nextArticle)}
+              >
+                →
+              </IconButton>
+              <Drawer.CloseTrigger position="static" />
+            </Flex>
+
+            {/* Article header */}
             <Flex direction="column" gap={4} mb={8}>
               {/* Title */}
               <Text

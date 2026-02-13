@@ -2,14 +2,8 @@
 
 import {
   createListCollection,
-  SelectRoot,
-  SelectTrigger,
-  SelectValueText,
-  SelectContent,
-  SelectItem,
-  SelectIndicator,
-  SelectItemIndicator,
-  SelectItemText,
+  Portal,
+  Select,
 } from "@chakra-ui/react";
 import { SortOption } from "@/lib/types";
 
@@ -29,7 +23,7 @@ const sortOptions = createListCollection({
 
 export function SortSelect({ value, onChange }: SortSelectProps) {
   return (
-    <SelectRoot
+    <Select.Root
       collection={sortOptions}
       size="sm"
       value={[value]}
@@ -39,21 +33,31 @@ export function SortSelect({ value, onChange }: SortSelectProps) {
           onChange(selectedValue as SortOption);
         }
       }}
+      positioning={{ sameWidth: true }}
       width="auto"
       minWidth="160px"
     >
-      <SelectTrigger height="32px">
-        <SelectValueText placeholder="Sort by..." />
-        <SelectIndicator />
-      </SelectTrigger>
-      <SelectContent>
-        {sortOptions.items.map((option) => (
-          <SelectItem key={option.value} item={option}>
-            <SelectItemText>{option.label}</SelectItemText>
-            <SelectItemIndicator />
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </SelectRoot>
+      <Select.HiddenSelect />
+      <Select.Control>
+        <Select.Trigger>
+          <Select.ValueText placeholder="Sort by..." />
+        </Select.Trigger>
+        <Select.IndicatorGroup>
+          <Select.Indicator />
+        </Select.IndicatorGroup>
+      </Select.Control>
+      <Portal>
+        <Select.Positioner>
+          <Select.Content>
+            {sortOptions.items.map((option) => (
+              <Select.Item key={option.value} item={option}>
+                {option.label}
+                <Select.ItemIndicator />
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Positioner>
+      </Portal>
+    </Select.Root>
   );
 }

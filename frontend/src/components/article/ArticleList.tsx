@@ -48,11 +48,11 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
     filter === "scoring"
   );
 
-  // Merge completing articles into the display list
+  // Merge completing articles at the top (they just finished, keep them visible)
   const displayArticles = useMemo(() => {
     if (!articles) return completingArticles.length > 0 ? completingArticles : undefined;
     if (completingArticles.length === 0) return articles;
-    return [...articles, ...completingArticles];
+    return [...completingArticles, ...articles];
   }, [articles, completingArticles]);
 
   const { data: feeds } = useFeeds();

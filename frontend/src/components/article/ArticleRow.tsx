@@ -1,10 +1,23 @@
 "use client";
 
 import { Box, Flex, Text, Spinner } from "@chakra-ui/react";
+import { keyframes } from "@emotion/react";
 import { Article } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
 import { TagChip } from "./TagChip";
 import { ScoreBadge } from "./ScoreBadge";
+
+const pulsingDot = keyframes`
+  0%, 100% { background-color: var(--chakra-colors-fg-muted); opacity: 0.4; }
+  50% { background-color: var(--chakra-colors-accent-solid); opacity: 1; }
+`;
+
+const scoreReveal = keyframes`
+  0% { background-color: rgba(255, 140, 50, 0.18); }
+  40% { background-color: rgba(255, 140, 50, 0.06); opacity: 1; }
+  80% { opacity: 1; background-color: transparent; }
+  100% { opacity: 0; background-color: transparent; }
+`;
 
 interface ArticleRowProps {
   article: Article;
@@ -39,24 +52,7 @@ export function ArticleRow({
       _hover={{ bg: "bg.subtle" }}
       onClick={() => onSelect(article)}
       css={isCompleting ? {
-        animation: "scoreReveal 3s ease-out forwards",
-        "@keyframes scoreReveal": {
-          "0%": {
-            backgroundColor: "color-mix(in srgb, var(--chakra-colors-accent-solid) 20%, transparent)",
-          },
-          "40%": {
-            backgroundColor: "color-mix(in srgb, var(--chakra-colors-accent-solid) 5%, transparent)",
-            opacity: 1,
-          },
-          "80%": {
-            opacity: 1,
-            backgroundColor: "transparent",
-          },
-          "100%": {
-            opacity: 0,
-            backgroundColor: "transparent",
-          },
-        },
+        animation: `${scoreReveal} 3s ease-out forwards`,
       } : undefined}
     >
       {/* Read/unread toggle dot */}
@@ -128,13 +124,7 @@ export function ArticleRow({
             h="8px"
             borderRadius="full"
             bg="fg.muted"
-            css={{
-              animation: "pulse 2s ease-in-out infinite",
-              "@keyframes pulse": {
-                "0%, 100%": { opacity: 0.4 },
-                "50%": { opacity: 1 },
-              },
-            }}
+            css={{ animation: `${pulsingDot} 2s ease-in-out infinite` }}
           />
         )}
         {article.scoring_state === "failed" && (
