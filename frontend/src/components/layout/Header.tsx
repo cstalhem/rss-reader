@@ -41,9 +41,11 @@ export function Header({ onMenuToggle }: HeaderProps) {
               <LuMenu />
             </IconButton>
           )}
-          <Heading size="lg" fontWeight="semibold">
-            RSS Reader
-          </Heading>
+          <Link href="/">
+            <Heading size="lg" fontWeight="semibold">
+              RSS Reader
+            </Heading>
+          </Link>
         </Flex>
         <Flex alignItems="center" gap={1}>
           <Link href="/settings">

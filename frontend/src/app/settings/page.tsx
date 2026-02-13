@@ -15,6 +15,7 @@ import {
 import { Field } from "@/components/ui/field";
 import { toaster } from "@/components/ui/toaster";
 import { usePreferences } from "@/hooks/usePreferences";
+import { Header } from "@/components/layout/Header";
 
 const WEIGHT_OPTIONS = [
   { value: "blocked", label: "Blocked" },
@@ -98,16 +99,21 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <Container maxW="2xl" py={8} px={6}>
-        <Flex justifyContent="center" alignItems="center" minH="400px">
-          <Spinner size="lg" colorPalette="accent" />
-        </Flex>
-      </Container>
+      <Box minHeight="100vh" bg="bg">
+        <Header />
+        <Container maxW="2xl" py={8} px={6} pt="88px">
+          <Flex justifyContent="center" alignItems="center" minH="400px">
+            <Spinner size="lg" colorPalette="accent" />
+          </Flex>
+        </Container>
+      </Box>
     );
   }
 
   return (
-    <Container maxW="2xl" py={8} px={6}>
+    <Box minHeight="100vh" bg="bg">
+      <Header />
+      <Container maxW="2xl" py={8} px={6} pt="88px">
       <Stack gap={8}>
         {/* Interest Preferences Section */}
         <Box>
@@ -220,5 +226,6 @@ export default function SettingsPage() {
         </Box>
       </Stack>
     </Container>
+    </Box>
   );
 }

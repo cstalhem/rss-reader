@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { Box, Flex, Button, Text, Skeleton, Stack } from "@chakra-ui/react";
+import { useMemo } from "react";
 import { useArticles, useMarkAsRead } from "@/hooks/useArticles";
 import { useMarkAllRead } from "@/hooks/useFeedMutations";
+import { useFeeds } from "@/hooks/useFeeds";
 import { ArticleRow } from "./ArticleRow";
 import { ArticleReader } from "./ArticleReader";
 import { Article } from "@/lib/types";
@@ -20,8 +22,19 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
     showAll,
     feedId: selectedFeedId ?? undefined,
   });
+  const { data: feeds } = useFeeds();
   const markAsRead = useMarkAsRead();
   const markAllRead = useMarkAllRead();
+
+  const feedNames = useMemo(() => {
+    const map: Record<number, string> = {};
+    if (feeds) {
+      for (const feed of feeds) {
+        map[feed.id] = feed.title;
+      }
+    }
+    return map;
+  }, [feeds]);
 
   const handleToggleRead = (article: Article) => {
     markAsRead.mutate({
@@ -107,6 +120,7 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
               <ArticleRow
                 key={article.id}
                 article={article}
+                feedName={selectedFeedId ? undefined : feedNames[article.feed_id]}
                 onSelect={handleSelect}
                 onToggleRead={handleToggleRead}
               />

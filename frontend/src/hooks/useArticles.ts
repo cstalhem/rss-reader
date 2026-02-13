@@ -25,6 +25,15 @@ export function useArticles(options: UseArticlesOptions = {}) {
         limit,
         feed_id: feedId,
       }),
+    // Poll every 5s while any article is actively scoring, stop when done
+    refetchInterval: (query) => {
+      const articles = query.state.data;
+      if (!articles) return false;
+      const hasActiveScoring = articles.some(
+        (a) => a.scoring_state === "queued" || a.scoring_state === "scoring"
+      );
+      return hasActiveScoring ? 5000 : false;
+    },
   });
 
   const loadMore = () => {

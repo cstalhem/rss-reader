@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Flex, Text, IconButton, Spinner } from "@chakra-ui/react";
+import { Box, Flex, Text, Spinner } from "@chakra-ui/react";
 import { LuClock } from "react-icons/lu";
 import { Article } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
@@ -8,12 +8,14 @@ import { TagChip } from "./TagChip";
 
 interface ArticleRowProps {
   article: Article;
+  feedName?: string;
   onSelect: (article: Article) => void;
   onToggleRead: (article: Article) => void;
 }
 
 export function ArticleRow({
   article,
+  feedName,
   onSelect,
   onToggleRead,
 }: ArticleRowProps) {
@@ -29,11 +31,26 @@ export function ArticleRow({
       _hover={{ bg: "bg.subtle" }}
       onClick={() => onSelect(article)}
     >
-      {/* Unread indicator dot */}
-      <Box flexShrink={0} pt={1}>
-        {!article.is_read && (
-          <Box w="8px" h="8px" borderRadius="full" bg="colorPalette.solid" />
-        )}
+      {/* Read/unread toggle dot */}
+      <Box
+        flexShrink={0}
+        alignSelf="center"
+        px={2}
+        cursor="pointer"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleRead(article);
+        }}
+        title={article.is_read ? "Mark as unread" : "Mark as read"}
+      >
+        <Box
+          w="10px"
+          h="10px"
+          borderRadius="full"
+          bg={article.is_read ? "transparent" : "accent.solid"}
+          borderWidth="2px"
+          borderColor={article.is_read ? "fg.muted" : "accent.solid"}
+        />
       </Box>
 
       {/* Main content */}
@@ -50,24 +67,25 @@ export function ArticleRow({
           {article.title}
         </Text>
 
-        {/* Source and date */}
-        <Text fontSize="sm" color="fg.muted">
-          Feed • {formatRelativeDate(article.published_at)}
-        </Text>
-
-        {/* Category tags */}
-        {article.categories && article.categories.length > 0 && (
-          <Flex gap={1} flexWrap="wrap" mt={1}>
-            {article.categories.slice(0, 3).map((category, index) => (
-              <TagChip key={index} label={category} size="sm" />
-            ))}
-            {article.categories.length > 3 && (
-              <Text fontSize="xs" color="fg.muted" alignSelf="center">
-                +{article.categories.length - 3}
-              </Text>
-            )}
-          </Flex>
-        )}
+        {/* Source, date, and category tags */}
+        <Flex gap={2} alignItems="center" flexWrap="wrap">
+          <Text fontSize="sm" color="fg.muted" flexShrink={0}>
+            {feedName ? `${feedName} • ` : ""}{formatRelativeDate(article.published_at)}
+          </Text>
+          {article.categories && article.categories.length > 0 && (
+            <>
+              <Box w="1px" h="14px" bg="border.subtle" flexShrink={0} />
+              {article.categories.slice(0, 3).map((category, index) => (
+                <TagChip key={index} label={category} size="sm" />
+              ))}
+              {article.categories.length > 3 && (
+                <Text fontSize="xs" color="fg.muted">
+                  +{article.categories.length - 3}
+                </Text>
+              )}
+            </>
+          )}
+        </Flex>
       </Flex>
 
       {/* Scoring state indicator and toggle read/unread button */}
@@ -101,18 +119,6 @@ export function ArticleRow({
             </Text>
           )}
         </Box>
-        {/* Toggle read/unread button */}
-        <IconButton
-          aria-label={article.is_read ? "Mark as unread" : "Mark as read"}
-          size="sm"
-          variant="ghost"
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleRead(article);
-          }}
-        >
-          {article.is_read ? "○" : "●"}
-        </IconButton>
       </Flex>
     </Flex>
   );

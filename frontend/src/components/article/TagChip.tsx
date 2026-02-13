@@ -13,10 +13,10 @@ interface TagChipProps {
 
 const weightColors = {
   blocked: { bg: "red.subtle", color: "red.fg", textDecoration: "line-through" },
-  low: { bg: "bg.muted", color: "fg.muted" },
-  neutral: { bg: "bg.subtle", color: "fg.default" },
-  medium: { bg: "bg.emphasized", color: "fg.default" },
-  high: { bg: "accent.subtle", color: "accent.fg" },
+  low: { bg: "bg.emphasized", color: "fg.muted" },
+  neutral: { bg: "bg.emphasized", color: "fg.default" },
+  medium: { bg: "accent.subtle", color: "accent.fg" },
+  high: { bg: "accent.emphasized", color: "accent.contrast" },
 };
 
 const weightOptions = [
