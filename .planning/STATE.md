@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 Phase: 6 of 9 (UI & Theme Polish)
 Plan: Ready to plan phase 6
 Status: Ready to plan
-Last activity: 2026-02-14 - Completed quick task 6: Fix production API URL fallback
+Last activity: 2026-02-14 - Completed quick task 7: Switch frontend Docker build from npm to bun
 
 Progress: [█████░░░░░] 56% (19/34 total plans estimated)
 
@@ -58,6 +58,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 6 | Fix production API URL fallback: change \|\| to ?? so empty NEXT_PUBLIC_API_URL uses relative URLs | 2026-02-14 | a979370 | [6-fix-production-api-url-fallback-change-t](./quick/6-fix-production-api-url-fallback-change-t/) |
+| 7 | Switch frontend Docker build from npm to bun for faster CI builds | 2026-02-14 | 6cf07cc | [7-switch-frontend-docker-build-from-npm-to](./quick/7-switch-frontend-docker-build-from-npm-to/) |
 
 **Phase 7 considerations:**
 - Pydantic Settings `@lru_cache` prevents runtime updates - requires two-tier config pattern (Settings for infrastructure, UserPreferences for runtime choices)
@@ -70,7 +71,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-14
-Stopped at: v1.1 roadmap created, all 20 requirements mapped to phases 6-9
+Stopped at: Completed quick-7: Switch frontend Docker build from npm to bun
 Resume file: None
 
 ---
