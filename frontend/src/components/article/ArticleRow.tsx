@@ -118,8 +118,8 @@ export function ArticleRow({
         {/* Scoring state indicators for non-scored states */}
         {article.scoring_state === "scoring" && (
           <Flex alignItems="center" gap={1.5}>
-            <Spinner size="xs" colorPalette="accent" />
             <Text fontSize="xs" color="fg.muted">Scoring…</Text>
+            <Spinner size="xs" colorPalette="accent" />
           </Flex>
         )}
         {(article.scoring_state === "queued" || article.scoring_state === "unscored") && (
@@ -128,10 +128,10 @@ export function ArticleRow({
             gap={1.5}
             css={{ animation: `${pulsingIcon} 2s ease-in-out infinite` }}
           >
+            <Text fontSize="xs" color="fg.muted">Queued</Text>
             <Box color="white" fontSize="sm">
               <LuClock />
             </Box>
-            <Text fontSize="xs" color="fg.muted">Queued</Text>
           </Flex>
         )}
         {article.scoring_state === "failed" && (

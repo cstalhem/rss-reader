@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-04)
 
 **Core value:** Surface interesting articles and hide noise automatically via local LLM curation
-**Current focus:** Phase 5 - Interest-Driven UI
+**Current focus:** Milestone 1 complete — all 5 phases delivered
 
 ## Current Position
 
-Phase: 5 of 5 in progress (Interest-Driven UI)
-Plan: 2 of 3 complete
-Status: Visual UI components complete — score badges, filter bar, and sort dropdown integrated
-Last activity: 2026-02-13 - Plan 05-02 complete (score badges, 4-tab filter bar, sort dropdown)
+Phase: 5 of 5 complete (Interest-Driven UI)
+Plan: 3 of 3 complete
+Status: All milestone 1 phases complete — RSS reader with LLM-powered content curation operational
+Last activity: 2026-02-14 - Phase 5 verified and complete
 
-Progress: [█████████░] 89%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17
+- Total plans completed: 18
 - Average duration: ~3.3 minutes
 - Total execution time: ~1.8 hours
 
@@ -31,7 +31,7 @@ Progress: [█████████░] 89%
 | 02    | 4     | ~15 min | ~4 min |
 | 03    | 4     | ~20 min | ~5 min |
 | 04    | 5     | ~57 min | ~11 min |
-| 05    | 2     | ~5 min | ~2.5 min |
+| 05    | 3     | ~25 min | ~8 min |
 
 **Recent Trend:**
 - Last 5 plans: 04-04, 04-05, 05-01, 05-02
@@ -114,6 +114,12 @@ Recent decisions affecting current work:
 - [Phase 05-02]: Blocked articles hidden from Unread/All via exclude_blocked=true default
 - [Phase 05-02]: Scoring tab count = unscored+queued+scoring, tabs disabled when count=0
 - [Phase 05-02]: Chakra v3 Tooltip.Root/Trigger/Content pattern for score badge tooltips
+- [Phase 05-03]: Articles hidden from Unread/All until scoring completes (scored + non-blocked filter)
+- [Phase 05-03]: Adaptive polling: useScoringStatus 5s active / 30s idle, useArticles 10s when scoring active
+- [Phase 05-03]: Scoring completion animation via useLayoutEffect (detects disappearances before paint)
+- [Phase 05-03]: Position-preserving merge in useCompletingArticles (completing articles stay in place)
+- [Phase 05-03]: English-only categories enforced in categorization prompt
+- [Phase 05-03]: Default LLM model switched from deepseek-r1:8b to qwen3:8b
 
 ### Pending Todos
 
@@ -146,6 +152,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-13 (plan execution)
-Stopped at: Completed Phase 05 Plan 02 (Interest-Driven UI Components)
+Last session: 2026-02-14 (phase completion)
+Stopped at: Milestone 1 complete — all phases delivered
 Resume file: None

@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Article Reading UI** - Browse and read articles with theme support
 - [x] **Phase 3: Feed Management** - Add and remove feed subscriptions
 - [x] **Phase 4: LLM Content Curation** - Automatic interest scoring with Ollama
-- [ ] **Phase 5: Interest-Driven UI** - Visual presentation by relevance
+- [x] **Phase 5: Interest-Driven UI** - Visual presentation by relevance
 
 ## Phase Details
 
@@ -98,9 +98,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Backend sort/filter API + frontend data layer (sort params, useSortPreference hook, useArticles update) (Wave 1)
-- [ ] 05-02-PLAN.md — UI components: ScoreBadge, SortSelect, extended filter bar, ArticleRow/List/Reader integration (Wave 2)
-- [ ] 05-03-PLAN.md — Human verification checkpoint for interest-driven UI (Wave 3)
+- [x] 05-01-PLAN.md — Backend sort/filter API + frontend data layer (sort params, useSortPreference hook, useArticles update) (Wave 1)
+- [x] 05-02-PLAN.md — UI components: ScoreBadge, SortSelect, extended filter bar, ArticleRow/List/Reader integration (Wave 2)
+- [x] 05-03-PLAN.md — Human verification checkpoint for interest-driven UI (Wave 3)
 
 ## Progress
 
@@ -113,4 +113,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Article Reading UI | 4/4 | ✓ Complete | 2026-02-07 |
 | 3. Feed Management | 4/4 | ✓ Complete | 2026-02-10 |
 | 4. LLM Content Curation | 5/5 | ✓ Complete | 2026-02-13 |
-| 5. Interest-Driven UI | 0/3 | Not started | - |
+| 5. Interest-Driven UI | 3/3 | ✓ Complete | 2026-02-14 |
