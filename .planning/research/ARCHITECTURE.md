@@ -1,681 +1,634 @@
-# Architecture Research: v1.1 Feature Integration
+# Architecture Integration: v1.1 Features
 
-**Domain:** RSS Reader - v1.1 Feature Integration with Existing Architecture
+**Domain:** RSS Reader v1.1 — Configuration UI, Feedback Loop, Category Grouping, UI Polish
 **Researched:** 2026-02-14
 **Confidence:** HIGH
 
-## Executive Summary
+## Context
 
-This research analyzes how v1.1 features (Ollama Config UI, SSE Push, LLM Feedback Loop, Feed Categories, Feed Auto-Discovery, UI Polish) integrate with the existing RSS reader architecture. Focus is on integration points, data flow changes, and build dependencies between features.
+This architecture document focuses on **integration points** for v1.1 features with the existing v1.0 system. Based on PROJECT.md, v1.1 scope includes:
+- Ollama Configuration UI (runtime model selection)
+- UI & Theme Polish (design refinements)
+- LLM Feedback Loop (user feedback collection + scoring integration)
+- Category Grouping (hierarchical category organization with cascading weights)
 
-**Key Architectural Changes:**
-1. **Runtime configuration** - Split config into static (Pydantic @lru_cache) and dynamic (database-backed UserPreferences)
-2. **Real-time push** - SSE endpoint broadcasts scoring progress to frontend, frontend invalidates TanStack Query cache
-3. **Feedback loop** - User interactions (read, skip, manual score adjustment) stored in Article model, influence future scoring via prompt injection
-4. **Feed organization** - New FeedCategory model with many-to-many relationship to Feed
-5. **Feed discovery** - HTML parser service integrated with feed creation flow
+**DEFERRED to v1.2:** Real-Time Push (SSE), Feed Categories/Folders, Feed Auto-Discovery
 
-## Integration Analysis by Feature
-
-### 1. Ollama Config UI
-
-**Current State:**
-- Config in `backend/config.py` using Pydantic Settings with `@lru_cache`
-- Priority: env vars > .env file > YAML config > defaults
-- Immutable at runtime (requires restart to change)
-- Ollama models specified: `categorization_model` and `scoring_model`
-
-**Integration Strategy:**
-- **Split config into static (system) vs dynamic (user preferences)**
-  - Static: `ollama.host`, `ollama.timeout`, `database.path` → remain in Pydantic Settings
-  - Dynamic: model selection, prompt templates → move to UserPreferences model
-- **UserPreferences schema additions:**
-  ```python
-  class UserPreferences(SQLModel, table=True):
-      # ... existing fields ...
-      categorization_model: str | None = Field(default=None)  # If None, use config default
-      scoring_model: str | None = Field(default=None)
-      custom_categorization_prompt: str | None = Field(default=None)  # Override template
-      custom_scoring_prompt: str | None = Field(default=None)
-  ```
-- **Scoring pipeline changes:**
-  - `scoring.py`: Load model names from preferences first, fallback to config
-  - `prompts.py`: Add `build_custom_prompt()` function that merges user template overrides
-- **API endpoints (new):**
-  - `GET /api/ollama/models` - List available models from Ollama API
-  - `PATCH /api/preferences/ollama` - Update model selection
-  - `GET /api/prompts/{type}` - Get current prompt template (categorization/scoring)
-  - `PUT /api/prompts/{type}` - Update prompt template
-- **Frontend components (new):**
-  - `SettingsModal.tsx` with tabs: Preferences, Ollama Config, Prompts
-  - `OllamaConfigPanel.tsx` - Model selection dropdowns
-  - `PromptEditor.tsx` - Textarea with preview, reset to default button
-
-**Data Flow:**
-```
-User selects model in UI
-    ↓
-PATCH /api/preferences/ollama
-    ↓
-Update UserPreferences.categorization_model
-    ↓
-Next article scoring reads preferences
-    ↓
-scoring.py uses new model
-```
-
-**Build Order:** Early (enables experimentation with different models during development)
-
-**Confidence:** HIGH - Standard database-backed config override pattern
+**Existing v1.0 architecture:**
+- Backend: FastAPI + SQLModel + SQLite with APScheduler background jobs
+- Frontend: Next.js App Router + Chakra UI v3 + TanStack Query
+- Config: Pydantic Settings with `@lru_cache` singleton
+- Scoring: Two-step pipeline (categorize → score) in 30-second batches
+- Data layer: TanStack Query polls backend every 30s (adaptive during scoring)
 
 ---
 
-### 2. SSE Push (Real-Time Updates)
+## System Architecture: v1.1 Additions
 
-**Current State:**
-- Frontend polls with TanStack Query (`refetchInterval: 10000ms` when scoring active)
-- APScheduler runs `process_scoring_queue()` every 30s (batch size 5)
-- No server-to-client push mechanism
-
-**Integration Strategy:**
-- **Backend: SSE endpoint + event broadcaster**
-  - Install `sse-starlette` package
-  - Create `EventBroadcaster` class in new `backend/events.py`:
-    ```python
-    class EventBroadcaster:
-        def __init__(self):
-            self.channels: dict[str, list[asyncio.Queue]] = {}
-
-        async def subscribe(self, channel: str) -> AsyncGenerator[dict, None]:
-            queue = asyncio.Queue()
-            if channel not in self.channels:
-                self.channels[channel] = []
-            self.channels[channel].append(queue)
-            try:
-                while True:
-                    yield await queue.get()
-            finally:
-                self.channels[channel].remove(queue)
-
-        async def broadcast(self, channel: str, event: dict):
-            if channel in self.channels:
-                for queue in self.channels[channel]:
-                    await queue.put(event)
-    ```
-  - New endpoint `GET /api/events/scoring` (SSE):
-    ```python
-    @app.get("/api/events/scoring")
-    async def scoring_events(request: Request):
-        async def event_generator():
-            async for event in broadcaster.subscribe("scoring"):
-                if await request.is_disconnected():
-                    break
-                yield event
-        return EventSourceResponse(event_generator())
-    ```
-  - Modify `scoring_queue.py` to broadcast events:
-    ```python
-    await broadcaster.broadcast("scoring", {
-        "event": "article_scored",
-        "data": {
-            "article_id": article.id,
-            "composite_score": article.composite_score,
-            "scoring_state": "scored"
-        }
-    })
-    ```
-- **Frontend: EventSource + TanStack Query invalidation**
-  - New hook `useScoringEvents.ts`:
-    ```typescript
-    export function useScoringEvents() {
-      const queryClient = useQueryClient();
-
-      useEffect(() => {
-        const eventSource = new EventSource(`${API_BASE_URL}/api/events/scoring`);
-
-        eventSource.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-
-          if (data.event === "article_scored") {
-            // Invalidate articles query to refetch
-            queryClient.invalidateQueries({ queryKey: ["articles"] });
-            // Optionally: direct cache update for smoother UX
-            queryClient.setQueryData(["articles"], (old) => {
-              // Update article in cache
-            });
-          }
-        };
-
-        return () => eventSource.close();
-      }, [queryClient]);
-    }
-    ```
-  - Call `useScoringEvents()` in `AppShell.tsx` (top-level component)
-
-**Data Flow:**
 ```
-APScheduler processes article
-    ↓
-scoring_queue.py completes scoring
-    ↓
-broadcaster.broadcast("scoring", {...})
-    ↓
-All connected SSE clients receive event
-    ↓
-Frontend invalidates TanStack Query cache
-    ↓
-UI refetches and displays newly scored article
+┌────────────────────── FRONTEND ──────────────────────┐
+│                                                       │
+│  ┌─────────────────────────────────────────────┐    │
+│  │    Existing Components (no structural       │    │
+│  │    changes)                                  │    │
+│  │  ArticleList, ArticleReader, FeedRow, etc   │    │
+│  └─────────────────────────────────────────────┘    │
+│                                                       │
+│  ┌─────────────────────────────────────────────┐    │
+│  │    NEW: Settings Page Sections               │    │
+│  │  - OllamaConfigSection (new component)       │    │
+│  │  - CategoryGroupsSection (new component)     │    │
+│  │  - PreferencesSection (existing, no change)  │    │
+│  └─────────────────────────────────────────────┘    │
+│                                                       │
+│  ┌─────────────────────────────────────────────┐    │
+│  │    NEW: Feedback Components                  │    │
+│  │  - FeedbackButtons (inline in ArticleRow)    │    │
+│  │  - FeedbackIndicator (show collected         │    │
+│  │    feedback state)                           │    │
+│  └─────────────────────────────────────────────┘    │
+│                                                       │
+│  ┌─────────────────────────────────────────────┐    │
+│  │    TanStack Query (no changes)               │    │
+│  │  + NEW queries: ollama config, feedback,     │    │
+│  │    category groups                           │    │
+│  └─────────────────────────────────────────────┘    │
+│                                                       │
+└───────────────────────┬───────────────────────────────┘
+                        │
+                        │ REST API (JSON)
+                        │
+┌───────────────────────┴───────────────────────────────┐
+│                    BACKEND                             │
+│                                                        │
+│  ┌─────────────────────────────────────────────┐     │
+│  │    NEW: Ollama Management Endpoints          │     │
+│  │  GET /api/ollama/status                      │     │
+│  │  GET /api/ollama/models                      │     │
+│  └─────────────────────────────────────────────┘     │
+│                                                        │
+│  ┌─────────────────────────────────────────────┐     │
+│  │    NEW: Feedback Endpoints                   │     │
+│  │  POST /api/articles/{id}/feedback            │     │
+│  │  GET /api/feedback/summary (aggregates)      │     │
+│  └─────────────────────────────────────────────┘     │
+│                                                        │
+│  ┌─────────────────────────────────────────────┐     │
+│  │    NEW: Category Groups Endpoints            │     │
+│  │  GET /api/category-groups                    │     │
+│  │  POST /api/category-groups                   │     │
+│  │  PATCH /api/category-groups/{id}             │     │
+│  │  DELETE /api/category-groups/{id}            │     │
+│  └─────────────────────────────────────────────┘     │
+│                                                        │
+│  ┌─────────────────────────────────────────────┐     │
+│  │    MODIFIED: Preferences Endpoint            │     │
+│  │  PUT /api/preferences                        │     │
+│  │    + ollama_config JSON field                │     │
+│  │    + feedback_settings JSON field            │     │
+│  └─────────────────────────────────────────────┘     │
+│                                                        │
+│  ┌─────────────────────────────────────────────┐     │
+│  │    MODIFIED: Scoring Pipeline                │     │
+│  │  - scoring.py: compute_composite_score()     │     │
+│  │    uses group weight resolver                │     │
+│  │  - scoring.py: load runtime Ollama config    │     │
+│  │  - scoring_queue.py: apply feedback weights  │     │
+│  └─────────────────────────────────────────────┘     │
+│                                                        │
+│  ┌─────────────────────────────────────────────┐     │
+│  │    NEW: Database Models                      │     │
+│  │  + CategoryGroup table                       │     │
+│  │  + Article.user_feedback field               │     │
+│  │  + UserPreferences.ollama_config field       │     │
+│  │  + UserPreferences.feedback_aggregates       │     │
+│  └─────────────────────────────────────────────┘     │
+│                                                        │
+└────────────────────────────────────────────────────────┘
 ```
-
-**Build Order:** Mid (depends on stable scoring pipeline, enables better UX for remaining features)
-
-**Confidence:** HIGH - Well-documented FastAPI SSE pattern, TanStack Query invalidation is standard
-
-**Sources:**
-- [sse-starlette PyPI documentation](https://pypi.org/project/sse-starlette/)
-- [FastAPI SSE implementation guide](https://medium.com/@Rachita_B/implementing-sse-server-side-events-using-fastapi-3b2d6768249e)
-- [TanStack Query with SSE integration](https://github.com/TanStack/query/discussions/418)
-- [Next.js SSE real-time updates](https://www.pedroalonso.net/blog/sse-nextjs-real-time-notifications/)
 
 ---
 
-### 3. LLM Feedback Loop
+## Component Boundaries
 
-**Current State:**
-- Scoring uses static preferences: `interests`, `anti_interests`, `topic_weights`
-- No signal from user behavior (what they actually read vs skip)
-- No article-specific feedback mechanism
+### Backend: New vs Modified
 
-**Integration Strategy:**
-- **Capture implicit feedback signals:**
-  - Track: read duration, read/skip patterns, manual mark-as-read, explicit thumbs up/down
-  - Store in Article model (extend):
-    ```python
-    class Article(SQLModel, table=True):
-        # ... existing fields ...
-        read_duration_seconds: int | None = Field(default=None)  # Actual time spent reading
-        user_feedback: str | None = Field(default=None)  # "positive", "negative", None
-        feedback_reason: str | None = Field(default=None)  # Optional text reason
-        last_interaction_at: datetime | None = Field(default=None)
-    ```
-  - New API endpoint:
-    ```python
-    @app.post("/api/articles/{article_id}/feedback")
-    def submit_feedback(article_id: int, feedback: FeedbackSubmission):
-        # Update article.user_feedback, article.feedback_reason
-        pass
-    ```
-- **Analyze feedback to adjust scoring:**
-  - New service `backend/feedback_analyzer.py`:
-    ```python
-    async def analyze_user_behavior(session: Session) -> dict:
-        # Query articles from last 30 days
-        # Identify patterns:
-        # 1. Categories with high read rate → boost weight
-        # 2. Categories with low read rate → reduce weight
-        # 3. Articles marked negative → extract anti-patterns
-        # 4. Articles marked positive → extract positive patterns
+| Component | Type | Purpose | Integration Point |
+|-----------|------|---------|-------------------|
+| `ollama_client.py` | NEW | Wrapper for Ollama REST API (status, models list) | Uses httpx, called from endpoints |
+| `category_groups.py` | NEW | Category hierarchy CRUD + weight resolution | Called from scoring.py, endpoints |
+| `feedback_aggregator.py` | NEW | Aggregate user feedback into category adjustments | APScheduler daily job, updates UserPreferences |
+| `models.py::CategoryGroup` | NEW | Hierarchy model with parent_id, default_weight | Standard SQLModel table |
+| `models.py::Article` | MODIFIED | Add `user_feedback` TEXT field | Migration via database.py |
+| `models.py::UserPreferences` | MODIFIED | Add `ollama_config`, `feedback_aggregates` JSON fields | Migration via database.py |
+| `scoring.py::compute_composite_score()` | MODIFIED | Call category_groups weight resolver | Replaces direct topic_weights lookup |
+| `scoring.py::categorize_article()` | MODIFIED | Load model from UserPreferences or Settings | Hybrid config pattern |
+| `scoring.py::score_article()` | MODIFIED | Load model from UserPreferences or Settings | Hybrid config pattern |
+| `scoring_queue.py::process_next_batch()` | MODIFIED | Merge feedback_aggregates into topic_weights | Before calling compute_composite_score |
+| `main.py` | MODIFIED | Add 3 new endpoint groups (12 total endpoints) | Standard FastAPI routing |
+| `database.py` | MODIFIED | Add migration function `_migrate_v11_fields()` | Startup checks pattern |
 
-        return {
-            "suggested_weight_adjustments": {...},
-            "emerging_interests": [...],
-            "emerging_anti_interests": [...]
-        }
-    ```
-  - Scheduled job (daily): Run analyzer, store suggestions in UserPreferences:
-    ```python
-    class UserPreferences(SQLModel, table=True):
-        # ... existing fields ...
-        feedback_insights: dict | None = Field(default=None, sa_column=Column(JSON))
-        # Structure: {
-        #   "category_performance": {"tech": {"read_rate": 0.8, "avg_score": 8.5}},
-        #   "suggested_adjustments": {"tech": "increase", "sports": "decrease"},
-        #   "last_analyzed": "2026-02-14T10:00:00Z"
-        # }
-    ```
-- **Inject feedback into scoring prompts:**
-  - Modify `prompts.py` `build_scoring_prompt()` to include feedback insights:
-    ```python
-    def build_scoring_prompt(
-        article_title: str,
-        article_text: str,
-        interests: str,
-        anti_interests: str,
-        feedback_insights: dict | None = None,
-    ) -> str:
-        # ... existing prompt ...
+### Frontend: New Components
 
-        if feedback_insights:
-            prompt += f"\n\n**User Behavior Insights:**"
-            prompt += f"\nRecently read articles in categories: {feedback_insights.get('high_read_categories')}"
-            prompt += f"\nRecently skipped articles in categories: {feedback_insights.get('low_read_categories')}"
-            prompt += f"\nPositive feedback keywords: {feedback_insights.get('positive_patterns')}"
+| Component | Location | Purpose | Dependencies |
+|-----------|----------|---------|--------------|
+| `OllamaConfigSection.tsx` | `components/settings/` | Model picker, connection status, prompt viewer | TanStack Query |
+| `CategoryGroupsSection.tsx` | `components/settings/` | CRUD UI for category hierarchy | TanStack Query, Chakra Tree (if exists) or custom |
+| `FeedbackButtons.tsx` | `components/article/` | Thumbs up/down inline in rows | TanStack Query mutations |
+| `FeedbackIndicator.tsx` | `components/article/` | Show current feedback state (visual) | Props only, no queries |
 
-        return prompt
-    ```
-- **Frontend: Feedback UI**
-  - Add thumbs up/down buttons in `ArticleReader.tsx`
-  - Track read duration with `useAutoMarkAsRead` hook (already exists)
-  - Send feedback on drawer close
+### Frontend: Modified Components
 
-**Data Flow:**
-```
-User reads article (tracked duration)
-    ↓
-On drawer close, send read_duration_seconds to API
-    ↓
-Nightly: feedback_analyzer.py runs
-    ↓
-Analyzes last 30 days of read/skip patterns
-    ↓
-Updates UserPreferences.feedback_insights
-    ↓
-Next scoring batch: prompts.py injects insights into LLM prompt
-    ↓
-LLM sees "User recently read 80% of 'programming' articles but skipped 90% of 'sports'"
-    ↓
-Adjusted interest_score reflects learned preferences
-```
-
-**Build Order:** Late (depends on stable article data, SSE for real-time feedback display)
-
-**Confidence:** MEDIUM - Feedback analysis logic is custom (no standard library), prompt injection is straightforward but effectiveness depends on LLM's ability to incorporate insights
-
-**Sources:**
-- [RLHF overview from AWS](https://aws.amazon.com/what-is/reinforcement-learning-from-human-feedback/)
-- [Personalized RLHF research (PLUS framework)](https://openreview.net/forum?id=Ar078WR3um)
-- [Learning from user behavior for LLMs](https://rlhfbook.com/book.pdf)
+| Component | What Changes | Why |
+|-----------|--------------|-----|
+| `ArticleRow.tsx` | Add FeedbackButtons (conditional, hide if already read) | Inline feedback UI |
+| `SettingsPage.tsx` | Add OllamaConfigSection, CategoryGroupsSection | New settings surfaces |
+| `types.ts` | Add Article.user_feedback, UserPreferences fields | Type safety |
+| `api.ts` | Add ollama, feedback, category-groups client functions | API client completeness |
 
 ---
 
-### 4. Feed Categories
+## Data Model Extensions
 
-**Current State:**
-- Feeds have `display_order` for manual sorting
-- No grouping or categorization of feeds
-- Sidebar shows flat list of feeds
+### New Tables
 
-**Integration Strategy:**
-- **New model: FeedCategory**
-  ```python
-  class FeedCategory(SQLModel, table=True):
-      __tablename__ = "feed_categories"
-
-      id: int | None = Field(default=None, primary_key=True)
-      name: str = Field(unique=True)
-      display_order: int = Field(default=0)
-      collapsed: bool = Field(default=False)  # UI state: is category collapsed?
-  ```
-- **Many-to-many relationship:**
-  ```python
-  class FeedCategoryLink(SQLModel, table=True):
-      __tablename__ = "feed_category_links"
-
-      feed_id: int = Field(foreign_key="feeds.id", primary_key=True)
-      category_id: int = Field(foreign_key="feed_categories.id", primary_key=True)
-  ```
-  - Feeds can belong to multiple categories (e.g., "Tech News" + "Daily Reads")
-  - Feeds can be uncategorized (no links) → show in "Uncategorized" section
-- **API endpoints (new):**
-  ```python
-  GET /api/feed-categories  # List all categories with feed counts
-  POST /api/feed-categories  # Create category
-  PATCH /api/feed-categories/{id}  # Update name/order/collapsed
-  DELETE /api/feed-categories/{id}  # Delete category (unlinks feeds)
-
-  POST /api/feeds/{feed_id}/categories/{category_id}  # Add feed to category
-  DELETE /api/feeds/{feed_id}/categories/{category_id}  # Remove feed from category
-  ```
-- **Frontend changes:**
-  - Modify `Sidebar.tsx` to group feeds by category:
-    ```
-    [Category: Tech]
-      - Hacker News (12)
-      - The Verge (5)
-    [Category: Daily Reads]
-      - Morning Brew (3)
-    [Uncategorized]
-      - Random Blog (2)
-    ```
-  - Add category management UI in feed settings
-  - Support drag-and-drop to move feeds between categories
-
-**Data Flow:**
-```
-User creates category "Tech News"
-    ↓
-POST /api/feed-categories
-    ↓
-User drags "Hacker News" feed into "Tech News"
-    ↓
-POST /api/feeds/{id}/categories/{category_id}
-    ↓
-Sidebar refetches and displays grouped view
+```sql
+-- Category hierarchy (replaces flat category string list)
+CREATE TABLE category_groups (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,                      -- "Technology", "News", etc.
+    parent_group_id INTEGER REFERENCES category_groups(id),  -- NULL for root groups
+    default_weight TEXT DEFAULT 'neutral',    -- inherited by children
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
-**Build Order:** Mid-Late (independent of other features, improves organization as feed count grows)
+**Why not a separate junction table?** Categories are strings (not entities), stored in `Article.categories` JSON array. CategoryGroup defines **groups of category strings**, not a many-to-many relationship. A group like "Technology" contains `categories: ["ai-ml", "programming", "cybersecurity"]` as a JSON field.
 
-**Confidence:** HIGH - Standard many-to-many relationship pattern
+**Revised CategoryGroup model:**
+```python
+class CategoryGroup(SQLModel, table=True):
+    __tablename__ = "category_groups"
 
----
-
-### 5. Feed Auto-Discovery
-
-**Current State:**
-- User must manually enter RSS feed URL
-- No assistance finding feeds from website URLs
-
-**Integration Strategy:**
-- **New service: `backend/feed_discovery.py`**
-  ```python
-  import httpx
-  from bs4 import BeautifulSoup
-
-  async def discover_feeds(url: str) -> list[dict]:
-      """
-      Discovers RSS/Atom feeds from a website URL.
-
-      Returns list of discovered feeds:
-      [
-          {"url": "https://example.com/feed.xml", "title": "Example Feed", "type": "rss"},
-          {"url": "https://example.com/atom.xml", "title": "Example Atom", "type": "atom"}
-      ]
-      """
-      async with httpx.AsyncClient() as client:
-          response = await client.get(url, follow_redirects=True, timeout=10)
-          response.raise_for_status()
-
-          soup = BeautifulSoup(response.content, "lxml")
-
-          # Look for <link rel="alternate" type="application/rss+xml">
-          feeds = []
-          for link in soup.find_all("link", rel="alternate"):
-              feed_type = link.get("type", "")
-              if "rss" in feed_type or "atom" in feed_type:
-                  feed_url = link.get("href")
-                  feed_title = link.get("title", "Untitled Feed")
-                  feeds.append({
-                      "url": urljoin(url, feed_url),  # Handle relative URLs
-                      "title": feed_title,
-                      "type": "rss" if "rss" in feed_type else "atom"
-                  })
-
-          return feeds
-  ```
-- **API endpoint (new):**
-  ```python
-  @app.post("/api/feeds/discover")
-  async def discover_feeds_endpoint(url: str):
-      """
-      Discover RSS feeds from a website URL.
-      Returns list of discovered feeds.
-      """
-      try:
-          feeds = await discover_feeds(url)
-          return {"feeds": feeds}
-      except Exception as e:
-          raise HTTPException(status_code=400, detail=f"Failed to discover feeds: {str(e)}")
-  ```
-- **Frontend integration:**
-  - Modify "Add Feed" modal:
-    1. User enters website URL (e.g., `https://example.com`)
-    2. Click "Discover Feeds" button
-    3. API returns list of discovered feeds
-    4. UI shows selection dialog with discovered feeds
-    5. User picks one or more, confirms
-    6. Normal feed creation flow continues
-  - Fallback: If no feeds discovered, allow manual RSS URL entry
-
-**Data Flow:**
-```
-User enters "https://techcrunch.com"
-    ↓
-POST /api/feeds/discover {"url": "https://techcrunch.com"}
-    ↓
-feed_discovery.py fetches HTML
-    ↓
-BeautifulSoup parses <link rel="alternate" type="application/rss+xml">
-    ↓
-Returns [{"url": "https://techcrunch.com/feed", "title": "TechCrunch RSS"}]
-    ↓
-UI shows discovered feed, user confirms
-    ↓
-POST /api/feeds {"url": "https://techcrunch.com/feed"}
-    ↓
-Normal feed creation flow
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(index=True)  # "Technology", "News"
+    parent_group_id: int | None = Field(default=None, foreign_key="category_groups.id")
+    categories: list[str] | None = Field(default=None, sa_column=Column(JSON))  # ["ai-ml", "programming"]
+    default_weight: str = Field(default="neutral")  # "blocked", "low", "neutral", "medium", "high"
+    display_order: int = Field(default=0)
+    created_at: datetime = Field(default_factory=datetime.now)
 ```
 
-**Build Order:** Early-Mid (independent, improves onboarding UX)
+### Modified Tables
 
-**Confidence:** HIGH - Standard RSS auto-discovery pattern
+```sql
+-- Articles table
+ALTER TABLE articles ADD COLUMN user_feedback TEXT;  -- "thumbs_up", "thumbs_down", "skip", NULL
 
-**Sources:**
-- [RSS Autodiscovery specification](https://www.rssboard.org/rss-autodiscovery)
-- [RSS feed discovery implementation guide](https://blog.jim-nielsen.com/2021/automatically-discoverable-rss-feeds/)
-- [BeautifulSoup with lxml parser](https://lxml.de/elementsoup.html)
-- [HTML link rel alternate for feeds](https://www.petefreitag.com/blog/rss-autodiscovery/)
+-- UserPreferences table
+ALTER TABLE user_preferences ADD COLUMN ollama_config TEXT;  -- JSON: {"categorization_model": "...", "scoring_model": "..."}
+ALTER TABLE user_preferences ADD COLUMN feedback_aggregates TEXT;  -- JSON: {"ai-ml": 0.15, "politics": -0.3}
+```
 
----
-
-### 6. UI Polish
-
-**Current State:**
-- Basic functional UI with Chakra UI v3
-- No loading states, error boundaries, or accessibility improvements
-
-**Integration Strategy:**
-- **Loading states:**
-  - Skeleton loaders for article list (`Skeleton` from Chakra UI)
-  - Spinner for feed operations
-  - SSE connection status indicator ("Connecting...", "Live", "Disconnected")
-- **Error handling:**
-  - Error boundary component wrapping main app
-  - Toast notifications for API errors (Chakra UI `Toaster` already available)
-  - Retry buttons for failed operations
-- **Accessibility:**
-  - ARIA labels on interactive elements
-  - Keyboard shortcuts for common actions (j/k for nav, r for mark read)
-  - Focus management in modals/drawers
-- **UX improvements:**
-  - Optimistic updates (mark-as-read applies immediately, rolls back on error)
-  - Batch operations (select multiple articles, mark all read)
-  - Search/filter articles by title/content
-
-**Build Order:** Last (polish after features work)
-
-**Confidence:** HIGH - Standard UI/UX patterns
-
----
-
-## Integration Points Summary
-
-### New vs Modified Components
-
-| Component | Status | Purpose |
-|-----------|--------|---------|
-| **Backend** | | |
-| `models.py` → `Article` | MODIFIED | Add feedback fields: `read_duration_seconds`, `user_feedback`, `feedback_reason`, `last_interaction_at` |
-| `models.py` → `UserPreferences` | MODIFIED | Add Ollama config: `categorization_model`, `scoring_model`, `custom_*_prompt`, `feedback_insights` |
-| `models.py` → `FeedCategory` | NEW | Category model for feed organization |
-| `models.py` → `FeedCategoryLink` | NEW | Many-to-many link table |
-| `events.py` | NEW | SSE event broadcaster class |
-| `feed_discovery.py` | NEW | RSS auto-discovery service (BeautifulSoup + httpx) |
-| `feedback_analyzer.py` | NEW | User behavior analysis for feedback loop |
-| `scoring.py` | MODIFIED | Load model names from preferences, pass feedback insights to prompts |
-| `prompts.py` | MODIFIED | Inject feedback insights into scoring prompt |
-| `scoring_queue.py` | MODIFIED | Broadcast SSE events on article scored |
-| `main.py` | MODIFIED | Add new API endpoints (SSE, feed discovery, feedback, categories, Ollama config) |
-| `scheduler.py` | MODIFIED | Add nightly feedback analysis job |
-| **Frontend** | | |
-| `types.ts` | MODIFIED | Add fields to Article, UserPreferences types |
-| `api.ts` | MODIFIED | Add new API client functions (SSE not here, in hook) |
-| `useScoringEvents.ts` | NEW | Hook for SSE connection, TanStack Query invalidation |
-| `useFeedback.ts` | NEW | Hook for submitting article feedback |
-| `SettingsModal.tsx` | NEW | Modal with tabs: Preferences, Ollama Config, Prompts |
-| `OllamaConfigPanel.tsx` | NEW | Model selection UI |
-| `PromptEditor.tsx` | NEW | Prompt template editing UI |
-| `FeedDiscoveryModal.tsx` | NEW | Modal for discovering feeds from website URL |
-| `FeedCategoryManager.tsx` | NEW | UI for creating/managing feed categories |
-| `Sidebar.tsx` | MODIFIED | Group feeds by category |
-| `ArticleReader.tsx` | MODIFIED | Add feedback buttons (thumbs up/down) |
-| `AppShell.tsx` | MODIFIED | Call `useScoringEvents()` at top level |
+**Migration strategy:** Add `database.py::_migrate_v11_fields()` following existing pattern in `_migrate_articles_scoring_columns()`.
 
 ---
 
 ## Data Flow Changes
 
-### Scoring Pipeline (with all v1.1 features)
+### Flow 1: Ollama Configuration (Runtime Changes)
 
 ```
-User submits website URL
+[Settings Page → OllamaConfigSection]
+    ↓ user queries available models
+[GET /api/ollama/models] → httpx → Ollama /api/tags → [{name, size, modified_at}, ...]
+    ↓ renders model picker
+[User selects "qwen3:8b" for categorization]
     ↓
-[Feed Discovery] HTML parser discovers RSS links
+[PUT /api/preferences] with ollama_config: {"categorization_model": "qwen3:8b", ...}
     ↓
-User selects discovered feed, assigns to category
+UserPreferences.ollama_config updated (JSON column reassignment)
     ↓
-POST /api/feeds (feed created)
+[Next scoring cycle]
+scoring.py::categorize_article() loads config:
+    prefs.ollama_config.get("categorization_model") or settings.ollama.categorization_model
     ↓
-Feed refresh job fetches articles
-    ↓
-Articles enqueued for scoring (scoring_state: "queued")
-    ↓
-[APScheduler] process_scoring_queue() every 30s
-    ↓
-Load UserPreferences (includes: categorization_model, scoring_model, feedback_insights)
-    ↓
-[Categorization] categorize_article() with custom model
-    ↓
-[Scoring] score_article() with custom model + feedback insights injected in prompt
-    ↓
-compute_composite_score() considers topic_weights
-    ↓
-Update article (scoring_state: "scored")
-    ↓
-[SSE] broadcaster.broadcast("scoring", {article_id, composite_score})
-    ↓
-[Frontend] EventSource receives event → TanStack Query invalidates → UI refetches
-    ↓
-User opens article, reads for 45 seconds
-    ↓
-[Frontend] useFeedback hook tracks duration
-    ↓
-User clicks thumbs up
-    ↓
-POST /api/articles/{id}/feedback {read_duration_seconds: 45, user_feedback: "positive"}
-    ↓
-Update article.read_duration_seconds, article.user_feedback
-    ↓
-[Nightly] feedback_analyzer.py analyzes last 30 days
-    ↓
-Identifies patterns: "User reads 'programming' articles for avg 60s, skips 'sports' after 5s"
-    ↓
-Updates UserPreferences.feedback_insights
-    ↓
-Next scoring cycle: prompts inject these insights
-    ↓
-LLM adjusts scores based on learned behavior
+Uses user-selected model without restart
 ```
+
+**Key insight:** Don't invalidate `@lru_cache` on Settings. Instead, always check UserPreferences first in scoring functions. Settings provides **defaults**, UserPreferences provides **overrides**.
+
+**Code pattern:**
+```python
+def get_ollama_config(session: Session) -> dict:
+    """Load runtime Ollama config with fallback to Settings."""
+    prefs = session.exec(select(UserPreferences)).first()
+    settings = get_settings()  # Cached, no invalidation needed
+
+    return {
+        "categorization_model": (
+            prefs.ollama_config.get("categorization_model")
+            if prefs and prefs.ollama_config
+            else settings.ollama.categorization_model
+        ),
+        "scoring_model": (
+            prefs.ollama_config.get("scoring_model")
+            if prefs and prefs.ollama_config
+            else settings.ollama.scoring_model
+        ),
+        "host": settings.ollama.host,  # Always from Settings (infrastructure)
+        "timeout": settings.ollama.timeout,  # Always from Settings
+    }
+```
+
+### Flow 2: Feedback Collection → Aggregation → Scoring
+
+```
+[ArticleRow] user clicks thumbs_up
+    ↓
+[POST /api/articles/{id}/feedback] {feedback_type: "thumbs_up"}
+    ↓
+Article.user_feedback = "thumbs_up"
+session.commit()
+    ↓ (no immediate effect on scoring)
+[Daily APScheduler job: aggregate_feedback()]
+    ↓
+feedback_aggregator.py:
+  - Query all articles with user_feedback != NULL
+  - Group by category, count thumbs_up vs thumbs_down
+  - Compute weight deltas: (up - down) / total * 0.5 (scaled to -0.5..+0.5)
+  - Require minimum 5 feedback events per category
+    ↓
+Update UserPreferences.feedback_aggregates: {"ai-ml": +0.2, "politics": -0.3}
+session.commit()
+    ↓
+[Next scoring cycle]
+scoring_queue.py::process_next_batch():
+  - Load topic_weights and feedback_aggregates
+  - Merge: adjusted_weight = base_weight + feedback_delta
+  - Pass adjusted weights to compute_composite_score()
+    ↓
+Scores reflect learned preferences
+```
+
+**Why daily aggregation, not per-feedback?**
+- Single feedback event = noise (user might misclick)
+- Aggregation smooths over multiple signals
+- Avoids expensive re-scoring (would block pipeline)
+- Batch job is cheap (simple COUNT queries)
+
+**Why store aggregates, not raw feedback events?**
+- Single-user app: don't need time-series analysis
+- Aggregates are sufficient for weight adjustment
+- Keeps UserPreferences as single source of derived config
+- Can always add time-series table later if needed
+
+### Flow 3: Category Grouping → Cascading Weight Resolution
+
+```
+[Settings Page → CategoryGroupsSection]
+    ↓ user creates group "Technology" with default_weight="high"
+[POST /api/category-groups] {name: "Technology", default_weight: "high", categories: ["ai-ml", "programming"]}
+    ↓
+CategoryGroup table row inserted
+    ↓
+[During scoring]
+scoring.py::compute_composite_score(categories=["ai-ml"], topic_weights={...})
+    ↓
+For each category: resolve_category_weight("ai-ml", topic_weights, session)
+    ↓
+category_groups.py::resolve_category_weight():
+  1. Check topic_weights["ai-ml"] → "neutral" (explicit user setting)
+  2. Check CategoryGroup membership:
+     - "ai-ml" is in "Technology" group
+     - "Technology" has default_weight="high"
+  3. Resolution priority: explicit topic_weight > group default > "neutral"
+  4. Return "neutral" (explicit wins over group)
+    ↓
+Use resolved weight in composite score calculation
+```
+
+**Weight resolution priority:**
+1. **Explicit topic_weights** (user set via category chip in UI) — HIGHEST
+2. **CategoryGroup.default_weight** (cascades to all categories in group)
+3. **Parent group default_weight** (if group has parent_group_id)
+4. **"neutral"** (fallback)
+
+**Why explicit topic_weights beat group defaults?** User explicitly setting a category weight in the UI is a stronger signal than group membership. Groups provide **convenient defaults**, per-category weights provide **fine-grained control**.
 
 ---
 
-## Build Order with Dependencies
+## Integration Patterns
 
-**Phase 1: Foundation (Independent)**
-1. **Feed Categories** - Data model + API + UI (no deps)
-2. **Feed Auto-Discovery** - Service + API + UI (no deps)
-3. **Ollama Config UI** - UserPreferences extension + API + UI (no deps)
+### Pattern 1: Hybrid Configuration (Static + Dynamic)
 
-**Phase 2: Real-Time Infrastructure**
-4. **SSE Push** - Requires stable scoring pipeline from v1.0 (already exists)
+**Problem:** Pydantic Settings with `@lru_cache` are immutable at runtime. Ollama model selection needs to be user-configurable without restart.
 
-**Phase 3: Advanced Features (Depends on Phase 2)**
-5. **LLM Feedback Loop** - Requires Article model extensions, uses SSE for real-time feedback display
-6. **UI Polish** - Enhances all features, applied last
+**Solution:** Two-tier config system:
+- **Static (Settings):** Infrastructure config (host, timeout, database path) — env/YAML, cached, rarely changes
+- **Dynamic (UserPreferences):** User-facing config (model selection, feedback settings) — database, hot-reloadable
 
-**Reasoning:**
-- Phase 1 features are independent, can be built in parallel
-- SSE Push is foundational for real-time UX (feedback loop benefits from it)
-- Feedback loop is most complex, benefits from SSE showing immediate effect of feedback
-- UI polish applies finishing touches after features work
+**Implementation:**
+```python
+# scoring.py
+async def categorize_article(...):
+    config = get_ollama_config(session)  # Hybrid loader
+    client = AsyncClient(host=config["host"], timeout=config["timeout"])
+    response = await client.chat(model=config["categorization_model"], ...)
+```
+
+**Trade-offs:**
+- Pro: User can change models from UI without touching YAML or restarting
+- Pro: Config survives container restarts (persistent SQLite)
+- Con: Two sources of truth (need explicit merge logic)
+- Con: Must remember to check UserPreferences in scoring functions
+
+### Pattern 2: Aggregated Feedback Weights
+
+**Problem:** Single thumbs up/down events are noisy. Need stable, gradual weight adjustments.
+
+**Solution:** Daily batch aggregation with minimum sample size threshold.
+
+**Implementation:**
+```python
+def aggregate_feedback_weights(session: Session) -> dict[str, float]:
+    """
+    Compute category weight deltas from user feedback.
+
+    Returns: {"category": delta} where delta is -0.5 to +0.5
+    """
+    articles = session.exec(
+        select(Article).where(Article.user_feedback.is_not(None))
+    ).all()
+
+    category_feedback = {}  # {"ai-ml": {"up": 5, "down": 1}, ...}
+
+    for article in articles:
+        if not article.categories:
+            continue
+        for cat in article.categories:
+            if cat not in category_feedback:
+                category_feedback[cat] = {"up": 0, "down": 0}
+
+            if article.user_feedback == "thumbs_up":
+                category_feedback[cat]["up"] += 1
+            elif article.user_feedback == "thumbs_down":
+                category_feedback[cat]["down"] += 1
+
+    # Convert to deltas
+    deltas = {}
+    for cat, counts in category_feedback.items():
+        total = counts["up"] + counts["down"]
+        if total < 5:  # Minimum sample size
+            continue
+
+        ratio = (counts["up"] - counts["down"]) / total  # -1.0 to +1.0
+        deltas[cat] = ratio * 0.5  # Scale to weight delta
+
+    return deltas
+```
+
+**Why this works:**
+- Requires 5+ feedback events before affecting scores (stability)
+- Ratio is bounded (-1.0 to +1.0), scales to reasonable weight delta (-0.5 to +0.5)
+- Additive adjustment: `base_weight + delta` (doesn't overwrite explicit settings)
+
+### Pattern 3: Cascading Weight Resolution
+
+**Problem:** Users want both global defaults (groups) and fine-grained overrides (per-category).
+
+**Solution:** Priority-based resolver with explicit priority order.
+
+**Implementation:**
+```python
+def resolve_category_weight(
+    category: str,
+    topic_weights: dict[str, str],
+    session: Session,
+) -> str:
+    """
+    Resolve category weight with priority:
+    1. Explicit topic_weights (user set in UI)
+    2. CategoryGroup.default_weight (group membership)
+    3. Parent group default_weight (inheritance)
+    4. "neutral" (fallback)
+    """
+    # Priority 1: Explicit setting
+    if category in topic_weights:
+        return topic_weights[category]
+
+    # Priority 2: Group membership
+    groups = session.exec(
+        select(CategoryGroup).where(
+            func.json_contains(CategoryGroup.categories, f'"{category}"')
+        )
+    ).all()
+
+    if groups:
+        # Use first group's default_weight (could add conflict resolution)
+        return groups[0].default_weight
+
+    # Priority 4: Fallback
+    return "neutral"
+```
+
+**Trade-offs:**
+- Pro: Intuitive mental model (specific beats general)
+- Pro: Flexible (users can organize categories into groups without losing per-category control)
+- Con: Multiple groups containing same category = ambiguity (resolved by "first match" or explicit handling)
 
 ---
 
-## Scaling Considerations
+## Build Order & Dependencies
 
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| 1 user (current) | Monolith is perfect. SQLite handles concurrent reads/writes with WAL mode. |
-| 10-100 users | Add connection pooling for SQLite. Consider read replicas if scoring queries slow down reads. |
-| 100+ users | Migrate to PostgreSQL for better concurrency. Consider Redis for SSE event broadcasting across multiple FastAPI instances. |
+### Dependency Graph
 
-**First bottleneck:** SSE with multiple FastAPI workers. Current in-memory `EventBroadcaster` won't work across processes. Solution: Use Redis pub/sub for cross-process event broadcasting.
+```
+[Ollama Config UI] (independent)
+    ↓ (provides: runtime model selection for feedback experiments)
+[Category Grouping] (independent)
+    ↓ (provides: weight resolution for feedback)
+[LLM Feedback Loop] (depends on: Category Grouping for weight cascade)
+    ↓ (provides: learned preferences for UI polish)
+[UI Polish] (depends on: all features complete)
+```
 
-**Second bottleneck:** Scoring queue. Single-threaded APScheduler processes 5 articles/30s. Solution: Increase batch size, add more workers, or use Celery for distributed task queue.
+### Recommended Build Order
+
+**Phase 1: Ollama Configuration (1-2 days)**
+- Backend: Add ollama_client.py, 2 endpoints, UserPreferences field
+- Frontend: OllamaConfigSection component, TanStack Query hooks
+- Confidence: HIGH (simple REST API wrapper)
+- Risk: LOW (independent, small scope)
+
+**Phase 2: Category Grouping (2-3 days)**
+- Backend: CategoryGroup model, CRUD endpoints, weight resolver
+- Frontend: CategoryGroupsSection with tree UI
+- Confidence: HIGH (standard CRUD + weight logic)
+- Risk: MEDIUM (tree UI complexity, but can use flat list initially)
+
+**Phase 3: LLM Feedback Loop (3-4 days)**
+- Backend: Add Article.user_feedback, feedback endpoint, aggregator job, scoring integration
+- Frontend: FeedbackButtons, FeedbackIndicator components
+- Confidence: MEDIUM (aggregation logic is custom)
+- Risk: MEDIUM (scoring integration must not break existing behavior)
+
+**Phase 4: UI & Theme Polish (1-2 days)**
+- Backend: None
+- Frontend: Spacing, loading states, error handling improvements
+- Confidence: HIGH (standard UI patterns)
+- Risk: LOW (refinement, not functionality)
+
+**Total estimate:** 7-11 days
+
+---
+
+## Migration Strategy
+
+### Database Migrations
+
+Add to `database.py`:
+
+```python
+def _migrate_v11_fields():
+    """Add v1.1 fields to existing tables."""
+    inspector = inspect(engine)
+
+    # Articles table
+    if "articles" in inspector.get_table_names():
+        articles_cols = {col["name"] for col in inspector.get_columns("articles")}
+        if "user_feedback" not in articles_cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE articles ADD COLUMN user_feedback TEXT"))
+                logger.info("Added articles.user_feedback column")
+
+    # UserPreferences table
+    if "user_preferences" in inspector.get_table_names():
+        prefs_cols = {col["name"] for col in inspector.get_columns("user_preferences")}
+        if "ollama_config" not in prefs_cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE user_preferences ADD COLUMN ollama_config TEXT"))
+                conn.execute(text("ALTER TABLE user_preferences ADD COLUMN feedback_aggregates TEXT"))
+                logger.info("Added UserPreferences v1.1 columns")
+
+    # CategoryGroup table
+    if "category_groups" not in inspector.get_table_names():
+        CategoryGroup.__table__.create(engine)
+        logger.info("Created category_groups table")
+
+# Call from create_db_and_tables()
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
+    if inspect(engine).has_table("articles"):
+        _migrate_articles_scoring_columns()  # Existing v1.0
+        _recover_stuck_scoring()  # Existing v1.0
+        _migrate_v11_fields()  # NEW
+    # ...
+```
+
+### Backwards Compatibility
+
+**Ollama config:** If UserPreferences.ollama_config is NULL, fall back to Settings defaults. No breaking change.
+
+**Feedback:** Article.user_feedback NULL means no feedback collected. Aggregator handles gracefully.
+
+**Category groups:** If no groups exist, weight resolution falls back to topic_weights directly. No breaking change.
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Storing Ollama Prompt Templates in Database
+### Anti-Pattern 1: Invalidating Settings Cache
 
-**What people do:** Store full LLM prompt templates in database, allowing user to edit from scratch.
+**What people do:** Add `invalidate_settings_cache()` and call it after updating UserPreferences.
 
 **Why it's wrong:**
-- Prompts are code, not configuration. Breaking changes to prompt structure require migrations.
-- Users can break scoring by editing prompts incorrectly.
-- Version control for prompts becomes difficult.
+- Settings is for infrastructure config (env/YAML), not user config
+- Invalidating cache breaks separation of concerns
+- Forces Settings to reload from env/YAML (won't see database changes)
 
-**Do this instead:**
-- Store only *user-provided supplements* (e.g., "Additional interests: X") in database.
-- Keep base prompt template in code (`prompts.py`).
-- Provide limited, safe customization options in UI (e.g., "Add custom interests", not "Edit full prompt").
+**Do this instead:** Keep Settings cached. Always check UserPreferences first in scoring functions. Settings provides defaults, UserPreferences provides overrides.
 
-### Anti-Pattern 2: Synchronous HTML Fetching in Feed Discovery
+### Anti-Pattern 2: Separate Feedback Table
 
-**What people do:** Use `requests.get()` synchronously in FastAPI endpoint.
+**What people do:** Create `article_feedback` table with time-series rows (one per feedback event).
 
-**Why it's wrong:** Blocks the entire event loop while waiting for HTTP response. FastAPI is async, blocking calls kill performance.
+**Why it's wrong for single-user app:**
+- Time-series analysis is overkill (won't run ML on 100 feedback events)
+- Aggregation is trivial (just COUNT thumbs up/down)
+- Adds JOIN complexity to every feedback query
+- Can always add later if analytics needed
 
-**Do this instead:** Use `httpx.AsyncClient()` with `await` for all HTTP calls. This is already planned in the integration strategy above.
+**Do this instead:** Store latest feedback in Article.user_feedback (one field). Store aggregates in UserPreferences.feedback_aggregates (one JSON field).
 
-### Anti-Pattern 3: Real-Time Query Refetching Without SSE
+### Anti-Pattern 3: Immediate Re-Scoring on Feedback
 
-**What people do:** Increase TanStack Query `refetchInterval` to 1-2 seconds for "real-time feel".
+**What people do:** Re-score article immediately when user clicks thumbs up/down.
 
-**Why it's wrong:** Hammers the API with unnecessary requests, wastes bandwidth, doesn't scale.
+**Why it's wrong:**
+- Single feedback event = noise (user might change mind)
+- Re-scoring is expensive (LLM call, blocks queue)
+- No benefit (user already saw the article)
+- Wastes LLM cycles on already-read articles
 
-**Do this instead:** Use SSE to push updates only when articles are actually scored. Query refetch only on SSE event. This is the planned approach.
+**Do this instead:** Batch aggregation (daily). Only affects **future** articles. If user wants immediate effect, they can adjust category weight explicitly in settings.
+
+### Anti-Pattern 4: Complex Category Hierarchy
+
+**What people do:** Support unlimited nesting depth, multiple parents, circular references.
+
+**Why it's wrong:**
+- Single-user app: won't have 1000 categories needing deep hierarchy
+- Adds complexity (tree traversal, cycle detection, performance)
+- UI nightmare (displaying 5-level trees)
+
+**Do this instead:** Flat groups or single-level hierarchy (parent_group_id, no grandparents). Sufficient for organizing 20-50 categories.
+
+---
+
+## Endpoint Summary
+
+### New Endpoints (12 total)
+
+**Ollama Management (2):**
+- `GET /api/ollama/status` → {status: "healthy"|"unavailable", latency_ms: number}
+- `GET /api/ollama/models` → [{name, size, modified_at}, ...]
+
+**Feedback (2):**
+- `POST /api/articles/{id}/feedback` → {user_feedback: "thumbs_up"|"thumbs_down"|"skip"}
+- `GET /api/feedback/summary` → {aggregates: {"ai-ml": 0.2, ...}, last_updated: datetime}
+
+**Category Groups (4):**
+- `GET /api/category-groups` → [CategoryGroup, ...]
+- `POST /api/category-groups` → CategoryGroup
+- `PATCH /api/category-groups/{id}` → CategoryGroup
+- `DELETE /api/category-groups/{id}` → {ok: true}
+
+**Modified Endpoints:**
+- `PUT /api/preferences` — now accepts `ollama_config`, `feedback_settings` in request body
 
 ---
 
 ## Sources
 
-**SSE Implementation:**
-- [sse-starlette PyPI](https://pypi.org/project/sse-starlette/)
-- [FastAPI SSE implementation guide](https://medium.com/@Rachita_B/implementing-sse-server-side-events-using-fastapi-3b2d6768249e)
-- [Building SSE MCP Server with FastAPI](https://www.ragie.ai/blog/building-a-server-sent-events-sse-mcp-server-with-fastapi)
+**Configuration Patterns:**
+- FastAPI Settings Management: https://fastapi.tiangolo.com/advanced/settings/
+- Pydantic Settings: https://docs.pydantic.dev/latest/concepts/pydantic_settings/
 
-**TanStack Query + SSE:**
-- [TanStack Query SSE discussion](https://github.com/TanStack/query/discussions/418)
-- [React Query with SSE integration](https://fragmentedthought.com/blog/2025/react-query-caching-with-server-side-events)
-- [Next.js SSE real-time updates](https://www.pedroalonso.net/blog/sse-nextjs-real-time-notifications/)
+**Feedback Systems:**
+- Meta Reels Feedback (2026): https://engineering.fb.com/2026/01/14/ml-applications/adapting-the-facebook-reels-recsys-ai-model-based-on-user-feedback/
+- Implicit Feedback in RecSys: https://milvus.io/ai-quick-reference/what-is-implicit-feedback-in-recommender-systems
 
-**Pydantic Settings:**
-- [Pydantic Settings documentation](https://docs.pydantic.dev/latest/concepts/pydantic_settings/)
-- [FastAPI settings management](https://fastapi.tiangolo.com/advanced/settings/)
+**Ollama API:**
+- Ollama API Reference: https://github.com/ollama/ollama/blob/main/docs/api.md
+- Ollama Model Management (2026): https://oneuptime.com/blog/post/2026-02-02-ollama-model-management/view
 
-**LLM Feedback Loop:**
-- [RLHF overview (AWS)](https://aws.amazon.com/what-is/reinforcement-learning-from-human-feedback/)
-- [Personalized RLHF (PLUS framework)](https://openreview.net/forum?id=Ar078WR3um)
-- [RLHF textbook](https://rlhfbook.com/book.pdf)
-
-**RSS Auto-Discovery:**
-- [RSS Autodiscovery specification](https://www.rssboard.org/rss-autodiscovery)
-- [RSS feed discovery guide](https://blog.jim-nielsen.com/2021/automatically-discoverable-rss-feeds/)
-- [BeautifulSoup documentation](https://beautiful-soup-4.readthedocs.io/en/latest/)
-- [lxml parser integration](https://lxml.de/elementsoup.html)
+**SQLAlchemy Patterns:**
+- SQLModel Documentation: https://sqlmodel.tiangolo.com/
+- SQLAlchemy JSON Columns: https://docs.sqlalchemy.org/en/20/core/type_basics.html#sqlalchemy.types.JSON
 
 ---
 
-*Architecture research for: RSS Reader v1.1 Feature Integration*
+*Architecture research for: RSS Reader v1.1 Milestone (Configuration, Feedback, Category Grouping, UI Polish)*
 *Researched: 2026-02-14*

@@ -1,267 +1,296 @@
 # Project Research Summary
 
-**Project:** Personal RSS Reader with LLM-Powered Curation
-**Domain:** RSS Feed Reader / Content Aggregator with Local AI Integration
-**Researched:** 2026-02-04
-**Confidence:** HIGH
+**Project:** RSS Reader v1.1 — Configuration, Feedback & Polish
+**Domain:** RSS Reader Enhancement — Runtime Configuration, User Feedback, Category Organization, UI Refinement
+**Researched:** 2026-02-14
+**Confidence:** MEDIUM-HIGH
 
 ## Executive Summary
 
-This is a personal RSS reader combining traditional feed aggregation with local LLM-powered content curation. The recommended approach is a decoupled architecture: Next.js 16 frontend with Chakra UI v3 consuming a FastAPI backend (already built) that orchestrates RSS feed fetching, SQLite storage, and Ollama LLM scoring. The core differentiator is privacy-first LLM curation using prose-style preferences instead of complex filter rules or cloud-based black-box algorithms.
+This research covers v1.1 enhancements to an existing RSS reader with LLM-powered article scoring. The v1.0 foundation (feed fetching, article storage, Ollama scoring pipeline, basic reading UI) is complete and validated. v1.1 focuses on **configurability** (Ollama model selection at runtime), **feedback** (learning from user signals), **organization** (hierarchical category grouping), and **polish** (UI refinements).
 
-The stack is modern and well-documented: Next.js 16 (stable Turbopack, App Router), Chakra UI v3 (first-class Next.js support), TanStack Query v5 (server state), Zustand (client state), and Ollama JavaScript SDK for local LLM integration. All components are production-ready with active maintenance and strong documentation. The backend (FastAPI + SQLModel + SQLite + APScheduler) is already complete through Phase 2, providing a solid foundation.
+**The recommended approach prioritizes simplicity over complexity:** Runtime configuration uses a two-tier pattern (static Settings for infrastructure, dynamic UserPreferences for user choices). Feedback avoids fine-tuning complexity by adjusting category weights instead of retraining models. Category grouping uses nested JSON in SQLite with explicit weight resolution rules. Only one new frontend dependency is required (dnd-kit-sortable-tree for drag-and-drop tree UI), with all other capabilities leveraging the existing validated stack.
 
-The primary risk is SQLite write concurrency in production—mitigated by enabling WAL mode and proper busy timeout configuration. Secondary risks include RSS feed parsing fragility (10% of feeds are malformed XML), Ollama model quality degradation with aggressive quantization, and Next.js + Chakra UI hydration errors if SSR isn't configured correctly. All of these have well-documented prevention strategies and should be addressed in their respective phases.
+**Key risks center on state management and integration:** Pydantic Settings with `@lru_cache` prevents runtime config updates unless explicitly cleared. SQLAlchemy doesn't detect in-place mutations to JSON columns. Feedback loops can cause scoring drift if not aggregated and bounded. Category hierarchies create confusing weight resolution without explicit rules. All risks are well-documented with clear mitigation strategies. Estimated implementation: 7-11 days across 4 phases.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The stack leverages 2026 best practices with emphasis on local-first architecture and developer experience. Next.js 16 brings stable Turbopack (2-5x faster builds) and improved caching with the `use cache` directive. Chakra UI v3 provides a mature component library with built-in dark/light theming that matches project requirements. TanStack Query v5 handles server state with 40-70% faster initial loads compared to SWR. The Ollama JavaScript SDK enables local LLM inference without cloud costs or privacy concerns.
+The v1.1 scope requires **minimal stack additions**. Research confirms the existing stack (FastAPI, SQLModel, SQLite, Next.js, Chakra UI v3, Ollama, httpx) handles all requirements except hierarchical category drag-and-drop UI.
 
-**Core technologies:**
-- **Next.js 16**: React framework with App Router and Server Components — industry standard in 2026, stable Turbopack, first-class TypeScript support
-- **Chakra UI v3**: Component library with theming — native Next.js App Router support, built-in dark/light mode, minimal configuration overhead
-- **TanStack Query v5**: Server state management — superior caching and optimistic updates, excellent RSC integration, strong TypeScript support
-- **Ollama (JavaScript SDK)**: Local LLM client — official library with full feature support, works in Node.js and browser, streaming responses
-- **FastAPI + SQLModel**: Backend framework (already built) — async-first Python API with SQLAlchemy ORM, strong type safety with Pydantic
-- **SQLite with WAL mode**: Embedded database — zero-config persistence, handles 100K+ articles, sufficient for single-user deployment
-- **Docker Compose**: Multi-service orchestration — simpler than Kubernetes for home server deployment, named volumes for persistence
+**No new backend dependencies required:**
+- `ollama` (v0.6.1, already present) — provides `.list()` and `.show()` methods for model enumeration and details
+- `httpx` (v0.28.1, already present) — used for Ollama health checks
+- `sqlmodel` (v0.0.32, already present) — supports JSON columns for category groups and feedback aggregates
 
-### Expected Features
+**One new frontend dependency:**
+- `dnd-kit-sortable-tree` (latest) — hierarchical drag-and-drop for category tree UI, built on existing `@dnd-kit/core` and `@dnd-kit/sortable` dependencies, purpose-built for nested hierarchies, accessible, TypeScript-ready
 
-Research identified three tiers of features: table stakes (users assume they exist), differentiators (competitive advantage), and anti-features (commonly requested but problematic).
+**Configuration approach:** Two-tier pattern separating infrastructure config (Settings with `@lru_cache` for host, timeout, database path) from user-facing config (UserPreferences in database for model selection, feedback settings). This enables runtime updates without restart while keeping Settings immutable.
 
-**Must have (table stakes):**
-- Feed subscription management (add/remove feeds, OPML import/export)
-- Article list with metadata (title, source, date, preview, read/unread status)
-- Mark as read/unread (track consumption, persist across sessions)
-- Clean reading view (extract main content, remove clutter, readable typography)
-- Dark/light theme toggle (expected in 2026, already implemented)
-- Basic keyboard shortcuts (j/k navigation, mark read, star — speed is core value)
+**Feedback approach:** Weight adjustment strategy, not LLM fine-tuning. Fine-tuning requires LoRA adapters, GPU resources, training infrastructure — inappropriate for single-user local app. Weight adjustment achieves similar goals (boosting preferred content, suppressing disliked content) without model surgery, applies instantly, and requires no additional compute.
 
-**Should have (competitive advantage):**
-- **LLM scoring for interest** (core differentiator: surface signal, hide noise using local Ollama)
-- **Prose-style preferences** (natural language input: "show me X, not Y" instead of complex filter rules)
-- **Multi-stage filtering** (keyword filters first, then LLM scoring to reduce inference costs)
-- **Interest score display** (visual hierarchy: high-interest articles stand out via color, position, badges)
-- **Training feedback loop** (mark "more/less like this" to improve LLM scoring over time)
-- **Interest categorization** (auto-tag articles by topic: tech, business, science)
+### Expected Features (v1.1 Scope Only)
 
-**Defer (v2+):**
-- Serendipity scoring (find interesting outliers, requires baseline scoring first)
-- Cross-device sync (massive complexity for solo dev, not critical for personal tool)
-- Mobile native apps (web UI works on mobile browser for now)
-- Advanced search filters (basic search sufficient initially)
-- Offline reading (always online during use, not a commute scenario)
+Research identified comprehensive feature landscape for RSS readers, but v1.1 scope has been narrowed to 4 specific features. Features deferred to v1.2 include: Real-Time Push Updates (SSE), Feed Categories/Folders, Feed Auto-Discovery.
+
+**Must have (v1.1 in scope):**
+- **Ollama Configuration UI** — connection status indicator, locally available models list, model selection for categorization and scoring, prompt visibility (transparency)
+- **LLM Feedback Loop** — thumbs up/down buttons on articles, feedback aggregation by category, weight adjustment strategy, daily batch processing
+- **Category Grouping** — hierarchical category organization (2-level maximum recommended), per-group default weights, per-category weight overrides, cascading weight resolution with explicit priority rules
+- **UI & Theme Polish** — semantic token refinements, loading states with Skeleton components, spacing improvements for readability, smooth read/unread transitions
+
+**Table stakes (already implemented in v1.0):**
+- Feed subscription management, article list view, mark as read/unread, in-app reader, LLM scoring with Ollama, prose-style preferences, interest score display, dark/light theme toggle
+
+**Defer (v1.2+):**
+- Real-Time Push Updates via SSE, Feed Categories/Folders, Feed Auto-Discovery, OPML import/export, article search, keyboard shortcuts, starred/saved articles
 
 ### Architecture Approach
 
-The architecture follows an API-first separation pattern with three tiers: frontend (Next.js), backend (FastAPI), and data (SQLite). The backend is already functional with feed fetching, article storage, and scheduled refresh via APScheduler. The frontend will use Server Components by default for fast initial loads, with Client Components for interactivity (Chakra UI requires client rendering). LLM scoring happens in batch after feed refresh, not on-demand during rendering, to avoid UI blocking.
+v1.1 integrates with existing v1.0 architecture via **additive changes**. The backend remains FastAPI with APScheduler background jobs for feed refresh and scoring. The frontend remains Next.js App Router with TanStack Query for server state. Three new backend modules (ollama_client.py, category_groups.py, feedback_aggregator.py) handle new capabilities without modifying existing scoring or fetching logic except for integration points.
 
 **Major components:**
-1. **Next.js Frontend** (port 3210) — UI rendering with Server Components by default, Client Components for Chakra UI and interactivity, TanStack Query for API calls
-2. **FastAPI Backend** (port 8912) — REST API, feed fetching with feedparser, scheduled refresh via APScheduler (30-min intervals), LLM orchestration (Milestone 3)
-3. **SQLite Database** — Persistent storage for feeds, articles, LLM scores; WAL mode enabled for concurrent writes; named Docker volume for durability
-4. **Ollama Service** (port 11434, Milestone 3) — Local LLM inference running outside Docker for M3 performance, batch scoring API called from backend
 
-**Key patterns:**
-- **Layered monolith** (backend): Routes → services → data access, APScheduler in same process (simpler than message queue for single-user)
-- **Server Component + Client Island** (frontend): Server Components fetch initial data via REST, Client Components handle interactivity and mutations
-- **Batch LLM scoring** (Milestone 3): Score articles after fetch in background, store results in DB, avoid scoring on page load (1-3 sec latency would destroy UX)
-- **Docker multi-service** (deployment): Named volumes for persistence, healthchecks with `depends_on: service_healthy`, `restart: unless-stopped` for auto-recovery
+1. **Ollama Configuration Module** — wraps Ollama REST API (health check, list models, show model details), provides hybrid config loader that merges UserPreferences overrides with Settings defaults, exposes 2 new endpoints (`GET /api/ollama/models`, `GET /api/ollama/status`)
+
+2. **Feedback System** — stores latest feedback in `Article.user_feedback` field (TEXT: "thumbs_up", "thumbs_down", "skip"), aggregates daily via APScheduler job into `UserPreferences.feedback_aggregates` JSON (category → weight delta mapping), applies feedback-adjusted weights in scoring pipeline's `compute_composite_score()`
+
+3. **Category Grouping** — new `CategoryGroup` table with `parent_group_id`, `categories` JSON array, `default_weight` field, weight resolver with explicit priority (explicit topic_weights > group default > parent group default > "neutral"), exposes 4 CRUD endpoints
+
+4. **Data Flow Changes** — scoring pipeline modified at 3 points: (1) load Ollama config from hybrid source, (2) merge feedback_aggregates into topic_weights before scoring, (3) resolve category weights through group hierarchy. No changes to categorize/score LLM prompts or article fetching logic.
+
+**Integration patterns:**
+
+- **Hybrid Configuration:** Settings provides infrastructure defaults (host, timeout, cached), UserPreferences provides runtime overrides (models, cached in DB). Scoring functions check UserPreferences first, fall back to Settings. No `@lru_cache` invalidation needed.
+
+- **Aggregated Feedback Weights:** Daily batch job computes category-level deltas from article feedback events, requires minimum 5 signals per category, scales ratio (-1.0 to +1.0) to weight delta (-0.5 to +0.5), stores in UserPreferences, applies additively to base topic_weights.
+
+- **Cascading Weight Resolution:** Priority-based resolver checks (1) explicit topic_weights, (2) CategoryGroup membership and default_weight, (3) parent group default_weight, (4) "neutral" fallback. Resolves ambiguity with "first match" or explicit handling for categories in multiple groups.
 
 ### Critical Pitfalls
 
-Research identified five critical pitfalls with high impact and clear prevention strategies:
+Research identified 12 pitfalls, but only 5 are relevant to v1.1 scope (others relate to SSE, feed discovery, and features deferred to v1.2).
 
-1. **SQLite write concurrency bottleneck** — Database-level locks cause "database is locked" errors when feed refresh, LLM scoring, and user actions compete. Prevention: Enable WAL mode (`PRAGMA journal_mode=WAL`) and set high busy timeout (`PRAGMA busy_timeout=5000`) during database initialization. Address in Phase M1 before production deployment.
+1. **@lru_cache Prevents Runtime Ollama Config Updates** — Settings cached forever, updating UserPreferences or YAML has no effect until restart. **Mitigation:** Don't invalidate Settings cache. Instead, use two-tier pattern: always check UserPreferences first in scoring functions, use Settings as fallback. This avoids cache invalidation complexity.
 
-2. **RSS feed parsing fragility** — 10% of RSS feeds are malformed XML (whitespace before `<?xml`, encoding issues, string concatenation). A single broken feed can crash entire refresh job. Prevention: Use lenient parser (feedparser already in use), wrap each feed in try/except for error isolation, track per-feed errors in database, implement exponential backoff for repeated failures. Address in Phase M1 (MVP) with feed health tracking in Phase M2.
+2. **Feedback Loop Causes Scoring Drift** — Catastrophic forgetting from continual learning, reward hacking, human evaluator inconsistency leads to unreliable scoring over time. **Mitigation:** Don't fine-tune the model. Use feedback for category weight adjustment (bounded 0.0-2.0), daily aggregation with minimum 5 signals per category, decay old feedback over time (weights drift toward 1.0).
 
-3. **Docker volume data loss on redeployment** — Anonymous volumes or missing volume declarations cause database and Ollama model loss during `docker-compose down`. Prevention: Use named volumes (`rss_data`, `ollama_models`) in production compose file, document backup strategy, test restore procedure. Address in Phase M1 (Docker setup) before deployment.
+3. **SQLite JSON Column Mutation Not Detected by SQLAlchemy** — In-place mutations (`dict['key'] = value`) don't mark object dirty, changes silently lost. **Mitigation:** Always use full reassignment pattern (`dict = {**dict, 'key': value}`) documented in AGENTS.md. Test persistence with fresh session query after update.
 
-4. **Ollama model quantization quality loss** — Default quantized models (Q4, Q5) sacrifice LLM scoring accuracy for compatibility. Results in inconsistent interest ratings, missed context, hallucinated categories. Prevention: Start with Q6/Q8 quantization (8GB+ VRAM), create model evaluation framework with sample articles, document minimum model size (7B parameters), monitor hallucinations (invalid JSON or schema violations). Address in Phase M3 (LLM Scoring) during Ollama integration.
+4. **Hierarchical Category Weight Resolution Confusion** — Parent/child weight interactions create ambiguous resolution (does parent override child? what about articles with multiple categories?). **Mitigation:** Define explicit priority rules (explicit > group > parent > neutral), document clearly, or keep flat structure for v1.1 (recommended). Test thoroughly with articles having mixed category memberships.
 
-5. **Next.js + Chakra UI hydration errors** — Server-rendered styles don't match client DOM, causing "Hydration failed" errors, FOUC (flash of unstyled content), broken dark mode persistence. Prevention: Mark all Chakra components with `'use client'`, inject `<ColorModeScript />` in root layout, configure Emotion cache properly, test SSR explicitly with `npm run build && npm start`. Address in Phase M1 (MVP frontend) before building UI components.
+5. **Chakra UI v3 Portal Performance with Many Components** — Eager Portal mounting creates CSSStyleSheet instances for each Menu/Popover, accumulates thousands of stylesheets with SSE re-renders, causes sluggish UI. **Mitigation:** Lazy mount Portals (only when open), virtualize long lists, memoize positioning props, monitor stylesheet count in development.
 
 ## Implications for Roadmap
 
-Based on research, the roadmap should follow a three-milestone structure aligned with the backend's existing progress (Phases 1-2 complete). The frontend needs to be built (Milestone 1), enhanced with feed management UI (Milestone 2), then integrated with LLM scoring (Milestone 3).
+Based on research, suggested phase structure builds incrementally with each phase independent but providing capabilities for later phases.
 
-### Phase M1: Frontend MVP (Docker + Basic Reading UI)
+### Phase 1: Ollama Configuration UI (1-2 days)
 
-**Rationale:** Backend API is complete with feed fetching and article storage. Priority is getting a usable UI deployed in production to validate the core reading experience. This phase establishes the foundation (Next.js + Chakra UI + Docker) that subsequent phases build upon. Docker deployment must be production-ready from the start to avoid redeployment data loss.
+**Rationale:** Simplest integration, independent of other features, provides foundation for experimenting with feedback loop using different models. No external dependencies, well-documented Ollama API, straightforward UI.
 
 **Delivers:**
-- Next.js 16 frontend scaffolding with Chakra UI v3 provider
-- Article list view (Server Component fetching `/api/articles`, Client Component cards)
-- Article detail/reader view (Server Component fetching single article, Client Component for actions)
-- Mark as read/unread functionality (optimistic updates with TanStack Query)
-- Dark/light theme toggle with persistence
-- Docker Compose configuration with backend + frontend services
-- Production-ready volume configuration (named volumes, healthchecks, restart policies)
-- SQLite WAL mode and busy timeout configuration
+- Ollama connection health indicator in settings
+- Dropdown to select categorization model from locally available models
+- Dropdown to select scoring model from locally available models
+- Prompt viewer showing current prompts for transparency
+- Validation that selected models exist before saving
 
-**Addresses features:**
-- Article list with metadata (table stakes)
-- Clean reading view (table stakes)
-- Mark as read/unread (table stakes)
-- Dark/light theme (table stakes)
+**Stack elements:**
+- `ollama` Python library (existing) — `.list()`, `.show()` methods
+- `httpx` (existing) — health check endpoint
+- Chakra UI `Select`, `Badge`, `Field` components (existing)
+- TanStack Query for model list fetching (existing)
 
 **Avoids pitfalls:**
-- SQLite write concurrency (enable WAL mode and busy timeout in DB initialization)
-- Docker volume data loss (named volumes, documented backup/restore)
-- Chakra UI hydration errors (proper SSR setup from start: `'use client'` directives, ColorModeScript)
-- RSS parsing fragility (per-feed error isolation in backend, expose feed health in UI)
+- Two-tier config pattern prevents cache invalidation issues
+- Model validation before save prevents "model not loaded" errors during scoring
 
-**Research flag:** Standard patterns (Next.js + Chakra UI, Docker Compose) — well-documented, skip phase-specific research.
+**Research flag:** SKIP — Ollama API is well-documented, straightforward REST endpoints, no complexity.
 
-### Phase M2: Feed Management UI
+---
 
-**Rationale:** Users need to add/remove feeds and organize them before scaling beyond the test feeds. This phase completes the basic RSS reader functionality (feed CRUD, organization). OPML import/export enables migration from existing readers, critical for adoption.
+### Phase 2: Category Grouping (2-3 days)
+
+**Rationale:** Provides organizational structure needed before implementing feedback (feedback aggregates by category, grouping helps users understand feedback impact). Weight resolution logic needed by feedback system.
 
 **Delivers:**
-- Feed management page (`app/feeds/page.tsx`)
-- Add feed form (URL validation, test fetch before adding)
-- Delete feed with confirmation
-- Feed organization (folders/categories)
-- OPML import/export functionality
-- Feed health display (last successful fetch, error count, manual refresh)
+- CRUD UI for creating category groups
+- Drag-and-drop tree interface for organizing categories into groups
+- Per-group default weight settings (cascades to all categories in group)
+- Per-category weight override UI (takes priority over group default)
+- Weight resolution in scoring pipeline with explicit priority rules
 
-**Addresses features:**
-- Feed subscription management (table stakes)
-- Feed organization (table stakes)
-- OPML import/export (table stakes)
+**Stack elements:**
+- `dnd-kit-sortable-tree` (NEW) — hierarchical drag-and-drop
+- `CategoryGroup` SQLModel table (NEW)
+- Nested JSON storage in UserPreferences (existing pattern)
+- SQLite `json_tree()` function (existing)
+
+**Architecture components:**
+- `category_groups.py` module with weight resolver
+- 4 CRUD endpoints for group management
+- Integration with `compute_composite_score()` in scoring.py
 
 **Avoids pitfalls:**
-- RSS parsing fragility (feed health tracking, manual test button for debugging broken feeds)
-- Security: SSRF attacks (validate feed URLs, block private IPs like 10.x, 192.168.x)
+- Explicit weight resolution priority rules prevent confusion
+- Flat structure initially recommended (can add parent_group_id later)
+- Full JSON reassignment pattern prevents mutation detection issues
 
-**Research flag:** Standard CRUD patterns — skip research unless OPML parsing proves complex (unlikely, standard format).
+**Research flag:** MEDIUM — Tree UI has standard patterns via dnd-kit-sortable-tree, but weight resolution logic is custom. Needs testing with mixed category memberships.
 
-### Phase M3: LLM Scoring Integration
+---
 
-**Rationale:** Core differentiator that sets this reader apart from traditional RSS tools. Requires Ollama service, batch scoring pipeline, and prose preferences UI. This is the riskiest phase (LLM quality, latency, integration complexity) and benefits most from careful implementation.
+### Phase 3: LLM Feedback Loop (3-4 days)
+
+**Rationale:** Depends on category grouping for sensible weight aggregation. Most complex integration (touches scoring pipeline), benefits from having Ollama config UI available for testing with different models.
 
 **Delivers:**
-- Ollama Docker service in `docker-compose.yml` (or native on M3 host)
-- Backend `scoring.py` module with batch scoring logic
-- Integration in `refresh_feed()` to score new articles
-- Database schema update (add `interest_score`, `score_category`, `score_reason` columns)
-- Settings page for prose-style preferences (`app/settings/page.tsx`)
-- Article list sorting/filtering by LLM score
-- Visual interest indicators (color coding, badges, score display)
-- Score rationale display ("Matched: machine learning, python")
+- Thumbs up/down buttons on article rows
+- Visual feedback state indicator (filled icons for voted articles)
+- Backend aggregation job (daily APScheduler task)
+- Category weight adjustment strategy (bounded, minimum sample size)
+- Integration with scoring pipeline via feedback_aggregates
 
-**Addresses features:**
-- LLM scoring for interest (core differentiator)
-- Prose-style preferences (differentiator)
-- Interest score display (differentiator)
-- Smart article previews (differentiator)
+**Stack elements:**
+- `react-icons` (existing) — `FiThumbsUp`, `FiThumbsDown`
+- Chakra UI `IconButton`, `Toast` (existing)
+- TanStack Query mutations (existing)
+- APScheduler (existing) — daily job for aggregation
+
+**Architecture components:**
+- `feedback_aggregator.py` module (NEW)
+- `Article.user_feedback` field (NEW)
+- `UserPreferences.feedback_aggregates` JSON field (NEW)
+- Modified `compute_composite_score()` to merge feedback weights
 
 **Avoids pitfalls:**
-- Ollama model quality loss (use Q6/Q8 quantization, evaluate with sample articles, document minimum 7B parameters)
-- LLM scoring latency (batch scoring after refresh, not on page load; async pipeline with results stored in DB)
-- Performance trap: scoring on every render (pre-score during ingestion, cache results, display articles immediately)
+- Weight adjustment (not fine-tuning) prevents scoring drift
+- Daily aggregation (not per-feedback) reduces noise
+- Minimum 5 signals per category before adjustment prevents single-vote impact
+- Weight bounds (0.0-2.0) prevent runaway drift
+- Additive adjustment preserves explicit topic_weights
 
-**Research flag:** Needs research for Ollama integration patterns — LLM scoring prompts, JSON response parsing, error handling, batch processing optimization. Consider `/gsd:research-phase` for this milestone.
+**Research flag:** HIGH — Custom aggregation strategy, no standard patterns for this specific approach. Needs thorough testing with conflicting signals (100+ feedback events) to verify stability.
 
-### Phase M4: Polish & Iteration (Future)
+---
 
-**Rationale:** Features that improve UX after core functionality is validated. These can be added incrementally based on actual usage patterns.
+### Phase 4: UI & Theme Polish (1-2 days)
+
+**Rationale:** Refinement phase after functionality complete. Benefits from all features being in place to see holistic UX. No backend changes, purely frontend improvements.
 
 **Delivers:**
-- Keyboard shortcuts (j/k navigation, m to mark read, r to refresh)
-- Training feedback loop (mark "more/less like this")
-- Interest categorization (auto-tag articles by topic)
-- Article search (find past articles by keyword)
-- Starred/saved articles (bookmark for later)
-- Article retention policy (cleanup old articles, prevent unbounded database growth)
+- Semantic token refinements for better contrast and hierarchy
+- Loading states with Skeleton components during article list loading
+- Spacing adjustments for improved readability (py=3.5 px=5 instead of py=3 px=4)
+- Smooth transitions on read/unread state changes
+- Responsive breakpoint refinements
 
-**Research flag:** Standard patterns for most features, skip research.
+**Stack elements:**
+- Chakra UI v3 design system (existing) — semantic tokens, Skeleton, Transition
+- Emotion `keyframes` (existing) — for custom animations
+- Theme system in `frontend/src/theme/` (existing)
+
+**Avoids pitfalls:**
+- Verify semantic token completeness before changes (all colorPalette tokens present)
+- Test components after theme updates to catch rendering issues
+- Avoid changing spatial properties (breaks layout)
+- Add new tokens for new needs rather than modifying existing
+
+**Research flag:** SKIP — Standard UI patterns, well-documented in Chakra UI v3, no novel integration.
+
+---
 
 ### Phase Ordering Rationale
 
-- **M1 before M2:** Must have working UI before adding feed management complexity. Docker deployment establishes production foundation.
-- **M2 before M3:** Feed organization needed to manage multiple feeds before LLM scoring scales beyond test feeds. OPML import enables switching from existing reader.
-- **M3 as separate milestone:** LLM integration is complex (Ollama setup, prompt engineering, batch pipeline) and risky (quality, latency). Isolating it allows focused testing and iteration.
-- **M4 deferred:** Polish features validated by actual usage, not assumptions. Keyboard shortcuts, search, and feedback loop are valuable but not critical for proving core concept.
+**Sequential, not parallel:** Dependencies dictate this order. Category grouping provides weight resolution for feedback. Feedback depends on having organizational structure to make aggregates meaningful. Ollama config enables experimentation during feedback testing. Polish refines complete feature set.
+
+**Why not group Ollama config with feedback?** Ollama config is simple (1-2 days), feedback is complex (3-4 days). Separating allows early validation of config UI pattern before tackling feedback integration. Also, config UI provides immediate user value (model switching) independent of feedback.
+
+**Why category grouping before feedback?** Weight resolution logic in grouping is needed by feedback aggregator. Users need to understand category hierarchy to interpret feedback's impact on scoring. Grouping provides UI for explicit category weight setting, which feedback complements.
+
+**Why polish last?** Can't polish what doesn't exist. Polish phase needs complete feature set to assess holistic UX. Also serves as buffer — if earlier phases take longer, polish can be compressed or split into separate release.
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase M3 (LLM Scoring):** Complex integration with limited examples. Needs research on: Ollama batch processing patterns, prompt engineering for article scoring, JSON response parsing reliability, handling model loading delays, scoring quality evaluation. Consider `/gsd:research-phase` for this milestone.
+**Phases needing deeper research during planning:**
+- **Phase 3 (Feedback Loop):** Custom aggregation strategy with no standard patterns. Needs `/gsd:research-phase` to investigate feedback weight adjustment algorithms, minimum sample size thresholds, decay functions, and stability testing approaches.
 
-Phases with standard patterns (skip research-phase):
-- **Phase M1 (Frontend MVP + Docker):** Well-documented patterns (Next.js App Router, Chakra UI setup, Docker Compose best practices). Official docs sufficient.
-- **Phase M2 (Feed Management):** Standard CRUD operations, OPML is well-established format with library support (feedparser handles it).
-- **Phase M4 (Polish):** Mostly UI/UX improvements with established patterns (keyboard event handlers, search indexing, retention policies).
+**Phases with standard patterns (skip research-phase):**
+- **Phase 1 (Ollama Config):** REST API wrapper, standard CRUD patterns, well-documented Ollama API.
+- **Phase 4 (UI Polish):** UI refinement using existing design system capabilities, standard semantic token patterns.
+
+**Phase with moderate complexity:**
+- **Phase 2 (Category Grouping):** Tree UI is standard via dnd-kit-sortable-tree. Weight resolution is custom but straightforward (priority-based resolver). Can skip dedicated research if phase plan includes explicit resolution rules and test cases.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All core technologies verified against official documentation (Next.js, Chakra UI, Ollama, Docker). Library versions confirmed via npm/GitHub. Docker patterns cross-referenced with official docs. |
-| Features | HIGH | Feature tiers based on competitive analysis of 5+ RSS readers (Feedly, NewsBlur, The Old Reader). LLM curation patterns verified via multiple open-source projects (Precis, RLLM, RSSFilter). Table stakes vs differentiators clearly defined. |
-| Architecture | HIGH | Patterns verified against official Next.js, FastAPI, and Docker documentation. Server Components vs Client Components boundaries well-documented. Batch LLM scoring pattern confirmed via Ollama production guides. |
-| Pitfalls | MEDIUM-HIGH | Critical pitfalls (SQLite concurrency, RSS parsing, Docker volumes) verified via official docs and multiple production war stories. Ollama pitfalls based on community sources (Medium, dev.to) — less authoritative but consensus across multiple sources. |
+| Stack | HIGH | Only one new dependency required (dnd-kit-sortable-tree), all others existing and validated. Ollama Python library methods verified in official GitHub repo. |
+| Features | MEDIUM-HIGH | Features well-defined, but feedback aggregation strategy is custom (no standard implementation to reference). Category grouping patterns established in other apps. |
+| Architecture | HIGH | Integration points clearly defined, hybrid config pattern documented in FastAPI official docs, weight resolution logic is straightforward priority-based system. |
+| Pitfalls | HIGH | All relevant pitfalls well-documented with clear mitigation strategies. SQLAlchemy JSON mutation issue already documented in AGENTS.md. |
 
-**Overall confidence:** HIGH
+**Overall confidence:** MEDIUM-HIGH
+
+Research is comprehensive for in-scope features. The main uncertainty is feedback loop stability (custom strategy, needs empirical validation with conflicting signals). All other areas have established patterns or official documentation.
 
 ### Gaps to Address
 
-Areas where research was inconclusive or needs validation during implementation:
+**Feedback aggregation parameters:** Research recommends minimum 5 signals per category and delta scaling of 0.5, but these are heuristics not empirically validated. During Phase 3 planning, consider researching:
+- Optimal minimum sample size for single-user app (5? 10? 20?)
+- Appropriate weight delta magnitude (0.5 too aggressive? 0.2 safer?)
+- Decay function for aging feedback (linear? exponential? none?)
+- Conflict resolution when feedback is evenly split (3 up, 3 down → no change? or small adjustment?)
 
-- **Ollama prompt engineering for article scoring:** Research confirms batch processing patterns and API integration, but optimal prompt structure for interest scoring needs experimentation. Handle during Phase M3 planning: prototype with sample articles, iterate on prompt templates, measure consistency.
+**Mitigation:** Start with conservative values (minimum 10 signals, delta 0.2, no decay initially). Monitor in production for 2-4 weeks. Adjust based on observed scoring stability. Add telemetry to track: feedback count per category, weight drift over time, composite score distribution changes.
 
-- **SQLite performance at scale:** Research confirms WAL mode handles concurrency, but thresholds for "too many articles" or "too many feeds" vary by source. Handle pragmatically: implement retention policy (M4) if database exceeds 10K articles, monitor query performance, migrate to PostgreSQL only if actual bottleneck appears (unlikely for single-user).
+---
 
-- **Chakra UI v3 + Next.js 16 edge cases:** Both are recent releases (Next.js 16 stable as of late 2025, Chakra v3 in 2026). Some integration patterns may have undocumented gotchas. Handle during Phase M1: follow official Chakra + Next.js guide exactly, test SSR build early, monitor GitHub issues for emerging patterns.
+**Category hierarchy depth:** Research recommends 2-level maximum (groups → categories), but initial implementation may keep flat structure to avoid complexity. Decision point during Phase 2 planning.
 
-- **Feed refresh timing optimization:** Research recommends respecting TTL/Cache-Control headers and exponential backoff, but specific thresholds vary. Handle during Phase M2: start with fixed 30-min refresh, implement per-feed configurable intervals if needed based on actual feed behavior (some blogs update hourly, others weekly).
+**Mitigation:** Implement flat structure with explicit weight settings in v1.1. Add `parent_group_id` support in v1.2 if users request deeper hierarchy. This avoids premature complexity while keeping option open.
+
+---
+
+**Ollama model switching timing:** Research identifies race condition when switching models during active scoring. Recommended mitigation is pausing queue during config updates, but this adds complexity.
+
+**Mitigation during Phase 1 planning:** Research whether scoring queue pause is necessary or if simple retry logic suffices. Ollama's model loading is fast (10-30s for 8B models), and scoring queue processes batches of 5 every 30s. Single retry with 30s backoff may be sufficient without queue pause complexity.
+
+---
+
+**Chakra Portal performance threshold:** Research warns about CSSStyleSheet leak with "many" components, but exact threshold unclear (50? 100? 200?).
+
+**Mitigation:** Add development-mode stylesheet count monitoring in Phase 4. Log warning if `document.styleSheets.length > 500`. Test with 100+ feeds to establish actual threshold for this specific app.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-**Technology Stack:**
-- [Next.js 16 Release](https://nextjs.org/blog/next-16) — Official announcement, breaking changes, Turbopack stability
-- [Next.js 16 Upgrade Guide](https://nextjs.org/docs/app/guides/upgrading/version-16) — Migration path, async params, middleware changes
-- [Chakra UI with Next.js App](https://chakra-ui.com/docs/get-started/frameworks/next-app) — Official v3 setup for App Router
-- [TanStack Query Installation](https://tanstack.com/query/v5/docs/react/installation) — v5 docs, RSC integration
-- [Ollama JavaScript Library](https://github.com/ollama/ollama-js) — Official SDK, API reference
-- [Docker Compose Reference](https://docs.docker.com/reference/compose-file/services/) — Official compose file specification
-- [Docker Volumes](https://docs.docker.com/get-started/docker-concepts/running-containers/persisting-container-data/) — Persistence guide
-
-**Architecture Patterns:**
-- [Next.js Architecture in 2026](https://www.yogijs.tech/blog/nextjs-project-architecture-app-router) — Server-first patterns, Client Islands
-- [Using Chakra UI in Next.js (App)](https://chakra-ui.com/docs/get-started/frameworks/next-app) — SSR setup, ColorModeScript
-- [CORS (Cross-Origin Resource Sharing) - FastAPI](https://fastapi.tiangolo.com/tutorial/cors/) — Official CORS configuration
-- [Use Compose in Production | Docker Docs](https://docs.docker.com/compose/how-tos/production/) — Production best practices
+- [FastAPI Settings Management](https://fastapi.tiangolo.com/advanced/settings/) — `@lru_cache` pattern, Pydantic Settings
+- [SQLite JSON Functions](https://sqlite.org/json1.html) — `json_tree()`, nested JSON querying
+- [dnd-kit Sortable Preset](https://docs.dndkit.com/presets/sortable) — foundation for dnd-kit-sortable-tree
+- [Ollama Python Library](https://github.com/ollama/ollama-python) — `.list()`, `.show()` API methods
+- [Ollama API Documentation](https://docs.ollama.com/api/tags) — REST endpoints, model listing
+- [SQLAlchemy JSON Type](https://docs.sqlalchemy.org/en/20/core/type_basics.html#sqlalchemy.types.JSON) — mutation detection behavior
 
 ### Secondary (MEDIUM confidence)
+- [dnd-kit-sortable-tree GitHub](https://github.com/Shaddix/dnd-kit-sortable-tree) — hierarchical drag-and-drop library
+- [SQLite JSON Querying Tutorial](https://dadroit.com/blog/json-querying/) — nested structure patterns
+- [RLHF Overview (Wikipedia)](https://en.wikipedia.org/wiki/Reinforcement_learning_from_human_feedback) — feedback loop concepts
+- [LLM Fine-Tuning Guide](https://www.turing.com/resources/finetuning-large-language-models) — why PEFT/LoRA not suitable
+- [Meta Reels Feedback System](https://engineering.fb.com/2026/01/14/ml-applications/adapting-the-facebook-reels-recsys-ai-model-based-on-user-feedback/) — real-world feedback integration
+- [Continual Learning with RL for LLMs](https://cameronrwolfe.substack.com/p/rl-continual-learning) — catastrophic forgetting patterns
+- [Chakra UI v3 Performance Issues](https://github.com/chakra-ui/chakra-ui/discussions/8706) — CSSStyleSheet leak patterns
 
-**Features Research:**
-- [The 3 best RSS reader apps in 2026 | Zapier](https://zapier.com/blog/best-rss-feed-reader-apps/) — Competitive feature analysis
-- [RSS Reader Showdown: Feedly vs Inoreader vs NewsBlur](https://vpntierlists.com/blog/rss-reader-showdown-feedly-vs-inoreader-vs-newsblur-vs-spark) — Competitor comparison
-- [Using LLMs to Build Smart RSS Readers - PhaseLLM Tutorial](https://phasellm.com/tutorial-smart-rss-reader) — LLM curation patterns
-- [Precis: AI-enabled RSS reader](https://github.com/leozqin/precis) — Open-source LLM RSS reader reference
-- [RSS Reader User Interface Design Principles](https://www.feedviewer.app/answers/rss-reader-user-interface-design-principles) — UX best practices
-
-**Pitfalls Research:**
-- [SQLite Concurrent Writes and Database Locked Errors](https://tenthousandmeters.com/blog/sqlite-concurrent-writes-and-database-is-locked-errors/) — WAL mode, busy timeout
-- [Stop Misusing Docker Compose in Production](https://dflow.sh/blog/stop-misusing-docker-compose-in-production-what-most-teams-get-wrong) — Volume pitfalls, restart policies
-- [Parsing RSS At All Costs](https://www.xml.com/pub/a/2003/01/22/dive-into-xml.html) — Feed parsing fragility
-- [Large Scale Batch Processing with Ollama](https://robert-mcdermott.medium.com/large-scale-batch-processing-with-ollama-1e180533fb8a) — Batch scoring patterns
-- [Hydration Failed: Debugging Next.js and Chakra UI](https://medium.com/@lehetar749/hydration-failed-debugging-next-js-v15-and-chakra-ui-component-issues-707b53730257) — SSR setup
-
-### Tertiary (LOW confidence, needs validation)
-
-- [Common Mistakes in Local LLM Deployments](https://sebastianpdw.medium.com/common-mistakes-in-local-llm-deployments-03e7d574256b) — Quantization issues (Medium paywall, single source)
-- Community guides on date-fns vs Day.js bundle size comparisons — Multiple sources agree but no official benchmark
-- State management comparisons (Zustand vs Jotai vs Redux) — Dev.to articles, subjective preferences
+### Tertiary (LOW confidence)
+- [Ollama Health Check Discussion](https://github.com/ollama/ollama/issues/1378) — community patterns for health endpoints
+- [Thumbs Up/Down Survey Patterns](https://www.zonkafeedback.com/blog/collecting-feedback-with-thumbs-up-thumbs-down-survey) — UX best practices
+- [Top Drag-and-Drop Libraries 2026](https://puckeditor.com/blog/top-5-drag-and-drop-libraries-for-react) — library comparison
+- [Hierarchical UI Patterns](https://ui-patterns.com/patterns/categorization) — tree navigation best practices
 
 ---
-*Research completed: 2026-02-04*
+*Research completed: 2026-02-14*
 *Ready for roadmap: yes*
