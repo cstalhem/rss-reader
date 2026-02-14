@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** Surface interesting articles and hide noise automatically via local LLM curation
-**Current focus:** Milestone v1.1 — Configuration, Feedback & Polish
+**Current focus:** Phase 6 - UI & Theme Polish
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-14 — Milestone v1.1 started
+Phase: 6 of 9 (UI & Theme Polish)
+Plan: Ready to plan phase 6
+Status: Ready to plan
+Last activity: 2026-02-14 — v1.1 roadmap created, starting Phase 6
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████░░░░░] 56% (19/34 total plans estimated)
 
 ## Performance Metrics
 
@@ -42,12 +42,10 @@ Progress: [░░░░░░░░░░] 0%
 Decisions are logged in PROJECT.md Key Decisions table.
 v1.0 decisions archived in milestones/v1.0-ROADMAP.md — full log in STATE.md history.
 
-Key architectural decisions carrying forward:
-- Chakra UI v3 with dark default, orange accent, semantic tokens
-- Ollama for local LLM scoring (qwen3:8b default)
-- SQLite with WAL mode and busy_timeout=5000ms
-- TanStack Query with 30s staleTime for data layer
-- Two-step LLM pipeline: categorize → score with composite formula
+Key architectural decisions carrying forward to v1.1:
+- Two-step LLM pipeline (categorize → score) with separate models - enables independent optimization in Phase 7
+- Composite scoring formula with interest × category_weight × quality_multiplier - foundation for Phase 8 grouping and Phase 9 feedback
+- Pydantic Settings config with `@lru_cache` - creates constraint for Phase 7 (need two-tier config pattern)
 
 ### Pending Todos
 
@@ -55,10 +53,20 @@ None yet.
 
 ### Blockers/Concerns
 
-None — clean slate for v1.1.
+**Phase 7 considerations:**
+- Pydantic Settings `@lru_cache` prevents runtime updates - requires two-tier config pattern (Settings for infrastructure, UserPreferences for runtime choices)
+- Ollama model switching during active scoring creates race condition - needs investigation during planning (retry vs queue pause)
+
+**Phase 9 considerations:**
+- Feedback aggregation strategy is custom (no standard implementation) - flagged for deeper research during planning
+- Minimum sample size and weight delta parameters are heuristics not empirically validated - start conservative, monitor in production
 
 ## Session Continuity
 
-Last session: 2026-02-14 (v1.0 milestone archived)
-Stopped at: Ready for v1.1 requirements and roadmap
+Last session: 2026-02-14
+Stopped at: v1.1 roadmap created, all 20 requirements mapped to phases 6-9
 Resume file: None
+
+---
+*State initialized: 2026-02-14*
+*Last updated: 2026-02-14 after roadmap creation*

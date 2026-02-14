@@ -87,32 +87,34 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OLLAMA-01 | — | Pending |
-| OLLAMA-02 | — | Pending |
-| OLLAMA-03 | — | Pending |
-| OLLAMA-04 | — | Pending |
-| OLLAMA-05 | — | Pending |
-| FEEDBACK-01 | — | Pending |
-| FEEDBACK-02 | — | Pending |
-| FEEDBACK-03 | — | Pending |
-| FEEDBACK-04 | — | Pending |
-| CATGRP-01 | — | Pending |
-| CATGRP-02 | — | Pending |
-| CATGRP-03 | — | Pending |
-| CATGRP-04 | — | Pending |
-| CATGRP-05 | — | Pending |
-| POLISH-01 | — | Pending |
-| POLISH-02 | — | Pending |
-| POLISH-03 | — | Pending |
-| POLISH-04 | — | Pending |
-| POLISH-05 | — | Pending |
-| POLISH-06 | — | Pending |
+| POLISH-01 | Phase 6 | Pending |
+| POLISH-02 | Phase 6 | Pending |
+| POLISH-03 | Phase 6 | Pending |
+| POLISH-04 | Phase 6 | Pending |
+| POLISH-05 | Phase 6 | Pending |
+| POLISH-06 | Phase 6 | Pending |
+| OLLAMA-01 | Phase 7 | Pending |
+| OLLAMA-02 | Phase 7 | Pending |
+| OLLAMA-03 | Phase 7 | Pending |
+| OLLAMA-04 | Phase 7 | Pending |
+| OLLAMA-05 | Phase 7 | Pending |
+| CATGRP-01 | Phase 8 | Pending |
+| CATGRP-02 | Phase 8 | Pending |
+| CATGRP-03 | Phase 8 | Pending |
+| CATGRP-04 | Phase 8 | Pending |
+| CATGRP-05 | Phase 8 | Pending |
+| FEEDBACK-01 | Phase 9 | Pending |
+| FEEDBACK-02 | Phase 9 | Pending |
+| FEEDBACK-03 | Phase 9 | Pending |
+| FEEDBACK-04 | Phase 9 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 20 total
-- Mapped to phases: 0
-- Unmapped: 20
+- Mapped to phases: 20
+- Unmapped: 0
+
+**100% coverage achieved**
 
 ---
 *Requirements defined: 2026-02-14*
-*Last updated: 2026-02-14 after initial definition*
+*Last updated: 2026-02-14 after roadmap creation*
