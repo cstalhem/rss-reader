@@ -2,19 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-04)
+See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** Surface interesting articles and hide noise automatically via local LLM curation
-**Current focus:** Milestone 1 complete — all 5 phases delivered
+**Current focus:** Milestone v1.1 — Configuration, Feedback & Polish
 
 ## Current Position
 
-Phase: 5 of 5 complete (Interest-Driven UI)
-Plan: 3 of 3 complete
-Status: All milestone 1 phases complete — RSS reader with LLM-powered content curation operational
-Last activity: 2026-02-14 - Phase 5 verified and complete
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for milestone v1.1
+Last activity: 2026-02-14 — Milestone v1.1 started
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 

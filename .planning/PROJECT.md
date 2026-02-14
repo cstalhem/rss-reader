@@ -14,60 +14,52 @@ Surface interesting articles and hide noise automatically, so reading RSS feels 
 
 ### Validated
 
-- ✓ FastAPI backend with SQLModel ORM and SQLite database — existing
-- ✓ Feed and Article data models with proper constraints — existing
-- ✓ RSS feed fetching with feedparser and httpx — existing
-- ✓ APScheduler for automatic feed refresh every 30 minutes — existing
-- ✓ REST API: list articles (paginated), update read status, manual refresh — existing
-- ✓ Graceful error handling for malformed feeds and network failures — existing
-- ✓ Backend test suite with pytest and pytest-asyncio — existing
+- ✓ FastAPI backend with SQLModel ORM and SQLite database — v1.0
+- ✓ Feed and Article data models with proper constraints — v1.0
+- ✓ RSS feed fetching with feedparser and httpx — v1.0
+- ✓ APScheduler for automatic feed refresh every 30 minutes — v1.0
+- ✓ REST API: list articles (paginated), update read status, manual refresh — v1.0
+- ✓ Graceful error handling for malformed feeds and network failures — v1.0
+- ✓ Backend test suite with pytest and pytest-asyncio — v1.0
+- ✓ Docker Compose production deployment with persistent volumes, auto-restart, health checks — v1.0
+- ✓ Article list with preview cards, read/unread state, load-more pagination — v1.0
+- ✓ Article reader drawer with auto-mark-as-read, prev/next navigation — v1.0
+- ✓ Dark/light theme toggle with orange accent, Inter + Lora fonts — v1.0
+- ✓ Feed management: add, remove, rename, reorder, mark-all-read — v1.0
+- ✓ LLM content curation: two-step scoring pipeline, categorization, topic weights — v1.0
+- ✓ Interest-driven UI: score badges, sort by score/date, filter tabs, adaptive polling — v1.0
 
 ### Active
 
-**M1 — MVP (current focus):**
-- [ ] Article list view with preview cards (title, snippet, source, date)
-- [ ] Article detail view with in-app reader and link to original
-- [ ] Mark articles as read/unread from the UI
-- [ ] Dark/light theme toggle (Chakra UI)
-- [ ] Docker Compose setup for production deployment (backend + frontend, persistent volumes, auto-restart)
+## Current Milestone: v1.1 Configuration, Feedback & Polish
 
-**M2 — Feed Management:**
-- [ ] Add feeds via UI
-- [ ] Remove feeds via UI
-- [ ] Feed groups / categories
-- [ ] Filter articles by feed or group
+**Goal:** Make the LLM curation loop configurable and improvable from the UI, replace polling with push updates, and polish the overall experience.
 
-**M3 — LLM Scoring:**
-- [ ] Ollama integration for local LLM inference
-- [ ] Prose-style user preferences storage
-- [ ] Multi-stage filtering pipeline (keyword filters → LLM scoring)
-- [ ] Interest scoring with categories (high / medium / low / serendipity)
-- [ ] Surface high-interest articles prominently, deprioritize low-interest
-- [ ] Serendipity factor to prevent filter bubbles
-
-**M4 — Polish:**
-- [ ] Full-text search (SQLite FTS5)
-- [ ] Keyboard shortcuts
-- [ ] Mobile-responsive layout
-- [ ] Data retention / cleanup to prevent database bloat
+**Target features:**
+- [ ] Ollama Configuration UI — connection status, model selection, prompt visibility
+- [ ] Real-Time Push Updates — SSE to replace polling for instant article updates
+- [ ] UI & Theme Polish — design refinements across the app
+- [ ] LLM Feedback Loop — explicit user feedback to improve scoring over time
+- [ ] Feed Categories/Folders — organize feeds into groups
+- [ ] Feed Auto-Discovery — enter blog URL, system finds RSS feed automatically
 
 ### Out of Scope
 
 - Multi-user support — personal use only, no auth needed
 - Cloud deployment — runs on home server
 - Mobile native app — web-first, responsive layout is sufficient
-- Real-time push updates — polling/refresh is fine for RSS
 - OAuth or social login — single user, no auth
 - UI snapshot testing — overkill for personal project
+- UI internationalization — low priority, English-only for now
 
 ## Context
 
-- Backend is built and functional (M1 backend complete). Frontend has a Next.js skeleton but no UI components yet.
-- Chakra UI selected for the frontend component library. An MCP server for Chakra UI is configured in `.mcp.json`.
-- Ollama will run locally alongside the app for LLM scoring (M3). No external API costs.
-- The app will run on a home server via Docker Compose — needs to be production-ready with persistent volumes and auto-restart.
+- Full-stack app operational: FastAPI backend + Next.js/Chakra UI v3 frontend, deployed via Docker Compose on home server.
+- LLM scoring pipeline active with Ollama (qwen3:8b default) — two-step categorize → score with composite scoring and topic weights.
+- Frontend uses TanStack Query for data layer, adaptive polling for real-time feel, Chakra UI v3 with dark theme + orange accent.
+- Ollama config currently only modifiable via YAML/env vars — runtime changes require a settings UI backed by database storage.
+- Scoring feedback is currently one-directional (LLM scores, user reads). No mechanism for the user to improve scoring through interaction.
 - Testing philosophy: integration tests over unit tests, real SQLite databases over mocks, async-first with pytest-asyncio.
-- The LLM scoring vision is documented in `spec/llm_scoring_vision.md` with details on the multi-stage pipeline, preference format, and output schema.
 
 ## Constraints
 
@@ -80,14 +72,15 @@ Surface interesting articles and hide noise automatically, so reading RSS feels 
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Chakra UI for frontend | Prop-based theming, good DX, dark/light mode support built-in | — Pending |
-| Ollama for LLM (local) | Privacy, no API costs, runs on home server | — Pending |
+| Chakra UI v3 for frontend | Prop-based theming, good DX, dark/light mode support built-in | ✓ Good |
+| Ollama for LLM (local) | Privacy, no API costs, runs on home server | ✓ Good |
 | SQLite over Postgres | Simple, no ops, sufficient for single-user RSS reader | ✓ Good |
 | APScheduler over cron/Celery | In-app, Docker-friendly, no external dependencies | ✓ Good |
-| Preview cards for article list | Better for skimming content vs minimal rows | — Pending |
-| In-app reader + link to original | Flexibility to read inline or visit source | — Pending |
-| Dark/light theme toggle | Personal preference, Chakra UI makes this straightforward | — Pending |
-| Production Docker Compose | Home server deployment, needs robustness (volumes, restart) | — Pending |
+| TanStack Query for data layer | Caching, background sync, optimistic updates | ✓ Good |
+| Two-step LLM pipeline | Categorize all → score non-blocked; separate models configurable | ✓ Good |
+| Composite scoring formula | interest * category_weight * quality_multiplier (cap 20.0) | ✓ Good |
+| Pydantic Settings config | Type-safe config from env/YAML with lru_cache | ✓ Good |
+| Production Docker Compose | Home server with Traefik reverse proxy, GHCR images | ✓ Good |
 
 ---
-*Last updated: 2026-02-04 after initialization*
+*Last updated: 2026-02-14 after milestone v1.1 start*
