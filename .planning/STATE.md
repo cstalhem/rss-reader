@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 Phase: 6 of 9 (UI & Theme Polish)
 Plan: Ready to plan phase 6
 Status: Ready to plan
-Last activity: 2026-02-14 — v1.1 roadmap created, starting Phase 6
+Last activity: 2026-02-14 - Completed quick task 6: Fix production API URL fallback
 
 Progress: [█████░░░░░] 56% (19/34 total plans estimated)
 
@@ -52,6 +52,12 @@ Key architectural decisions carrying forward to v1.1:
 None yet.
 
 ### Blockers/Concerns
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 6 | Fix production API URL fallback: change \|\| to ?? so empty NEXT_PUBLIC_API_URL uses relative URLs | 2026-02-14 | a979370 | [6-fix-production-api-url-fallback-change-t](./quick/6-fix-production-api-url-fallback-change-t/) |
 
 **Phase 7 considerations:**
 - Pydantic Settings `@lru_cache` prevents runtime updates - requires two-tier config pattern (Settings for infrastructure, UserPreferences for runtime choices)
