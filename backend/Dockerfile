@@ -47,7 +47,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 # Configure health check
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 --start-period=10s \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://127.0.0.1:8000/health || exit 1
 
 # Expose application port
 EXPOSE 8000
