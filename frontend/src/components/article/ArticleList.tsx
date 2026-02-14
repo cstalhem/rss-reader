@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import { Box, Flex, Button, Text, Skeleton, Stack } from "@chakra-ui/react";
 import { useArticles, useMarkAsRead } from "@/hooks/useArticles";
 import { useMarkAllRead } from "@/hooks/useFeedMutations";
@@ -48,46 +48,11 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
   });
 
   // Track articles completing scoring (for animation in Scoring tab)
-  const { completingArticles, completingIds } = useCompletingArticles(
+  // Hook returns merged display list with completing articles in original positions
+  const { displayArticles, completingIds } = useCompletingArticles(
     articles,
     filter === "scoring"
   );
-
-  // Merge completing articles at their original positions (no jump/flash)
-  const prevDisplayRef = useRef<number[]>([]);
-  const displayArticles = useMemo(() => {
-    if (!articles) return completingArticles.length > 0 ? completingArticles : undefined;
-    if (completingArticles.length === 0) {
-      prevDisplayRef.current = articles.map((a) => a.id);
-      return articles;
-    }
-
-    const completingMap = new Map(completingArticles.map((a) => [a.id, a]));
-    const currentMap = new Map(articles.map((a) => [a.id, a]));
-    const result: Article[] = [];
-    const seen = new Set<number>();
-
-    // Walk previous display order to preserve positions
-    for (const id of prevDisplayRef.current) {
-      if (currentMap.has(id)) {
-        result.push(currentMap.get(id)!);
-        seen.add(id);
-      } else if (completingMap.has(id)) {
-        result.push(completingMap.get(id)!);
-        seen.add(id);
-      }
-    }
-
-    // Add any new articles not in previous display
-    for (const article of articles) {
-      if (!seen.has(article.id)) {
-        result.push(article);
-      }
-    }
-
-    prevDisplayRef.current = result.map((a) => a.id);
-    return result;
-  }, [articles, completingArticles]);
 
   const { data: feeds } = useFeeds();
   const markAsRead = useMarkAsRead();

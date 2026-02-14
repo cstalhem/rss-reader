@@ -117,19 +117,25 @@ export function ArticleRow({
       <Flex flexShrink={0} alignItems="center" gap={2}>
         {/* Scoring state indicators for non-scored states */}
         {article.scoring_state === "scoring" && (
-          <Spinner size="xs" colorPalette="accent" />
+          <Flex alignItems="center" gap={1.5}>
+            <Spinner size="xs" colorPalette="accent" />
+            <Text fontSize="xs" color="fg.muted">Scoring…</Text>
+          </Flex>
         )}
         {(article.scoring_state === "queued" || article.scoring_state === "unscored") && (
-          <Box
-            color="white"
-            fontSize="sm"
+          <Flex
+            alignItems="center"
+            gap={1.5}
             css={{ animation: `${pulsingIcon} 2s ease-in-out infinite` }}
           >
-            <LuClock />
-          </Box>
+            <Box color="white" fontSize="sm">
+              <LuClock />
+            </Box>
+            <Text fontSize="xs" color="fg.muted">Queued</Text>
+          </Flex>
         )}
         {article.scoring_state === "failed" && (
-          <Text fontSize="xs" color="red.fg">✕</Text>
+          <Text fontSize="xs" color="red.fg">✕ Failed</Text>
         )}
 
         {/* Score badge for scored articles */}
