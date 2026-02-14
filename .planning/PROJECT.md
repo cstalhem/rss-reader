@@ -33,15 +33,13 @@ Surface interesting articles and hide noise automatically, so reading RSS feels 
 
 ## Current Milestone: v1.1 Configuration, Feedback & Polish
 
-**Goal:** Make the LLM curation loop configurable and improvable from the UI, replace polling with push updates, and polish the overall experience.
+**Goal:** Make the LLM curation loop configurable and improvable from the UI, add hierarchical category management, and polish the overall experience.
 
 **Target features:**
 - [ ] Ollama Configuration UI — connection status, model selection, prompt visibility
-- [ ] Real-Time Push Updates — SSE to replace polling for instant article updates
 - [ ] UI & Theme Polish — design refinements across the app
 - [ ] LLM Feedback Loop — explicit user feedback to improve scoring over time
-- [ ] Feed Categories/Folders — organize feeds into groups
-- [ ] Feed Auto-Discovery — enter blog URL, system finds RSS feed automatically
+- [ ] Category Grouping — hierarchical groups with cascading weights and per-category overrides
 
 ### Out of Scope
 
@@ -51,6 +49,9 @@ Surface interesting articles and hide noise automatically, so reading RSS feels 
 - OAuth or social login — single user, no auth
 - UI snapshot testing — overkill for personal project
 - UI internationalization — low priority, English-only for now
+- Real-Time Push Updates (SSE) — deferred to v1.2
+- Feed Categories/Folders — deferred to v1.2
+- Feed Auto-Discovery — deferred to v1.2
 
 ## Context
 
@@ -83,4 +84,4 @@ Surface interesting articles and hide noise automatically, so reading RSS feels 
 | Production Docker Compose | Home server with Traefik reverse proxy, GHCR images | ✓ Good |
 
 ---
-*Last updated: 2026-02-14 after v1.0 milestone completion*
+*Last updated: 2026-02-14 after v1.1 milestone scoping*
