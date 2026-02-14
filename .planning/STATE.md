@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 Phase: 6 of 9 (UI & Theme Polish)
 Plan: Ready to plan phase 6
 Status: Ready to plan
-Last activity: 2026-02-14 - Completed quick task 7: Switch frontend Docker build from npm to bun
+Last activity: 2026-02-15 - Completed quick task 8: Switch Ollama client to streaming responses
 
 Progress: [█████░░░░░] 56% (19/34 total plans estimated)
 
@@ -59,6 +59,7 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 6 | Fix production API URL fallback: change \|\| to ?? so empty NEXT_PUBLIC_API_URL uses relative URLs | 2026-02-14 | a979370 | [6-fix-production-api-url-fallback-change-t](./quick/6-fix-production-api-url-fallback-change-t/) |
 | 7 | Switch frontend Docker build from npm to bun for faster CI builds | 2026-02-14 | 6cf07cc | [7-switch-frontend-docker-build-from-npm-to](./quick/7-switch-frontend-docker-build-from-npm-to/) |
+| 8 | Switch Ollama client to streaming responses to prevent timeouts on slower models | 2026-02-15 | 7e0add4 | [8-switch-ollama-client-to-streaming-respon](./quick/8-switch-ollama-client-to-streaming-respon/) |
 
 **Phase 7 considerations:**
 - Pydantic Settings `@lru_cache` prevents runtime updates - requires two-tier config pattern (Settings for infrastructure, UserPreferences for runtime choices)
@@ -70,8 +71,8 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-14
-Stopped at: Completed quick-7: Switch frontend Docker build from npm to bun
+Last session: 2026-02-15
+Stopped at: Completed quick-8: Switch Ollama client to streaming responses
 Resume file: None
 
 ---
