@@ -83,4 +83,4 @@ Surface interesting articles and hide noise automatically, so reading RSS feels 
 | Production Docker Compose | Home server with Traefik reverse proxy, GHCR images | ✓ Good |
 
 ---
-*Last updated: 2026-02-14 after milestone v1.1 start*
+*Last updated: 2026-02-14 after v1.0 milestone completion*

@@ -1,335 +1,529 @@
 # Pitfalls Research
 
-**Domain:** Personal RSS Reader with LLM Curation (FastAPI + SQLite + Next.js + Chakra UI + Ollama + Docker Compose)
-**Researched:** 2026-02-04
-**Confidence:** MEDIUM-HIGH
+**Domain:** RSS Reader with LLM Scoring + SSE + Runtime Config
+**Researched:** 2026-02-14
+**Confidence:** HIGH
 
 ## Critical Pitfalls
 
-### Pitfall 1: SQLite Write Concurrency Bottleneck
+### Pitfall 1: SSE Connections Through Traefik Get Buffered
 
 **What goes wrong:**
-SQLite only supports one writer at a time per database file. When RSS feed refresh runs concurrently with user actions (marking articles read) or LLM scoring operations, you get "database is locked" errors. With APScheduler running every 30 minutes and potential LLM batch scoring, this will cause frequent failures.
+SSE events don't reach the client in real-time. Updates that should appear instantly (article scored, feed refreshed) are delayed by 30-60 seconds or batched together when the proxy buffer fills. This defeats the entire purpose of using SSE instead of polling.
 
 **Why it happens:**
-SQLite uses database-level locks. Even with WAL (Write-Ahead Logging) mode enabled, only one writer can access the database at once, blocking all other writers until finished. Checkpoint starvation can worsen this when multiple processes try to write.
+Traefik (and nginx/HAProxy) buffer HTTP responses by default before forwarding to clients. SSE requires immediate flush of each event. Without explicit configuration, Traefik accumulates events until its buffer (~16KB) fills or a timeout triggers.
 
 **How to avoid:**
-1. **Enable WAL mode** - Set `PRAGMA journal_mode=WAL` on database initialization
-2. **Set high busy timeout** - Use `PRAGMA busy_timeout=5000` (5 seconds) to retry instead of immediate failure
-3. **Design for sequential writes** - Make APScheduler and LLM scoring queue-based, not concurrent
-4. **Read-heavy optimization** - Use read replicas pattern if needed (copy DB file for read-only operations)
-5. **Avoid long transactions** - Commit frequently, especially in feed refresh loops
+1. Add `X-Accel-Buffering: no` header in FastAPI SSE response
+2. Configure Traefik route middleware with buffering disabled:
+   ```yaml
+   http:
+     middlewares:
+       disable-buffering:
+         buffering:
+           maxResponseBodyBytes: 0
+           memResponseBodyBytes: 0
+           maxRequestBodyBytes: 0
+           memRequestBodyBytes: 0
+   ```
+3. Test with `curl -N http://your-endpoint/sse` (the `-N` flag disables curl's buffering)
 
 **Warning signs:**
-- `sqlite3.OperationalError: database is locked` in logs
-- API requests timing out during feed refresh
-- Articles not saving read status during background jobs
-- Test flakiness in concurrent scenarios
+- SSE demo works on localhost:8912 but not through Traefik URL
+- Events arrive in bursts rather than individually
+- Chrome DevTools Network tab shows "pending" status for 30+ seconds
+- First event arrives immediately, subsequent events delayed
 
 **Phase to address:**
-Phase M1 (Docker Compose setup) - Configure WAL mode and busy timeout in database initialization before production deployment. Phase M3 (LLM scoring) - Design scoring pipeline as queue-based, not parallel writes.
-
-**Sources:**
-- [SQLite concurrent writes documentation](https://tenthousandmeters.com/blog/sqlite-concurrent-writes-and-database-is-locked-errors/)
-- [PocketBase SQLite concurrency discussion](https://github.com/pocketbase/pocketbase/discussions/5524)
+Phase 1 (SSE Infrastructure) — Must verify end-to-end SSE delivery through production proxy before building UI that depends on it.
 
 ---
 
-### Pitfall 2: RSS Feed Parsing Fragility (Malformed XML)
+### Pitfall 2: @lru_cache Prevents Runtime Ollama Config Updates
 
 **What goes wrong:**
-About 10% of RSS feeds are not well-formed XML. Feeds break due to whitespace before XML declaration, encoding issues, mixed RSS/Atom formats, or string concatenation instead of proper XML libraries. A single broken feed can crash the entire refresh job or silently fail, leaving stale content.
+User changes Ollama model in the UI, hits "Save", sees success message — but scoring still uses the old model. Even after waiting minutes, new articles get scored with the wrong model. The only fix is restarting the backend container.
 
 **Why it happens:**
-RSS quality has dropped as it gained popularity. Many sites generate feeds by treating RSS as text (string concatenation) rather than using XML libraries. Even a single space before `<?xml` breaks the parser.
+`get_settings()` is wrapped in `@lru_cache` (line 128 of config.py). The Settings object is created once on first call and reused forever. Updating the YAML config file or env vars has no effect on the cached instance. The scoring pipeline calls `get_settings()` and gets the stale cached copy.
 
 **How to avoid:**
-1. **Use lenient parsers** - feedparser (already in use) is lenient and handles broken feeds
-2. **Per-feed error isolation** - Wrap each feed fetch in try/except, continue on failure
-3. **Feed-level error tracking** - Store last_error and consecutive_failures in Feed model
-4. **Exponential backoff** - Skip feeds that fail repeatedly (e.g., after 3 failures, check every 6 hours instead of 30 min)
-5. **Conditional requests** - Support ETag and Last-Modified to reduce parsing attempts
-6. **Validation logging** - Log parse warnings (not just errors) to catch degrading feeds early
+When implementing runtime config updates:
+1. Add `get_settings.cache_clear()` after successful config save
+2. OR replace `@lru_cache` with context-aware caching that checks modification time
+3. OR create a `reload_settings()` endpoint that clears cache and rebuilds
+4. Add integration test: change config via API, score article, verify new model was used (check Ollama logs)
 
 **Warning signs:**
-- Feeds showing "last updated: 2 days ago" when site has new content
-- Parser exceptions in logs but no user-visible errors
-- Articles from some feeds never appearing despite valid RSS URLs
-- Feed refresh job taking much longer than expected (stuck on broken feed)
+- Config update API returns 200 but behavior doesn't change
+- Ollama logs show requests for old model name after config change
+- Users report "changes don't take effect"
+- Need to restart container to apply settings
 
 **Phase to address:**
-Phase M1 (MVP frontend) - Expose feed health status in UI ("last successful fetch", error count). Phase M2 (Feed Management) - Add manual "force refresh" and "test feed" actions to debug broken feeds.
-
-**Sources:**
-- [Parsing RSS At All Costs](https://www.xml.com/pub/a/2003/01/22/dive-into-xml.html)
-- [RSS Feed Best Practices](https://kevincox.ca/2022/05/06/rss-feed-best-practices/)
+Phase 2 (Config UI) — The config update endpoint MUST clear the cache before claiming success. Test this with actual scoring after config change.
 
 ---
 
-### Pitfall 3: Docker Volume Data Loss on Redeployment
+### Pitfall 3: Feedback Loop Causes Scoring Drift
 
 **What goes wrong:**
-Using anonymous volumes or forgetting to declare critical paths as volumes causes data loss when containers are recreated. SQLite database, user preferences, Ollama model cache all vanish during `docker-compose down` or stack redeployment. Users lose all articles, read status, and trained LLM preferences.
+After implementing LLM feedback (user marks high-scored article as boring → re-score with lower weight), scoring gradually becomes unreliable. Articles users like get scored low, articles they hate get scored high. Over weeks, the scoring feels "broken" and users stop trusting it.
 
 **Why it happens:**
-Anonymous volumes create "dangling" data that Docker doesn't track between deploys. Teams use development configs in production, missing named volumes and bind mounts. The `latest` tag makes rollbacks impossible without version-specific volume snapshots.
+Catastrophic forgetting in continual learning. The LLM was trained on a broad distribution of content. Feedback from a single user (especially if their behavior is noisy — e.g., sometimes marks political articles interesting, sometimes blocks them) creates a non-i.i.d. training signal. The model "forgets" its original calibration and overfits to recent feedback.
 
 **How to avoid:**
-1. **Named volumes in production compose** - `rss_data`, `ollama_models` as explicit named volumes
-2. **Document volume paths** - Clear mapping of what data lives where (database, models, config)
-3. **Health checks for data** - Verify database exists and is accessible on container startup
-4. **Backup strategy** - Automated backups with `docker-volume-backup` or Duplicati, especially for SQLite
-5. **Never use `latest` tag** - Version images (`:v1.2.3`) to enable rollbacks
-6. **Test restore procedure** - Regularly verify backups can be restored successfully
+1. **Don't fine-tune the model** — Ollama doesn't support it easily anyway. Use feedback to adjust prompt context or category weights, not model parameters.
+2. **Implement feedback as scoring adjustments:**
+   - User downvotes high-scored article → reduce weight of its categories by 0.1
+   - User upvotes low-scored article → increase weight of its categories by 0.1
+   - Keep category weights bounded (0.0 to 2.0) to prevent runaway
+3. **Add decay:** Older feedback loses influence over time (e.g., weights drift back toward 1.0 by 0.01 per day)
+4. **Require multiple signals:** Don't adjust weights based on 1-2 votes. Need 5+ votes in same direction to change a category weight.
 
 **Warning signs:**
-- Fresh database after `docker-compose restart`
-- "Cannot find Ollama model" errors after container recreation
-- User preferences reset after deployment
-- Articles disappear when updating to new version
+- Category weights drift to extremes (0.0 or 2.0)
+- Composite scores cluster at min/max instead of distributing
+- User complains "your scoring used to be good, now it's random"
+- Feedback applied immediately after single vote
 
 **Phase to address:**
-Phase M1 (Docker Compose) - Define named volumes, document backup strategy, test restore. Critical before production deployment.
-
-**Sources:**
-- [Stop Misusing Docker Compose in Production](https://dflow.sh/blog/stop-misusing-docker-compose-in-production-what-most-teams-get-wrong)
-- [Docker Volume Backup Best Practices](https://www.virtualizationhowto.com/2024/11/best-way-to-backup-docker-containers-volumes-and-home-server/)
-- [Avoid Docker Compose Pitfalls](https://moldstud.com/articles/p-avoid-these-common-docker-compose-pitfalls-tips-and-best-practices)
+Phase 3 (Feedback Loop) — Design feedback as weight adjustment, not model retraining. Test stability over 100+ feedback events with conflicting signals.
 
 ---
 
-### Pitfall 4: Ollama Model Quantization Quality Loss
+### Pitfall 4: SQLite ALTER TABLE Breaks Foreign Keys
 
 **What goes wrong:**
-Using default quantized Ollama models (Q4, Q5) sacrifices scoring accuracy for compatibility. The LLM gives inconsistent interest ratings, misses context, or hallucinates categories. Users see "high interest" articles they don't care about and miss good content scored as "low".
+Adding `feed_category_id` column to `feeds` table via migration. Migration runs without errors. App starts. But when user tries to delete a feed, they get a foreign key constraint violation. Or worse, deletion succeeds but doesn't cascade to articles, leaving orphaned data.
 
 **Why it happens:**
-Smaller quantized models "feel snappier" on modest hardware, tempting developers to use them by default. Model selection happens once during setup and is rarely revisited. Prompt engineering compensates for model weaknesses instead of using better models.
+SQLite's limited ALTER TABLE support requires dropping the table and rebuilding it for most schema changes. If foreign keys are enabled (`PRAGMA foreign_keys=ON`, which you have in database.py line 30), dropping a table that other tables reference will fail. The migration "succeeds" by temporarily disabling foreign keys, but this can break constraint enforcement or repointing behavior.
+
+SQLite 3.26+ automatically repoints foreign key constraints during table renames, even when `foreign_keys` pragma is OFF. This breaks migrations that expect the old behavior.
 
 **How to avoid:**
-1. **Start with higher precision** - Use Q6 or Q8 quantization if hardware allows (8GB+ VRAM)
-2. **Model evaluation framework** - Test scoring consistency with sample articles before full rollout
-3. **Explicit model requirements** - Document minimum model size for accurate scoring (e.g., 7B parameters minimum)
-4. **Fallback to keyword filters** - Don't rely solely on LLM; multi-stage pipeline catches failures
-5. **Context window awareness** - Track token usage, explicitly set context length (4096 minimum for article scoring)
-6. **Monitor hallucinations** - Log when LLM returns invalid JSON or categories outside schema
+1. **For simple column additions** (like `feed_category_id`), use ALTER TABLE ADD COLUMN — this works in SQLite without table rebuild:
+   ```python
+   conn.execute(text("ALTER TABLE feeds ADD COLUMN category_id INTEGER"))
+   ```
+2. **Test with foreign_keys=ON** — Your app has this enabled, so migrations must work with it enabled
+3. **For complex changes** (rename column, change type), use batch migration pattern:
+   ```python
+   # Disable foreign keys
+   conn.execute(text("PRAGMA foreign_keys=OFF"))
+   # Rename old table
+   conn.execute(text("ALTER TABLE feeds RENAME TO feeds_old"))
+   # Create new table with desired schema
+   conn.execute(text("CREATE TABLE feeds (...)"))
+   # Copy data
+   conn.execute(text("INSERT INTO feeds SELECT ... FROM feeds_old"))
+   # Drop old table
+   conn.execute(text("DROP TABLE feeds_old"))
+   # Re-enable foreign keys
+   conn.execute(text("PRAGMA foreign_keys=ON"))
+   ```
+4. **Verify constraints after migration:** Run a test delete operation to ensure CASCADE still works
 
 **Warning signs:**
-- LLM scores articles as "high interest" that user marks unread immediately
-- Inconsistent scoring (same article gets different scores on re-run)
-- LLM returns empty responses or malformed JSON intermittently
-- Latency spikes (model running out of context window)
+- Migration logs show "foreign_keys pragma" warnings
+- Deletion operations fail after migration that adds foreign key column
+- Orphaned records appear in child tables after parent deletion
+- Migration succeeds in test but fails in production (different SQLite versions)
 
 **Phase to address:**
-Phase M3 (LLM Scoring) - Model selection and evaluation must happen during initial Ollama integration, not as afterthought.
-
-**Sources:**
-- [Common Mistakes in Local LLM Deployments](https://sebastianpdw.medium.com/common-mistakes-in-local-llm-deployments-03e7d574256b)
-- [Complete Ollama Tutorial 2026](https://dev.to/proflead/complete-ollama-tutorial-2026-llms-via-cli-cloud-python-3m97)
+Phase 4 (Feed Organization) — Test the `feed_category_id` migration thoroughly with foreign keys enabled. Verify cascade deletion still works.
 
 ---
 
-### Pitfall 5: Next.js + Chakra UI Hydration Errors
+### Pitfall 5: SSE Connection Leak from Client Reconnections
 
 **What goes wrong:**
-Server-rendered Chakra UI styles don't match client-rendered DOM, causing "Hydration failed" errors. The app flashes unstyled content, dark mode doesn't persist on reload, or components render differently server vs client. Users see layout shifts and broken styling on initial page load.
+After 10 minutes of the app being open, browser tabs slow down. DevTools shows 15 open SSE connections to `/api/sse/events`. Backend memory usage climbs steadily. Eventually hits OOM and container restarts.
 
 **Why it happens:**
-Next.js 13+ uses Server Components by default, but Chakra UI only works in Client Components. Missing `ColorModeScript` in `_document.tsx` means Chakra can't determine initial mode during SSR. Improper Emotion cache setup causes style injection order mismatches.
+EventSource automatically reconnects when connection drops (network blip, load balancer timeout, server restart). If the server doesn't properly track and close stale connections, each reconnection adds a new connection without removing the old one. A user who leaves a tab open for hours accumulates dozens of zombie connections.
+
+The problem is exacerbated by: (1) Traefik/proxy timeout closes connection but server's generator keeps running, (2) Client reconnects but server doesn't detect the old connection died, (3) No cleanup of connections for disconnected clients.
 
 **How to avoid:**
-1. **Mark Chakra components as 'use client'** - All components using Chakra must be Client Components
-2. **Inject ColorModeScript** - Add `<ColorModeScript />` to `_document.tsx` before hydration
-3. **Configure Emotion cache** - Set up EmotionCache in `_app.tsx` for consistent style injection
-4. **Use extendTheme() properly** - Never use object spread on theme; always use `extendTheme()` to preserve tokens
-5. **Test SSR explicitly** - Verify `npm run build && npm start` produces no hydration errors
-6. **Avoid dynamic styles in SSR** - Don't use `useColorMode()` in Server Components
+1. **Track connections with client ID:**
+   ```python
+   active_connections: dict[str, asyncio.Queue] = {}
+
+   async def sse_endpoint(client_id: str):
+       if client_id in active_connections:
+           # Close old connection before opening new one
+           old_queue = active_connections[client_id]
+           await old_queue.put(None)  # Signal shutdown
+
+       queue = asyncio.Queue()
+       active_connections[client_id] = queue
+       try:
+           # Stream events
+       finally:
+           del active_connections[client_id]
+   ```
+
+2. **Detect client disconnections:**
+   ```python
+   async def event_generator(request: Request):
+       try:
+           while True:
+               if await request.is_disconnected():
+                   break
+               yield event
+       except asyncio.CancelledError:
+           # Client disconnected
+           pass
+   ```
+
+3. **Set reasonable proxy timeouts** — Configure Traefik to timeout idle SSE connections after 5 minutes. This forces reconnection and cleanup.
+
+4. **Send periodic heartbeats** — Comment lines (`: keepalive\n\n`) every 30s prevent proxy timeouts and confirm client is alive
 
 **Warning signs:**
-- "Hydration failed" errors in browser console
-- Flash of unstyled content (FOUC) on page load
-- Dark mode preference not persisting across page refreshes
-- Different styling in development vs production build
-- React warnings about server/client mismatch
+- DevTools shows multiple connections to same SSE endpoint
+- Backend memory usage grows over time without corresponding load
+- SSE endpoint handler count in logs doesn't decrease
+- Container CPU usage high even when no scoring happening
 
 **Phase to address:**
-Phase M1 (MVP frontend) - Critical to resolve before building UI components. Set up Chakra correctly from the start.
+Phase 1 (SSE Infrastructure) — Implement connection tracking and cleanup before building features that depend on SSE. Monitor connection count in production.
 
-**Sources:**
-- [Hydration Failed: Debugging Next.js and Chakra UI](https://medium.com/@lehetar749/hydration-failed-debugging-next-js-v15-and-chakra-ui-component-issues-707b53730257)
-- [Using Chakra UI with Next.js 13](https://github.com/chakra-ui/chakra-ui/discussions/6908)
-- [Troubleshooting Chakra UI SSR Issues](https://www.mindfulchase.com/explore/troubleshooting-tips/front-end-frameworks/troubleshooting-chakra-ui-ssr,-theming,-performance,-and-accessibility-in-enterprise-react-apps.html)
+---
+
+### Pitfall 6: Feed Auto-Discovery Opens SSRF Vulnerability
+
+**What goes wrong:**
+User enters `http://internal-server.local/` in the "Add Feed" field to discover RSS feeds. Backend follows a redirect or HTML link to `http://localhost:6379/CONFIG GET dir` (Redis admin). Attacker now has a way to probe internal network and potentially extract secrets or reconfigure services.
+
+**Why it happens:**
+Auto-discovery parses HTML from user-provided URL and follows `<link rel="alternate" type="application/rss+xml">` tags. If you fetch these URLs without validation, an attacker can:
+1. Point feed URL to a malicious site that redirects to internal IPs
+2. Host HTML with `<link>` pointing to internal services
+3. Use this to scan internal network (timing attacks) or exploit unsecured internal APIs
+
+Recent CVEs (GHSA-r57v-j88m-rwwf, GHSA-r55v-q5pc-j57f) show SSRF in RSS feed handling is a real attack vector.
+
+**How to avoid:**
+1. **Block private IP ranges** before making HTTP request:
+   ```python
+   from ipaddress import ip_address
+   import socket
+
+   def is_private_ip(hostname: str) -> bool:
+       try:
+           addr = ip_address(socket.gethostbyname(hostname))
+           return addr.is_private or addr.is_loopback or addr.is_link_local
+       except:
+           return True  # Block if resolution fails
+
+   if is_private_ip(parsed_url.hostname):
+       raise ValueError("Private IP addresses not allowed")
+   ```
+
+2. **Validate schemes** — Only allow `http://` and `https://`, block `file://`, `ftp://`, etc.
+
+3. **Limit redirects** — httpx default is 20 redirects. Set to 2-3 max.
+
+4. **Timeout aggressively** — Set 5-second timeout for auto-discovery requests
+
+5. **Don't follow all `<link>` tags blindly** — Parse only `rel="alternate"` with `type` matching RSS/Atom MIME types
+
+6. **Consider allowlist approach** — If this is a personal reader, user can manually paste feed URLs. Auto-discovery is convenience, not necessity.
+
+**Warning signs:**
+- Security scanner flags SSRF in feed creation endpoint
+- User can trigger requests to arbitrary internal IPs
+- Logs show requests to `localhost`, `127.0.0.1`, `169.254.x.x`, `10.x.x.x`
+- Feed creation timeout increased to handle slow internal network scans
+
+**Phase to address:**
+Phase 5 (Feed Auto-Discovery) — MUST implement IP blocking before enabling this feature. If it's hard to secure, consider cutting the feature or making it admin-only.
+
+---
+
+### Pitfall 7: Race Condition When Ollama Model Switching During Scoring
+
+**What goes wrong:**
+User changes Ollama model from `qwen3:8b` to `llama3:8b` via Config UI. In the 30 seconds it takes Ollama to unload old model and load new one, scoring queue tries to process articles. Some articles get scored with qwen3, some fail with "model not loaded" errors, some get scored with llama3. Articles table has inconsistent scores from mixed models, breaking score comparisons.
+
+**Why it happens:**
+Ollama unloads models after inactivity. When switching models in config, the next scoring request triggers load of new model. If scoring queue processes batch of 5 articles and model switch happens mid-batch, Ollama might be in transition state. `OLLAMA_MAX_LOADED_MODELS` (default: 3) means old model might still be in memory, or might be evicted before new model loads.
+
+With `OLLAMA_NUM_PARALLEL=1`, concurrent scoring requests queue in Ollama. If categorization_model and scoring_model are different and both are loading, requests can timeout.
+
+**How to avoid:**
+1. **Pause scoring queue during config updates:**
+   ```python
+   # In config update endpoint:
+   scoring_queue.pause()
+   get_settings.cache_clear()
+   settings = get_settings()
+   # Preload models
+   await client.chat(model=settings.ollama.categorization_model, messages=[...])
+   await client.chat(model=settings.ollama.scoring_model, messages=[...])
+   scoring_queue.resume()
+   ```
+
+2. **Add retry with model-specific backoff** — If scoring fails with "model not found", wait 30s (time for Ollama to load) and retry
+
+3. **Validate model exists before saving config:**
+   ```python
+   async def validate_ollama_model(model_name: str, host: str):
+       client = AsyncClient(host=host)
+       models = await client.list()
+       if model_name not in [m['name'] for m in models['models']]:
+           raise ValueError(f"Model {model_name} not found in Ollama")
+   ```
+
+4. **Use same model for categorization and scoring** — Simplifies memory management and reduces model swaps. For 8GB RAM, loading two 8B models might swap constantly.
+
+**Warning signs:**
+- Scoring errors spike after config changes
+- Articles have `scoring_state='failed'` with "model not loaded" in logs
+- Inconsistent score distribution after model change (some articles scored by old model)
+- Ollama logs show rapid model load/unload cycles
+
+**Phase to address:**
+Phase 2 (Config UI) — Implement queue pausing and model preload validation before exposing model switching to users.
+
+---
+
+### Pitfall 8: Chakra UI v3 Portal Performance with Many Components
+
+**What goes wrong:**
+Sidebar shows 50 feeds, each with a Menu (three-dot options). Page feels sluggish. Opening a menu takes 200-300ms. DevTools shows thousands of CSSStyleSheet instances. After navigating between pages a few times, browser tab becomes unresponsive.
+
+**Why it happens:**
+Chakra v3's Portal/Positioner pattern creates dynamic styles for positioning. If 50 Menu components are mounted (even if closed), each one creates CSSStyleSheet instances for potential positioning. With SSE pushing updates every few seconds causing re-renders, new stylesheets accumulate without garbage collection. This is a known issue (chakra-ui/chakra-ui#8706, #9698).
+
+Emotion's CSS-in-JS generates new styles for dynamic props. If menu positioning props change on each render, new styles are injected on every update.
+
+**How to avoid:**
+1. **Lazy mount Portals** — Don't mount Menu until user clicks trigger:
+   ```tsx
+   {isOpen && (
+     <Portal>
+       <Menu.Positioner>
+         <Menu.Content>...</Menu.Content>
+       </Menu.Positioner>
+     </Portal>
+   )}
+   ```
+
+2. **Limit number of menus mounted** — Virtualize long feed lists (react-window), only mount visible feeds
+
+3. **Memoize menu positioning** — Prevent unnecessary re-renders:
+   ```tsx
+   const positioning = useMemo(() => ({ placement: 'bottom-end' }), [])
+   ```
+
+4. **Monitor CSSStyleSheet count** — Add dev warning if count exceeds threshold:
+   ```tsx
+   useEffect(() => {
+     const count = document.styleSheets.length
+     if (count > 500) console.warn('High stylesheet count:', count)
+   }, [])
+   ```
+
+5. **Use Chakra v3.7+** — Performance improvements landed in later v3 releases
+
+**Warning signs:**
+- DevTools Performance tab shows long "Recalculate Style" times
+- `document.styleSheets.length` grows unbounded
+- Menu open animation stutters
+- Browser tab memory usage climbs during active use
+
+**Phase to address:**
+Phase 6 (UI Polish) — Implement lazy mounting for all Portal-based components. Test with 100+ feeds to verify performance.
+
+---
+
+### Pitfall 9: Stale TypeScript Diagnostics After File Edits
+
+**What goes wrong:**
+Executor agent modifies `ArticleList.tsx` to add SSE support. VS Code shows red squiggles — "Property 'onArticleScored' does not exist". But the code runs fine. Running `npx tsc --noEmit` shows no errors. The red squiggles persist for minutes or until restarting TS server.
+
+**Why it happens:**
+VS Code's TypeScript language server caches type information. When files are edited externally (by agents, not through VS Code), the TS server doesn't always invalidate its cache. The stale diagnostics are false positives — the code is correct, but the TS server hasn't re-analyzed dependencies.
+
+This is especially common with:
+- Type changes in barrel exports (`src/lib/types.ts`)
+- Hook signature changes (`src/hooks/useArticles.ts`)
+- Adding new component props that reference newly added types
+
+**How to avoid:**
+1. **Don't trust diagnostics after agent edits** — Always run `npx tsc --noEmit` to get ground truth
+2. **Restart TS server after agent edits** — In VS Code: `Cmd+Shift+P` → "TypeScript: Restart TS Server"
+3. **Configure TS server to watch mode** — In `tsconfig.json`:
+   ```json
+   {
+     "compilerOptions": {
+       "incremental": true,
+       "tsBuildInfoFile": ".tsbuildinfo"
+     }
+   }
+   ```
+4. **Agent should verify types** — Add `npx tsc --noEmit` to agent's verification checklist before marking task complete
+
+**Warning signs:**
+- Red squiggles appear after agent edit but code runs fine
+- `bun dev` compiles successfully despite editor errors
+- Restarting TS server makes errors disappear
+- Errors reference types that clearly exist in the codebase
+
+**Phase to address:**
+All phases — This is a tooling issue, not a code issue. Executors should always verify with `tsc` before declaring success.
 
 ---
 
 ## Technical Debt Patterns
 
-Shortcuts that seem reasonable but create long-term problems.
-
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Skip WAL mode for SQLite | Faster initial setup | "Database locked" errors in production | Never - takes 2 lines to enable |
-| Use `latest` Docker tag | Simpler compose file | Cannot rollback, unpredictable updates | Never in production |
-| Hardcode secrets in compose | Quick deployment | Security risk, can't share repo | Only in truly isolated home network |
-| Parse all feeds every refresh | Simpler logic | Wastes bandwidth, slow refresh cycles | Only for <10 feeds in MVP |
-| Use smallest Ollama model | Lower resource usage | Poor scoring quality, user distrust | Only for development/testing |
-| Skip feed error isolation | Easier error handling | One broken feed breaks entire refresh | Never - trivial to add try/except |
-| Anonymous Docker volumes | Less compose file config | Data loss on redeployment | Never - named volumes are one line |
-| Ignore Chakra SSR setup | Works in development | Hydration errors in production | Never - must configure from start |
-
----
+| Skip SSE heartbeats | Simpler implementation | Connections timeout through proxies, users see stale data | Never (heartbeats are 2 lines of code) |
+| Use polling instead of SSE | Avoid SSE complexity | Higher server load, delayed updates, poor UX | MVP only, remove in Phase 1 |
+| Allow all IPs in feed discovery | Easier implementation | SSRF vulnerability, security risk | Never (IP blocking is ~10 lines) |
+| Share same Ollama model for categorization and scoring | Lower memory usage | Less flexibility to tune | Acceptable (can change later without breaking data) |
+| Manual ALTER TABLE migrations | No migration framework needed | Risk of human error, foreign key issues | Acceptable for this project (simple schema, single user) |
+| Disable foreign keys during migration | Migration "works" | Orphaned data, constraint violations | Only if immediately re-enabled and tested |
+| Skip feedback signal aggregation | Instant feedback response | Scoring drift from noisy signals | Never (leads to user distrust) |
+| Store all SSE clients in memory | Simple connection tracking | Memory leak if not cleaned up | Acceptable if cleanup is implemented |
 
 ## Integration Gotchas
 
-Common mistakes when connecting to external services.
-
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| RSS feed fetching | Not setting User-Agent header | Include descriptive User-Agent with contact email |
-| RSS polling | Fixed 30-min interval for all feeds | Respect TTL/Cache-Control headers, exponential backoff on errors |
-| Ollama API | Assuming model is always available | Check model exists before scoring, handle model loading delays |
-| Ollama context | Ignoring context window limits | Explicitly set context size, truncate long articles |
-| Docker networking | Using `localhost` for service-to-service | Use service names defined in compose file |
-| SQLite in FastAPI | Default `check_same_thread=True` | Set `check_same_thread=False` for async FastAPI |
-| APScheduler in Docker | Scheduler stops on container restart | Persist job state or use idempotent jobs |
-| Next.js API routes | Calling backend via external URL | Use internal Docker network for API calls |
-
----
+| Ollama | Assume model is loaded before scoring | Preload model during config change or validate model exists before enqueueing articles |
+| Traefik SSE | Default config (buffering enabled) | Add middleware to disable buffering for SSE routes, test with `curl -N` |
+| SQLite migrations | ALTER TABLE without checking foreign_keys pragma | Test migrations with `PRAGMA foreign_keys=ON` (your production config) |
+| Pydantic Settings | Assume config reloads automatically | Call `get_settings.cache_clear()` after writing new config, test with integration test |
+| feedparser | Trust all `<link>` tags in HTML | Validate scheme, block private IPs, limit redirects, timeout aggressively |
+| EventSource browser API | Assume reconnection is handled | Implement server-side cleanup for duplicate connections, send heartbeats |
+| Chakra UI Portal | Mount all Portals eagerly | Lazy mount Portal components, virtualize long lists |
 
 ## Performance Traps
 
-Patterns that work at small scale but fail as usage grows.
-
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Fetching all articles at once | Slow API responses | Paginate articles endpoint (already done) | >1000 articles |
-| Parsing entire feed history | First fetch takes minutes | Only store new articles, skip duplicates by GUID | >500 entries per feed |
-| Synchronous feed refresh | UI blocks during refresh | Background scheduler (already done) | >5 feeds |
-| No article cleanup | Database grows unbounded | Implement retention policy (M4) | >10k articles (~1GB) |
-| LLM scoring on every page load | Latency spikes | Pre-score on ingestion, cache results | M3 (immediate issue) |
-| Full article text in list view | Heavy payload, slow rendering | Send truncated preview in list, full text in detail | >100 articles per page |
-| Docker logs unbounded | Disk fills up | Configure log rotation in compose file | After weeks/months |
-| Ollama models in container | Slow startup, waste space | Bind mount shared model directory | After 2-3 model downloads |
-
----
+| Eager Portal mounting | Sluggish UI, high stylesheet count | Lazy mount Portals, virtualize lists | ~50+ Menu/Popover/Tooltip components mounted |
+| No SSE connection limit | Memory grows unbounded | Limit to 1 connection per client ID, cleanup on disconnect | ~100+ concurrent connections (10+ browser tabs open) |
+| Synchronous Ollama calls in scoring queue | Queue processing blocks | Already async with AsyncClient, verify no blocking calls | N/A (already implemented correctly) |
+| No pagination in categories list | Slow query as categories grow | Acceptable (single-user app, categories grow slowly, ~100 max) | ~1000+ categories (unlikely) |
+| Re-score all articles on preference change | Queue backlog, delayed scores | Only re-score recent unread articles (already implemented in `enqueue_recent_for_rescoring`) | N/A (already limited to recent) |
+| SQLite without WAL mode | Database locked errors under load | Already enabled in database.py | N/A (already using WAL) |
 
 ## Security Mistakes
 
-Domain-specific security issues beyond general web security.
-
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Fetching arbitrary RSS URLs from user | SSRF attacks (internal network scan) | Validate feed URLs, block private IPs (10.x, 192.168.x) |
-| No timeout on feed fetching | DoS via slow-response feeds | Set request timeout (10-30s max) |
-| Storing API keys in compose file | Secrets leak in git history | Use Docker secrets or env file (in .gitignore) |
-| Running containers as root | Container escape = root on host | Use non-root USER in Dockerfiles |
-| Binding to 0.0.0.0 on home server | Exposing service to internet | Bind to 127.0.0.1 or use reverse proxy with auth |
-| Executing code from RSS content | XSS via malicious feed | Sanitize HTML in article content, use DOMPurify |
-| No rate limiting on refresh API | User can DoS their own server | Debounce manual refresh (1 req per 5 minutes) |
-
----
+| No IP validation in feed URLs | SSRF, internal network scanning | Block private IP ranges before making HTTP requests |
+| No timeout on feed fetch | Slowloris-style DoS (attacker serves feed slowly) | Set 5s timeout for feed fetch, 10s for auto-discovery |
+| Allow `file://` scheme in feed URLs | Local file disclosure | Whitelist only `http://` and `https://` |
+| Trust feedparser output without sanitization | XSS via article content (if rendering raw HTML) | Already safe (storing text in DB, rendering with React's auto-escaping) |
+| No rate limiting on config updates | Config thrash, excessive Ollama model loads | Add cooldown: 1 config update per 60s |
+| Expose Ollama host directly to frontend | Users can bypass scoring, query models directly | Correct (Ollama on internal network, backend proxies requests) |
 
 ## UX Pitfalls
 
-Common user experience mistakes in this domain.
-
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| No visual feedback during refresh | User clicks refresh 5 times, thinking it's broken | Show spinner, disable button, display "Refreshing..." |
-| Marking article read hides it immediately | User accidentally loses article they wanted to read | Keep article visible with "undo" option for 5s |
-| No indication why article scored high/low | User doesn't trust LLM scoring | Show score rationale ("Matched: machine learning, python") |
-| Feed errors hidden | User doesn't know feed is broken for weeks | Display warning badge on broken feeds with error message |
-| All unread articles in one list | Overwhelming when returning after vacation | Group by date ("Today", "This Week", "Older") |
-| No keyboard shortcuts | Power users forced to click everything | Add j/k navigation, m to mark read, r to refresh |
-| LLM takes 10s per article | UI feels sluggish | Score in background, show articles immediately without score |
-
----
+| No feedback while config applies | User clicks "Save", sees success, but changes don't apply for 30s (model loading) | Show loading state: "Applying config, loading model..." with progress |
+| Silent scoring failures | Articles stuck in "scoring" state forever | Add retry limit, move to "failed" state after 3 retries, show error in UI |
+| No indication of SSE connection status | User doesn't know if real-time updates are working | Add subtle connection indicator (green dot in corner, gray if disconnected) |
+| Blocked articles vanish | User blocks a category, articles disappear, user confused | Move to "Blocked" tab, allow user to unblock from there |
+| Re-score queues everything | User updates interests, all 500 articles show "scoring" | Only re-score recent unread (already implemented), show "X articles queued for re-scoring" |
+| Auto-discovery returns 50 feeds | Overwhelms user with choices | Limit to 5 most relevant (RSS/Atom only, skip comment feeds), let user enter URL manually |
 
 ## "Looks Done But Isn't" Checklist
 
-Things that appear complete but are missing critical pieces.
-
-- [ ] **Docker Compose**: Compose file exists but missing restart policies, health checks, resource limits, named volumes
-- [ ] **Feed Refresh**: Scheduler runs but doesn't handle errors per-feed, logs failures but doesn't track in database
-- [ ] **Article Display**: Shows title/content but doesn't sanitize HTML (XSS risk)
-- [ ] **Dark Mode**: Theme toggle works but doesn't persist across sessions (no localStorage sync)
-- [ ] **Read Status**: API endpoint exists but doesn't handle concurrent updates (race conditions)
-- [ ] **Ollama Integration**: Model inference works but doesn't handle model loading time, missing models, or timeout
-- [ ] **Database**: SQLite works but not configured for WAL mode, busy timeout, or checkpoint management
-- [ ] **Backup**: Docker volumes defined but no documented backup/restore procedure
-
----
+- [ ] **SSE Implementation:** Often missing heartbeats — verify proxy doesn't timeout idle connections (test by leaving tab open 5 minutes)
+- [ ] **SSE Implementation:** Often missing connection cleanup — verify client count decreases after tab close (check server logs)
+- [ ] **SSE Implementation:** Often missing buffering config — verify events arrive instantly (test through production proxy, not localhost)
+- [ ] **Config UI:** Often missing cache invalidation — verify scoring uses new model after config change (score article, check Ollama logs)
+- [ ] **Config UI:** Often missing model validation — verify saving invalid model name shows error (test with `nonexistent:8b`)
+- [ ] **Feedback Loop:** Often missing signal aggregation — verify single vote doesn't change weights drastically (test with 1 downvote, check topic_weights)
+- [ ] **Feed Organization:** Often missing CASCADE test — verify deleting category deletes/orphans feeds correctly (delete category, check feeds table)
+- [ ] **Feed Auto-Discovery:** Often missing SSRF protection — verify `http://localhost` returns error (test with internal IP)
+- [ ] **Feed Auto-Discovery:** Often missing timeout — verify slow feed doesn't hang server (test with `http://httpstat.us/200?sleep=30000`)
 
 ## Recovery Strategies
 
-When pitfalls occur despite prevention, how to recover.
-
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| SQLite locked errors | LOW | Add WAL mode + busy timeout, restart containers |
-| Data loss from volume | HIGH | Restore from backup (requires backup to exist), re-fetch feeds |
-| Broken RSS feed | LOW | Mark feed as disabled, alert user, provide manual test button |
-| Hydration errors | MEDIUM | Add 'use client' directives, inject ColorModeScript, rebuild |
-| Ollama model quality issues | MEDIUM | Download better model, adjust prompt engineering, re-score articles |
-| Feed polling too aggressive | LOW | Implement rate limiting, respect TTL headers |
-| Docker disk full (logs) | LOW | Configure log rotation, prune old logs, restart containers |
-| LLM scoring latency | MEDIUM | Move to async queue, pre-score articles, reduce context size |
-
----
+| Stale config cache | LOW | Restart backend container, config applies immediately |
+| Scoring drift from bad feedback | MEDIUM | Reset `topic_weights` to default, re-score last 7 days of articles |
+| SQLite foreign key corruption | HIGH | Restore from backup (if enabled), recreate schema, re-fetch all feeds |
+| SSE connection leak OOM | LOW | Restart backend, implement connection tracking to prevent recurrence |
+| SSRF vulnerability exploited | MEDIUM | Check access logs for internal IPs, patch IP validation, rotate secrets if internal services accessed |
+| Portal stylesheet leak | LOW | User refreshes page (clears stylesheets), implement lazy mounting to prevent recurrence |
+| Ollama model not loaded | LOW | Wait 30s for model to load, or restart ollama container to clear state |
 
 ## Pitfall-to-Phase Mapping
 
-How roadmap phases should address these pitfalls.
-
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| SQLite write concurrency | M1 (Docker setup) | Test concurrent writes in integration tests |
-| RSS parsing fragility | M1 (MVP) + M2 (Feed Mgmt) | Per-feed error tracking, manual refresh works |
-| Docker volume data loss | M1 (Docker setup) | `docker-compose down && up` preserves data |
-| Ollama quantization quality | M3 (LLM Scoring) | Scoring consistency test suite (10 sample articles) |
-| Chakra UI hydration | M1 (MVP frontend) | `npm run build` produces no hydration warnings |
-| Feed polling performance | M2 (Feed Management) | Support 50+ feeds without >5min refresh cycles |
-| LLM scoring latency | M3 (LLM Scoring) | Articles appear in UI within 1s, scoring async |
-| No backup strategy | M1 (Docker setup) | Documented backup commands, test restore succeeds |
-| Security: SSRF in feed URLs | M2 (Add feeds via UI) | Private IP validation in feed creation endpoint |
-| UX: No refresh feedback | M1 (MVP frontend) | Loading state visible, button disabled during refresh |
-
----
+| SSE buffering through Traefik | Phase 1 (SSE Infrastructure) | `curl -N` through production URL, events arrive individually |
+| SSE connection leak | Phase 1 (SSE Infrastructure) | Monitor client count, open/close tabs, count decreases |
+| Stale config cache | Phase 2 (Config UI) | Change model via API, score article, verify new model in Ollama logs |
+| Ollama model switching race | Phase 2 (Config UI) | Change model, immediately trigger scoring, verify no errors |
+| Scoring drift from feedback | Phase 3 (Feedback Loop) | Simulate 100 conflicting votes, verify weights stay in bounds |
+| Foreign key issues in migration | Phase 4 (Feed Organization) | Add category column, delete category, verify cascades |
+| SSRF in auto-discovery | Phase 5 (Feed Auto-Discovery) | Test with `http://localhost`, `http://169.254.169.254`, verify blocked |
+| Portal stylesheet leak | Phase 6 (UI Polish) | Open page with 100 feeds, check `document.styleSheets.length < 500` |
+| Stale TypeScript diagnostics | All phases | Run `npx tsc --noEmit` after agent edits, verify no errors |
 
 ## Sources
 
-**RSS Feed Best Practices:**
-- [RSS Feed Best Practices - Kevin Cox](https://kevincox.ca/2022/05/06/rss-feed-best-practices/)
-- [Parsing RSS At All Costs](https://www.xml.com/pub/a/2003/01/22/dive-into-xml.html)
-- [RSS Feed Polling Strategy](https://help.rss.app/en/articles/11100642-guide-to-refresh-rate)
-- [RSS Feed Troubleshooting](https://visualping.io/blog/rss-is-not-working)
+**SSE + Traefik:**
+- [Problem with streaming SSE server behind traefik - Traefik v2](https://community.traefik.io/t/problem-with-streaming-sse-server-behind-traefik/23007)
+- [Help with proxying a Server Sent Event - Traefik v3](https://community.traefik.io/t/help-with-proxying-a-server-sent-event/25812)
+- [Server-Side event in traefik? nginx ok - traefik => internal server error](https://community.traefik.io/t/server-side-event-in-traefik-nginx-ok-traefik-internal-server-error/12625)
 
-**SQLite Concurrency:**
-- [SQLite Concurrent Writes and Database Locked Errors](https://tenthousandmeters.com/blog/sqlite-concurrent-writes-and-database-is-locked-errors/)
-- [PocketBase SQLite Concurrency Discussion](https://github.com/pocketbase/pocketbase/discussions/5524)
-- [Abusing SQLite to Handle Concurrency](https://blog.skypilot.co/abusing-sqlite-to-handle-concurrency/)
-- [FastAPI with SQLite Deployment](https://medium.com/@vladkens/deploy-fastapi-application-with-sqlite-on-fly-io-5ed1185fece1)
+**Pydantic Settings + lru_cache:**
+- [Settings and Environment Variables - FastAPI](https://fastapi.tiangolo.com/advanced/settings/)
+- [Settings Management - Pydantic Validation](https://docs.pydantic.dev/latest/concepts/pydantic_settings/)
 
-**Ollama Integration:**
-- [Common Mistakes in Local LLM Deployments (Medium - blocked)](https://sebastianpdw.medium.com/common-mistakes-in-local-llm-deployments-03e7d574256b)
-- [How to Use Local LLMs with Ollama](https://www.f22labs.com/blogs/how-to-use-local-llms-with-ollama-a-complete-guide/)
-- [Complete Ollama Tutorial 2026](https://dev.to/proflead/complete-ollama-tutorial-2026-llms-via-cli-cloud-python-3m97)
-- [Local LLM Hosting Guide 2025](https://medium.com/@rosgluk/local-llm-hosting-complete-2025-guide-ollama-vllm-localai-jan-lm-studio-more-f98136ce7e4a)
+**LLM Feedback Loops:**
+- [Continual Learning with RL for LLMs](https://cameronrwolfe.substack.com/p/rl-continual-learning)
+- [MIT's new fine-tuning method lets LLMs learn new skills without losing old ones | VentureBeat](https://venturebeat.com/orchestration/mits-new-fine-tuning-method-lets-llms-learn-new-skills-without-losing-old)
+- [Handling LLM Model Drift in Production Monitoring, Retraining, and Continuous Learning](https://www.rohan-paul.com/p/ml-interview-q-series-handling-llm)
+- [Catastrophic Forgetting In LLMs | by Cobus Greyling | Medium](https://cobusgreyling.medium.com/catastrophic-forgetting-in-llms-bf345760e6e2)
 
-**Docker Compose Production:**
-- [Stop Misusing Docker Compose in Production](https://dflow.sh/blog/stop-misusing-docker-compose-in-production-what-most-teams-get-wrong)
-- [Docker Compose Tricks for Home Server](https://www.xda-developers.com/docker-compose-tricks-that-made-my-home-server-more-reliable/)
-- [Avoid Docker Compose Pitfalls](https://moldstud.com/articles/p-avoid-these-common-docker-compose-pitfalls-tips-and-best-practices)
-- [Docker Volume Backup Best Practices](https://www.virtualizationhowto.com/2024/11/best-way-to-backup-docker-containers-volumes-and-home-server/)
-- [Docker Compose Deploy Specification](https://docs.docker.com/reference/compose-file/deploy/)
+**SQLite Migrations:**
+- [SQLite Foreign Key Support](https://sqlite.org/foreignkeys.html)
+- [#29182 (SQLite 3.26 breaks database migration ForeignKey constraint) – Django](https://code.djangoproject.com/ticket/29182)
+- [Foreign keys prevent table altering migrations on SQLite when foreign keys pragma is on · Issue #4155 · knex/knex](https://github.com/knex/knex/issues/4155)
+- [Running "Batch" Migrations for SQLite and Other Databases — Alembic](https://alembic.sqlalchemy.org/en/latest/batch.html)
 
-**Next.js + Chakra UI:**
-- [Hydration Failed: Debugging Next.js and Chakra UI](https://medium.com/@lehetar749/hydration-failed-debugging-next-js-v15-and-chakra-ui-component-issues-707b53730257)
-- [Using Chakra UI with Next.js 13](https://github.com/chakra-ui/chakra-ui/discussions/6908)
-- [Common Pitfalls Using ActiveLink in Chakra UI](https://infinitejs.com/posts/common-pitfalls-activelink-chakra-ui-nextjs/)
-- [Troubleshooting Chakra UI SSR Issues](https://www.mindfulchase.com/explore/troubleshooting-tips/front-end-frameworks/troubleshooting-chakra-ui-ssr,-theming,-performance,-and-accessibility-in-enterprise-react-apps.html)
+**SSRF in Feed Handling:**
+- [Blind Server-Side Request Forgery (SSRF) in RSS feeds](https://github.com/glpi-project/glpi/security/advisories/GHSA-r57v-j88m-rwwf)
+- [There is an SSRF vulnerability in ReadRSSFeedBlock](https://github.com/Significant-Gravitas/AutoGPT/security/advisories/GHSA-r55v-q5pc-j57f)
+
+**SSE Connection Lifecycle:**
+- [Using server-sent events - Web APIs | MDN](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)
+- [Real-Time Notifications in Python: Using SSE with FastAPI | by İnan DELİBAŞ | Medium](https://medium.com/@inandelibas/real-time-notifications-in-python-using-sse-with-fastapi-1c8c54746eb7)
+- [FastAPI + SSE for LLM Tokens: Smooth Streaming without WebSockets | by Nikulsinh Rajput | Jan, 2026 | Medium](https://medium.com/@hadiyolworld007/fastapi-sse-for-llm-tokens-smooth-streaming-without-websockets-001ead4b5e53)
+
+**SSE Connection Tracking:**
+- [Server-Sent Events: A Practical Guide for the Real World](https://tigerabrodi.blog/server-sent-events-a-practical-guide-for-the-real-world)
+- [SSE Connection Best Practices](https://help.validic.com/space/VCS/2526314497/SSE+Connection+Best+Practices)
+- [Possible connection leak? A new SSE connection is opened on every onerror](https://github.com/Yaffle/EventSource/issues/144)
+
+**Ollama Concurrency:**
+- [Parallel Computing Support for Concurrent Ollama Requests · Issue #11277](https://github.com/ollama/ollama/issues/11277)
+- [How Ollama Handles Parallel Requests - Rost Glukhov](https://www.glukhov.org/post/2025/05/how-ollama-handles-parallel-requests/)
+- [Does Ollama Use Parallelism Internally? - Collabnix](https://collabnix.com/does-ollama-use-parallelism-internally/)
+
+**Chakra UI v3 Performance:**
+- [Excessive CSSStyleSheet instances leaking · chakra-ui/chakra-ui · Discussion #8706](https://github.com/chakra-ui/chakra-ui/discussions/8706)
+- [Performance extreme degradation since 3.6 to current · Issue #9698](https://github.com/chakra-ui/chakra-ui/issues/9698)
+- [Unleashing the Plumbing Superhero: Fixing a Memory Leak caused by Emotion, Chakra-UI, and Dynamic Props!](https://engineering.deptagency.com/unleashing-the-plumbing-superhero-fixing-a-memory-leak-with-emotion-chakra-ui-and-dynamic-props)
 
 ---
-*Pitfalls research for: Personal RSS Reader with LLM Curation*
-*Researched: 2026-02-04*
+*Pitfalls research for: RSS Reader with LLM Scoring + SSE + Runtime Config*
+*Researched: 2026-02-14*

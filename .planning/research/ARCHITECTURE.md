@@ -1,622 +1,681 @@
-# Architecture Research
+# Architecture Research: v1.1 Feature Integration
 
-**Domain:** Personal RSS Reader with LLM Curation
-**Researched:** 2026-02-04
+**Domain:** RSS Reader - v1.1 Feature Integration with Existing Architecture
+**Researched:** 2026-02-14
 **Confidence:** HIGH
 
-## Standard Architecture
+## Executive Summary
 
-### System Overview
+This research analyzes how v1.1 features (Ollama Config UI, SSE Push, LLM Feedback Loop, Feed Categories, Feed Auto-Discovery, UI Polish) integrate with the existing RSS reader architecture. Focus is on integration points, data flow changes, and build dependencies between features.
 
+**Key Architectural Changes:**
+1. **Runtime configuration** - Split config into static (Pydantic @lru_cache) and dynamic (database-backed UserPreferences)
+2. **Real-time push** - SSE endpoint broadcasts scoring progress to frontend, frontend invalidates TanStack Query cache
+3. **Feedback loop** - User interactions (read, skip, manual score adjustment) stored in Article model, influence future scoring via prompt injection
+4. **Feed organization** - New FeedCategory model with many-to-many relationship to Feed
+5. **Feed discovery** - HTML parser service integrated with feed creation flow
+
+## Integration Analysis by Feature
+
+### 1. Ollama Config UI
+
+**Current State:**
+- Config in `backend/config.py` using Pydantic Settings with `@lru_cache`
+- Priority: env vars > .env file > YAML config > defaults
+- Immutable at runtime (requires restart to change)
+- Ollama models specified: `categorization_model` and `scoring_model`
+
+**Integration Strategy:**
+- **Split config into static (system) vs dynamic (user preferences)**
+  - Static: `ollama.host`, `ollama.timeout`, `database.path` → remain in Pydantic Settings
+  - Dynamic: model selection, prompt templates → move to UserPreferences model
+- **UserPreferences schema additions:**
+  ```python
+  class UserPreferences(SQLModel, table=True):
+      # ... existing fields ...
+      categorization_model: str | None = Field(default=None)  # If None, use config default
+      scoring_model: str | None = Field(default=None)
+      custom_categorization_prompt: str | None = Field(default=None)  # Override template
+      custom_scoring_prompt: str | None = Field(default=None)
+  ```
+- **Scoring pipeline changes:**
+  - `scoring.py`: Load model names from preferences first, fallback to config
+  - `prompts.py`: Add `build_custom_prompt()` function that merges user template overrides
+- **API endpoints (new):**
+  - `GET /api/ollama/models` - List available models from Ollama API
+  - `PATCH /api/preferences/ollama` - Update model selection
+  - `GET /api/prompts/{type}` - Get current prompt template (categorization/scoring)
+  - `PUT /api/prompts/{type}` - Update prompt template
+- **Frontend components (new):**
+  - `SettingsModal.tsx` with tabs: Preferences, Ollama Config, Prompts
+  - `OllamaConfigPanel.tsx` - Model selection dropdowns
+  - `PromptEditor.tsx` - Textarea with preview, reset to default button
+
+**Data Flow:**
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Frontend (Next.js)                       │
-│  ┌───────────┐  ┌───────────┐  ┌───────────┐               │
-│  │  Article  │  │   Feed    │  │  Settings │               │
-│  │  List UI  │  │  Mgmt UI  │  │    UI     │               │
-│  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘               │
-│        │              │              │                      │
-│        └──────────────┴──────────────┘                      │
-│                       │                                     │
-│              HTTP API (REST/JSON)                           │
-│                       │                                     │
-├───────────────────────┼─────────────────────────────────────┤
-│                     Backend (FastAPI)                        │
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │                   API Routes                        │    │
-│  │  /api/articles | /api/feeds | /api/refresh         │    │
-│  └──────┬──────────────────────┬───────────────────────┘    │
-│         │                      │                            │
-│  ┌──────┴──────┐        ┌──────┴──────┐                    │
-│  │   Business  │        │  Scheduler  │                    │
-│  │    Logic    │        │ (APScheduler)│                   │
-│  │  (feeds.py) │        │   30 min    │                    │
-│  └──────┬──────┘        └──────┬──────┘                    │
-│         │                      │                            │
-│  ┌──────┴──────────────────────┴──────┐                    │
-│  │        Database Layer               │                    │
-│  │      (SQLModel + SQLite)            │                    │
-│  └─────────────────────────────────────┘                    │
-├─────────────────────────────────────────────────────────────┤
-│                   Data Storage (SQLite)                      │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
-│  │  Feeds   │  │ Articles │  │  Scores  │                  │
-│  │  Table   │  │  Table   │  │ (future) │                  │
-│  └──────────┘  └──────────┘  └──────────┘                  │
-└─────────────────────────────────────────────────────────────┘
-
-                ┌───────────────────────┐
-                │  Ollama (LLM Service) │
-                │   (Milestone 3)       │
-                └───────────┬───────────┘
-                            │
-                  Batch scoring after fetch
-                            │
-                     ┌──────▼──────┐
-                     │   Backend   │
-                     │  (scoring   │
-                     │   pipeline) │
-                     └─────────────┘
-```
-
-### Component Responsibilities
-
-| Component | Responsibility | Typical Implementation |
-|-----------|----------------|------------------------|
-| **Next.js Frontend** | UI rendering, user interaction, state management | React Server Components (default) + Client Components for interactivity |
-| **FastAPI Backend** | REST API, business logic, feed fetching, LLM orchestration | Layered monolith with routes, services, data access |
-| **APScheduler** | Periodic feed refresh (30 min intervals) | Async background jobs within FastAPI process |
-| **SQLite Database** | Persistent storage for feeds, articles, scores | Single file database at `./data/rss.db` with SQLModel ORM |
-| **Ollama** | Local LLM inference for batch scoring | Separate service (Docker or host), REST API |
-
-## Recommended Project Structure
-
-### Backend (FastAPI)
-
-```
-backend/
-├── src/
-│   └── backend/
-│       ├── __init__.py
-│       ├── main.py              # FastAPI app, CORS, lifespan
-│       ├── models.py            # SQLModel table definitions
-│       ├── database.py          # Engine, session management
-│       ├── feeds.py             # Feed refresh logic
-│       ├── scheduler.py         # APScheduler setup
-│       └── scoring.py           # LLM scoring (M3)
-├── tests/
-│   ├── conftest.py              # Test fixtures
-│   ├── test_api.py              # API endpoint tests
-│   └── test_scoring.py          # LLM integration tests (M3)
-├── data/                        # SQLite database location
-│   └── rss.db
-├── Dockerfile
-└── pyproject.toml               # Dependencies
-```
-
-### Frontend (Next.js)
-
-```
-frontend/
-├── app/                         # App Router (Next.js 16)
-│   ├── layout.tsx               # Root layout with ChakraProvider
-│   ├── page.tsx                 # Home page (article list)
-│   ├── articles/
-│   │   └── [id]/
-│   │       └── page.tsx         # Article detail view
-│   ├── feeds/
-│   │   └── page.tsx             # Feed management (M2)
-│   └── settings/
-│       └── page.tsx             # Settings, LLM preferences (M3)
-├── components/
-│   ├── ArticleCard.tsx          # Client Component for article preview
-│   ├── ArticleDetail.tsx        # Client Component for article reader
-│   ├── ThemeToggle.tsx          # Client Component for dark/light mode
-│   └── providers.tsx            # ChakraProvider wrapper (client)
-├── lib/
-│   ├── api.ts                   # API client functions
-│   └── types.ts                 # TypeScript types (match backend)
-├── Dockerfile
-└── package.json
-```
-
-### Docker Compose (Root)
-
-```
-/
-├── docker-compose.yml           # Production configuration
-├── docker-compose.dev.yml       # Development overrides (optional)
-└── .env.example                 # Example environment variables
-```
-
-### Structure Rationale
-
-- **Backend**: Layered monolith keeps code simple for single-user app. Separation of concerns (routes → business logic → data access) enables testing and future refactoring.
-- **Frontend**: Next.js App Router structure with Server Components by default, Client Components for interactivity. Chakra UI requires Client Components (marked with `'use client'`).
-- **Docker Compose**: Single file orchestrates both frontend and backend, with named volumes for persistence.
-
-## Architectural Patterns
-
-### Pattern 1: API-First Separation (Backend/Frontend Decoupling)
-
-**What:** Frontend and backend are separate services communicating via REST API. Frontend runs on port 3210, backend on port 8912.
-
-**When to use:** When you need independent deployment, technology flexibility, or clear contract boundaries.
-
-**Trade-offs:**
-- **Pros:** Clear separation, easier to test, no coupling, can swap frontend/backend independently
-- **Cons:** Need CORS configuration, slightly more complex deployment (2 containers vs 1)
-
-**Example:**
-```typescript
-// frontend/lib/api.ts
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8912';
-
-export async function getArticles(skip = 0, limit = 50) {
-  const res = await fetch(`${API_BASE}/api/articles?skip=${skip}&limit=${limit}`);
-  if (!res.ok) throw new Error('Failed to fetch articles');
-  return res.json();
-}
-```
-
-**Note:** This is the **recommended pattern** for this project because:
-- Backend already built and functional (M1 complete)
-- Clean API contract already established
-- Enables iterating on frontend without backend changes
-- CORS already configured in `backend/main.py`
-
-### Pattern 2: Server Components by Default (Next.js App Router)
-
-**What:** Next.js 16 components are Server Components by default. Use Client Components (with `'use client'`) only when needed for interactivity.
-
-**When to use:** Default for all components. Add `'use client'` when you need:
-- React hooks (useState, useEffect, etc.)
-- Event handlers (onClick, onChange)
-- Browser APIs
-- Third-party libraries that rely on browser features (Chakra UI)
-
-**Trade-offs:**
-- **Pros:** Reduced JavaScript bundle size, faster initial loads, secure data fetching
-- **Cons:** Need explicit boundaries, some libraries require Client Components
-
-**Example:**
-```typescript
-// app/articles/[id]/page.tsx (Server Component - default)
-export default async function ArticlePage({ params }: { params: { id: string } }) {
-  const article = await fetch(`${API_URL}/api/articles/${params.id}`).then(r => r.json());
-  return <ArticleDetail article={article} />;
-}
-
-// components/ArticleDetail.tsx (Client Component - needs interactivity)
-'use client';
-import { Button } from '@chakra-ui/react';
-
-export function ArticleDetail({ article }) {
-  const [isRead, setIsRead] = useState(article.is_read);
-  const handleMarkRead = () => { /* ... */ };
-  return <Button onClick={handleMarkRead}>Mark Read</Button>;
-}
-```
-
-### Pattern 3: Layered Monolith with Scheduler (Backend)
-
-**What:** Backend is organized into layers (routes → services → data access), with APScheduler running in the same process.
-
-**When to use:** Single-user apps where deployment simplicity matters more than horizontal scalability.
-
-**Trade-offs:**
-- **Pros:** Simple deployment (1 process), no message queue needed, easy to debug
-- **Cons:** Scheduler jobs block process restart (graceful shutdown needed)
-
-**Example:**
-```python
-# backend/main.py
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    create_db_and_tables()
-    start_scheduler()  # Start background jobs
-    yield
-    shutdown_scheduler()  # Graceful cleanup
-
-app = FastAPI(lifespan=lifespan)
-```
-
-**Note:** This is already implemented and working. Keep it for M1-M2. Consider Celery/Redis only if you need distributed task processing (unlikely for single-user RSS reader).
-
-### Pattern 4: Batch LLM Scoring (Milestone 3)
-
-**What:** After fetching new articles, send them in batch to Ollama for scoring. Avoid scoring on-demand during article list rendering.
-
-**When to use:** LLM inference is slow (~1-3 seconds per article). Batch processing amortizes latency and enables async UX.
-
-**Trade-offs:**
-- **Pros:** Doesn't block UI, can score multiple articles concurrently, predictable resource usage
-- **Cons:** Scores not available immediately after fetch (acceptable for 30-min refresh cycle)
-
-**Example:**
-```python
-# backend/scoring.py (Milestone 3)
-async def score_articles_batch(articles: list[Article], preferences: str):
-    """Score multiple articles in parallel using Ollama."""
-    tasks = [score_single_article(article, preferences) for article in articles]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-
-    for article, result in zip(articles, results):
-        if isinstance(result, Exception):
-            logger.error(f"Failed to score article {article.id}: {result}")
-        else:
-            article.interest_score = result['interest_score']
-            article.score_category = result['category']
-
-async def score_single_article(article: Article, preferences: str):
-    """Score a single article via Ollama API."""
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            "http://ollama:11434/api/generate",  # Docker service name
-            json={
-                "model": "llama3.1:8b",
-                "prompt": f"User preferences: {preferences}\n\nArticle: {article.title}\n{article.summary}\n\nScore this article...",
-                "stream": False
-            },
-            timeout=30.0
-        )
-    return parse_llm_response(response.json())
-```
-
-**Integration point:** Call `score_articles_batch()` at the end of `refresh_feed()` in `feeds.py`, after new articles are saved to the database.
-
-## Data Flow
-
-### Request Flow (Frontend → Backend)
-
-```
-[User Action: Click "Refresh"]
+User selects model in UI
     ↓
-[Next.js Client Component] → onClick handler
+PATCH /api/preferences/ollama
     ↓
-[API Client (lib/api.ts)] → POST /api/feeds/refresh
+Update UserPreferences.categorization_model
     ↓
-[FastAPI Route (main.py)] → manual_refresh()
+Next article scoring reads preferences
     ↓
-[Service (feeds.py)] → refresh_feed(session, feed)
-    ↓
-[External RSS Feed] ← httpx.AsyncClient.get(feed.url)
-    ↓
-[Database (SQLite)] ← session.add(new_articles)
-    ↓
-[Response] → { message: "Refreshed 1 feed(s)", new_articles: 5 }
-    ↓
-[Frontend] ← Display success notification
+scoring.py uses new model
 ```
 
-### Scheduled Refresh Flow (Background)
+**Build Order:** Early (enables experimentation with different models during development)
 
+**Confidence:** HIGH - Standard database-backed config override pattern
+
+---
+
+### 2. SSE Push (Real-Time Updates)
+
+**Current State:**
+- Frontend polls with TanStack Query (`refetchInterval: 10000ms` when scoring active)
+- APScheduler runs `process_scoring_queue()` every 30s (batch size 5)
+- No server-to-client push mechanism
+
+**Integration Strategy:**
+- **Backend: SSE endpoint + event broadcaster**
+  - Install `sse-starlette` package
+  - Create `EventBroadcaster` class in new `backend/events.py`:
+    ```python
+    class EventBroadcaster:
+        def __init__(self):
+            self.channels: dict[str, list[asyncio.Queue]] = {}
+
+        async def subscribe(self, channel: str) -> AsyncGenerator[dict, None]:
+            queue = asyncio.Queue()
+            if channel not in self.channels:
+                self.channels[channel] = []
+            self.channels[channel].append(queue)
+            try:
+                while True:
+                    yield await queue.get()
+            finally:
+                self.channels[channel].remove(queue)
+
+        async def broadcast(self, channel: str, event: dict):
+            if channel in self.channels:
+                for queue in self.channels[channel]:
+                    await queue.put(event)
+    ```
+  - New endpoint `GET /api/events/scoring` (SSE):
+    ```python
+    @app.get("/api/events/scoring")
+    async def scoring_events(request: Request):
+        async def event_generator():
+            async for event in broadcaster.subscribe("scoring"):
+                if await request.is_disconnected():
+                    break
+                yield event
+        return EventSourceResponse(event_generator())
+    ```
+  - Modify `scoring_queue.py` to broadcast events:
+    ```python
+    await broadcaster.broadcast("scoring", {
+        "event": "article_scored",
+        "data": {
+            "article_id": article.id,
+            "composite_score": article.composite_score,
+            "scoring_state": "scored"
+        }
+    })
+    ```
+- **Frontend: EventSource + TanStack Query invalidation**
+  - New hook `useScoringEvents.ts`:
+    ```typescript
+    export function useScoringEvents() {
+      const queryClient = useQueryClient();
+
+      useEffect(() => {
+        const eventSource = new EventSource(`${API_BASE_URL}/api/events/scoring`);
+
+        eventSource.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+
+          if (data.event === "article_scored") {
+            // Invalidate articles query to refetch
+            queryClient.invalidateQueries({ queryKey: ["articles"] });
+            // Optionally: direct cache update for smoother UX
+            queryClient.setQueryData(["articles"], (old) => {
+              // Update article in cache
+            });
+          }
+        };
+
+        return () => eventSource.close();
+      }, [queryClient]);
+    }
+    ```
+  - Call `useScoringEvents()` in `AppShell.tsx` (top-level component)
+
+**Data Flow:**
 ```
-[APScheduler Trigger] (every 30 minutes)
+APScheduler processes article
     ↓
-[scheduler.py] → refresh_all_feeds()
+scoring_queue.py completes scoring
     ↓
-[For each feed]:
+broadcaster.broadcast("scoring", {...})
     ↓
-    [Service (feeds.py)] → refresh_feed(session, feed)
+All connected SSE clients receive event
     ↓
-    [External RSS Feed] ← feedparser + httpx
+Frontend invalidates TanStack Query cache
     ↓
-    [Database] ← Bulk insert new articles
-    ↓
-    [Ollama] ← score_articles_batch() (M3)
-    ↓
-    [Database] ← Update article scores
-```
-
-### LLM Scoring Pipeline (Milestone 3)
-
-```
-[New Articles Fetched] (via refresh_feed)
-    ↓
-[Stage 1: Keyword Filters] (programmatic)
-    ├─ Blocked keywords (e.g., "IPO") → Mark as auto-hidden
-    ├─ Title/content deduplication → Skip duplicates
-    └─ Pass remaining → Stage 2
-    ↓
-[Stage 2: LLM Scoring] (batch)
-    ├─ Construct prompt with user preferences
-    ├─ Send to Ollama API (concurrent requests)
-    ├─ Parse JSON response: { interest_score, category, reason }
-    └─ Update article records in DB
-    ↓
-[Results Stored]
-    ├─ Articles table: interest_score, score_category, score_reason
-    └─ Frontend queries by score DESC to surface high-interest articles
-```
-
-### Key Data Flows
-
-1. **Article List Rendering:** Frontend fetches `/api/articles?skip=0&limit=50` → Backend queries SQLite ordered by `published_at DESC` (or `interest_score DESC` in M3) → Returns JSON array
-2. **Mark as Read:** Frontend PATCHes `/api/articles/{id}` with `{is_read: true}` → Backend updates SQLite → Returns updated article
-3. **Feed Refresh:** Manual or scheduled trigger → Fetch RSS XML → Parse with feedparser → Deduplicate by URL → Insert new articles → Score with LLM (M3) → Store results
-
-## Docker Compose Architecture
-
-### Service Topology
-
-```yaml
-services:
-  backend:
-    build: ./backend
-    ports:
-      - "8912:8912"
-    volumes:
-      - rss-data:/app/data              # Persistent SQLite database
-    environment:
-      - DATABASE_URL=sqlite:///./data/rss.db
-    restart: unless-stopped             # Auto-restart on failure
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8912/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "3210:3210"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8912  # Docker internal network
-    depends_on:
-      backend:
-        condition: service_healthy      # Wait for backend to be ready
-    restart: unless-stopped
-
-  ollama:  # Milestone 3
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama-models:/root/.ollama     # Persistent model storage
-    restart: unless-stopped
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]       # GPU support (if available)
-
-volumes:
-  rss-data:       # Named volume for SQLite persistence
-  ollama-models:  # Named volume for Ollama models (M3)
-```
-
-### Production Best Practices
-
-| Practice | Implementation | Rationale |
-|----------|----------------|-----------|
-| **Named Volumes** | `rss-data`, `ollama-models` | Data persists across container restarts. Survives `docker-compose down` unless `-v` flag used. |
-| **Restart Policies** | `restart: unless-stopped` | Containers auto-restart on failure or server reboot. `unless-stopped` prevents restart if manually stopped. |
-| **Health Checks** | Backend health endpoint (`/`) | Ensures dependent services (frontend) wait for backend to be ready before starting. |
-| **Service Dependencies** | `depends_on.condition: service_healthy` | Frontend won't start until backend is healthy, preventing startup errors. |
-| **Environment Variables** | `.env` file + `environment:` key | Secrets and config stay out of code. Use `.env.example` for documentation. |
-| **Build Context Separation** | `build: ./backend`, `build: ./frontend` | Each service has its own Dockerfile, enabling independent builds and caching. |
-| **Internal Networking** | Docker default bridge network | Services communicate by service name (e.g., `http://backend:8912`). Host uses `localhost:8912`. |
-| **Resource Limits** | `deploy.resources.reservations` | Ollama gets GPU access (if available). Can add memory limits to prevent OOM. |
-
-### Docker Compose Variants
-
-**M1 (MVP):** Backend + Frontend only
-```yaml
-services:
-  backend: { ... }
-  frontend: { ... }
-volumes:
-  rss-data:
+UI refetches and displays newly scored article
 ```
 
-**M3 (LLM Scoring):** Add Ollama service
-```yaml
-services:
-  backend: { ... }
-  frontend: { ... }
-  ollama: { ... }
-volumes:
-  rss-data:
-  ollama-models:
+**Build Order:** Mid (depends on stable scoring pipeline, enables better UX for remaining features)
+
+**Confidence:** HIGH - Well-documented FastAPI SSE pattern, TanStack Query invalidation is standard
+
+**Sources:**
+- [sse-starlette PyPI documentation](https://pypi.org/project/sse-starlette/)
+- [FastAPI SSE implementation guide](https://medium.com/@Rachita_B/implementing-sse-server-side-events-using-fastapi-3b2d6768249e)
+- [TanStack Query with SSE integration](https://github.com/TanStack/query/discussions/418)
+- [Next.js SSE real-time updates](https://www.pedroalonso.net/blog/sse-nextjs-real-time-notifications/)
+
+---
+
+### 3. LLM Feedback Loop
+
+**Current State:**
+- Scoring uses static preferences: `interests`, `anti_interests`, `topic_weights`
+- No signal from user behavior (what they actually read vs skip)
+- No article-specific feedback mechanism
+
+**Integration Strategy:**
+- **Capture implicit feedback signals:**
+  - Track: read duration, read/skip patterns, manual mark-as-read, explicit thumbs up/down
+  - Store in Article model (extend):
+    ```python
+    class Article(SQLModel, table=True):
+        # ... existing fields ...
+        read_duration_seconds: int | None = Field(default=None)  # Actual time spent reading
+        user_feedback: str | None = Field(default=None)  # "positive", "negative", None
+        feedback_reason: str | None = Field(default=None)  # Optional text reason
+        last_interaction_at: datetime | None = Field(default=None)
+    ```
+  - New API endpoint:
+    ```python
+    @app.post("/api/articles/{article_id}/feedback")
+    def submit_feedback(article_id: int, feedback: FeedbackSubmission):
+        # Update article.user_feedback, article.feedback_reason
+        pass
+    ```
+- **Analyze feedback to adjust scoring:**
+  - New service `backend/feedback_analyzer.py`:
+    ```python
+    async def analyze_user_behavior(session: Session) -> dict:
+        # Query articles from last 30 days
+        # Identify patterns:
+        # 1. Categories with high read rate → boost weight
+        # 2. Categories with low read rate → reduce weight
+        # 3. Articles marked negative → extract anti-patterns
+        # 4. Articles marked positive → extract positive patterns
+
+        return {
+            "suggested_weight_adjustments": {...},
+            "emerging_interests": [...],
+            "emerging_anti_interests": [...]
+        }
+    ```
+  - Scheduled job (daily): Run analyzer, store suggestions in UserPreferences:
+    ```python
+    class UserPreferences(SQLModel, table=True):
+        # ... existing fields ...
+        feedback_insights: dict | None = Field(default=None, sa_column=Column(JSON))
+        # Structure: {
+        #   "category_performance": {"tech": {"read_rate": 0.8, "avg_score": 8.5}},
+        #   "suggested_adjustments": {"tech": "increase", "sports": "decrease"},
+        #   "last_analyzed": "2026-02-14T10:00:00Z"
+        # }
+    ```
+- **Inject feedback into scoring prompts:**
+  - Modify `prompts.py` `build_scoring_prompt()` to include feedback insights:
+    ```python
+    def build_scoring_prompt(
+        article_title: str,
+        article_text: str,
+        interests: str,
+        anti_interests: str,
+        feedback_insights: dict | None = None,
+    ) -> str:
+        # ... existing prompt ...
+
+        if feedback_insights:
+            prompt += f"\n\n**User Behavior Insights:**"
+            prompt += f"\nRecently read articles in categories: {feedback_insights.get('high_read_categories')}"
+            prompt += f"\nRecently skipped articles in categories: {feedback_insights.get('low_read_categories')}"
+            prompt += f"\nPositive feedback keywords: {feedback_insights.get('positive_patterns')}"
+
+        return prompt
+    ```
+- **Frontend: Feedback UI**
+  - Add thumbs up/down buttons in `ArticleReader.tsx`
+  - Track read duration with `useAutoMarkAsRead` hook (already exists)
+  - Send feedback on drawer close
+
+**Data Flow:**
+```
+User reads article (tracked duration)
+    ↓
+On drawer close, send read_duration_seconds to API
+    ↓
+Nightly: feedback_analyzer.py runs
+    ↓
+Analyzes last 30 days of read/skip patterns
+    ↓
+Updates UserPreferences.feedback_insights
+    ↓
+Next scoring batch: prompts.py injects insights into LLM prompt
+    ↓
+LLM sees "User recently read 80% of 'programming' articles but skipped 90% of 'sports'"
+    ↓
+Adjusted interest_score reflects learned preferences
 ```
 
-### Development vs Production
+**Build Order:** Late (depends on stable article data, SSE for real-time feedback display)
 
-**Development:** Use `docker-compose.dev.yml` override for:
-- Volume mounts for hot-reload: `./backend/src:/app/src`
-- Debug logging: `environment.LOG_LEVEL=DEBUG`
-- Exposed database ports for inspection
+**Confidence:** MEDIUM - Feedback analysis logic is custom (no standard library), prompt injection is straightforward but effectiveness depends on LLM's ability to incorporate insights
 
-**Production:** Use base `docker-compose.yml` with:
-- No source code volumes (code baked into image)
-- Minimal logging: `environment.LOG_LEVEL=INFO`
-- No exposed internal ports (only public-facing 3210)
+**Sources:**
+- [RLHF overview from AWS](https://aws.amazon.com/what-is/reinforcement-learning-from-human-feedback/)
+- [Personalized RLHF research (PLUS framework)](https://openreview.net/forum?id=Ar078WR3um)
+- [Learning from user behavior for LLMs](https://rlhfbook.com/book.pdf)
 
-**Command:**
-```bash
-# Development
-docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+---
 
-# Production
-docker-compose up -d
+### 4. Feed Categories
+
+**Current State:**
+- Feeds have `display_order` for manual sorting
+- No grouping or categorization of feeds
+- Sidebar shows flat list of feeds
+
+**Integration Strategy:**
+- **New model: FeedCategory**
+  ```python
+  class FeedCategory(SQLModel, table=True):
+      __tablename__ = "feed_categories"
+
+      id: int | None = Field(default=None, primary_key=True)
+      name: str = Field(unique=True)
+      display_order: int = Field(default=0)
+      collapsed: bool = Field(default=False)  # UI state: is category collapsed?
+  ```
+- **Many-to-many relationship:**
+  ```python
+  class FeedCategoryLink(SQLModel, table=True):
+      __tablename__ = "feed_category_links"
+
+      feed_id: int = Field(foreign_key="feeds.id", primary_key=True)
+      category_id: int = Field(foreign_key="feed_categories.id", primary_key=True)
+  ```
+  - Feeds can belong to multiple categories (e.g., "Tech News" + "Daily Reads")
+  - Feeds can be uncategorized (no links) → show in "Uncategorized" section
+- **API endpoints (new):**
+  ```python
+  GET /api/feed-categories  # List all categories with feed counts
+  POST /api/feed-categories  # Create category
+  PATCH /api/feed-categories/{id}  # Update name/order/collapsed
+  DELETE /api/feed-categories/{id}  # Delete category (unlinks feeds)
+
+  POST /api/feeds/{feed_id}/categories/{category_id}  # Add feed to category
+  DELETE /api/feeds/{feed_id}/categories/{category_id}  # Remove feed from category
+  ```
+- **Frontend changes:**
+  - Modify `Sidebar.tsx` to group feeds by category:
+    ```
+    [Category: Tech]
+      - Hacker News (12)
+      - The Verge (5)
+    [Category: Daily Reads]
+      - Morning Brew (3)
+    [Uncategorized]
+      - Random Blog (2)
+    ```
+  - Add category management UI in feed settings
+  - Support drag-and-drop to move feeds between categories
+
+**Data Flow:**
 ```
+User creates category "Tech News"
+    ↓
+POST /api/feed-categories
+    ↓
+User drags "Hacker News" feed into "Tech News"
+    ↓
+POST /api/feeds/{id}/categories/{category_id}
+    ↓
+Sidebar refetches and displays grouped view
+```
+
+**Build Order:** Mid-Late (independent of other features, improves organization as feed count grows)
+
+**Confidence:** HIGH - Standard many-to-many relationship pattern
+
+---
+
+### 5. Feed Auto-Discovery
+
+**Current State:**
+- User must manually enter RSS feed URL
+- No assistance finding feeds from website URLs
+
+**Integration Strategy:**
+- **New service: `backend/feed_discovery.py`**
+  ```python
+  import httpx
+  from bs4 import BeautifulSoup
+
+  async def discover_feeds(url: str) -> list[dict]:
+      """
+      Discovers RSS/Atom feeds from a website URL.
+
+      Returns list of discovered feeds:
+      [
+          {"url": "https://example.com/feed.xml", "title": "Example Feed", "type": "rss"},
+          {"url": "https://example.com/atom.xml", "title": "Example Atom", "type": "atom"}
+      ]
+      """
+      async with httpx.AsyncClient() as client:
+          response = await client.get(url, follow_redirects=True, timeout=10)
+          response.raise_for_status()
+
+          soup = BeautifulSoup(response.content, "lxml")
+
+          # Look for <link rel="alternate" type="application/rss+xml">
+          feeds = []
+          for link in soup.find_all("link", rel="alternate"):
+              feed_type = link.get("type", "")
+              if "rss" in feed_type or "atom" in feed_type:
+                  feed_url = link.get("href")
+                  feed_title = link.get("title", "Untitled Feed")
+                  feeds.append({
+                      "url": urljoin(url, feed_url),  # Handle relative URLs
+                      "title": feed_title,
+                      "type": "rss" if "rss" in feed_type else "atom"
+                  })
+
+          return feeds
+  ```
+- **API endpoint (new):**
+  ```python
+  @app.post("/api/feeds/discover")
+  async def discover_feeds_endpoint(url: str):
+      """
+      Discover RSS feeds from a website URL.
+      Returns list of discovered feeds.
+      """
+      try:
+          feeds = await discover_feeds(url)
+          return {"feeds": feeds}
+      except Exception as e:
+          raise HTTPException(status_code=400, detail=f"Failed to discover feeds: {str(e)}")
+  ```
+- **Frontend integration:**
+  - Modify "Add Feed" modal:
+    1. User enters website URL (e.g., `https://example.com`)
+    2. Click "Discover Feeds" button
+    3. API returns list of discovered feeds
+    4. UI shows selection dialog with discovered feeds
+    5. User picks one or more, confirms
+    6. Normal feed creation flow continues
+  - Fallback: If no feeds discovered, allow manual RSS URL entry
+
+**Data Flow:**
+```
+User enters "https://techcrunch.com"
+    ↓
+POST /api/feeds/discover {"url": "https://techcrunch.com"}
+    ↓
+feed_discovery.py fetches HTML
+    ↓
+BeautifulSoup parses <link rel="alternate" type="application/rss+xml">
+    ↓
+Returns [{"url": "https://techcrunch.com/feed", "title": "TechCrunch RSS"}]
+    ↓
+UI shows discovered feed, user confirms
+    ↓
+POST /api/feeds {"url": "https://techcrunch.com/feed"}
+    ↓
+Normal feed creation flow
+```
+
+**Build Order:** Early-Mid (independent, improves onboarding UX)
+
+**Confidence:** HIGH - Standard RSS auto-discovery pattern
+
+**Sources:**
+- [RSS Autodiscovery specification](https://www.rssboard.org/rss-autodiscovery)
+- [RSS feed discovery implementation guide](https://blog.jim-nielsen.com/2021/automatically-discoverable-rss-feeds/)
+- [BeautifulSoup with lxml parser](https://lxml.de/elementsoup.html)
+- [HTML link rel alternate for feeds](https://www.petefreitag.com/blog/rss-autodiscovery/)
+
+---
+
+### 6. UI Polish
+
+**Current State:**
+- Basic functional UI with Chakra UI v3
+- No loading states, error boundaries, or accessibility improvements
+
+**Integration Strategy:**
+- **Loading states:**
+  - Skeleton loaders for article list (`Skeleton` from Chakra UI)
+  - Spinner for feed operations
+  - SSE connection status indicator ("Connecting...", "Live", "Disconnected")
+- **Error handling:**
+  - Error boundary component wrapping main app
+  - Toast notifications for API errors (Chakra UI `Toaster` already available)
+  - Retry buttons for failed operations
+- **Accessibility:**
+  - ARIA labels on interactive elements
+  - Keyboard shortcuts for common actions (j/k for nav, r for mark read)
+  - Focus management in modals/drawers
+- **UX improvements:**
+  - Optimistic updates (mark-as-read applies immediately, rolls back on error)
+  - Batch operations (select multiple articles, mark all read)
+  - Search/filter articles by title/content
+
+**Build Order:** Last (polish after features work)
+
+**Confidence:** HIGH - Standard UI/UX patterns
+
+---
+
+## Integration Points Summary
+
+### New vs Modified Components
+
+| Component | Status | Purpose |
+|-----------|--------|---------|
+| **Backend** | | |
+| `models.py` → `Article` | MODIFIED | Add feedback fields: `read_duration_seconds`, `user_feedback`, `feedback_reason`, `last_interaction_at` |
+| `models.py` → `UserPreferences` | MODIFIED | Add Ollama config: `categorization_model`, `scoring_model`, `custom_*_prompt`, `feedback_insights` |
+| `models.py` → `FeedCategory` | NEW | Category model for feed organization |
+| `models.py` → `FeedCategoryLink` | NEW | Many-to-many link table |
+| `events.py` | NEW | SSE event broadcaster class |
+| `feed_discovery.py` | NEW | RSS auto-discovery service (BeautifulSoup + httpx) |
+| `feedback_analyzer.py` | NEW | User behavior analysis for feedback loop |
+| `scoring.py` | MODIFIED | Load model names from preferences, pass feedback insights to prompts |
+| `prompts.py` | MODIFIED | Inject feedback insights into scoring prompt |
+| `scoring_queue.py` | MODIFIED | Broadcast SSE events on article scored |
+| `main.py` | MODIFIED | Add new API endpoints (SSE, feed discovery, feedback, categories, Ollama config) |
+| `scheduler.py` | MODIFIED | Add nightly feedback analysis job |
+| **Frontend** | | |
+| `types.ts` | MODIFIED | Add fields to Article, UserPreferences types |
+| `api.ts` | MODIFIED | Add new API client functions (SSE not here, in hook) |
+| `useScoringEvents.ts` | NEW | Hook for SSE connection, TanStack Query invalidation |
+| `useFeedback.ts` | NEW | Hook for submitting article feedback |
+| `SettingsModal.tsx` | NEW | Modal with tabs: Preferences, Ollama Config, Prompts |
+| `OllamaConfigPanel.tsx` | NEW | Model selection UI |
+| `PromptEditor.tsx` | NEW | Prompt template editing UI |
+| `FeedDiscoveryModal.tsx` | NEW | Modal for discovering feeds from website URL |
+| `FeedCategoryManager.tsx` | NEW | UI for creating/managing feed categories |
+| `Sidebar.tsx` | MODIFIED | Group feeds by category |
+| `ArticleReader.tsx` | MODIFIED | Add feedback buttons (thumbs up/down) |
+| `AppShell.tsx` | MODIFIED | Call `useScoringEvents()` at top level |
+
+---
+
+## Data Flow Changes
+
+### Scoring Pipeline (with all v1.1 features)
+
+```
+User submits website URL
+    ↓
+[Feed Discovery] HTML parser discovers RSS links
+    ↓
+User selects discovered feed, assigns to category
+    ↓
+POST /api/feeds (feed created)
+    ↓
+Feed refresh job fetches articles
+    ↓
+Articles enqueued for scoring (scoring_state: "queued")
+    ↓
+[APScheduler] process_scoring_queue() every 30s
+    ↓
+Load UserPreferences (includes: categorization_model, scoring_model, feedback_insights)
+    ↓
+[Categorization] categorize_article() with custom model
+    ↓
+[Scoring] score_article() with custom model + feedback insights injected in prompt
+    ↓
+compute_composite_score() considers topic_weights
+    ↓
+Update article (scoring_state: "scored")
+    ↓
+[SSE] broadcaster.broadcast("scoring", {article_id, composite_score})
+    ↓
+[Frontend] EventSource receives event → TanStack Query invalidates → UI refetches
+    ↓
+User opens article, reads for 45 seconds
+    ↓
+[Frontend] useFeedback hook tracks duration
+    ↓
+User clicks thumbs up
+    ↓
+POST /api/articles/{id}/feedback {read_duration_seconds: 45, user_feedback: "positive"}
+    ↓
+Update article.read_duration_seconds, article.user_feedback
+    ↓
+[Nightly] feedback_analyzer.py analyzes last 30 days
+    ↓
+Identifies patterns: "User reads 'programming' articles for avg 60s, skips 'sports' after 5s"
+    ↓
+Updates UserPreferences.feedback_insights
+    ↓
+Next scoring cycle: prompts inject these insights
+    ↓
+LLM adjusts scores based on learned behavior
+```
+
+---
+
+## Build Order with Dependencies
+
+**Phase 1: Foundation (Independent)**
+1. **Feed Categories** - Data model + API + UI (no deps)
+2. **Feed Auto-Discovery** - Service + API + UI (no deps)
+3. **Ollama Config UI** - UserPreferences extension + API + UI (no deps)
+
+**Phase 2: Real-Time Infrastructure**
+4. **SSE Push** - Requires stable scoring pipeline from v1.0 (already exists)
+
+**Phase 3: Advanced Features (Depends on Phase 2)**
+5. **LLM Feedback Loop** - Requires Article model extensions, uses SSE for real-time feedback display
+6. **UI Polish** - Enhances all features, applied last
+
+**Reasoning:**
+- Phase 1 features are independent, can be built in parallel
+- SSE Push is foundational for real-time UX (feedback loop benefits from it)
+- Feedback loop is most complex, benefits from SSE showing immediate effect of feedback
+- UI polish applies finishing touches after features work
+
+---
 
 ## Scaling Considerations
 
 | Scale | Architecture Adjustments |
 |-------|--------------------------|
-| **Single user (current)** | Current architecture is perfect. No changes needed. SQLite handles ~100K articles easily. |
-| **10 users** | Still fine. SQLite can handle ~1M writes/day. Consider read replicas if query load increases (unlikely for RSS). |
-| **100+ users** | Migrate to PostgreSQL for better concurrency. Move scheduler to Celery + Redis. Add nginx reverse proxy. Deploy to multi-node Docker Swarm or Kubernetes. |
+| 1 user (current) | Monolith is perfect. SQLite handles concurrent reads/writes with WAL mode. |
+| 10-100 users | Add connection pooling for SQLite. Consider read replicas if scoring queries slow down reads. |
+| 100+ users | Migrate to PostgreSQL for better concurrency. Consider Redis for SSE event broadcasting across multiple FastAPI instances. |
 
-### Scaling Priorities
+**First bottleneck:** SSE with multiple FastAPI workers. Current in-memory `EventBroadcaster` won't work across processes. Solution: Use Redis pub/sub for cross-process event broadcasting.
 
-1. **First bottleneck (unlikely):** LLM scoring latency (M3). Ollama can handle ~2-4 req/sec on CPU, 10-20 req/sec on GPU. With 30-min refresh cycle and ~50 articles/feed, single-user will never hit this. If needed: increase `OLLAMA_NUM_PARALLEL` env var, or switch to faster model (e.g., `mistral:7b`).
+**Second bottleneck:** Scoring queue. Single-threaded APScheduler processes 5 articles/30s. Solution: Increase batch size, add more workers, or use Celery for distributed task queue.
 
-2. **Second bottleneck (very unlikely):** SQLite write contention during concurrent refresh. Solution: Stagger feed refresh times, or batch insert articles. Not needed for single-user with 5-10 feeds.
+---
 
-**Note:** For a personal RSS reader, premature optimization is more harmful than helpful. Current architecture supports 10-20 feeds with 30-min refresh indefinitely.
+## Anti-Patterns to Avoid
 
-## Anti-Patterns
+### Anti-Pattern 1: Storing Ollama Prompt Templates in Database
 
-### Anti-Pattern 1: Serving Frontend from FastAPI
-
-**What people do:** Configure FastAPI to serve Next.js static export from `backend/static/`.
+**What people do:** Store full LLM prompt templates in database, allowing user to edit from scratch.
 
 **Why it's wrong:**
-- Couples deployment (can't update frontend without backend rebuild)
-- Breaks Next.js features (Server Components, middleware, ISR)
-- Eliminates CORS (good) but at the cost of flexibility (bad)
+- Prompts are code, not configuration. Breaking changes to prompt structure require migrations.
+- Users can break scoring by editing prompts incorrectly.
+- Version control for prompts becomes difficult.
 
-**Do this instead:** Separate containers with CORS. If you hate CORS, use nginx reverse proxy to route `/api/*` to backend and `/*` to frontend on the same origin.
+**Do this instead:**
+- Store only *user-provided supplements* (e.g., "Additional interests: X") in database.
+- Keep base prompt template in code (`prompts.py`).
+- Provide limited, safe customization options in UI (e.g., "Add custom interests", not "Edit full prompt").
 
-### Anti-Pattern 2: Real-Time Scoring During List Rendering
+### Anti-Pattern 2: Synchronous HTML Fetching in Feed Discovery
 
-**What people do:** Score articles on-demand when user loads article list, showing "Scoring..." spinner for each article.
+**What people do:** Use `requests.get()` synchronously in FastAPI endpoint.
 
-**Why it's wrong:**
-- Terrible UX (3-5 second delay per article = 30+ seconds for 10 articles)
-- Wastes Ollama resources (re-scores same articles on every page load)
-- Blocks rendering (can't show list until all scores computed)
+**Why it's wrong:** Blocks the entire event loop while waiting for HTTP response. FastAPI is async, blocking calls kill performance.
 
-**Do this instead:** Batch score during feed refresh. Store scores in database. Render list immediately with pre-computed scores. Add `scored_at` timestamp to detect stale scores and re-score in background if preferences change.
+**Do this instead:** Use `httpx.AsyncClient()` with `await` for all HTTP calls. This is already planned in the integration strategy above.
 
-### Anti-Pattern 3: Wildcard CORS (`allow_origins=["*"]`)
+### Anti-Pattern 3: Real-Time Query Refetching Without SSE
 
-**What people do:** Use `allow_origins=["*"]` to "avoid CORS issues."
+**What people do:** Increase TanStack Query `refetchInterval` to 1-2 seconds for "real-time feel".
 
-**Why it's wrong:**
-- Security risk: Any website can call your API
-- Breaks credentials: Browsers reject `allow_credentials=True` with wildcard origins
-- Lazy: CORS errors mean misconfiguration, not "CORS is hard"
+**Why it's wrong:** Hammers the API with unnecessary requests, wastes bandwidth, doesn't scale.
 
-**Do this instead:** Explicitly list allowed origins: `allow_origins=["http://localhost:3210"]` for dev, `allow_origins=["https://rss.example.com"]` for prod. Use environment variables to configure per-deployment.
+**Do this instead:** Use SSE to push updates only when articles are actually scored. Query refetch only on SSE event. This is the planned approach.
 
-### Anti-Pattern 4: Blocking Sync Feed Fetch
-
-**What people do:** Use `requests.get()` (blocking) in FastAPI route handlers.
-
-**Why it's wrong:**
-- Blocks event loop (kills FastAPI concurrency)
-- Slow feed fetch (5-10 seconds) blocks all other requests
-- Cascade failures if one feed times out
-
-**Do this instead:** Use `httpx.AsyncClient()` for all external HTTP requests. FastAPI is async-first; use `async def` route handlers and `await` all I/O. Already implemented in `backend/feeds.py`.
-
-### Anti-Pattern 5: Client Components Everywhere
-
-**What people do:** Add `'use client'` to every Next.js component "to be safe."
-
-**Why it's wrong:**
-- Defeats Next.js 16 performance gains (Server Components reduce bundle size by 50-70%)
-- Increases JavaScript download and parse time
-- Forces data fetching client-side (slower, exposes API URLs)
-
-**Do this instead:** Keep components Server Components by default. Only add `'use client'` when you need:
-- React hooks (useState, useEffect, useContext)
-- Event handlers (onClick, onChange, onSubmit)
-- Browser APIs (localStorage, window.location)
-- Third-party libraries that require client (Chakra UI)
-
-**Rule of thumb:** If a component doesn't have interactivity, it's a Server Component.
-
-## Integration Points
-
-### External Services
-
-| Service | Integration Pattern | Notes |
-|---------|---------------------|-------|
-| **RSS Feeds** | HTTP GET with feedparser | Use `httpx.AsyncClient()` with 10s timeout. Handle malformed XML gracefully. |
-| **Ollama** | HTTP POST to `/api/generate` | Runs locally (Docker service or host). Use `stream: false` for batch mode. 30s timeout for LLM inference. |
-
-### Internal Boundaries
-
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| **Frontend ↔ Backend** | REST API (JSON over HTTP) | CORS enabled for `http://localhost:3210`. Use `fetch()` client-side, native `fetch()` in Server Components. |
-| **Backend ↔ Database** | SQLModel ORM (sync) | `Session` dependency injection via `Depends(get_session)`. Connection pooling handled by SQLAlchemy. |
-| **Backend ↔ Scheduler** | Direct function calls (same process) | APScheduler runs in FastAPI process. Jobs call service functions (`refresh_feed`) directly. |
-| **Backend ↔ Ollama** | HTTP POST with JSON | Use `httpx.AsyncClient()` for async requests. Handle timeouts and retries. Parse JSON response. |
-
-## Build Order & Dependencies
-
-**Milestone 1 (MVP) — Build Order:**
-
-1. **Frontend scaffolding** (Already exists: Next.js skeleton)
-   - Set up Chakra UI provider in `app/layout.tsx`
-   - Create `lib/api.ts` client functions
-   - Dependencies: None (backend API already functional)
-
-2. **Article list view** (`app/page.tsx`)
-   - Server Component fetches `/api/articles`
-   - Client Component `<ArticleCard>` for interactivity (mark read)
-   - Dependencies: API client
-
-3. **Article detail view** (`app/articles/[id]/page.tsx`)
-   - Server Component fetches single article
-   - Client Component `<ArticleDetail>` for mark read, open original link
-   - Dependencies: API client
-
-4. **Theme toggle** (Chakra UI `useColorMode`)
-   - Client Component in layout or header
-   - Dependencies: ChakraProvider setup
-
-5. **Docker Compose** (root `docker-compose.yml`)
-   - Backend + frontend services
-   - Named volume for SQLite
-   - Health checks and restart policies
-   - Dependencies: Dockerfiles for backend and frontend
-
-**Milestone 2 (Feed Management):**
-
-1. Backend API routes (`POST /api/feeds`, `DELETE /api/feeds/{id}`)
-2. Frontend feed management UI (`app/feeds/page.tsx`)
-3. Feed groups (backend model + API + frontend UI)
-
-**Milestone 3 (LLM Scoring):**
-
-1. Ollama Docker service in `docker-compose.yml`
-2. Backend `scoring.py` module
-3. Integration in `refresh_feed()` to call scoring after fetch
-4. Database schema update (add `interest_score`, `score_category`, `score_reason` columns)
-5. Frontend sorting/filtering by score
-6. Settings UI for prose-style preferences
-
-**Critical Dependencies:**
-- M1 frontend depends on M1 backend (already complete)
-- M1 Docker Compose depends on Dockerfiles
-- M3 scoring depends on Ollama service
-- M3 preferences UI depends on backend preferences storage
+---
 
 ## Sources
 
-**Next.js Architecture:**
-- [Next.js Architecture in 2026 — Server-First, Client-Islands, and Scalable App Router Patterns](https://www.yogijs.tech/blog/nextjs-project-architecture-app-router)
-- [Next.js 16 Release](https://nextjs.org/blog/next-16)
-- [Next.js App Router — Advanced Patterns for 2026](https://medium.com/@beenakumawat002/next-js-app-router-advanced-patterns-for-2026-server-actions-ppr-streaming-edge-first-b76b1b3dcac7)
-- [Next.js App Router Project Structure](https://makerkit.dev/blog/tutorials/nextjs-app-router-project-structure)
-- [Using Chakra UI in Next.js (App)](https://chakra-ui.com/docs/get-started/frameworks/next-app)
+**SSE Implementation:**
+- [sse-starlette PyPI](https://pypi.org/project/sse-starlette/)
+- [FastAPI SSE implementation guide](https://medium.com/@Rachita_B/implementing-sse-server-side-events-using-fastapi-3b2d6768249e)
+- [Building SSE MCP Server with FastAPI](https://www.ragie.ai/blog/building-a-server-sent-events-sse-mcp-server-with-fastapi)
 
-**Docker Compose Production:**
-- [Use Compose in Production | Docker Docs](https://docs.docker.com/compose/how-tos/production/)
-- [Volumes | Docker Docs](https://docs.docker.com/engine/storage/volumes/)
-- [Docker Compose in Production: A Practical Guide](https://medium.com/@muhabbat.dev/docker-compose-in-production-a-practical-guide-1af2f4c668d7)
-- [Stop Misusing Docker Compose in Production](https://dflow.sh/blog/stop-misusing-docker-compose-in-production-what-most-teams-get-wrong)
+**TanStack Query + SSE:**
+- [TanStack Query SSE discussion](https://github.com/TanStack/query/discussions/418)
+- [React Query with SSE integration](https://fragmentedthought.com/blog/2025/react-query-caching-with-server-side-events)
+- [Next.js SSE real-time updates](https://www.pedroalonso.net/blog/sse-nextjs-real-time-notifications/)
 
-**Ollama Integration:**
-- [Large Scale Batch Processing with Ollama](https://robert-mcdermott.medium.com/large-scale-batch-processing-with-ollama-1e180533fb8a)
-- [Using Ollama in Production: A Developer's Practical Guide](https://collabnix.com/using-ollama-in-production-a-developers-practical-guide/)
-- [How Ollama Handles Parallel Requests](https://www.glukhov.org/post/2025/05/how-ollama-handles-parallel-requests/)
-- [Batch Processing Optimization: Handle Multiple Ollama Requests](https://markaicode.com/ollama-batch-processing-optimization/)
+**Pydantic Settings:**
+- [Pydantic Settings documentation](https://docs.pydantic.dev/latest/concepts/pydantic_settings/)
+- [FastAPI settings management](https://fastapi.tiangolo.com/advanced/settings/)
 
-**FastAPI Architecture:**
-- [FastAPI Next.js Integration Repository](https://github.com/Nneji123/fastapi-nextjs)
-- [CORS (Cross-Origin Resource Sharing) - FastAPI](https://fastapi.tiangolo.com/tutorial/cors/)
-- [Developing a Single Page App with FastAPI and React](https://testdriven.io/blog/fastapi-react/)
+**LLM Feedback Loop:**
+- [RLHF overview (AWS)](https://aws.amazon.com/what-is/reinforcement-learning-from-human-feedback/)
+- [Personalized RLHF (PLUS framework)](https://openreview.net/forum?id=Ar078WR3um)
+- [RLHF textbook](https://rlhfbook.com/book.pdf)
+
+**RSS Auto-Discovery:**
+- [RSS Autodiscovery specification](https://www.rssboard.org/rss-autodiscovery)
+- [RSS feed discovery guide](https://blog.jim-nielsen.com/2021/automatically-discoverable-rss-feeds/)
+- [BeautifulSoup documentation](https://beautiful-soup-4.readthedocs.io/en/latest/)
+- [lxml parser integration](https://lxml.de/elementsoup.html)
 
 ---
-*Architecture research for: Personal RSS Reader with LLM Curation*
-*Researched: 2026-02-04*
+
+*Architecture research for: RSS Reader v1.1 Feature Integration*
+*Researched: 2026-02-14*

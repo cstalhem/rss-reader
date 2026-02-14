@@ -1,355 +1,315 @@
-# Technology Stack Research
+# Stack Research: v1.1 Feature Additions
 
-**Project:** Personal RSS Reader
-**Focus:** Frontend (Next.js + Chakra UI), Docker Deployment, Ollama Integration
-**Researched:** 2026-02-04
+**Domain:** RSS Reader — Ollama Config UI, Real-Time Push (SSE), LLM Feedback Loop, Feed Categories, Feed Auto-Discovery, UI Polish
+**Researched:** 2026-02-14
 **Confidence:** HIGH
 
-## Executive Summary
+## New Stack Additions
 
-The recommended stack for this RSS reader frontend leverages **Next.js 16** with the App Router, **Chakra UI v3** for component library, **TanStack Query v5** for data fetching, and **Ollama JavaScript SDK** for local LLM integration. Docker deployment uses multi-stage builds with standalone output for optimized image sizes. All recommendations are based on current 2026 best practices verified against official documentation.
+### Backend Libraries
 
-Backend stack (FastAPI, SQLModel, SQLite, feedparser, APScheduler) is already built and locked in.
+| Library | Version | Purpose | Why Recommended |
+|---------|---------|---------|-----------------|
+| sse-starlette | 3.2.0 (Jan 2026) | Server-Sent Events for FastAPI | Production-ready SSE implementation following W3C spec, native FastAPI/Starlette integration, automatic client disconnect detection, built on modern Python async patterns. Standard choice for SSE in FastAPI. |
+| feedsearch-crawler | 1.0.3+ | RSS feed discovery from blog URLs | Async Web crawler built on asyncio/aiohttp for rapid feed URL scanning, searches link tags, default CMS feed locations, and internal linked pages. Successor to deprecated feedsearch library. |
+| httpx | latest | HTTP client for Ollama API queries | Already likely in use via dependencies, but explicitly needed for `GET /api/tags` and `POST /api/show` to query Ollama for available models and connection status. Async-first, modern replacement for requests. |
 
----
-
-## Recommended Stack
-
-### Core Framework
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **Next.js** | 16.1+ | React framework with App Router, SSR, and caching | Industry standard for production React apps in 2026. Next.js 16 brings stable Turbopack (2-5x faster builds), Cache Components with `use cache` directive, and explicit caching model. Required Node.js 20.9+. |
-| **React** | 19.2+ | UI library | Comes with Next.js 16. React 19 includes View Transitions, `useEffectEvent()`, and stable concurrent rendering. |
-| **TypeScript** | 5.7+ | Type safety | Next.js 16 requires TypeScript 5.1+, but 5.7+ recommended for latest features. Full type safety from backend (FastAPI Pydantic) to frontend (Zod/TypeScript). |
-
-### UI Framework
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **Chakra UI** | 3.32.0+ | Component library with theming | Current v3 with first-class Next.js App Router support via `@chakra-ui/next-js`. Built-in dark/light theme system matches project requirements. Requires Node.js 20+. Install: `@chakra-ui/react @emotion/react`. |
-| **lucide-react** | 0.562.0+ | Icon library | Tree-shakable SVG icons (only imported icons in bundle). Recommended by Chakra UI docs over react-icons. Clean, consistent design system. Fully typed TypeScript components. |
-| **Framer Motion** | Latest | Animation library | Required peer dependency for Chakra UI. Provides smooth transitions for UI components. |
-
-### Data Fetching & State Management
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **TanStack Query** | 5.90.19+ | Server state management | The 2026 standard for data fetching in Next.js. Combines React Server Components (initial loads) with client-side caching, optimistic updates, and background refetching. v5 has improved RSC support and Suspense integration. Teams report 40-70% faster initial loads vs SWR. |
-| **Zustand** | 5.0.10+ | Client state management | Minimalist (3KB), zero-boilerplate global state for UI state (modals, filters, selected items). v5 includes `unstable_ssrSafe` middleware for Next.js App Router SSR. Preferred over Redux for solo/small team projects. |
-
-### Date & Time Handling
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **date-fns** | 4.1.0+ | Date manipulation and formatting | Lightest bundle size (1.6-3.6 KiB per method vs 6-7 KiB for dayjs). 100% TypeScript. Tree-shakable. v4 includes first-class timezone support. Functional API pairs well with React. Essential for RSS feed timestamps. |
-
-### LLM Integration
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **ollama** (JavaScript SDK) | Latest | Official Ollama client for Node.js/browser | Official library with full feature support: chat, generate, streaming, model management, embeddings. Works in both Node.js (SSR/API routes) and browser. Updated January 2026. Supports `keep_alive` for persistent model loading, critical for responsive M3 inference. |
-
-### Development Tools
-
-| Tool | Purpose | Configuration Notes |
-|------|---------|---------------------|
-| **ESLint** | Linting | Next.js 16 removed `next lint`. Use ESLint 9+ flat config directly with `eslint.config.mjs`. Import `@next/eslint-plugin-next` and `@typescript-eslint/eslint-plugin` manually. |
-| **Prettier** | Code formatting | Pairs with ESLint. Use `prettier-plugin-tailwindcss` if adding Tailwind later. |
-| **Ruff** (Backend) | Python linting/formatting | Already configured in backend `pyproject.toml`. Keep Python and JS tooling separate. |
-
-### Containerization & Deployment
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|---|
-| **Docker** | 27.x+ | Container runtime | Standard for reproducible deployments. |
-| **Docker Compose** | 2.x+ | Multi-container orchestration | Manages frontend + backend + volumes. Simpler than Kubernetes for single-server home deployments. |
-| **Node.js (Alpine)** | 22-alpine | Runtime for Next.js container | Alpine Linux for minimal image size. Node 22 for latest LTS features. |
-| **Python (Slim)** | 3.14-slim | Runtime for FastAPI container | Already in use for backend. Slim variant smaller than full Debian. |
-
----
-
-## Supporting Libraries
-
-### Essential
+### Frontend Libraries
 
 | Library | Version | Purpose | When to Use |
 |---------|---------|---------|-------------|
-| **@tanstack/react-query-devtools** | 5.x | TanStack Query debugging | Development only. Visualize queries, cache, and network requests. |
-| **zod** | Latest | Runtime schema validation | Type-safe API response parsing. Pairs with TanStack Query for end-to-end type safety (FastAPI Pydantic → Zod → TypeScript). |
+| (Native EventSource) | browser API | SSE client for real-time push | Browser-native EventSource API handles SSE connections with automatic reconnection. No library needed — use directly in custom React hook with useEffect for lifecycle management. |
 
-### Optional (Add as Needed)
+## NO New Frontend Libraries Needed
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| **react-markdown** | Latest | Markdown rendering | If RSS content includes markdown or if LLM responses use markdown formatting. |
-| **sanitize-html** | Latest | HTML sanitization | If rendering RSS content HTML directly (security critical). |
-| **clsx** or **classnames** | Latest | Conditional CSS classes | If extending Chakra components with custom styling. |
+**React SSE:** Browser's native `EventSource` API is sufficient. Modern React SSE patterns use custom hooks wrapping EventSource in useEffect for connection lifecycle, error handling, and automatic reconnection. Libraries like `react-eventsource` or `react-hooks-sse` add minimal value over a well-structured custom hook.
 
----
+**Why NOT use a library:**
+- EventSource is stable browser API (not experimental)
+- Automatic reconnection is built-in
+- Custom hook provides full control over connection state, error handling, and cleanup
+- Avoids dependency maintenance burden for simple API wrapper
 
-## Installation
+## Integration Points with Existing Stack
 
-### Frontend Core
+### 1. Ollama Configuration UI
+
+**Backend changes:**
+- Add `GET /api/ollama/models` endpoint using httpx to call `http://localhost:11434/api/tags`
+- Add `GET /api/ollama/status` endpoint to check Ollama connection health
+- Add `PUT /api/ollama/config` endpoint to persist model overrides in database
+- Extend `OllamaConfig` Pydantic model in `config.py` to support database overrides
+- Add new `OllamaSettings` table in `models.py` for per-user model preferences (or extend `UserPreferences`)
+
+**Frontend changes:**
+- New settings page/drawer using existing Chakra UI v3 components
+- TanStack Query for fetching models and status (standard pattern)
+- Form state management via React useState (no form library needed)
+
+**Why httpx:** Already in FastAPI ecosystem, async-first, clean API for external HTTP calls. No need for `ollama-python` library — REST API is simple and direct.
+
+### 2. Real-Time Push (SSE)
+
+**Backend changes:**
+- Install `sse-starlette` via `uv add sse-starlette`
+- Create `GET /api/events` endpoint returning `EventSourceResponse`
+- Async generator yields events for: feed refresh complete, article scored, scoring state change
+- EventSourceResponse yields dicts with `{"event": "article_scored", "data": json.dumps({...}), "id": str(timestamp)}`
+- Integrate with existing APScheduler background jobs in `main.py` to emit events
+
+**Frontend changes:**
+- Custom `useSSE` hook wrapping EventSource API
+- Hook manages: connection state, reconnection, message parsing, error handling, cleanup on unmount
+- Replace adaptive polling logic in `useArticles` with SSE subscription
+- Keep TanStack Query for initial data fetch and mutations, use SSE to invalidate queries on server events
+- Pattern: SSE event → `queryClient.invalidateQueries(['articles'])` → refetch
+
+**Why NOT replace TanStack Query:** SSE handles push, TanStack Query handles data fetching, caching, and optimistic updates. They complement each other. SSE eliminates polling, but Query manages client-side data layer.
+
+### 3. LLM Feedback Loop
+
+**Backend changes:**
+- Add `feedback_score` (nullable int) to Article model in `models.py`
+- Add `POST /api/articles/{id}/feedback` endpoint accepting `{"type": "positive" | "negative" | "more_like_this" | "less_like_this"}`
+- Store feedback as adjustment factor to composite_score (e.g., +2 for positive, -2 for negative)
+- Extend `UserPreferences` model with `feedback_history` JSON column: `{"category:technology": {"positive": 5, "negative": 2}}`
+- Modify scoring prompt in `prompts.py` to include feedback-adjusted topic weights
+
+**Frontend changes:**
+- Add thumbs up/down buttons to ArticleRow (Chakra IconButton)
+- Add "More/Less like this" actions in ArticleReader drawer
+- TanStack Query mutation for feedback submission with optimistic updates
+
+**Why NOT full RLHF:** RLHF requires reward model training, policy optimization, and significant compute. For single-user RSS reader, simple feedback scoring adjustments (weighted categories, boosted/penalized scores) provide 80% of value with 5% of complexity. Pattern: implicit feedback (clicks, read time) + explicit feedback (thumbs up/down) → adjust category weights → influence future scoring.
+
+**Pattern:** Collect feedback → aggregate by category → adjust topic_weights in UserPreferences → scoring prompt includes "User values 'technology' highly (8 positive, 1 negative feedback)" → LLM adjusts interest scores accordingly.
+
+### 4. Feed Categories/Folders
+
+**Backend changes:**
+- Add `category` (nullable string) to Feed model in `models.py`
+- Add `GET /api/feeds?category={name}` filter support
+- Add `PUT /api/feeds/{id}/category` endpoint to assign/change category
+- Add `GET /api/categories` endpoint returning distinct category list with feed counts
+
+**Frontend changes:**
+- Extend Sidebar with collapsible category sections (Chakra Collapsible component)
+- Add category dropdown/input to feed add/edit forms
+- Filter articles by feed category when category is selected in sidebar
+
+**Why simple string field:** Folders/categories are flat (not nested hierarchies) for single-user app. String field with NULL = "Uncategorized" is simplest. If nested categories become needed later, use `category_path` string with "/" delimiter (e.g., "Tech/AI").
+
+### 5. Feed Auto-Discovery
+
+**Backend changes:**
+- Install `feedsearch-crawler` via `uv add feedsearch-crawler`
+- Add `POST /api/feeds/discover` endpoint accepting `{"url": "https://blog.example.com"}`
+- Endpoint uses feedsearch-crawler to scan URL for RSS/Atom feeds
+- Returns list of discovered feeds with metadata (title, feed URL, feed type)
+- Frontend presents options, user selects which to add
+
+**Frontend changes:**
+- Add "Discover feeds" input field in feed management UI
+- TanStack Query mutation for discovery endpoint
+- Display discovered feeds in selectable list (Chakra Checkbox + Card)
+- Batch add selected feeds via existing `POST /api/feeds` endpoint
+
+**Why feedsearch-crawler:** Async/aiohttp-based for fast scanning, actively maintained (successor to deprecated feedsearch), handles common patterns (link tags with `rel="alternate"`, `/feed`, `/rss`, `/atom.xml` paths, internal page scanning).
+
+### 6. UI & Theme Polish
+
+**NO new libraries needed.**
+
+Chakra UI v3 provides complete design system. Polish = refinement using existing semantic tokens, spacing system, and component variants.
+
+**Focus areas:**
+- Adjust spacing/padding values in existing components
+- Refine color semantic tokens in `frontend/src/theme/colors.ts`
+- Add loading skeletons (Chakra Skeleton component)
+- Polish animations (Chakra animation utilities + Emotion keyframes)
+- Improve responsive breakpoints (Chakra responsive props)
+
+## Installation Commands
+
+### Backend
 
 ```bash
-# Core framework
-npm install next@latest react@latest react-dom@latest
-
-# UI framework
-npm install @chakra-ui/react @emotion/react framer-motion lucide-react
-
-# Data fetching & state
-npm install @tanstack/react-query zustand
-
-# Utilities
-npm install date-fns zod
-
-# LLM integration
-npm install ollama
-
-# Development
-npm install -D @tanstack/react-query-devtools
-npm install -D typescript @types/react @types/node
-npm install -D eslint @next/eslint-plugin-next @typescript-eslint/eslint-plugin
-npm install -D prettier
+cd backend
+uv add sse-starlette
+uv add feedsearch-crawler
+uv add httpx  # If not already present
 ```
 
-### Docker (Already Installed on Host)
+### Frontend
 
-```bash
-# Verify Docker installation
-docker --version  # Should be 27.x+
-docker compose version  # Should be 2.x+
-```
-
----
+**No new dependencies.** Use browser-native EventSource API.
 
 ## Alternatives Considered
 
-| Category | Recommended | Alternative | When to Use Alternative |
-|----------|-------------|-------------|-------------------------|
-| **UI Framework** | Chakra UI v3 | Material UI (MUI) | If you need highly polished, Google-spec components. Heavier bundle. |
-| **UI Framework** | Chakra UI v3 | Tailwind CSS + shadcn/ui | If you prefer utility-first CSS and don't need a component library. More manual work. |
-| **Data Fetching** | TanStack Query v5 | SWR | Smaller projects with simpler data needs. Lacks optimistic updates and advanced caching. |
-| **State Management** | Zustand | Jotai | Complex state with many interdependent atoms. Steeper learning curve. |
-| **State Management** | Zustand | Redux Toolkit | Large teams needing strict patterns. Overkill for solo dev. |
-| **Date Library** | date-fns | Day.js | Migrating from Moment.js (API compatible). Slightly larger bundle. |
-| **Date Library** | date-fns | Luxon | Need advanced timezone/i18n features. Heavier (20KB+). |
-| **Ollama Client** | ollama (official) | Custom fetch wrapper | You need custom retry logic or middleware. More maintenance. |
-
----
+| Recommended | Alternative | Why NOT Alternative |
+|-------------|-------------|---------------------|
+| sse-starlette | fastapi-sse-stream | sse-starlette is more actively maintained, better documented, follows W3C spec exactly. fastapi-sse-stream is less widely adopted. |
+| Native EventSource | react-eventsource, react-hooks-sse | EventSource is stable browser API with automatic reconnection. Libraries add minimal value for simple wrapper hook. Reduces dependencies. |
+| feedsearch-crawler | feedsearch, rss-finder | feedsearch is deprecated (no longer maintained). rss-finder is less feature-complete. feedsearch-crawler is async, actively maintained, comprehensive. |
+| Simple feedback scoring | Full RLHF with reward model training | RLHF requires training infrastructure, compute, and complexity inappropriate for single-user local app. Simple category weighting provides 80% of value with 5% of effort. |
+| SQLite JSON column for feedback | Separate UserFeedback table | JSON column in UserPreferences sufficient for aggregated category-level feedback. Separate table over-engineers for single-user app without complex queries. |
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| **Next.js 15 or older** | Next.js 16 has breaking changes (async params, middleware → proxy, removed AMP). Turbopack is now stable and default. | Next.js 16.1+ |
-| **Chakra UI v2** | v2 doesn't support Next.js App Router properly (client-only rendering issues, CacheProvider hacks). | Chakra UI v3.32.0+ |
-| **SWR for complex apps** | Lacks optimistic updates, devtools, and advanced cache invalidation. Fine for simple cases but TanStack Query scales better. | TanStack Query v5 |
-| **Redux for solo dev** | Too much boilerplate (actions, reducers, thunks) for one developer. Zustand is 10x simpler. | Zustand |
-| **Moment.js** | Deprecated, huge bundle size (67KB), not tree-shakable. | date-fns or Day.js |
-| **Docker `restart: no`** | Containers won't auto-restart on crash or server reboot. Bad for production. | `restart: unless-stopped` |
-| **Docker bind mounts for SQLite** | Risky permissions issues, path conflicts. | Named volumes (Docker-managed) |
-| **Webpack in Next.js 16** | Turbopack is now stable and default. Webpack is legacy. Only use if specific plugin required. | Turbopack (default) |
-| **`next lint` command** | Removed in Next.js 16. Use ESLint directly. | ESLint 9+ with flat config |
+| WebSockets for real-time push | SSE is unidirectional (server→client), simpler protocol, automatic reconnection, works over HTTP/2, lower overhead. WebSockets needed only for bidirectional real-time (chat, collaborative editing). | Server-Sent Events (SSE) via sse-starlette + EventSource |
+| Socket.IO | Over-engineered for server→client push, adds fallback complexity (long polling, etc.), larger bundle size, unnecessary abstraction. | SSE for server push, standard HTTP for client→server |
+| ollama-python library | Adds dependency for simple REST API calls. httpx or requests sufficient for `/api/tags` and `/api/show` endpoints. Direct control over requests/errors. | httpx (already in FastAPI ecosystem) |
+| Redux, Zustand, Jotai for feedback state | TanStack Query mutation + optimistic updates handle feedback submission cleanly. No need for global state management library for simple feedback actions. | TanStack Query mutations |
+| react-query SSE plugins | Custom hook with EventSource + query invalidation is simpler, more explicit, easier to debug than plugin abstraction. | Custom useSSE hook + queryClient.invalidateQueries() |
 
----
+## Version Compatibility
 
-## Stack Patterns by Scenario
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| sse-starlette 3.2.0 | FastAPI 0.100+, Starlette 0.27+ | Released Jan 2026, production-ready. Requires Python 3.9+. |
+| feedsearch-crawler 1.0.3 | Python 3.7+, aiohttp 3.0+ | Async-first, works with existing asyncio patterns in FastAPI. |
+| Native EventSource | All modern browsers (Chrome 6+, Firefox 6+, Safari 5+) | IE not supported (irrelevant in 2026). Polyfills exist but unnecessary. |
 
-### Pattern 1: Server Component + Client Island (Recommended)
+## Implementation Patterns
 
-**When:** Initial page load needs fast SSR, then interactive client-side updates.
+### SSE Pattern (Backend + Frontend)
 
-**Stack:**
-- Server Component fetches initial data via `fetch()` with `cache: "no-store"` or `cache()` API
-- Pass data to Client Component as props
-- Client Component uses TanStack Query for mutations and background refetching
+**Backend (FastAPI):**
+```python
+from sse_starlette import EventSourceResponse
+from fastapi import APIRouter
 
-**Example:** Feed list page loads server-side, individual feed items refetch on focus.
+router = APIRouter()
 
-### Pattern 2: Full Client-Side Rendering
+async def event_generator():
+    """Yield SSE events."""
+    while True:
+        # Wait for events from background jobs or asyncio Queue
+        event_data = await wait_for_event()
+        yield {
+            "event": "article_scored",
+            "data": json.dumps({"article_id": 123, "score": 8.5}),
+            "id": str(int(time.time()))
+        }
 
-**When:** User-specific dynamic data, no SEO needs (dashboard, settings page).
-
-**Stack:**
-- Mark page as Client Component with `"use client"`
-- Use TanStack Query for all data fetching
-- Use Zustand for UI state (filters, modals)
-
-**Example:** User preferences page, LLM chat interface.
-
-### Pattern 3: Ollama Local Inference
-
-**When:** Running LLM curation on user's machine (M3 Mac).
-
-**Stack:**
-- Ollama running as separate service (not containerized for M3 performance)
-- Next.js API route proxies requests to `http://localhost:11434`
-- Frontend calls `/api/llm/curate` with feed item data
-- Use streaming responses for real-time LLM output
-
-**Example:** "Curate this feed" button streams LLM analysis to UI.
-
-### Pattern 4: Docker Multi-Service Deployment
-
-**When:** Deploying to home server.
-
-**Stack:**
-- Docker Compose with 3 services: `backend`, `frontend`, `volumes`
-- Multi-stage Dockerfile for Next.js (standalone output)
-- Named volumes for SQLite persistence
-- Healthchecks with `depends_on: service_healthy`
-- `restart: unless-stopped` for auto-recovery
-
-**Example:** Home server deployment with persistent data.
-
----
-
-## Version Compatibility Matrix
-
-| Frontend | Backend | Node.js | Python | Docker | Notes |
-|----------|---------|---------|--------|--------|-------|
-| Next.js 16.1+ | FastAPI 0.128.0+ | 20.9+ | 3.14+ | 27.x+ | Next.js 16 requires Node 20.9+. Backend requires Python 3.14. |
-| Chakra UI 3.32.0+ | — | 20+ | — | — | Chakra v3 requires Node 20+. |
-| TanStack Query 5.x | — | 18+ | — | — | v5 works with React 18+. |
-| Ollama JS SDK | Ollama Server | — | — | — | Ollama server runs natively (not Docker) for M3 performance. |
-
-### Known Compatibility Issues
-
-- **Next.js 16 + ESLint 8**: ESLint 8 uses legacy config. Upgrade to ESLint 9+ with flat config.
-- **Chakra UI v3 + React 18**: Chakra v3 requires React 18+. React 19 recommended for Next.js 16.
-- **SQLite in Docker + Bind Mounts**: Permissions issues. Use named volumes only.
-- **Ollama in Docker on M3**: Performance degradation vs native. Run Ollama outside Docker, connect via network.
-
----
-
-## Docker Configuration Best Practices
-
-### Multi-Stage Next.js Dockerfile
-
-```dockerfile
-# Stage 1: Dependencies
-FROM node:22-alpine AS deps
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-
-# Stage 2: Build
-FROM node:22-alpine AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
-
-# Stage 3: Runner
-FROM node:22-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
-EXPOSE 3000
-ENV PORT=3000
-
-CMD ["node", "server.js"]
+@router.get("/api/events")
+async def sse_endpoint():
+    return EventSourceResponse(event_generator())
 ```
 
-**Key Points:**
-- Requires `output: "standalone"` in `next.config.ts`
-- Reduces image from ~892MB to ~229MB (75% reduction)
-- Separates build-time from runtime dependencies
+**Frontend (React):**
+```typescript
+function useSSE(url: string) {
+  const [connected, setConnected] = useState(false);
+  const queryClient = useQueryClient();
 
-### Docker Compose Configuration
+  useEffect(() => {
+    const eventSource = new EventSource(url);
 
-```yaml
-services:
-  backend:
-    build: ./backend
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    volumes:
-      - sqlite_data:/app/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    eventSource.onopen = () => setConnected(true);
 
-  frontend:
-    build: ./frontend
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    depends_on:
-      backend:
-        condition: service_healthy
-    environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    eventSource.addEventListener('article_scored', (e) => {
+      const data = JSON.parse(e.data);
+      queryClient.invalidateQueries(['articles']);
+    });
 
-volumes:
-  sqlite_data:
-    driver: local
+    eventSource.onerror = () => {
+      setConnected(false);
+      // EventSource automatically reconnects
+    };
+
+    return () => eventSource.close();
+  }, [url, queryClient]);
+
+  return { connected };
+}
 ```
 
-**Key Points:**
-- `restart: unless-stopped` survives server reboots but allows manual stops
-- Named volumes for SQLite persistence (managed by Docker)
-- Healthchecks ensure backend is ready before frontend starts
-- Frontend only exposes port 3000 externally; backend communicates via Docker network
+### Feedback Scoring Pattern
 
----
+**Storage (extend UserPreferences):**
+```python
+class UserPreferences(SQLModel, table=True):
+    # ... existing fields
+    feedback_history: dict[str, dict[str, int]] | None = Field(
+        default=None,
+        sa_column=Column(JSON)
+    )
+    # Example: {"technology": {"positive": 10, "negative": 2}, "politics": {"positive": 1, "negative": 5}}
+```
+
+**Scoring adjustment:**
+```python
+def get_adjusted_weights(preferences: UserPreferences) -> dict[str, float]:
+    """Calculate category weights from feedback history."""
+    weights = {}
+    for category, feedback in (preferences.feedback_history or {}).items():
+        positive = feedback.get("positive", 0)
+        negative = feedback.get("negative", 0)
+        net_score = positive - negative
+        # Map net_score to weight: -10 to +10 → 0.0 to 2.0
+        weights[category] = max(0.0, 1.0 + (net_score / 10.0))
+    return weights
+```
+
+**Prompt injection:**
+```python
+prompt = f"""
+User feedback indicates preferences:
+{format_feedback_weights(adjusted_weights)}
+
+Score this article considering user's demonstrated preferences.
+"""
+```
+
+### Feed Discovery Pattern
+
+**Backend endpoint:**
+```python
+from feedsearch_crawler import search
+
+@router.post("/api/feeds/discover")
+async def discover_feeds(url: str):
+    """Discover RSS/Atom feeds from a blog URL."""
+    results = await search(url, max_depth=1)
+    return [
+        {
+            "title": feed.title or feed.url,
+            "url": feed.url,
+            "type": feed.content_type,
+            "score": feed.score  # feedsearch confidence score
+        }
+        for feed in results
+    ]
+```
 
 ## Sources
 
-### High Confidence (Official Docs)
+### SSE Implementation
+- [Implementing Server-Sent Events (SSE) with FastAPI](https://mahdijafaridev.medium.com/implementing-server-sent-events-sse-with-fastapi-real-time-updates-made-simple-6492f8bfc154)
+- [sse-starlette PyPI](https://pypi.org/project/sse-starlette/)
+- [How to use Server-Sent Events with FastAPI and React](https://www.softgrade.org/sse-with-fastapi-react-langgraph/)
+- [How to Implement Server-Sent Events (SSE) in React](https://oneuptime.com/blog/post/2026-01-15-server-sent-events-sse-react/view)
 
-- [Next.js 16 Release](https://nextjs.org/blog/next-16) — Official Next.js 16 announcement
-- [Next.js 16 Upgrade Guide](https://nextjs.org/docs/app/guides/upgrading/version-16) — Breaking changes and migration
-- [Chakra UI with Next.js App](https://chakra-ui.com/docs/get-started/frameworks/next-app) — Official Chakra v3 setup
-- [Ollama JavaScript Library](https://github.com/ollama/ollama-js) — Official ollama-js SDK
-- [Docker Compose Reference](https://docs.docker.com/reference/compose-file/services/) — Official Docker Compose docs
-- [Docker Volumes](https://docs.docker.com/get-started/docker-concepts/running-containers/persisting-container-data/) — Official volume persistence guide
-- [TanStack Query Installation](https://tanstack.com/query/v5/docs/react/installation) — Official v5 docs
+### Ollama API
+- [List models - Ollama](https://docs.ollama.com/api/tags)
+- [API Reference - Ollama](https://github.com/ollama/ollama/blob/main/docs/api.md)
+- [Introduction - Ollama](https://docs.ollama.com/api/introduction)
 
-### Medium Confidence (Verified Community Sources)
+### Feed Discovery
+- [RSS Autodiscovery](https://www.rssboard.org/rss-autodiscovery/)
+- [feedsearch PyPI](https://pypi.org/project/feedsearch/)
+- [feedsearch-crawler PyPI](https://pypi.org/project/feedsearch-crawler/)
+- [GitHub - DBeath/feedsearch-crawler](https://github.com/DBeath/feedsearch-crawler)
 
-- [Next.js 16 + React Query Guide (2025)](https://medium.com/@bendesai5703/next-js-16-react-query-the-ultimate-guide-to-modern-data-fetching-caching-performance-ac13a62d727d) — Data fetching patterns
-- [React Server Components + TanStack Query (2026)](https://dev.to/krish_kakadiya_5f0eaf6342/react-server-components-tanstack-query-the-2026-data-fetching-power-duo-you-cant-ignore-21fj) — RSC + TanStack Query patterns
-- [State Management in 2025](https://dev.to/hijazi313/state-management-in-2025-when-to-use-context-redux-zustand-or-jotai-2d2k) — Zustand vs Jotai vs Redux
-- [date-fns vs Day.js](https://www.dhiwise.com/post/date-fns-vs-dayjs-the-battle-of-javascript-date-libraries) — Bundle size comparison
-- [Next.js Standalone Docker](https://dev.to/angojay/optimizing-nextjs-docker-images-with-standalone-mode-2nnh) — Multi-stage builds
-- [Docker Compose Healthchecks](https://last9.io/blog/docker-compose-health-checks/) — depends_on patterns
-- [Docker Restart Policies](https://www.baeldung.com/ops/docker-compose-restart-policies) — always vs unless-stopped
-
-### Search References
-
-- [Next.js 16.1 Update Review (2025)](https://staticmania.com/blog/next.js-16.1-review)
-- [Vercel's Next.js 16: Turbopack Stability (InfoQ)](https://www.infoq.com/news/2025/12/nextjs-16-release/)
-- [Lucide React Icons](https://lucide.dev/guide/packages/lucide-react)
-- [Zustand Release History](https://github.com/pmndrs/zustand/releases)
-- [date-fns v4 Release](https://github.com/date-fns/date-fns/releases)
-- [FastAPI Docker Best Practices](https://betterstack.com/community/guides/scaling-python/fastapi-docker-best-practices/)
+### Feedback Loop Patterns
+- [Adapting the Facebook Reels RecSys AI Model Based on User Feedback](https://engineering.fb.com/2026/01/14/ml-applications/adapting-the-facebook-reels-recsys-ai-model-based-on-user-feedback/)
+- [User preference and embedding learning with implicit feedback for recommender systems](https://link.springer.com/article/10.1007/s10618-020-00730-8)
+- [LLM Training: RLHF and Its Alternatives](https://magazine.sebastianraschka.com/p/llm-training-rlhf-and-its-alternatives)
+- [RLHF vs RLAIF: Choosing the right approach for fine-tuning your LLM](https://labelbox.com/blog/rlhf-vs-rlaif/)
 
 ---
-
-**Stack research for:** Personal RSS Reader Frontend + Docker + Ollama
-**Researched:** 2026-02-04
-**Confidence:** HIGH — All core technologies verified against official documentation (Next.js, Chakra UI, Ollama, Docker). Library versions confirmed via npm/GitHub. Docker patterns cross-referenced with official Docker docs. Ollama integration details verified via official SDK docs.
+*Stack research for: RSS Reader v1.1 features*
+*Researched: 2026-02-14*
