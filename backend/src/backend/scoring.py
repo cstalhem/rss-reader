@@ -58,17 +58,19 @@ async def categorize_article(
         timeout=settings.ollama.timeout,
     )
 
-    response = await client.chat(
+    # Use streaming to prevent httpx.ReadTimeout on slower models
+    content = ""
+    async for chunk in await client.chat(
         model=settings.ollama.categorization_model,
         messages=[{"role": "user", "content": prompt}],
         format=CategoryResponse.model_json_schema(),
         options={"temperature": 0},
-    )
+        stream=True,
+    ):
+        content += chunk["message"]["content"]
 
-    # Parse structured response
-    result = CategoryResponse.model_validate_json(
-        response["message"]["content"]
-    )
+    # Parse accumulated structured response
+    result = CategoryResponse.model_validate_json(content)
 
     logger.info(
         f"Categorized article: {len(result.categories)} categories, "
@@ -114,17 +116,19 @@ async def score_article(
         timeout=settings.ollama.timeout,
     )
 
-    response = await client.chat(
+    # Use streaming to prevent httpx.ReadTimeout on slower models
+    content = ""
+    async for chunk in await client.chat(
         model=settings.ollama.scoring_model,
         messages=[{"role": "user", "content": prompt}],
         format=ScoringResponse.model_json_schema(),
         options={"temperature": 0},
-    )
+        stream=True,
+    ):
+        content += chunk["message"]["content"]
 
-    # Parse structured response
-    result = ScoringResponse.model_validate_json(
-        response["message"]["content"]
-    )
+    # Parse accumulated structured response
+    result = ScoringResponse.model_validate_json(content)
 
     logger.info(
         f"Scored article: interest={result.interest_score}, "
