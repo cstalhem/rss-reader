@@ -1,7 +1,7 @@
 import { Article, Feed, UserPreferences } from "./types";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8912";
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8912";
 
 interface FetchArticlesParams {
   skip?: number;
