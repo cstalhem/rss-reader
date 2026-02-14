@@ -86,7 +86,7 @@ class ScoringQueue:
         return count
 
     async def process_next_batch(
-        self, session: Session, batch_size: int = 5
+        self, session: Session, batch_size: int = 1
     ) -> int:
         """Process next batch of queued articles.
 
