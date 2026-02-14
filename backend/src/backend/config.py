@@ -2,7 +2,7 @@
 
 import os
 from functools import lru_cache
-from typing import Any, Dict, Tuple
+from typing import Any
 
 import yaml
 from pydantic import BaseModel
@@ -74,7 +74,7 @@ class Settings(BaseSettings):
         env_settings: PydanticBaseSettingsSource,
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
-    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
         """Customize settings sources to add YAML config file support.
 
         Priority order (highest to lowest):
@@ -102,11 +102,11 @@ class YamlConfigSettingsSource(PydanticBaseSettingsSource):
 
     def get_field_value(
         self, field: Any, field_name: str
-    ) -> Tuple[Any, str, bool]:
+    ) -> tuple[Any, str, bool]:
         # Not used for nested models
         return None, field_name, False
 
-    def __call__(self) -> Dict[str, Any]:
+    def __call__(self) -> dict[str, Any]:
         """Load settings from YAML file if CONFIG_FILE is set."""
         config_file = os.getenv("CONFIG_FILE")
 
@@ -117,7 +117,7 @@ class YamlConfigSettingsSource(PydanticBaseSettingsSource):
             return {}
 
         try:
-            with open(config_file, "r") as f:
+            with open(config_file) as f:
                 data = yaml.safe_load(f)
                 return data if data else {}
         except Exception:

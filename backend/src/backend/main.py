@@ -260,7 +260,7 @@ def list_feeds(
         unread_count = session.exec(
             select(func.count(Article.id))
             .where(Article.feed_id == feed.id)
-            .where(Article.is_read == False)
+            .where(Article.is_read.is_(False))
         ).one()
 
         feed_responses.append(
@@ -319,7 +319,7 @@ async def create_feed(
         raise HTTPException(
             status_code=400,
             detail=f"Failed to fetch feed: {str(e)}",
-        )
+        ) from e
 
     # Get max display_order for new feed
     max_order_result = session.exec(
@@ -419,7 +419,7 @@ def update_feed(
     unread_count = session.exec(
         select(func.count(Article.id))
         .where(Article.feed_id == feed.id)
-        .where(Article.is_read == False)
+        .where(Article.is_read.is_(False))
     ).one()
 
     return FeedResponse(
@@ -447,7 +447,7 @@ def mark_feed_read(
     articles = session.exec(
         select(Article)
         .where(Article.feed_id == feed_id)
-        .where(Article.is_read == False)
+        .where(Article.is_read.is_(False))
     ).all()
 
     count = len(articles)
