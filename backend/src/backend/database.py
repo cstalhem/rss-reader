@@ -1,3 +1,4 @@
+import json
 import logging
 
 from sqlalchemy import event, inspect, text
@@ -68,6 +69,23 @@ def _recover_stuck_scoring():
             logger.info(f"Recovered {result.rowcount} articles stuck in scoring state")
 
 
+def _seed_default_topic_weights():
+    """Backfill topic_weights with defaults if currently NULL."""
+    from backend.prompts import get_default_topic_weights
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT id, topic_weights FROM user_preferences LIMIT 1")
+        ).first()
+        if row and row[1] is None:
+            defaults = json.dumps(get_default_topic_weights())
+            conn.execute(
+                text("UPDATE user_preferences SET topic_weights = :weights WHERE id = :id"),
+                {"weights": defaults, "id": row[0]},
+            )
+            logger.info("Seeded default topic_weights for existing preferences")
+
+
 def create_db_and_tables():
     """Initialize database tables and run migrations."""
     SQLModel.metadata.create_all(engine)
@@ -75,6 +93,8 @@ def create_db_and_tables():
     if inspect(engine).has_table("articles"):
         _migrate_articles_scoring_columns()
         _recover_stuck_scoring()
+    if inspect(engine).has_table("user_preferences"):
+        _seed_default_topic_weights()
 
 
 def get_session():

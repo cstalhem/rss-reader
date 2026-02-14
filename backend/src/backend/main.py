@@ -496,11 +496,13 @@ def get_preferences(
     preferences = session.exec(select(UserPreferences)).first()
 
     if not preferences:
-        # Create default preferences
+        # Create default preferences with seed category weights
+        from backend.prompts import get_default_topic_weights
+
         preferences = UserPreferences(
             interests="",
             anti_interests="",
-            topic_weights=None,
+            topic_weights=get_default_topic_weights(),
             updated_at=datetime.now(),
         )
         session.add(preferences)
@@ -524,11 +526,13 @@ async def update_preferences(
     preferences = session.exec(select(UserPreferences)).first()
 
     if not preferences:
-        # Create if doesn't exist
+        # Create if doesn't exist with seed category weights
+        from backend.prompts import get_default_topic_weights
+
         preferences = UserPreferences(
             interests="",
             anti_interests="",
-            topic_weights=None,
+            topic_weights=get_default_topic_weights(),
             updated_at=datetime.now(),
         )
         session.add(preferences)
@@ -593,11 +597,13 @@ def update_category_weight(
     preferences = session.exec(select(UserPreferences)).first()
 
     if not preferences:
-        # Create if doesn't exist
+        # Create if doesn't exist with seed category weights
+        from backend.prompts import get_default_topic_weights
+
         preferences = UserPreferences(
             interests="",
             anti_interests="",
-            topic_weights={},
+            topic_weights=get_default_topic_weights(),
             updated_at=datetime.now(),
         )
         session.add(preferences)

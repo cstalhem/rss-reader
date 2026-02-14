@@ -32,6 +32,11 @@ DEFAULT_CATEGORIES = [
 ]
 
 
+def get_default_topic_weights() -> dict[str, str]:
+    """Build seed topic_weights dict with all DEFAULT_CATEGORIES set to neutral."""
+    return dict.fromkeys(DEFAULT_CATEGORIES, "neutral")
+
+
 class CategoryResponse(BaseModel):
     """Response schema for article categorization."""
 
