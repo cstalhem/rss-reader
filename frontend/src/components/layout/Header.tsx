@@ -2,14 +2,24 @@
 
 import { Box, Flex, Heading, IconButton } from "@chakra-ui/react";
 import { LuMenu, LuSettings } from "react-icons/lu";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ui/color-mode";
+import { fetchNewCategoryCount } from "@/lib/api";
 
 interface HeaderProps {
   onMenuToggle?: () => void;
 }
 
 export function Header({ onMenuToggle }: HeaderProps) {
+  const { data: newCatCount } = useQuery({
+    queryKey: ["categories", "new-count"],
+    queryFn: fetchNewCategoryCount,
+    refetchInterval: 30000,
+  });
+  const hasNewCategories =
+    (newCatCount?.count ?? 0) + (newCatCount?.returned_count ?? 0) > 0;
+
   return (
     <Box
       as="header"
@@ -48,11 +58,25 @@ export function Header({ onMenuToggle }: HeaderProps) {
           </Link>
         </Flex>
         <Flex alignItems="center" gap={1}>
-          <Link href="/settings">
-            <IconButton aria-label="Settings" size="sm" variant="ghost">
-              <LuSettings />
-            </IconButton>
-          </Link>
+          <Box position="relative">
+            <Link href="/settings">
+              <IconButton aria-label="Settings" size="sm" variant="ghost">
+                <LuSettings />
+              </IconButton>
+            </Link>
+            {hasNewCategories && (
+              <Box
+                position="absolute"
+                top="4px"
+                right="4px"
+                width="8px"
+                height="8px"
+                borderRadius="full"
+                bg="accent.solid"
+                pointerEvents="none"
+              />
+            )}
+          </Box>
           <ThemeToggle colorPalette="accent" />
         </Flex>
       </Flex>

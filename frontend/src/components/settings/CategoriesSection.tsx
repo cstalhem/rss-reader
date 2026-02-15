@@ -102,15 +102,29 @@ export function CategoriesSection() {
         ),
       };
       saveGroups(updated);
+      // Dismiss new/returned badges for all categories in this group
+      const group = categoryGroups.groups.find((g) => g.id === groupId);
+      if (group) {
+        const toAcknowledge = group.categories.filter(
+          (c) => newCategories.has(c) || returnedCategories.has(c)
+        );
+        if (toAcknowledge.length > 0) {
+          acknowledge(toAcknowledge);
+        }
+      }
     },
-    [categoryGroups, saveGroups]
+    [categoryGroups, saveGroups, newCategories, returnedCategories, acknowledge]
   );
 
   const handleCategoryWeightChange = useCallback(
     (category: string, weight: string) => {
       categoryWeightMutation.mutate({ category, weight });
+      // Dismiss new/returned badge when weight is explicitly set
+      if (newCategories.has(category) || returnedCategories.has(category)) {
+        acknowledge([category]);
+      }
     },
-    [categoryWeightMutation]
+    [categoryWeightMutation, newCategories, returnedCategories, acknowledge]
   );
 
   const handleResetCategoryWeight = useCallback(
