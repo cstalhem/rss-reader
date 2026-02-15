@@ -82,7 +82,7 @@ async def categorize_article(
         format=CategoryResponse.model_json_schema(),
         options={"temperature": 0},
         stream=True,
-        think=True,
+        think=True if settings.ollama.thinking else None,
     ):
         if chunk["message"]["thinking"]:
             _scoring_activity["phase"] = "thinking"
@@ -146,7 +146,7 @@ async def score_article(
         format=ScoringResponse.model_json_schema(),
         options={"temperature": 0},
         stream=True,
-        think=True,
+        think=True if settings.ollama.thinking else None,
     ):
         if chunk["message"]["thinking"]:
             _scoring_activity["phase"] = "thinking"
