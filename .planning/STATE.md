@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 7 of 9 (Ollama Configuration UI)
-Plan: 1 of 3 complete
+Plan: 2 of 3 complete
 Status: Executing phase 7
-Last activity: 2026-02-15 - Completed 07-01: Backend API for Ollama Configuration
+Last activity: 2026-02-15 - Completed 07-02: Ollama Settings UI
 
-Progress: [██████░░░░] 68% (23/34 total plans estimated)
+Progress: [███████░░░] 71% (24/34 total plans estimated)
 
 ## Performance Metrics
 
@@ -43,6 +43,7 @@ Progress: [██████░░░░] 68% (23/34 total plans estimated)
 
 **Phase 07 Metrics:**
 | Phase 07-ollama-configuration-ui P01 | 4.0 | 2 tasks | 6 files |
+| Phase 07-ollama-configuration-ui P02 | 5.4 | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 07-01]: Two-tier config: UserPreferences for runtime model names, Pydantic Settings for host/thinking/infrastructure
 - [Phase 07-01]: Module-level state for download tracking (safe in single-worker asyncio)
 - [Phase 07-01]: Score-only re-scoring skips categorization when only scoring model changed
+- [Phase 07-02]: useReducer overlay pattern for form state to avoid setState-in-effect lint violations
+- [Phase 07-02]: NativeSelect for model dropdowns (simpler than Select.Root for short option lists)
 
 ### Pending Todos
 
@@ -86,9 +89,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Completed 07-01-PLAN.md (Backend API for Ollama Configuration)
+Stopped at: Completed 07-02-PLAN.md (Ollama Settings UI)
 Resume file: None
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-15 after 07-01 execution*
+*Last updated: 2026-02-15 after 07-02 execution*
