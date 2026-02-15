@@ -70,7 +70,7 @@ async def categorize_article(
 
     client = AsyncClient(
         host=settings.ollama.host,
-        timeout=settings.ollama.timeout,
+        timeout=None,
     )
 
     # Use streaming to prevent httpx.ReadTimeout on slower models
@@ -134,7 +134,7 @@ async def score_article(
 
     client = AsyncClient(
         host=settings.ollama.host,
-        timeout=settings.ollama.timeout,
+        timeout=None,
     )
 
     # Use streaming to prevent httpx.ReadTimeout on slower models

@@ -39,7 +39,6 @@ class OllamaConfig(BaseModel):
     host: str = "http://localhost:11434"
     categorization_model: str = "qwen3:8b"
     scoring_model: str = "qwen3:8b"
-    timeout: float = 120.0
 
 
 class Settings(BaseSettings):
