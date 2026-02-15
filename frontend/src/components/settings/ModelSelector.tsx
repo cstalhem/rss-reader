@@ -19,7 +19,6 @@ interface ModelSelectorProps {
   models: OllamaModel[];
   config: OllamaConfig;
   savedConfig: OllamaConfig;
-  isConnected: boolean;
   onConfigChange: (config: OllamaConfig) => void;
   onSave: (rescore: boolean) => void;
   isSaving: boolean;
@@ -42,7 +41,6 @@ export function ModelSelector({
   models,
   config,
   savedConfig,
-  isConnected,
   onConfigChange,
   onSave,
   isSaving,

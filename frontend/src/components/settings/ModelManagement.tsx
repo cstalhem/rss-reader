@@ -22,7 +22,6 @@ import type { useModelPull } from "@/hooks/useModelPull";
 
 interface ModelManagementProps {
   models: OllamaModel[];
-  isConnected: boolean;
   config: OllamaConfig | undefined;
   pullHook: ReturnType<typeof useModelPull>;
 }
@@ -37,7 +36,6 @@ const CURATED_MODELS = [
 
 export function ModelManagement({
   models,
-  isConnected,
   config,
   pullHook,
 }: ModelManagementProps) {

@@ -117,7 +117,6 @@ export function OllamaSection({ isVisible }: OllamaSectionProps) {
                 models={models ?? []}
                 config={effectiveConfig}
                 savedConfig={savedConfig}
-                isConnected={isConnected}
                 onConfigChange={handleConfigChange}
                 onSave={handleSave}
                 isSaving={saveMutation.isPending}
@@ -132,7 +131,6 @@ export function OllamaSection({ isVisible }: OllamaSectionProps) {
             </Text>
             <ModelManagement
               models={models ?? []}
-              isConnected={isConnected}
               config={effectiveConfig}
               pullHook={pullHook}
             />
