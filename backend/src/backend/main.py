@@ -107,6 +107,7 @@ class PreferencesResponse(BaseModel):
     interests: str
     anti_interests: str
     topic_weights: dict[str, str] | None
+    category_groups: dict | None = None
     updated_at: datetime
 
 
@@ -118,6 +119,29 @@ class PreferencesUpdate(BaseModel):
 
 class CategoryWeightUpdate(BaseModel):
     weight: str
+
+
+class CategoryGroupsResponse(BaseModel):
+    groups: list[dict] = []
+    hidden_categories: list[str] = []
+    seen_categories: list[str] = []
+    returned_categories: list[str] = []
+
+
+class CategoryGroupsUpdate(BaseModel):
+    groups: list[dict] = []
+    hidden_categories: list[str] = []
+    seen_categories: list[str] = []
+    returned_categories: list[str] = []
+
+
+class CategoryAcknowledge(BaseModel):
+    categories: list[str]
+
+
+class NewCategoryCountResponse(BaseModel):
+    count: int
+    returned_count: int
 
 
 # Ollama API models
@@ -552,6 +576,7 @@ def get_preferences(
         interests=preferences.interests,
         anti_interests=preferences.anti_interests,
         topic_weights=preferences.topic_weights,
+        category_groups=preferences.category_groups,
         updated_at=preferences.updated_at,
     )
 
@@ -601,6 +626,7 @@ async def update_preferences(
         interests=preferences.interests,
         anti_interests=preferences.anti_interests,
         topic_weights=preferences.topic_weights,
+        category_groups=preferences.category_groups,
         updated_at=preferences.updated_at,
     )
 
@@ -633,20 +659,22 @@ def update_category_weight(
     weight_update: CategoryWeightUpdate,
     session: Session = Depends(get_session),
 ):
-    """Update weight for a single category."""
-    preferences = session.exec(select(UserPreferences)).first()
+    """Update weight for a single category.
 
-    if not preferences:
-        # Create if doesn't exist with seed category weights
-        from backend.prompts import get_default_topic_weights
-
-        preferences = UserPreferences(
-            interests="",
-            anti_interests="",
-            topic_weights=get_default_topic_weights(),
-            updated_at=datetime.now(),
+    Accepts weight values: block, reduce, normal, boost, max
+    (also accepts legacy names: blocked, low, neutral, medium, high)
+    """
+    valid_weights = {
+        "block", "reduce", "normal", "boost", "max",
+        "blocked", "low", "neutral", "medium", "high",
+    }
+    if weight_update.weight not in valid_weights:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid weight '{weight_update.weight}'. Must be one of: block, reduce, normal, boost, max",
         )
-        session.add(preferences)
+
+    preferences = _get_or_create_preferences(session)
 
     # Reassign dict to ensure SQLAlchemy detects the change on JSON column
     new_weights = dict(preferences.topic_weights or {})
@@ -662,8 +690,232 @@ def update_category_weight(
         interests=preferences.interests,
         anti_interests=preferences.anti_interests,
         topic_weights=preferences.topic_weights,
+        category_groups=preferences.category_groups,
         updated_at=preferences.updated_at,
     )
+
+
+# --- Category Group Management Endpoints ---
+
+
+def _get_or_create_preferences(session: Session) -> UserPreferences:
+    """Get existing preferences or create defaults. Shared by category endpoints."""
+    preferences = session.exec(select(UserPreferences)).first()
+    if not preferences:
+        from backend.prompts import get_default_topic_weights
+
+        preferences = UserPreferences(
+            interests="",
+            anti_interests="",
+            topic_weights=get_default_topic_weights(),
+            updated_at=datetime.now(),
+        )
+        session.add(preferences)
+        session.commit()
+        session.refresh(preferences)
+    return preferences
+
+
+def _get_category_groups(preferences: UserPreferences) -> dict:
+    """Get category_groups from preferences, returning default structure if null."""
+    if preferences.category_groups:
+        return preferences.category_groups
+    return {
+        "groups": [],
+        "hidden_categories": [],
+        "seen_categories": [],
+        "returned_categories": [],
+    }
+
+
+@app.get("/api/categories/groups", response_model=CategoryGroupsResponse)
+def get_category_groups(
+    session: Session = Depends(get_session),
+):
+    """Get the category groups structure from UserPreferences."""
+    preferences = _get_or_create_preferences(session)
+    cg = _get_category_groups(preferences)
+    return CategoryGroupsResponse(**cg)
+
+
+@app.put("/api/categories/groups", response_model=CategoryGroupsResponse)
+async def update_category_groups(
+    update: CategoryGroupsUpdate,
+    session: Session = Depends(get_session),
+):
+    """Save full category_groups JSON and trigger re-scoring."""
+    preferences = _get_or_create_preferences(session)
+
+    # Reassign entire dict (SQLAlchemy JSON mutation rule)
+    preferences.category_groups = update.model_dump()
+    preferences.updated_at = datetime.now()
+
+    session.add(preferences)
+    session.commit()
+    session.refresh(preferences)
+
+    # Trigger re-scoring since weight changes affect scores
+    from backend.scheduler import scoring_queue
+
+    await scoring_queue.enqueue_recent_for_rescoring(session)
+
+    cg = _get_category_groups(preferences)
+    return CategoryGroupsResponse(**cg)
+
+
+@app.patch("/api/categories/{name}/hide", response_model=CategoryGroupsResponse)
+def hide_category(
+    name: str,
+    session: Session = Depends(get_session),
+):
+    """Hide a category: add to hidden_categories, remove from groups and topic_weights."""
+    preferences = _get_or_create_preferences(session)
+    cg = _get_category_groups(preferences)
+    cat_lower = name.lower()
+
+    # Add to hidden_categories if not already there
+    hidden = list(cg.get("hidden_categories", []))
+    if cat_lower not in [h.lower() for h in hidden]:
+        hidden.append(cat_lower)
+
+    # Remove from any group's categories list
+    groups = []
+    for group in cg.get("groups", []):
+        new_cats = [c for c in group.get("categories", []) if c.lower() != cat_lower]
+        groups.append({**group, "categories": new_cats})
+
+    # Reassign category_groups
+    preferences.category_groups = {
+        **cg,
+        "hidden_categories": hidden,
+        "groups": groups,
+    }
+
+    # Remove from topic_weights
+    if preferences.topic_weights and cat_lower in preferences.topic_weights:
+        new_weights = {k: v for k, v in preferences.topic_weights.items() if k != cat_lower}
+        preferences.topic_weights = new_weights
+
+    preferences.updated_at = datetime.now()
+    session.add(preferences)
+    session.commit()
+    session.refresh(preferences)
+
+    return CategoryGroupsResponse(**_get_category_groups(preferences))
+
+
+@app.patch("/api/categories/{name}/unhide", response_model=CategoryGroupsResponse)
+def unhide_category(
+    name: str,
+    session: Session = Depends(get_session),
+):
+    """Unhide a category: remove from hidden_categories and returned_categories."""
+    preferences = _get_or_create_preferences(session)
+    cg = _get_category_groups(preferences)
+    cat_lower = name.lower()
+
+    # Remove from hidden_categories
+    hidden = [h for h in cg.get("hidden_categories", []) if h.lower() != cat_lower]
+
+    # Remove from returned_categories
+    returned = [r for r in cg.get("returned_categories", []) if r.lower() != cat_lower]
+
+    preferences.category_groups = {
+        **cg,
+        "hidden_categories": hidden,
+        "returned_categories": returned,
+    }
+    preferences.updated_at = datetime.now()
+
+    session.add(preferences)
+    session.commit()
+    session.refresh(preferences)
+
+    return CategoryGroupsResponse(**_get_category_groups(preferences))
+
+
+@app.get("/api/categories/new-count", response_model=NewCategoryCountResponse)
+def get_new_category_count(
+    session: Session = Depends(get_session),
+):
+    """Get count of categories not yet seen by the user (for badges)."""
+    from backend.prompts import DEFAULT_CATEGORIES
+
+    preferences = _get_or_create_preferences(session)
+    cg = _get_category_groups(preferences)
+
+    # Collect all known categories
+    all_categories: set[str] = set()
+
+    # From articles
+    articles = session.exec(
+        select(Article).where(Article.categories.is_not(None))
+    ).all()
+    for article in articles:
+        if article.categories:
+            for cat in article.categories:
+                all_categories.add(cat.lower())
+
+    # From topic_weights
+    if preferences.topic_weights:
+        for cat in preferences.topic_weights:
+            all_categories.add(cat.lower())
+
+    # From group categories
+    for group in cg.get("groups", []):
+        for cat in group.get("categories", []):
+            all_categories.add(cat.lower())
+
+    # From defaults
+    for cat in DEFAULT_CATEGORIES:
+        all_categories.add(cat.lower())
+
+    # Subtract seen and hidden
+    seen = {s.lower() for s in cg.get("seen_categories", [])}
+    hidden = {h.lower() for h in cg.get("hidden_categories", [])}
+    new_categories = all_categories - seen - hidden
+
+    # Returned count
+    returned = cg.get("returned_categories", [])
+
+    return NewCategoryCountResponse(
+        count=len(new_categories),
+        returned_count=len(returned),
+    )
+
+
+@app.post("/api/categories/acknowledge")
+def acknowledge_categories(
+    body: CategoryAcknowledge,
+    session: Session = Depends(get_session),
+):
+    """Mark categories as seen (dismiss 'New' badges)."""
+    preferences = _get_or_create_preferences(session)
+    cg = _get_category_groups(preferences)
+
+    # Add to seen_categories
+    seen = list(cg.get("seen_categories", []))
+    seen_lower = {s.lower() for s in seen}
+    for cat in body.categories:
+        if cat.lower() not in seen_lower:
+            seen.append(cat.lower())
+            seen_lower.add(cat.lower())
+
+    # Remove from returned_categories
+    ack_lower = {c.lower() for c in body.categories}
+    returned = [r for r in cg.get("returned_categories", []) if r.lower() not in ack_lower]
+
+    preferences.category_groups = {
+        **cg,
+        "seen_categories": seen,
+        "returned_categories": returned,
+    }
+    preferences.updated_at = datetime.now()
+
+    session.add(preferences)
+    session.commit()
+
+    return {"ok": True}
 
 
 @app.post("/api/scoring/rescore")
