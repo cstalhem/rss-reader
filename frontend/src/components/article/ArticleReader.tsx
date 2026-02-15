@@ -10,8 +10,10 @@ import {
   Drawer,
   Separator,
 } from "@chakra-ui/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Article } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
+import { updateCategoryWeight as apiUpdateCategoryWeight } from "@/lib/api";
 import { useAutoMarkAsRead } from "@/hooks/useAutoMarkAsRead";
 import { usePreferences } from "@/hooks/usePreferences";
 import { TagChip } from "./TagChip";
@@ -36,7 +38,16 @@ export function ArticleReader({
   useAutoMarkAsRead(article?.id ?? 0, article?.is_read ?? true);
 
   // Get preferences for tag weights
-  const { preferences, updateCategoryWeight } = usePreferences();
+  const { preferences } = usePreferences();
+  const queryClient = useQueryClient();
+  const updateCategoryWeightMutation = useMutation({
+    mutationFn: ({ category, weight }: { category: string; weight: string }) =>
+      apiUpdateCategoryWeight(category, weight),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["preferences"] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+    },
+  });
 
   // Determine prev/next articles
   const { prevArticle, nextArticle } = useMemo(() => {
@@ -148,7 +159,7 @@ export function ArticleReader({
                         interactive={true}
                         currentWeight={currentWeight}
                         onWeightChange={(weight) =>
-                          updateCategoryWeight({ category: category.toLowerCase(), weight })
+                          updateCategoryWeightMutation.mutate({ category: category.toLowerCase(), weight })
                         }
                       />
                     );

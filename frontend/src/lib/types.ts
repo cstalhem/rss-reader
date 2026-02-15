@@ -31,6 +31,7 @@ export interface UserPreferences {
   interests: string;
   anti_interests: string;
   topic_weights: Record<string, string> | null;
+  category_groups: CategoryGroups | null;
   updated_at: string;
 }
 
@@ -61,6 +62,20 @@ export interface OllamaPrompts {
 
 export interface OllamaConfigSaveResult extends OllamaConfig {
   rescore_queued: number;
+}
+
+export interface CategoryGroup {
+  id: string;
+  name: string;
+  weight: string; // "block" | "reduce" | "normal" | "boost" | "max"
+  categories: string[];
+}
+
+export interface CategoryGroups {
+  groups: CategoryGroup[];
+  hidden_categories: string[];
+  seen_categories: string[];
+  returned_categories: string[];
 }
 
 export type SortOption = "score_desc" | "score_asc" | "date_desc" | "date_asc";

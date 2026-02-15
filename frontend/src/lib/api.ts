@@ -2,6 +2,7 @@ import {
   Article,
   Feed,
   UserPreferences,
+  CategoryGroups,
   OllamaHealth,
   OllamaModel,
   OllamaConfig,
@@ -235,6 +236,108 @@ export async function updateCategoryWeight(
   if (!response.ok) {
     throw new Error(
       `Failed to update category weight: ${response.statusText}`
+    );
+  }
+
+  return response.json();
+}
+
+// --- Category Groups API ---
+
+export async function fetchCategoryGroups(): Promise<CategoryGroups> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/groups`);
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch category groups: ${response.statusText}`
+    );
+  }
+
+  return response.json();
+}
+
+export async function saveCategoryGroups(
+  data: CategoryGroups
+): Promise<CategoryGroups> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/groups`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to save category groups: ${response.statusText}`
+    );
+  }
+
+  return response.json();
+}
+
+export async function hideCategory(name: string): Promise<CategoryGroups> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/categories/${encodeURIComponent(name)}/hide`,
+    {
+      method: "PATCH",
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to hide category: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function unhideCategory(name: string): Promise<CategoryGroups> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/categories/${encodeURIComponent(name)}/unhide`,
+    {
+      method: "PATCH",
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to unhide category: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchNewCategoryCount(): Promise<{
+  count: number;
+  returned_count: number;
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/new-count`);
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch new category count: ${response.statusText}`
+    );
+  }
+
+  return response.json();
+}
+
+export async function acknowledgeCategories(
+  categories: string[]
+): Promise<{ ok: boolean }> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/categories/acknowledge`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ categories }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to acknowledge categories: ${response.statusText}`
     );
   }
 
