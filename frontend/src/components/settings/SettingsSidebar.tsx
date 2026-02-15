@@ -3,10 +3,10 @@
 import { Box, Stack, Flex, Text } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { useQuery } from "@tanstack/react-query";
-import { LuRss, LuHeart, LuBot, LuMessageSquare, LuDownload } from "react-icons/lu";
-import { fetchDownloadStatus, DownloadStatus } from "@/lib/api";
+import { LuRss, LuHeart, LuTag, LuBot, LuMessageSquare, LuDownload } from "react-icons/lu";
+import { fetchDownloadStatus, DownloadStatus, fetchNewCategoryCount } from "@/lib/api";
 
-export type SettingsSection = "feeds" | "interests" | "ollama" | "feedback";
+export type SettingsSection = "feeds" | "interests" | "categories" | "ollama" | "feedback";
 
 interface SettingsSidebarProps {
   activeSection: SettingsSection;
@@ -22,6 +22,7 @@ interface SidebarItem {
 const SIDEBAR_ITEMS: SidebarItem[] = [
   { id: "feeds", icon: LuRss, label: "Feeds" },
   { id: "interests", icon: LuHeart, label: "Interests" },
+  { id: "categories", icon: LuTag, label: "Categories" },
   { id: "ollama", icon: LuBot, label: "Ollama" },
   { id: "feedback", icon: LuMessageSquare, label: "Feedback" },
 ];
@@ -41,14 +42,22 @@ export function SettingsSidebar({
     refetchInterval: 3000,
   });
 
+  const { data: newCategoryCount } = useQuery({
+    queryKey: ["categories", "new-count"],
+    queryFn: fetchNewCategoryCount,
+    refetchInterval: 30000,
+  });
+
   const isDownloadActive = downloadStatus?.active ?? false;
+  const categoryBadgeCount = (newCategoryCount?.count ?? 0) + (newCategoryCount?.returned_count ?? 0);
 
   return (
     <Stack gap={1}>
       {SIDEBAR_ITEMS.map((item) => {
         const isActive = activeSection === item.id;
         const Icon = item.icon;
-        const showIndicator = item.id === "ollama" && isDownloadActive;
+        const showDownloadIndicator = item.id === "ollama" && isDownloadActive;
+        const showCategoryBadge = item.id === "categories" && categoryBadgeCount > 0;
 
         return (
           <Flex
@@ -70,7 +79,24 @@ export function SettingsSidebar({
             <Text fontSize="sm" fontWeight="medium">
               {item.label}
             </Text>
-            {showIndicator && (
+            {showCategoryBadge && (
+              <Box
+                ml="auto"
+                bg="accent.solid"
+                color="accent.contrast"
+                fontSize="xs"
+                fontWeight="bold"
+                px={1.5}
+                py={0}
+                borderRadius="full"
+                lineHeight="1.5"
+                minW="20px"
+                textAlign="center"
+              >
+                {categoryBadgeCount}
+              </Box>
+            )}
+            {showDownloadIndicator && (
               <Box
                 ml="auto"
                 css={{ animation: `${pulse} 2s ease-in-out infinite` }}

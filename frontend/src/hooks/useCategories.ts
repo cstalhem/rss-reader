@@ -10,7 +10,6 @@ import {
   unhideCategory as apiUnhideCategory,
   acknowledgeCategories as apiAcknowledgeCategories,
 } from "@/lib/api";
-import { CategoryGroups } from "@/lib/types";
 
 export function useCategories() {
   const queryClient = useQueryClient();

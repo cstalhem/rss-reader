@@ -7,29 +7,17 @@ import {
   Stack,
   Textarea,
   Text,
-  Flex,
   Skeleton,
 } from "@chakra-ui/react";
-import { LuTag } from "react-icons/lu";
 import { Field } from "@/components/ui/field";
 import { toaster } from "@/components/ui/toaster";
 import { usePreferences } from "@/hooks/usePreferences";
 
-const WEIGHT_OPTIONS = [
-  { value: "blocked", label: "Blocked" },
-  { value: "low", label: "Low" },
-  { value: "neutral", label: "Neutral" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
-];
-
 export function InterestsSection() {
   const {
     preferences,
-    categories,
     isLoading,
     updatePreferences,
-    updateCategoryWeight,
     isUpdating,
   } = usePreferences();
 
@@ -59,43 +47,15 @@ export function InterestsSection() {
             type: "success",
           });
         },
-        onError: (error) => {
+        onError: (error: Error) => {
           toaster.create({
             title: "Failed to save preferences",
-            description:
-              error instanceof Error ? error.message : "An error occurred",
+            description: error.message || "An error occurred",
             type: "error",
           });
         },
       }
     );
-  };
-
-  const handleWeightChange = (category: string, weight: string) => {
-    updateCategoryWeight(
-      { category, weight },
-      {
-        onSuccess: () => {
-          toaster.create({
-            title: "Category weight updated",
-            description: `${category} set to ${weight}`,
-            type: "success",
-          });
-        },
-        onError: (error) => {
-          toaster.create({
-            title: "Failed to update weight",
-            description:
-              error instanceof Error ? error.message : "An error occurred",
-            type: "error",
-          });
-        },
-      }
-    );
-  };
-
-  const getCategoryWeight = (category: string): string => {
-    return preferences?.topic_weights?.[category] || "neutral";
   };
 
   if (isLoading) {
@@ -103,14 +63,12 @@ export function InterestsSection() {
       <Stack gap={4}>
         <Skeleton height="120px" variant="shine" />
         <Skeleton height="120px" variant="shine" />
-        <Skeleton height="200px" variant="shine" />
       </Stack>
     );
   }
 
   return (
     <Stack gap={8}>
-      {/* Interest Preferences Section */}
       <Box>
         <Text fontSize="xl" fontWeight="semibold" mb={6}>
           Interest Preferences
@@ -151,77 +109,6 @@ export function InterestsSection() {
             Save Preferences
           </Button>
         </Stack>
-      </Box>
-
-      {/* Topic Categories Section */}
-      <Box>
-        <Text fontSize="xl" fontWeight="semibold" mb={2}>
-          Topic Categories
-        </Text>
-        <Text color="fg.muted" mb={6}>
-          Adjust how strongly each topic affects your article scores
-        </Text>
-
-        {categories.length === 0 ? (
-          <Flex
-            direction="column"
-            alignItems="center"
-            justifyContent="center"
-            gap={4}
-            p={8}
-            bg="bg.subtle"
-            borderRadius="md"
-            borderWidth="1px"
-            borderColor="border.subtle"
-          >
-            <LuTag size={40} color="var(--chakra-colors-fg-subtle)" />
-            <Text color="fg.muted" textAlign="center">
-              Categories will appear here once articles are scored by the LLM
-            </Text>
-          </Flex>
-        ) : (
-          <Stack gap={3}>
-            {categories.map((category) => (
-              <Flex
-                key={category}
-                alignItems="center"
-                justifyContent="space-between"
-                p={3}
-                bg="bg.subtle"
-                borderRadius="md"
-                borderWidth="1px"
-                borderColor="border.subtle"
-              >
-                <Text fontWeight="medium" textTransform="capitalize">
-                  {category}
-                </Text>
-                <Flex gap={1}>
-                  {WEIGHT_OPTIONS.map((option) => (
-                    <Button
-                      key={option.value}
-                      size="sm"
-                      variant={
-                        getCategoryWeight(category) === option.value
-                          ? "solid"
-                          : "ghost"
-                      }
-                      colorPalette={
-                        getCategoryWeight(category) === option.value
-                          ? "accent"
-                          : undefined
-                      }
-                      onClick={() =>
-                        handleWeightChange(category, option.value)
-                      }
-                    >
-                      {option.label}
-                    </Button>
-                  ))}
-                </Flex>
-              </Flex>
-            ))}
-          </Stack>
-        )}
       </Box>
     </Stack>
   );
