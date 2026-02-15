@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useReducer } from "react";
-import { Flex, Stack, Text } from "@chakra-ui/react";
+import { Box, Flex, Stack, Text } from "@chakra-ui/react";
 import { toaster } from "@/components/ui/toaster";
 import { useOllamaHealth } from "@/hooks/useOllamaHealth";
 import { useOllamaModels } from "@/hooks/useOllamaModels";
