@@ -79,9 +79,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 06-01-PLAN.md -- Warm dark mode token foundation and Fira Code font loading
-- [ ] 06-02-PLAN.md -- Reader typography, skeletons, empty states, and toast polish
-- [ ] 06-03-PLAN.md -- Settings page restructure with sidebar navigation and sections
+- [x] 06-01-PLAN.md -- Warm dark mode token foundation and Fira Code font loading
+- [x] 06-02-PLAN.md -- Reader typography, skeletons, empty states, and toast polish
+- [x] 06-03-PLAN.md -- Settings page restructure with sidebar navigation and sections
 
 #### Phase 7: Ollama Configuration UI
 **Goal**: Runtime Ollama configuration without YAML/env changes
@@ -143,11 +143,11 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 3. Feed Management | v1.0 | 5/5 | Complete | 2026-02-10 |
 | 4. LLM Content Curation | v1.0 | 3/3 | Complete | 2026-02-12 |
 | 5. Interest-Driven UI | v1.0 | 2/2 | Complete | 2026-02-14 |
-| 6. UI & Theme Polish | v1.1 | 0/3 | Planned | - |
+| 6. UI & Theme Polish | v1.1 | 3/3 | Complete | 2026-02-15 |
 | 7. Ollama Configuration UI | v1.1 | 0/TBD | Not started | - |
 | 8. Category Grouping | v1.1 | 0/TBD | Not started | - |
 | 9. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-15 after Phase 6 planning*
+*Last updated: 2026-02-15 after Phase 6 execution*
