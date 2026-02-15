@@ -3,8 +3,10 @@
 import {
   Box,
   Button,
+  createListCollection,
   Flex,
-  NativeSelect,
+  Portal,
+  Select,
   Stack,
   Switch,
   Text,
@@ -75,6 +77,14 @@ export function ModelSelector({
     onConfigChange(next);
   };
 
+  // Create collection for Chakra Select
+  const modelCollection = createListCollection({
+    items: models.map((m) => ({
+      label: modelLabel(m),
+      value: m.name,
+    })),
+  });
+
   return (
     <Stack gap={4}>
       {/* Single model selector (or categorization model when split) */}
@@ -82,21 +92,40 @@ export function ModelSelector({
         <Text fontSize="sm" fontWeight="medium" mb={1.5}>
           {config.use_separate_models ? "Categorization Model" : "Model"}
         </Text>
-        <NativeSelect.Root>
-          <NativeSelect.Field
-            value={config.categorization_model}
-            onChange={(e) =>
-              handleModelChange("categorization_model", e.target.value)
+        <Select.Root
+          collection={modelCollection}
+          size="sm"
+          value={[config.categorization_model]}
+          onValueChange={(details) => {
+            const selectedValue = details.value[0];
+            if (selectedValue) {
+              handleModelChange("categorization_model", selectedValue);
             }
-          >
-            {models.map((m) => (
-              <option key={m.name} value={m.name}>
-                {modelLabel(m)}
-              </option>
-            ))}
-          </NativeSelect.Field>
-          <NativeSelect.Indicator />
-        </NativeSelect.Root>
+          }}
+          positioning={{ sameWidth: true }}
+        >
+          <Select.HiddenSelect />
+          <Select.Control>
+            <Select.Trigger>
+              <Select.ValueText placeholder="Select model" />
+            </Select.Trigger>
+            <Select.IndicatorGroup>
+              <Select.Indicator />
+            </Select.IndicatorGroup>
+          </Select.Control>
+          <Portal>
+            <Select.Positioner>
+              <Select.Content>
+                {modelCollection.items.map((item) => (
+                  <Select.Item key={item.value} item={item}>
+                    {item.label}
+                    <Select.ItemIndicator />
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Positioner>
+          </Portal>
+        </Select.Root>
       </Box>
 
       {/* Separate models toggle */}
@@ -121,21 +150,40 @@ export function ModelSelector({
           <Text fontSize="sm" fontWeight="medium" mb={1.5}>
             Scoring Model
           </Text>
-          <NativeSelect.Root>
-            <NativeSelect.Field
-              value={config.scoring_model}
-              onChange={(e) =>
-                handleModelChange("scoring_model", e.target.value)
+          <Select.Root
+            collection={modelCollection}
+            size="sm"
+            value={[config.scoring_model]}
+            onValueChange={(details) => {
+              const selectedValue = details.value[0];
+              if (selectedValue) {
+                handleModelChange("scoring_model", selectedValue);
               }
-            >
-              {models.map((m) => (
-                <option key={m.name} value={m.name}>
-                  {modelLabel(m)}
-                </option>
-              ))}
-            </NativeSelect.Field>
-            <NativeSelect.Indicator />
-          </NativeSelect.Root>
+            }}
+            positioning={{ sameWidth: true }}
+          >
+            <Select.HiddenSelect />
+            <Select.Control>
+              <Select.Trigger>
+                <Select.ValueText placeholder="Select model" />
+              </Select.Trigger>
+              <Select.IndicatorGroup>
+                <Select.Indicator />
+              </Select.IndicatorGroup>
+            </Select.Control>
+            <Portal>
+              <Select.Positioner>
+                <Select.Content>
+                  {modelCollection.items.map((item) => (
+                    <Select.Item key={item.value} item={item}>
+                      {item.label}
+                      <Select.ItemIndicator />
+                    </Select.Item>
+                  ))}
+                </Select.Content>
+              </Select.Positioner>
+            </Portal>
+          </Select.Root>
 
           {/* RAM warning */}
           <Flex alignItems="center" gap={2} mt={2}>
