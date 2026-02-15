@@ -106,6 +106,11 @@ async def pull_model_stream(host: str, model: str):
                 _cancel_requested = False
                 raise asyncio.CancelledError("Download cancelled by user")
 
+            # Check for error in chunk
+            if "error" in chunk:
+                yield {"error": chunk["error"]}
+                return
+
             status = chunk.get("status", "")
             completed = chunk.get("completed", 0)
             total = chunk.get("total", 0)
