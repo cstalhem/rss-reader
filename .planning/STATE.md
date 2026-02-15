@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 6 of 9 (UI & Theme Polish)
-Plan: Ready to plan phase 6
-Status: Ready to plan
-Last activity: 2026-02-15 - Completed quick task 8: Switch Ollama client to streaming responses
+Plan: 1 of 4
+Status: Executing phase 6
+Last activity: 2026-02-15 - Completed plan 06-01: Theme Foundation
 
-Progress: [█████░░░░░] 56% (19/34 total plans estimated)
+Progress: [█████░░░░░] 59% (20/34 total plans estimated)
 
 ## Performance Metrics
 
@@ -32,8 +32,12 @@ Progress: [█████░░░░░] 56% (19/34 total plans estimated)
 | 03    | 4     | ~20 min | ~5 min |
 | 04    | 5     | ~57 min | ~11 min |
 | 05    | 3     | ~25 min | ~8 min |
+| 06    | 1     | ~1 min | ~1 min |
 
 *Carried forward from v1.0 for reference*
+
+**Phase 06 Metrics:**
+| Phase 06-ui-theme-polish P01 | 1.3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -46,6 +50,8 @@ Key architectural decisions carrying forward to v1.1:
 - Two-step LLM pipeline (categorize → score) with separate models - enables independent optimization in Phase 7
 - Composite scoring formula with interest × category_weight × quality_multiplier - foundation for Phase 8 grouping and Phase 9 feedback
 - Pydantic Settings config with `@lru_cache` - creates constraint for Phase 7 (need two-tier config pattern)
+- [Phase 06-ui-theme-polish]: Use OKLCH color space with hue ~55 (warm amber) and low chroma (0.01-0.02) for subtle warmth
+- [Phase 06-ui-theme-polish]: Three distinct surface levels: bg.DEFAULT (15%), bg.subtle (17%), bg.panel (16%)
 
 ### Pending Todos
 
@@ -72,7 +78,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Completed quick-8: Switch Ollama client to streaming responses
+Stopped at: Completed 06-01-PLAN.md
 Resume file: None
 
 ---
