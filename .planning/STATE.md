@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8 of 9 (Category Grouping)
-Plan: 3 of 5 complete
+Plan: 4 of 5 complete (08-05 done, 08-04 pending)
 Status: Executing
-Last activity: 2026-02-16 - Plan 08-03 complete (categories section UI with accordion groups, weight presets, ungrouped list)
+Last activity: 2026-02-16 - Plan 08-05 complete (new-category notification badges with auto-dismiss on weight changes)
 
-Progress: [█████████░] 91% (31/34 total plans estimated)
+Progress: [█████████░] 94% (32/34 total plans estimated)
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [█████████░] 91% (31/34 total plans estimated)
 | Phase 08-category-grouping P01 | 3.0 | 2 tasks | 5 files |
 | Phase 08-category-grouping P02 | 5.0 | 2 tasks | 9 files |
 | Phase 08-category-grouping P03 | 2.5 | 2 tasks | 4 files |
+| Phase 08-category-grouping P05 | 2.0 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08-02]: ArticleReader uses direct useMutation for inline tag weight changes (decoupled from usePreferences)
 - [Phase 08-03]: Compact Button group for weight presets (solid+accent active, ghost inactive) instead of SegmentGroup
 - [Phase 08-03]: Accordion header split pattern: trigger on left, presets on right outside trigger with stopPropagation
+- [Phase 08-05]: Header dot badge via shared TanStack Query key reuses same cache as useCategories and SettingsSidebar
+- [Phase 08-05]: Auto-acknowledge categories on weight or group weight change for seamless badge dismissal
 
 ### Pending Todos
 
@@ -111,9 +114,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 08-03-PLAN.md
-Resume file: .planning/phases/08-category-grouping/08-03-SUMMARY.md
+Stopped at: Completed 08-05-PLAN.md
+Resume file: .planning/phases/08-category-grouping/08-05-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-16 after Phase 08-03 execution*
+*Last updated: 2026-02-16 after Phase 08-05 execution*
