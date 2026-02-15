@@ -38,6 +38,7 @@ Progress: [██████░░░░] 62% (21/34 total plans estimated)
 
 **Phase 06 Metrics:**
 | Phase 06-ui-theme-polish P01 | 1.3 | 2 tasks | 3 files |
+| Phase 06-ui-theme-polish P02 | 2.7 | 2 tasks | 5 files |
 | Phase 06-ui-theme-polish P03 | 2.9 | 2 tasks | 6 files |
 
 ## Accumulated Context
