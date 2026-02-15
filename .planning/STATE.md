@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8 of 9 (Category Grouping)
-Plan: 1 of 5 complete
+Plan: 2 of 5 complete
 Status: Executing
-Last activity: 2026-02-15 - Plan 08-01 complete (backend data model, migration, scoring, API endpoints)
+Last activity: 2026-02-15 - Plan 08-02 complete (frontend types, API client, useCategories hook, settings restructure)
 
-Progress: [█████████░] 85% (29/34 total plans estimated)
+Progress: [█████████░] 88% (30/34 total plans estimated)
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Progress: [█████████░] 85% (29/34 total plans estimated)
 
 **Phase 08 Metrics:**
 | Phase 08-category-grouping P01 | 3.0 | 2 tasks | 5 files |
+| Phase 08-category-grouping P02 | 5.0 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08-01]: Three-tier weight resolution: explicit override > group weight > default normal (1.0)
 - [Phase 08-01]: category_groups JSON structure: {groups, hidden_categories, seen_categories, returned_categories}
 - [Phase 08-01]: New weight names: block/reduce/normal/boost/max (old names kept as fallback aliases)
+- [Phase 08-02]: useCategories hook centralizes all category state management (groups, counts, mutations)
+- [Phase 08-02]: ArticleReader uses direct useMutation for inline tag weight changes (decoupled from usePreferences)
 
 ### Pending Todos
 
@@ -105,9 +108,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Completed 08-01-PLAN.md
-Resume file: .planning/phases/08-category-grouping/08-01-SUMMARY.md
+Stopped at: Completed 08-02-PLAN.md
+Resume file: .planning/phases/08-category-grouping/08-02-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-15 after Phase 08-01 execution*
+*Last updated: 2026-02-15 after Phase 08-02 execution*
