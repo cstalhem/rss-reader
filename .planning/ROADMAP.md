@@ -93,15 +93,15 @@ Plans:
   3. User can trigger model downloads from within settings UI with progress indication
   4. User can view current system prompts used for categorization and scoring in read-only text areas
   5. User can trigger batch re-scoring of recent articles after changing models or config
-**Plans**: 6 plans (3 executed, 3 gap closure)
+**Plans**: 6 plans
 
 Plans:
 - [x] 07-01-PLAN.md -- Backend: Ollama service layer, API endpoints, DB migration, two-tier scoring config
 - [x] 07-02-PLAN.md -- Frontend: Health badge, model selector, system prompts, re-score button
 - [x] 07-03-PLAN.md -- Frontend: Model download/delete management with streaming progress
-- [ ] 07-04-PLAN.md -- Gap closure: Backend error handling for model pulls and unconditional re-scoring
-- [ ] 07-05-PLAN.md -- Gap closure: Progress bar persistence and layout consistency
-- [ ] 07-06-PLAN.md -- Gap closure: UI refinements (Chakra Select, empty states, panel sections)
+- [x] 07-04-PLAN.md -- Gap closure: Backend error handling for model pulls and unconditional re-scoring
+- [x] 07-05-PLAN.md -- Gap closure: Progress bar persistence and layout consistency
+- [x] 07-06-PLAN.md -- Gap closure: UI refinements (Chakra Select, empty states, panel sections)
 
 #### Phase 8: Category Grouping
 **Goal**: Hierarchical category organization with cascading weights
@@ -148,10 +148,10 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 4. LLM Content Curation | v1.0 | 3/3 | Complete | 2026-02-12 |
 | 5. Interest-Driven UI | v1.0 | 2/2 | Complete | 2026-02-14 |
 | 6. UI & Theme Polish | v1.1 | 3/3 | Complete | 2026-02-15 |
-| 7. Ollama Configuration UI | v1.1 | 3/6 | Gap closure | 2026-02-15 |
+| 7. Ollama Configuration UI | v1.1 | 6/6 | Complete | 2026-02-15 |
 | 8. Category Grouping | v1.1 | 0/TBD | Not started | - |
 | 9. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-15 after Phase 7 execution*
+*Last updated: 2026-02-15 after Phase 7 gap closure complete*

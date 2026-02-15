@@ -12,9 +12,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 Phase: 8 of 9 (Category Grouping)
 Plan: Ready to plan phase 8
 Status: Ready to plan
-Last activity: 2026-02-15 - Completed Phase 7: Ollama Configuration UI (6/6 plans including gap closure, fully verified)
+Last activity: 2026-02-15 - Phase 7 gap closure complete (3 plans executed, all 8 UAT gaps closed, re-verified passed)
 
-Progress: [████████░░] 76% (26/34 total plans estimated)
+Progress: [█████████░] 82% (28/34 total plans estimated)
 
 ## Performance Metrics
 
@@ -66,9 +66,9 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 07-01]: Module-level state for download tracking (safe in single-worker asyncio)
 - [Phase 07-01]: Score-only re-scoring skips categorization when only scoring model changed
 - [Phase 07-02]: useReducer overlay pattern for form state to avoid setState-in-effect lint violations
-- [Phase 07-02]: NativeSelect for model dropdowns (simpler than Select.Root for short option lists)
+- [Phase 07-02→07-06]: Upgraded NativeSelect to Chakra Select.Root with Portal/Positioner pattern for model dropdowns
 - [Phase 07-03]: fetch+ReadableStream for SSE (not EventSource) because pull endpoint is POST
-- [Phase 07-03]: Pulsing dot indicator via Emotion keyframes for download activity on sidebar
+- [Phase 07-03→07-06]: Pulsing LuDownload icon via Emotion keyframes for download activity on sidebar
 - [Phase 07-05]: Explicit intervalMs state for TanStack Query refetchInterval to ensure polling restarts after remount
 - [Phase 07-05]: Full-width progress bar layout below trigger elements for consistent UX across all download types
 
@@ -97,9 +97,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Completed 07-06-PLAN.md (gap closure: Chakra Select, empty states, panel sections, download icon)
+Stopped at: Phase 7 gap closure complete, verified, roadmap updated. Ready for Phase 8 planning.
 Resume file: None
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-15 after Phase 7 execution and verification*
+*Last updated: 2026-02-15 after Phase 7 gap closure execution and re-verification*
