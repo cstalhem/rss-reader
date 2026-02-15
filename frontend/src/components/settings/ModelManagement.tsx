@@ -92,158 +92,211 @@ export function ModelManagement({
     setPullingModel(null);
   }
 
+  const installedCurated = CURATED_MODELS.filter((c) => installedNames.has(c.name));
+  const nonCuratedInstalled = models.filter(
+    (m) => !CURATED_MODELS.some((c) => c.name === m.name)
+  );
+  const hasInstalledModels = installedCurated.length > 0 || nonCuratedInstalled.length > 0;
+
+  const uninstalledCurated = CURATED_MODELS.filter((c) => !installedNames.has(c.name));
+
   return (
     <Stack gap={4}>
-      <Text fontSize="sm" fontWeight="medium">
-        Available Models
-      </Text>
+      {/* Sub-section 1: Downloaded Models */}
+      <Box>
+        <Text fontSize="sm" fontWeight="medium" color="fg.muted" mb={2}>
+          Downloaded Models
+        </Text>
+        {!hasInstalledModels ? (
+          <Text fontSize="sm" color="fg.muted">
+            No models downloaded yet
+          </Text>
+        ) : (
+          <Stack gap={0}>
+            {installedCurated.map((curated) => {
+              const canDelete = !activeModels.has(curated.name);
+              const isPulling =
+                pullHook.isDownloading && pullingModel === curated.name;
 
-      {/* Curated model list */}
-      <Stack gap={0}>
-        {CURATED_MODELS.map((curated) => {
-          const installed = installedNames.has(curated.name);
-          const isPulling =
-            pullHook.isDownloading && pullingModel === curated.name;
-          const canDelete = installed && !activeModels.has(curated.name);
-
-          return (
-            <Box
-              key={curated.name}
-              borderBottomWidth="1px"
-              borderColor="border.subtle"
-              _last={{ borderBottomWidth: 0 }}
-            >
-              <Flex
-                alignItems="center"
-                justifyContent="space-between"
-                py={2.5}
-                px={3}
-              >
-                {/* Left: info */}
-                <Box flex={1} minWidth={0}>
-                  <Flex alignItems="center" gap={2}>
-                    <Text fontSize="sm" fontWeight="medium">
-                      {curated.name}
-                    </Text>
-                    <Text fontSize="xs" color="fg.muted">
-                      {curated.size}
-                    </Text>
-                    {installed && (
-                      <Badge
-                        size="sm"
-                        colorPalette="green"
-                        variant="subtle"
-                      >
+              return (
+                <Box
+                  key={curated.name}
+                  borderBottomWidth="1px"
+                  borderColor="border.subtle"
+                  _last={{ borderBottomWidth: 0 }}
+                >
+                  <Flex
+                    alignItems="center"
+                    justifyContent="space-between"
+                    py={2.5}
+                    px={3}
+                  >
+                    <Flex alignItems="center" gap={2}>
+                      <Text fontSize="sm" fontWeight="medium">
+                        {curated.name}
+                      </Text>
+                      <Text fontSize="xs" color="fg.muted">
+                        {curated.size}
+                      </Text>
+                      <Badge size="sm" colorPalette="green" variant="subtle">
                         Installed
                       </Badge>
-                    )}
+                    </Flex>
+                    <Flex alignItems="center" gap={1} ml={2} flexShrink={0}>
+                      {canDelete && (
+                        <IconButton
+                          aria-label={`Delete ${curated.name}`}
+                          size="xs"
+                          variant="ghost"
+                          color="fg.muted"
+                          onClick={() => setDeleteTarget(curated.name)}
+                        >
+                          <LuTrash2 size={14} />
+                        </IconButton>
+                      )}
+                    </Flex>
                   </Flex>
-                  <Text fontSize="xs" color="fg.muted">
-                    {curated.description}
-                  </Text>
-                </Box>
 
-                {/* Right: action */}
-                <Flex alignItems="center" gap={1} ml={2} flexShrink={0}>
-                  {!installed ? (
-                    <Button
-                      size="xs"
-                      variant="ghost"
-                      disabled={pullHook.isDownloading}
-                      onClick={() => handlePull(curated.name)}
-                    >
-                      <LuDownload size={14} />
-                      Pull
-                    </Button>
-                  ) : canDelete ? (
-                    <IconButton
-                      aria-label={`Delete ${curated.name}`}
-                      size="xs"
-                      variant="ghost"
-                      color="fg.muted"
-                      onClick={() => setDeleteTarget(curated.name)}
-                    >
-                      <LuTrash2 size={14} />
-                    </IconButton>
-                  ) : null}
-                </Flex>
-              </Flex>
-
-              {/* Progress bar - full width below row */}
-              {isPulling && pullHook.progress && (
-                <Box px={3} pb={2.5}>
-                  <ModelPullProgress
-                    progress={pullHook.progress}
-                    onCancel={pullHook.cancelPull}
-                  />
-                </Box>
-              )}
-            </Box>
-          );
-        })}
-      </Stack>
-
-      {/* Installed models not in curated list */}
-      {models
-        .filter((m) => !CURATED_MODELS.some((c) => c.name === m.name))
-        .map((m) => {
-          const canDelete = !activeModels.has(m.name);
-          const isPulling =
-            pullHook.isDownloading && pullingModel === m.name;
-
-          return (
-            <Box
-              key={m.name}
-              borderBottomWidth="1px"
-              borderColor="border.subtle"
-              _last={{ borderBottomWidth: 0 }}
-            >
-              <Flex
-                alignItems="center"
-                justifyContent="space-between"
-                py={2.5}
-                px={3}
-              >
-                <Flex alignItems="center" gap={2}>
-                  <Text fontSize="sm" fontWeight="medium">
-                    {m.name}
-                  </Text>
-                  <Badge size="sm" colorPalette="green" variant="subtle">
-                    Installed
-                  </Badge>
-                </Flex>
-                <Flex alignItems="center" gap={1} ml={2} flexShrink={0}>
-                  {canDelete && (
-                    <IconButton
-                      aria-label={`Delete ${m.name}`}
-                      size="xs"
-                      variant="ghost"
-                      color="fg.muted"
-                      onClick={() => setDeleteTarget(m.name)}
-                    >
-                      <LuTrash2 size={14} />
-                    </IconButton>
+                  {isPulling && pullHook.progress && (
+                    <Box px={3} pb={2.5}>
+                      <ModelPullProgress
+                        progress={pullHook.progress}
+                        onCancel={pullHook.cancelPull}
+                      />
+                    </Box>
                   )}
-                </Flex>
-              </Flex>
-
-              {/* Progress bar - full width below row */}
-              {isPulling && pullHook.progress && (
-                <Box px={3} pb={2.5}>
-                  <ModelPullProgress
-                    progress={pullHook.progress}
-                    onCancel={pullHook.cancelPull}
-                  />
                 </Box>
-              )}
-            </Box>
-          );
-        })}
+              );
+            })}
 
-      {/* Custom model input */}
-      <Box>
-        <Text fontSize="xs" color="fg.muted" mb={1.5}>
-          Custom model
+            {nonCuratedInstalled.map((m) => {
+              const canDelete = !activeModels.has(m.name);
+              const isPulling =
+                pullHook.isDownloading && pullingModel === m.name;
+
+              return (
+                <Box
+                  key={m.name}
+                  borderBottomWidth="1px"
+                  borderColor="border.subtle"
+                  _last={{ borderBottomWidth: 0 }}
+                >
+                  <Flex
+                    alignItems="center"
+                    justifyContent="space-between"
+                    py={2.5}
+                    px={3}
+                  >
+                    <Flex alignItems="center" gap={2}>
+                      <Text fontSize="sm" fontWeight="medium">
+                        {m.name}
+                      </Text>
+                      <Badge size="sm" colorPalette="green" variant="subtle">
+                        Installed
+                      </Badge>
+                    </Flex>
+                    <Flex alignItems="center" gap={1} ml={2} flexShrink={0}>
+                      {canDelete && (
+                        <IconButton
+                          aria-label={`Delete ${m.name}`}
+                          size="xs"
+                          variant="ghost"
+                          color="fg.muted"
+                          onClick={() => setDeleteTarget(m.name)}
+                        >
+                          <LuTrash2 size={14} />
+                        </IconButton>
+                      )}
+                    </Flex>
+                  </Flex>
+
+                  {isPulling && pullHook.progress && (
+                    <Box px={3} pb={2.5}>
+                      <ModelPullProgress
+                        progress={pullHook.progress}
+                        onCancel={pullHook.cancelPull}
+                      />
+                    </Box>
+                  )}
+                </Box>
+              );
+            })}
+          </Stack>
+        )}
+      </Box>
+
+      {/* Sub-section 2: Download Models */}
+      <Box mt={6}>
+        <Text fontSize="sm" fontWeight="medium" color="fg.muted" mb={2}>
+          Download Models
+        </Text>
+
+        {uninstalledCurated.length > 0 && (
+          <>
+            <Text fontSize="xs" color="fg.muted" mb={3}>
+              Suggested models for article scoring:
+            </Text>
+            <Stack gap={0} mb={3}>
+              {uninstalledCurated.map((curated) => {
+                const isPulling =
+                  pullHook.isDownloading && pullingModel === curated.name;
+
+                return (
+                  <Box
+                    key={curated.name}
+                    borderBottomWidth="1px"
+                    borderColor="border.subtle"
+                    _last={{ borderBottomWidth: 0 }}
+                  >
+                    <Flex
+                      alignItems="center"
+                      justifyContent="space-between"
+                      py={2.5}
+                      px={3}
+                    >
+                      <Box flex={1} minWidth={0}>
+                        <Flex alignItems="center" gap={2}>
+                          <Text fontSize="sm" fontWeight="medium">
+                            {curated.name}
+                          </Text>
+                          <Text fontSize="xs" color="fg.muted">
+                            {curated.size}
+                          </Text>
+                        </Flex>
+                        <Text fontSize="xs" color="fg.muted">
+                          {curated.description}
+                        </Text>
+                      </Box>
+                      <Flex alignItems="center" gap={1} ml={2} flexShrink={0}>
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          disabled={pullHook.isDownloading}
+                          onClick={() => handlePull(curated.name)}
+                        >
+                          <LuDownload size={14} />
+                          Pull
+                        </Button>
+                      </Flex>
+                    </Flex>
+
+                    {isPulling && pullHook.progress && (
+                      <Box px={3} pb={2.5}>
+                        <ModelPullProgress
+                          progress={pullHook.progress}
+                          onCancel={pullHook.cancelPull}
+                        />
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
+            </Stack>
+          </>
+        )}
+
+        <Text fontSize="xs" color="fg.muted" mt={2} mb={1.5}>
+          Or download a specific model:
         </Text>
         <Flex gap={2}>
           <Input

@@ -63,9 +63,6 @@ export function SystemPrompts() {
 
   return (
     <Stack gap={1}>
-      <Text fontSize="sm" fontWeight="medium" color="fg.muted" mb={1}>
-        System Prompts
-      </Text>
       <PromptSection
         title="Categorization Prompt"
         content={prompts.categorization_prompt}
