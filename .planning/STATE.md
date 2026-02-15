@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 
 ## Current Position
 
-Phase: 7 of 9 (Ollama Configuration UI)
-Plan: 2 of 3 complete
-Status: Executing phase 7
-Last activity: 2026-02-15 - Completed 07-02: Ollama Settings UI
+Phase: 7 of 9 (Ollama Configuration UI) -- COMPLETE
+Plan: 3 of 3 complete
+Status: Phase 7 complete
+Last activity: 2026-02-15 - Completed 07-03: Model Download Management UI
 
-Progress: [███████░░░] 71% (24/34 total plans estimated)
+Progress: [████████░░] 74% (25/34 total plans estimated)
 
 ## Performance Metrics
 
@@ -44,6 +44,7 @@ Progress: [███████░░░] 71% (24/34 total plans estimated)
 **Phase 07 Metrics:**
 | Phase 07-ollama-configuration-ui P01 | 4.0 | 2 tasks | 6 files |
 | Phase 07-ollama-configuration-ui P02 | 5.4 | 2 tasks | 11 files |
+| Phase 07-ollama-configuration-ui P03 | 4.0 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 07-01]: Score-only re-scoring skips categorization when only scoring model changed
 - [Phase 07-02]: useReducer overlay pattern for form state to avoid setState-in-effect lint violations
 - [Phase 07-02]: NativeSelect for model dropdowns (simpler than Select.Root for short option lists)
+- [Phase 07-03]: fetch+ReadableStream for SSE (not EventSource) because pull endpoint is POST
+- [Phase 07-03]: Pulsing dot indicator via Emotion keyframes for download activity on sidebar
 
 ### Pending Todos
 
@@ -89,9 +92,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Completed 07-02-PLAN.md (Ollama Settings UI)
+Stopped at: Completed 07-03-PLAN.md (Model Download Management UI) -- Phase 7 complete
 Resume file: None
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-15 after 07-02 execution*
+*Last updated: 2026-02-15 after 07-03 execution*
