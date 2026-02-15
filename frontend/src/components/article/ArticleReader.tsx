@@ -108,13 +108,15 @@ export function ArticleReader({
             </Flex>
 
             {/* Article header */}
-            <Flex direction="column" gap={4} mb={8}>
+            <Flex direction="column" gap={5} mb={10}>
               {/* Title */}
               <Text
                 textStyle="reader.heading"
-                fontSize="2xl"
-                fontWeight="600"
-                lineHeight="1.3"
+                fontSize="3xl"
+                fontWeight="700"
+                fontFamily="sans"
+                lineHeight="1.25"
+                letterSpacing="-0.01em"
               >
                 {article.title}
               </Text>
@@ -219,6 +221,8 @@ export function ArticleReader({
             {/* Article body */}
             <Box
               textStyle="reader"
+              maxW="680px"
+              mx="auto"
               css={{
                 "& img": {
                   maxWidth: "100%",
@@ -261,15 +265,29 @@ export function ArticleReader({
                   color: "fg.muted",
                 },
                 "& pre": {
-                  bg: "bg.subtle",
-                  p: 4,
-                  borderRadius: "md",
+                  bg: "oklch(13% 0.008 55)",
+                  p: 5,
+                  borderRadius: "lg",
                   overflowX: "auto",
-                  my: 4,
+                  my: 5,
+                  borderWidth: "1px",
+                  borderColor: "border.subtle",
                 },
                 "& code": {
-                  fontFamily: "monospace",
-                  fontSize: "0.9em",
+                  fontFamily: "mono",
+                  fontSize: "0.875em",
+                  lineHeight: "1.6",
+                },
+                "& pre code": {
+                  bg: "transparent",
+                  p: 0,
+                },
+                "& :not(pre) > code": {
+                  bg: "bg.emphasized",
+                  px: 1.5,
+                  py: 0.5,
+                  borderRadius: "sm",
+                  fontSize: "0.875em",
                 },
               }}
               dangerouslySetInnerHTML={{ __html: contentHtml }}
