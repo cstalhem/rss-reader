@@ -83,29 +83,44 @@ export function OllamaSection({ isVisible }: OllamaSectionProps) {
         <OllamaHealthBadge health={health} isLoading={healthLoading} />
       </Flex>
 
-      {/* Model selector */}
-      {!configLoading && effectiveConfig && savedConfig && (
-        <ModelSelector
+      {/* Panel 1: Model Configuration */}
+      <Box bg="bg.subtle" borderRadius="md" borderWidth="1px" borderColor="border.subtle" p={6}>
+        <Text fontSize="lg" fontWeight="semibold" mb={4}>
+          Model Configuration
+        </Text>
+        {!configLoading && effectiveConfig && savedConfig && (
+          <ModelSelector
+            models={models ?? []}
+            config={effectiveConfig}
+            savedConfig={savedConfig}
+            isConnected={isConnected}
+            onConfigChange={handleConfigChange}
+            onSave={handleSave}
+            isSaving={saveMutation.isPending}
+          />
+        )}
+      </Box>
+
+      {/* Panel 2: Model Library */}
+      <Box bg="bg.subtle" borderRadius="md" borderWidth="1px" borderColor="border.subtle" p={6}>
+        <Text fontSize="lg" fontWeight="semibold" mb={4}>
+          Model Library
+        </Text>
+        <ModelManagement
           models={models ?? []}
-          config={effectiveConfig}
-          savedConfig={savedConfig}
           isConnected={isConnected}
-          onConfigChange={handleConfigChange}
-          onSave={handleSave}
-          isSaving={saveMutation.isPending}
+          config={effectiveConfig}
+          pullHook={pullHook}
         />
-      )}
+      </Box>
 
-      {/* Model management (download/delete) */}
-      <ModelManagement
-        models={models ?? []}
-        isConnected={isConnected}
-        config={effectiveConfig}
-        pullHook={pullHook}
-      />
-
-      {/* System prompts */}
-      <SystemPrompts />
+      {/* Panel 3: System Prompts */}
+      <Box bg="bg.subtle" borderRadius="md" borderWidth="1px" borderColor="border.subtle" p={6}>
+        <Text fontSize="lg" fontWeight="semibold" mb={4}>
+          System Prompts
+        </Text>
+        <SystemPrompts />
+      </Box>
     </Stack>
   );
 }

@@ -3,7 +3,7 @@
 import { Box, Stack, Flex, Text } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { useQuery } from "@tanstack/react-query";
-import { LuRss, LuHeart, LuBot, LuMessageSquare } from "react-icons/lu";
+import { LuRss, LuHeart, LuBot, LuMessageSquare, LuDownload } from "react-icons/lu";
 import { fetchDownloadStatus, DownloadStatus } from "@/lib/api";
 
 export type SettingsSection = "feeds" | "interests" | "ollama" | "feedback";
@@ -72,13 +72,11 @@ export function SettingsSidebar({
             </Text>
             {showIndicator && (
               <Box
-                width="6px"
-                height="6px"
-                borderRadius="full"
-                bg="accent.solid"
                 ml="auto"
                 css={{ animation: `${pulse} 2s ease-in-out infinite` }}
-              />
+              >
+                <LuDownload size={16} color="var(--chakra-colors-accent-solid)" />
+              </Box>
             )}
           </Flex>
         );
