@@ -69,6 +69,46 @@ def _recover_stuck_scoring():
             logger.info(f"Recovered {result.rowcount} articles stuck in scoring state")
 
 
+def _migrate_ollama_config_columns():
+    """Add Ollama runtime config columns to user_preferences and articles tables."""
+    inspector = inspect(engine)
+
+    # UserPreferences columns
+    if inspector.has_table("user_preferences"):
+        existing = {col["name"] for col in inspector.get_columns("user_preferences")}
+        prefs_columns = [
+            ("ollama_categorization_model", "TEXT"),
+            ("ollama_scoring_model", "TEXT"),
+            ("ollama_use_separate_models", "BOOLEAN DEFAULT 0"),
+        ]
+        with engine.begin() as conn:
+            for col_name, col_type in prefs_columns:
+                if col_name not in existing:
+                    logger.info(f"Adding column user_preferences.{col_name}")
+                    conn.execute(
+                        text(
+                            f"ALTER TABLE user_preferences ADD COLUMN {col_name} {col_type}"
+                        )
+                    )
+
+    # Article columns
+    if inspector.has_table("articles"):
+        existing = {col["name"] for col in inspector.get_columns("articles")}
+        article_columns = [
+            ("scoring_priority", "INTEGER DEFAULT 0"),
+            ("rescore_mode", "TEXT"),
+        ]
+        with engine.begin() as conn:
+            for col_name, col_type in article_columns:
+                if col_name not in existing:
+                    logger.info(f"Adding column articles.{col_name}")
+                    conn.execute(
+                        text(
+                            f"ALTER TABLE articles ADD COLUMN {col_name} {col_type}"
+                        )
+                    )
+
+
 def _seed_default_topic_weights():
     """Backfill topic_weights with defaults if currently NULL."""
     from backend.prompts import get_default_topic_weights
@@ -95,6 +135,8 @@ def create_db_and_tables():
         _recover_stuck_scoring()
     if inspect(engine).has_table("user_preferences"):
         _seed_default_topic_weights()
+    # Ollama config migrations (covers both tables)
+    _migrate_ollama_config_columns()
 
 
 def get_session():

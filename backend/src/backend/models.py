@@ -42,6 +42,10 @@ class Article(SQLModel, table=True):
     scoring_state: str = Field(default="unscored")
     scored_at: datetime | None = Field(default=None)
 
+    # Re-scoring support
+    scoring_priority: int = Field(default=0)
+    rescore_mode: str | None = Field(default=None)
+
 
 class UserPreferences(SQLModel, table=True):
     """User preferences for content curation (single-row table)."""
@@ -55,3 +59,8 @@ class UserPreferences(SQLModel, table=True):
     anti_interests: str = Field(default="")
     topic_weights: dict[str, str] | None = Field(default=None, sa_column=Column(JSON))
     updated_at: datetime = Field(default_factory=datetime.now)
+
+    # Runtime Ollama model configuration (overrides YAML/env defaults)
+    ollama_categorization_model: str | None = Field(default=None)
+    ollama_scoring_model: str | None = Field(default=None)
+    ollama_use_separate_models: bool = Field(default=False)
