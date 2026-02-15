@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Box, Flex, Button, Text, Skeleton, Stack } from "@chakra-ui/react";
+import { Box, Flex, Button, Text, Icon } from "@chakra-ui/react";
+import { LuCheckCheck, LuInbox, LuClock, LuBan } from "react-icons/lu";
 import { useArticles, useMarkAsRead } from "@/hooks/useArticles";
 import { useMarkAllRead } from "@/hooks/useFeedMutations";
 import { useFeeds } from "@/hooks/useFeeds";
@@ -9,6 +10,7 @@ import { useSortPreference } from "@/hooks/useSortPreference";
 import { useScoringStatus } from "@/hooks/useScoringStatus";
 import { useCompletingArticles } from "@/hooks/useCompletingArticles";
 import { ArticleRow } from "./ArticleRow";
+import { ArticleRowSkeleton } from "./ArticleRowSkeleton";
 import { ArticleReader } from "./ArticleReader";
 import { SortSelect } from "./SortSelect";
 import { Article, parseSortOption } from "@/lib/types";
@@ -95,15 +97,24 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
       ? `${articleCount} blocked article${articleCount !== 1 ? "s" : ""}`
       : `${articleCount} article${articleCount !== 1 ? "s" : ""}`;
 
-  // Empty state messages by filter
+  // Empty state messages and icons by filter
   const emptyMessage =
     filter === "unread"
       ? "No unread articles. You're all caught up!"
       : filter === "all"
-      ? "No articles yet. Add some feeds to get started."
+      ? "No articles yet"
       : filter === "scoring"
       ? "No articles awaiting scoring."
       : "No blocked articles.";
+
+  const emptyIcon =
+    filter === "unread"
+      ? LuCheckCheck
+      : filter === "all"
+      ? LuInbox
+      : filter === "scoring"
+      ? LuClock
+      : LuBan;
 
   return (
     <Box>
@@ -179,14 +190,11 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
 
       {/* Article list */}
       {isLoading ? (
-        <Stack gap={0}>
+        <Box>
           {Array.from({ length: 5 }).map((_, i) => (
-            <Box key={i} px={4} py={3}>
-              <Skeleton height="20px" mb={2} />
-              <Skeleton height="16px" width="60%" />
-            </Box>
+            <ArticleRowSkeleton key={i} />
           ))}
-        </Stack>
+        </Box>
       ) : displayArticles && displayArticles.length > 0 ? (
         <>
           <Box>
@@ -223,14 +231,22 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
         </>
       ) : (
         <Flex
+          direction="column"
           alignItems="center"
           justifyContent="center"
-          minHeight="400px"
-          p={8}
+          gap={4}
+          py={16}
+          px={8}
         >
-          <Text fontSize="lg" color="fg.muted">
+          <Icon as={emptyIcon} boxSize={12} color="fg.subtle" />
+          <Text fontSize="lg" color="fg.muted" textAlign="center">
             {emptyMessage}
           </Text>
+          {filter === "all" && (
+            <Text fontSize="sm" color="fg.subtle" textAlign="center">
+              Add feeds from the sidebar to get started
+            </Text>
+          )}
         </Flex>
       )}
 
