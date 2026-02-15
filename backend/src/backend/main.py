@@ -854,6 +854,11 @@ async def update_ollama_config(
         elif score_changed:
             rescore_mode = "score_only"
 
+        # If user explicitly requested re-evaluation but no model change detected,
+        # default to full re-scoring (user intent: "re-score regardless of config")
+        if rescore_mode is None:
+            rescore_mode = "full"
+
         if rescore_mode:
             # Enqueue unread scored articles for re-scoring with priority
             articles = session.exec(
