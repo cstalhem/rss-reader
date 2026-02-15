@@ -75,6 +75,7 @@ Key architectural decisions carrying forward to v1.1:
 ### Pending Todos
 
 1. **Establish design and UX principles for next milestone** (area: ui) — Define semantic status colors, interaction patterns, responsive UX conventions for v1.2+
+2. **Codebase evaluation and simplification phase** (area: general) — Thorough evaluation of codebase, architecture, and data models to surface simplifications and address technical debt (hard-coded values, duplicated logic, inconsistencies) while retaining all functionality
 
 ### Blockers/Concerns
 
