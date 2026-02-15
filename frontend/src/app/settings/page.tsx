@@ -6,7 +6,7 @@ import { Header } from "@/components/layout/Header";
 import { SettingsSidebar, SettingsSection } from "@/components/settings/SettingsSidebar";
 import { InterestsSection } from "@/components/settings/InterestsSection";
 import { FeedsSection } from "@/components/settings/FeedsSection";
-import { OllamaPlaceholder } from "@/components/settings/OllamaPlaceholder";
+import { OllamaSection } from "@/components/settings/OllamaSection";
 import { FeedbackPlaceholder } from "@/components/settings/FeedbackPlaceholder";
 
 export default function SettingsPage() {
@@ -36,7 +36,7 @@ export default function SettingsPage() {
               <Stack gap={10}>
                 <FeedsSection />
                 <InterestsSection />
-                <OllamaPlaceholder />
+                <OllamaSection isVisible={true} />
                 <FeedbackPlaceholder />
               </Stack>
             </Box>
@@ -50,7 +50,7 @@ export default function SettingsPage() {
                 <InterestsSection />
               </Box>
               <Box display={activeSection === "ollama" ? "block" : "none"}>
-                <OllamaPlaceholder />
+                <OllamaSection isVisible={activeSection === "ollama"} />
               </Box>
               <Box display={activeSection === "feedback" ? "block" : "none"}>
                 <FeedbackPlaceholder />
