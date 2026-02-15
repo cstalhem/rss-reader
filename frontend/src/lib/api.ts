@@ -1,4 +1,13 @@
-import { Article, Feed, UserPreferences } from "./types";
+import {
+  Article,
+  Feed,
+  UserPreferences,
+  OllamaHealth,
+  OllamaModel,
+  OllamaConfig,
+  OllamaConfigSaveResult,
+  OllamaPrompts,
+} from "./types";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8912";
@@ -248,6 +257,99 @@ export async function fetchScoringStatus(): Promise<ScoringStatus> {
 
   if (!response.ok) {
     throw new Error(`Failed to fetch scoring status: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+// --- Ollama Configuration API ---
+
+export async function fetchOllamaHealth(): Promise<OllamaHealth> {
+  const response = await fetch(`${API_BASE_URL}/api/ollama/health`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch Ollama health: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchOllamaModels(): Promise<OllamaModel[]> {
+  const response = await fetch(`${API_BASE_URL}/api/ollama/models`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch Ollama models: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchOllamaConfig(): Promise<OllamaConfig> {
+  const response = await fetch(`${API_BASE_URL}/api/ollama/config`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch Ollama config: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function saveOllamaConfig(
+  data: OllamaConfig & { rescore: boolean }
+): Promise<OllamaConfigSaveResult> {
+  const response = await fetch(`${API_BASE_URL}/api/ollama/config`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to save Ollama config: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function fetchOllamaPrompts(): Promise<OllamaPrompts> {
+  const response = await fetch(`${API_BASE_URL}/api/ollama/prompts`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch Ollama prompts: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function deleteOllamaModel(name: string): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/ollama/models/${encodeURIComponent(name)}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete Ollama model: ${response.statusText}`);
+  }
+}
+
+export interface DownloadStatus {
+  active: boolean;
+  model: string | null;
+  completed: number;
+  total: number;
+  status: string | null;
+}
+
+export async function fetchDownloadStatus(): Promise<DownloadStatus> {
+  const response = await fetch(`${API_BASE_URL}/api/ollama/download-status`);
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch download status: ${response.statusText}`
+    );
   }
 
   return response.json();

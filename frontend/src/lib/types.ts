@@ -34,6 +34,35 @@ export interface UserPreferences {
   updated_at: string;
 }
 
+export interface OllamaHealth {
+  connected: boolean;
+  version: string | null;
+  latency_ms: number | null;
+}
+
+export interface OllamaModel {
+  name: string;
+  size: number;
+  parameter_size: string | null;
+  quantization_level: string | null;
+  is_loaded: boolean;
+}
+
+export interface OllamaConfig {
+  categorization_model: string;
+  scoring_model: string;
+  use_separate_models: boolean;
+}
+
+export interface OllamaPrompts {
+  categorization_prompt: string;
+  scoring_prompt: string;
+}
+
+export interface OllamaConfigSaveResult extends OllamaConfig {
+  rescore_queued: number;
+}
+
 export type SortOption = "score_desc" | "score_asc" | "date_desc" | "date_asc";
 
 export function parseSortOption(option: SortOption): { sort_by: string; order: string } {
