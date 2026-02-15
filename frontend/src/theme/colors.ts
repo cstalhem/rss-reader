@@ -43,4 +43,43 @@ export const semanticTokens = defineSemanticTokens.colors({
       value: { _light: "{colors.accent.50}", _dark: "{colors.accent.900}" },
     },
   },
+  bg: {
+    DEFAULT: {
+      value: { _light: "white", _dark: "oklch(15% 0.010 55)" },
+    },
+    subtle: {
+      value: { _light: "{colors.gray.50}", _dark: "oklch(17% 0.012 55)" },
+    },
+    muted: {
+      value: { _light: "{colors.gray.100}", _dark: "oklch(20% 0.014 55)" },
+    },
+    emphasized: {
+      value: { _light: "{colors.gray.200}", _dark: "oklch(24% 0.016 55)" },
+    },
+    panel: {
+      value: { _light: "{colors.gray.50}", _dark: "oklch(16% 0.011 55)" },
+    },
+  },
+  fg: {
+    DEFAULT: {
+      value: { _light: "{colors.gray.950}", _dark: "oklch(93% 0.005 55)" },
+    },
+    muted: {
+      value: { _light: "{colors.gray.600}", _dark: "oklch(65% 0.008 55)" },
+    },
+    subtle: {
+      value: { _light: "{colors.gray.400}", _dark: "oklch(50% 0.006 55)" },
+    },
+  },
+  border: {
+    DEFAULT: {
+      value: { _light: "{colors.gray.200}", _dark: "oklch(30% 0.012 55)" },
+    },
+    subtle: {
+      value: { _light: "{colors.gray.100}", _dark: "oklch(22% 0.010 55)" },
+    },
+    emphasized: {
+      value: { _light: "{colors.gray.300}", _dark: "oklch(35% 0.014 55)" },
+    },
+  },
 })
