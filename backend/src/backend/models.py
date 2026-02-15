@@ -60,6 +60,9 @@ class UserPreferences(SQLModel, table=True):
     topic_weights: dict[str, str] | None = Field(default=None, sa_column=Column(JSON))
     updated_at: datetime = Field(default_factory=datetime.now)
 
+    # Category grouping and organization
+    category_groups: dict | None = Field(default=None, sa_column=Column(JSON))
+
     # Runtime Ollama model configuration (overrides YAML/env defaults)
     ollama_categorization_model: str | None = Field(default=None)
     ollama_scoring_model: str | None = Field(default=None)

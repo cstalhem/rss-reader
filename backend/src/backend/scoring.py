@@ -172,23 +172,36 @@ def compute_composite_score(
     quality_score: int,
     categories: list[str],
     topic_weights: dict[str, str] | None,
+    category_groups: dict | None = None,
 ) -> float:
     """Compute final composite score from interest, quality, and topic weights.
 
     Formula: interest_score * category_multiplier * quality_multiplier
     Capped at 20.0 maximum.
 
+    Weight resolution priority:
+    1. topic_weights[category] -- explicit override
+    2. Group weight for the group containing this category
+    3. "normal" (1.0) default
+
     Args:
         interest_score: Interest score 0-10
         quality_score: Quality score 0-10
         categories: List of article categories
         topic_weights: User's topic weight preferences
+        category_groups: Category groups structure with group-level weights
 
     Returns:
         Composite score (0.0-20.0)
     """
-    # Weight mapping
+    # Weight mapping (new names + old names as fallback aliases)
     weight_map = {
+        "block": 0.0,
+        "reduce": 0.5,
+        "normal": 1.0,
+        "boost": 1.5,
+        "max": 2.0,
+        # Old names for backward compatibility during migration
         "blocked": 0.0,
         "low": 0.5,
         "neutral": 1.0,
@@ -197,13 +210,29 @@ def compute_composite_score(
     }
 
     # Calculate average category multiplier
-    if not categories or not topic_weights:
-        category_multiplier = 1.0  # Neutral default
+    if not categories:
+        category_multiplier = 1.0
     else:
+        # Build category -> group_weight lookup
+        group_weights: dict[str, str] = {}
+        if category_groups and "groups" in category_groups:
+            for group in category_groups["groups"]:
+                for cat in group.get("categories", []):
+                    group_weights[cat.lower()] = group.get("weight", "normal")
+
         weights = []
         for category in categories:
-            weight = topic_weights.get(category.lower(), "neutral")
-            weights.append(weight_map.get(weight, 1.0))
+            cat_lower = category.lower()
+            # Priority 1: explicit override in topic_weights
+            if topic_weights and cat_lower in topic_weights:
+                weight_str = topic_weights[cat_lower]
+            # Priority 2: group weight
+            elif cat_lower in group_weights:
+                weight_str = group_weights[cat_lower]
+            # Priority 3: default
+            else:
+                weight_str = "normal"
+            weights.append(weight_map.get(weight_str, 1.0))
 
         category_multiplier = sum(weights) / len(weights) if weights else 1.0
 
@@ -217,23 +246,37 @@ def compute_composite_score(
     return min(composite, 20.0)
 
 
-def is_blocked(categories: list[str], topic_weights: dict[str, str] | None) -> bool:
-    """Check if any category in the list is blocked.
+def is_blocked(
+    categories: list[str],
+    topic_weights: dict[str, str] | None,
+    category_groups: dict | None = None,
+) -> bool:
+    """Check if any category in the list is blocked or hidden.
 
     Args:
         categories: List of article categories
         topic_weights: User's topic weight preferences
+        category_groups: Category groups structure with hidden_categories
 
     Returns:
-        True if any category has weight "blocked"
+        True if any category has weight "block"/"blocked" or is in hidden_categories
     """
-    if not categories or not topic_weights:
+    if not categories:
         return False
 
-    for category in categories:
-        weight = topic_weights.get(category.lower())
-        if weight == "blocked":
-            return True
+    # Check hidden_categories
+    if category_groups:
+        hidden = category_groups.get("hidden_categories", [])
+        for category in categories:
+            if category.lower() in [h.lower() for h in hidden]:
+                return True
+
+    # Check topic_weights for blocked
+    if topic_weights:
+        for category in categories:
+            weight = topic_weights.get(category.lower())
+            if weight in ("blocked", "block"):
+                return True
 
     return False
 
@@ -275,7 +318,7 @@ async def get_active_categories(session: Session) -> list[str]:
     if preferences and preferences.topic_weights:
         for category, weight in preferences.topic_weights.items():
             lower_cat = category.lower()
-            if weight != "blocked" and lower_cat not in categories_seen:
+            if weight not in ("blocked", "block") and lower_cat not in categories_seen:
                 categories_seen[lower_cat] = category
 
     # Add default categories

@@ -175,8 +175,49 @@ class ScoringQueue:
                         for cat in categorization.categories
                     ]
 
+                # Step 1.5: Handle returned hidden categories
+                if (
+                    not skip_categorization
+                    and article.categories
+                    and preferences.category_groups
+                ):
+                    hidden = preferences.category_groups.get("hidden_categories", [])
+                    hidden_lower = [h.lower() for h in hidden]
+                    returned = list(
+                        preferences.category_groups.get("returned_categories", [])
+                    )
+                    new_hidden = list(hidden)
+                    cg_changed = False
+
+                    for cat in article.categories:
+                        if cat.lower() in hidden_lower:
+                            # Category reappeared -- move from hidden to returned
+                            new_hidden = [
+                                h for h in new_hidden if h.lower() != cat.lower()
+                            ]
+                            if cat.lower() not in [r.lower() for r in returned]:
+                                returned.append(cat)
+                            cg_changed = True
+
+                    if cg_changed:
+                        # Reassign entire dict (SQLAlchemy JSON mutation rule)
+                        preferences.category_groups = {
+                            **preferences.category_groups,
+                            "hidden_categories": new_hidden,
+                            "returned_categories": returned,
+                        }
+                        session.add(preferences)
+                        session.commit()
+                        logger.info(
+                            f"Article {article.id}: moved returned categories from hidden to returned"
+                        )
+
                 # Step 2: Check if blocked
-                if is_blocked(article.categories, preferences.topic_weights):
+                if is_blocked(
+                    article.categories,
+                    preferences.topic_weights,
+                    preferences.category_groups,
+                ):
                     # Auto-score 0 for blocked articles
                     article.interest_score = 0
                     article.quality_score = 0
@@ -210,6 +251,7 @@ class ScoringQueue:
                         scoring.quality_score,
                         article.categories,
                         preferences.topic_weights,
+                        preferences.category_groups,
                     )
 
                     article.scoring_state = "scored"

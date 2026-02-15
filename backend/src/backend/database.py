@@ -109,6 +109,79 @@ def _migrate_ollama_config_columns():
                     )
 
 
+def _migrate_category_groups_column():
+    """Add category_groups column to user_preferences if missing."""
+    inspector = inspect(engine)
+    if not inspector.has_table("user_preferences"):
+        return
+
+    existing = {col["name"] for col in inspector.get_columns("user_preferences")}
+    if "category_groups" not in existing:
+        with engine.begin() as conn:
+            logger.info("Adding column user_preferences.category_groups")
+            conn.execute(
+                text("ALTER TABLE user_preferences ADD COLUMN category_groups TEXT")
+            )
+
+
+def _migrate_weight_names():
+    """Convert existing topic_weights from old names to new names.
+
+    Mapping: blocked->block, low->reduce, neutral->normal, medium->boost, high->max.
+    Also seeds seen_categories in category_groups with all existing topic_weights keys
+    to prevent every category showing a 'New' badge on first load.
+    """
+    name_map = {
+        "blocked": "block",
+        "low": "reduce",
+        "neutral": "normal",
+        "medium": "boost",
+        "high": "max",
+    }
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT id, topic_weights, category_groups FROM user_preferences LIMIT 1")
+        ).first()
+        if not row or not row[1]:
+            return
+
+        weights = json.loads(row[1]) if isinstance(row[1], str) else row[1]
+        changed = False
+
+        new_weights = {}
+        for category, weight in weights.items():
+            if weight in name_map:
+                new_weights[category] = name_map[weight]
+                changed = True
+            else:
+                new_weights[category] = weight
+
+        if changed:
+            conn.execute(
+                text("UPDATE user_preferences SET topic_weights = :weights WHERE id = :id"),
+                {"weights": json.dumps(new_weights), "id": row[0]},
+            )
+            logger.info("Migrated topic_weights to new weight names")
+
+        # Seed seen_categories from all topic_weights keys to avoid stale "New" badges
+        category_groups = json.loads(row[2]) if row[2] else None
+        if category_groups is None:
+            category_groups = {
+                "groups": [],
+                "hidden_categories": [],
+                "seen_categories": list(weights.keys()),
+                "returned_categories": [],
+            }
+            conn.execute(
+                text("UPDATE user_preferences SET category_groups = :cg WHERE id = :id"),
+                {"cg": json.dumps(category_groups), "id": row[0]},
+            )
+            logger.info(
+                f"Seeded category_groups with {len(weights)} seen categories"
+            )
+
+
 def _seed_default_topic_weights():
     """Backfill topic_weights with defaults if currently NULL."""
     from backend.prompts import get_default_topic_weights
@@ -137,6 +210,9 @@ def create_db_and_tables():
         _seed_default_topic_weights()
     # Ollama config migrations (covers both tables)
     _migrate_ollama_config_columns()
+    # Category grouping migrations
+    _migrate_category_groups_column()
+    _migrate_weight_names()
 
 
 def get_session():
