@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8 of 9 (Category Grouping)
-Plan: 2 of 5 complete
+Plan: 3 of 5 complete
 Status: Executing
-Last activity: 2026-02-15 - Plan 08-02 complete (frontend types, API client, useCategories hook, settings restructure)
+Last activity: 2026-02-16 - Plan 08-03 complete (categories section UI with accordion groups, weight presets, ungrouped list)
 
-Progress: [█████████░] 88% (30/34 total plans estimated)
+Progress: [█████████░] 91% (31/34 total plans estimated)
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [█████████░] 88% (30/34 total plans estimated)
 **Phase 08 Metrics:**
 | Phase 08-category-grouping P01 | 3.0 | 2 tasks | 5 files |
 | Phase 08-category-grouping P02 | 5.0 | 2 tasks | 9 files |
+| Phase 08-category-grouping P03 | 2.5 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08-01]: New weight names: block/reduce/normal/boost/max (old names kept as fallback aliases)
 - [Phase 08-02]: useCategories hook centralizes all category state management (groups, counts, mutations)
 - [Phase 08-02]: ArticleReader uses direct useMutation for inline tag weight changes (decoupled from usePreferences)
+- [Phase 08-03]: Compact Button group for weight presets (solid+accent active, ghost inactive) instead of SegmentGroup
+- [Phase 08-03]: Accordion header split pattern: trigger on left, presets on right outside trigger with stopPropagation
 
 ### Pending Todos
 
@@ -107,10 +110,10 @@ Key architectural decisions carrying forward to v1.1:
 
 ## Session Continuity
 
-Last session: 2026-02-15
-Stopped at: Completed 08-02-PLAN.md
-Resume file: .planning/phases/08-category-grouping/08-02-SUMMARY.md
+Last session: 2026-02-16
+Stopped at: Completed 08-03-PLAN.md
+Resume file: .planning/phases/08-category-grouping/08-03-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-15 after Phase 08-02 execution*
+*Last updated: 2026-02-16 after Phase 08-03 execution*
