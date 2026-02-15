@@ -128,6 +128,16 @@ export function useModelPull() {
             if (line.startsWith("data: ")) {
               try {
                 const data = JSON.parse(line.slice(6));
+
+                // Check for error field
+                if (data.error) {
+                  setError(data.error);
+                  setIsDownloading(false);
+                  setProgress(null);
+                  abortRef.current = null;
+                  return;
+                }
+
                 const completed = data.completed ?? 0;
                 const total = data.total ?? 0;
                 const pct =
