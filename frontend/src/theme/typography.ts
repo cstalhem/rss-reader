@@ -4,6 +4,7 @@ import { defineTokens, defineTextStyles } from "@chakra-ui/react"
 export const fontTokens = defineTokens.fonts({
   sans: { value: "var(--font-sans), system-ui, sans-serif" },
   serif: { value: "var(--font-serif), Georgia, serif" },
+  mono: { value: "var(--font-mono), 'Fira Code', monospace" },
 })
 
 // Text style overrides for Chakra components
