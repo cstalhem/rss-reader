@@ -41,6 +41,7 @@ export function useModelPull() {
   const [progress, setProgress] = useState<PullProgress | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [intervalMs, setIntervalMs] = useState<number | false>(false);
   const abortRef = useRef<AbortController | null>(null);
   const samplesRef = useRef<SpeedSample[]>([]);
   const queryClient = useQueryClient();
@@ -49,7 +50,7 @@ export function useModelPull() {
   const { data: downloadStatus } = useQuery<DownloadStatus>({
     queryKey: ["download-status"],
     queryFn: fetchDownloadStatus,
-    refetchInterval: isDownloading ? 1000 : false,
+    refetchInterval: intervalMs,
     // Only poll when we think a download is active but we lost the SSE stream
     // (i.e., user navigated away and came back)
   });
@@ -61,6 +62,7 @@ export function useModelPull() {
     if (downloadStatus.active && !abortRef.current) {
       // There's an active download but we don't have an SSE stream — poll mode
       setIsDownloading(true);
+      setIntervalMs(1000); // Start polling
       const pct =
         downloadStatus.total > 0
           ? Math.round((downloadStatus.completed / downloadStatus.total) * 100)
@@ -75,6 +77,7 @@ export function useModelPull() {
     } else if (!downloadStatus.active && isDownloading && !abortRef.current) {
       // Download finished while we were polling
       setIsDownloading(false);
+      setIntervalMs(false); // Stop polling
       setProgress(null);
       queryClient.invalidateQueries({ queryKey: ["ollama-models"] });
     }
@@ -84,6 +87,7 @@ export function useModelPull() {
     async (model: string) => {
       setError(null);
       setIsDownloading(true);
+      setIntervalMs(1000); // Start polling in case of SSE interruption
       setProgress({
         status: "starting",
         completed: 0,
@@ -172,6 +176,7 @@ export function useModelPull() {
         );
         setTimeout(() => {
           setIsDownloading(false);
+          setIntervalMs(false); // Stop polling
           setProgress(null);
           queryClient.invalidateQueries({ queryKey: ["ollama-models"] });
         }, 500);
@@ -180,6 +185,7 @@ export function useModelPull() {
         if (err instanceof DOMException && err.name === "AbortError") {
           // User cancelled — not an error
           setIsDownloading(false);
+          setIntervalMs(false); // Stop polling
           setProgress(null);
           return;
         }
@@ -187,6 +193,7 @@ export function useModelPull() {
           err instanceof Error ? err.message : "Download failed";
         setError(message);
         setIsDownloading(false);
+        setIntervalMs(false); // Stop polling
         setProgress(null);
       }
     },
@@ -210,6 +217,7 @@ export function useModelPull() {
     }
 
     setIsDownloading(false);
+    setIntervalMs(false); // Stop polling
     setProgress(null);
     setError(null);
   }, []);
