@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -5,10 +6,12 @@ from datetime import datetime
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy import desc, nulls_last
 from sqlmodel import Session, func, select
 
+from backend import ollama_service
 from backend.config import get_settings
 from backend.database import create_db_and_tables, get_session
 from backend.feeds import fetch_feed, refresh_feed, save_articles
@@ -117,6 +120,43 @@ class CategoryWeightUpdate(BaseModel):
     weight: str
 
 
+# Ollama API models
+class OllamaHealthResponse(BaseModel):
+    connected: bool
+    version: str | None
+    latency_ms: int | None
+
+
+class OllamaModelResponse(BaseModel):
+    name: str
+    size: int
+    parameter_size: str | None
+    quantization_level: str | None
+    is_loaded: bool
+
+
+class PullModelRequest(BaseModel):
+    model: str
+
+
+class OllamaConfigResponse(BaseModel):
+    categorization_model: str
+    scoring_model: str
+    use_separate_models: bool
+
+
+class OllamaConfigUpdate(BaseModel):
+    categorization_model: str
+    scoring_model: str
+    use_separate_models: bool
+    rescore: bool = False
+
+
+class OllamaPromptsResponse(BaseModel):
+    categorization_prompt: str
+    scoring_prompt: str
+
+
 # API Endpoints
 
 
@@ -165,19 +205,23 @@ def list_articles(
 
     # Apply scoring_state filter
     if scoring_state == "pending":
-        statement = statement.where(Article.scoring_state.in_(["unscored", "queued", "scoring"]))
+        statement = statement.where(
+            Article.scoring_state.in_(["unscored", "queued", "scoring"])
+        )
     elif scoring_state == "blocked":
-        statement = statement.where(Article.scoring_state == "scored").where(Article.composite_score == 0)
-        exclude_blocked = False  # Override: when explicitly viewing blocked tab, show them
+        statement = statement.where(Article.scoring_state == "scored").where(
+            Article.composite_score == 0
+        )
+        exclude_blocked = (
+            False  # Override: when explicitly viewing blocked tab, show them
+        )
     elif scoring_state is not None:
         statement = statement.where(Article.scoring_state == scoring_state)
 
     # In main views (Unread/All), only show scored non-blocked articles.
     # Articles still being scored belong in the Scoring tab, not the main feed.
     if exclude_blocked and scoring_state is None:
-        statement = statement.where(
-            Article.scoring_state == "scored"
-        ).where(
+        statement = statement.where(Article.scoring_state == "scored").where(
             Article.composite_score != 0
         )
 
@@ -191,13 +235,11 @@ def list_articles(
         # Primary: composite_score with NULLs last, secondary: published_at ASC (oldest first)
         if order == "desc":
             statement = statement.order_by(
-                nulls_last(desc(Article.composite_score)),
-                Article.published_at.asc()
+                nulls_last(desc(Article.composite_score)), Article.published_at.asc()
             )
         else:
             statement = statement.order_by(
-                nulls_last(Article.composite_score),
-                Article.published_at.asc()
+                nulls_last(Article.composite_score), Article.published_at.asc()
             )
     elif sort_by == "published_at":
         # Primary: published_at, secondary: id for stability
@@ -250,9 +292,7 @@ def list_feeds(
     session: Session = Depends(get_session),
 ):
     """List all feeds with unread count, ordered by display_order."""
-    feeds = session.exec(
-        select(Feed).order_by(Feed.display_order, Feed.id)
-    ).all()
+    feeds = session.exec(select(Feed).order_by(Feed.display_order, Feed.id)).all()
 
     # Build response with unread counts
     feed_responses = []
@@ -293,9 +333,7 @@ async def create_feed(
         )
 
     # Check for duplicate URL
-    existing_feed = session.exec(
-        select(Feed).where(Feed.url == url)
-    ).first()
+    existing_feed = session.exec(select(Feed).where(Feed.url == url)).first()
 
     if existing_feed:
         raise HTTPException(
@@ -322,9 +360,7 @@ async def create_feed(
         ) from e
 
     # Get max display_order for new feed
-    max_order_result = session.exec(
-        select(func.max(Feed.display_order))
-    ).one()
+    max_order_result = session.exec(select(func.max(Feed.display_order))).one()
     next_order = (max_order_result or 0) + 1
 
     # Create feed
@@ -340,12 +376,15 @@ async def create_feed(
     session.refresh(feed)
 
     # Save initial articles and enqueue for scoring
-    article_count, new_article_ids = save_articles(session, feed.id, parsed_feed.entries)
+    article_count, new_article_ids = save_articles(
+        session, feed.id, parsed_feed.entries
+    )
     logger.info(f"Created feed {feed.title} with {article_count} articles")
 
     # Enqueue new articles for scoring
     if new_article_ids:
         from backend.scheduler import scoring_queue
+
         await scoring_queue.enqueue_articles(session, new_article_ids)
 
     # Return feed with unread count
@@ -555,6 +594,7 @@ async def update_preferences(
 
     # Trigger re-scoring of recent articles
     from backend.scheduler import scoring_queue
+
     await scoring_queue.enqueue_recent_for_rescoring(session)
 
     return PreferencesResponse(
@@ -632,6 +672,7 @@ async def rescore_articles(
 ):
     """Manually trigger re-scoring of recent unread articles."""
     from backend.scheduler import scoring_queue
+
     queued = await scoring_queue.enqueue_recent_for_rescoring(session)
     return {"queued": queued}
 
@@ -649,8 +690,7 @@ def get_scoring_status(
 
     for state in states:
         count = session.exec(
-            select(func.count(Article.id))
-            .where(Article.scoring_state == state)
+            select(func.count(Article.id)).where(Article.scoring_state == state)
         ).one()
         counts[state] = count
 
@@ -670,3 +710,194 @@ def get_scoring_status(
     return counts
 
 
+# --- Ollama Configuration Endpoints ---
+
+
+@app.get("/api/ollama/health", response_model=OllamaHealthResponse)
+async def ollama_health():
+    """Check Ollama server connectivity, version, and latency."""
+    result = await ollama_service.check_health(settings.ollama.host)
+    return OllamaHealthResponse(**result)
+
+
+@app.get("/api/ollama/models", response_model=list[OllamaModelResponse])
+async def ollama_models():
+    """List locally available Ollama models with loaded status."""
+    models = await ollama_service.list_models(settings.ollama.host)
+    return [OllamaModelResponse(**m) for m in models]
+
+
+@app.post("/api/ollama/models/pull")
+async def ollama_pull_model(request: PullModelRequest):
+    """Pull (download) a model from Ollama registry. Returns SSE stream."""
+
+    async def event_stream():
+        try:
+            async for chunk in ollama_service.pull_model_stream(
+                settings.ollama.host, request.model
+            ):
+                yield f"data: {json.dumps(chunk)}\n\n"
+            yield f"data: {json.dumps({'status': 'complete'})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'status': 'error', 'error': str(e)})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@app.post("/api/ollama/models/pull/cancel")
+async def ollama_cancel_pull():
+    """Cancel an active model download."""
+    ollama_service.cancel_download()
+    return {"status": "cancelled"}
+
+
+@app.delete("/api/ollama/models/{name:path}")
+async def ollama_delete_model(name: str):
+    """Delete a model from Ollama. Uses path type for names with colons."""
+    try:
+        result = await ollama_service.delete_model(settings.ollama.host, name)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@app.get("/api/ollama/download-status")
+async def ollama_download_status():
+    """Get current download state for navigate-away resilience."""
+    return ollama_service.get_download_status()
+
+
+@app.get("/api/ollama/config", response_model=OllamaConfigResponse)
+def get_ollama_config(
+    session: Session = Depends(get_session),
+):
+    """Get runtime Ollama model config from UserPreferences (YAML fallback)."""
+    preferences = session.exec(select(UserPreferences)).first()
+
+    categorization_model = settings.ollama.categorization_model
+    scoring_model = settings.ollama.scoring_model
+    use_separate_models = False
+
+    if preferences:
+        categorization_model = (
+            preferences.ollama_categorization_model or categorization_model
+        )
+        use_separate_models = preferences.ollama_use_separate_models
+        if use_separate_models:
+            scoring_model = preferences.ollama_scoring_model or scoring_model
+        else:
+            scoring_model = categorization_model
+
+    return OllamaConfigResponse(
+        categorization_model=categorization_model,
+        scoring_model=scoring_model,
+        use_separate_models=use_separate_models,
+    )
+
+
+@app.put("/api/ollama/config")
+async def update_ollama_config(
+    update: OllamaConfigUpdate,
+    session: Session = Depends(get_session),
+):
+    """Save model choices to UserPreferences and optionally enqueue re-scoring."""
+    preferences = session.exec(select(UserPreferences)).first()
+
+    if not preferences:
+        from backend.prompts import get_default_topic_weights
+
+        preferences = UserPreferences(
+            interests="",
+            anti_interests="",
+            topic_weights=get_default_topic_weights(),
+            updated_at=datetime.now(),
+        )
+        session.add(preferences)
+        session.commit()
+        session.refresh(preferences)
+
+    # Determine rescore_mode by comparing old vs new config
+    old_cat_model = (
+        preferences.ollama_categorization_model or settings.ollama.categorization_model
+    )
+    old_use_separate = preferences.ollama_use_separate_models
+    old_scoring_model = (
+        (preferences.ollama_scoring_model or settings.ollama.scoring_model)
+        if old_use_separate
+        else old_cat_model
+    )
+
+    # Save new values (reassign, don't mutate)
+    preferences.ollama_categorization_model = update.categorization_model
+    preferences.ollama_scoring_model = update.scoring_model
+    preferences.ollama_use_separate_models = update.use_separate_models
+    preferences.updated_at = datetime.now()
+
+    session.add(preferences)
+    session.commit()
+    session.refresh(preferences)
+
+    rescore_queued = 0
+    if update.rescore:
+        # Determine rescore mode
+        new_scoring_model = (
+            update.scoring_model
+            if update.use_separate_models
+            else update.categorization_model
+        )
+        cat_changed = update.categorization_model != old_cat_model
+        score_changed = new_scoring_model != old_scoring_model
+
+        rescore_mode = None
+        if cat_changed:
+            rescore_mode = "full"
+        elif score_changed:
+            rescore_mode = "score_only"
+
+        if rescore_mode:
+            # Enqueue unread scored articles for re-scoring with priority
+            articles = session.exec(
+                select(Article)
+                .where(~Article.is_read)
+                .where(Article.scoring_state == "scored")
+            ).all()
+
+            for article in articles:
+                article.scoring_state = "queued"
+                article.scoring_priority = 1
+                article.rescore_mode = rescore_mode
+                session.add(article)
+
+            session.commit()
+            rescore_queued = len(articles)
+            logger.info(
+                f"Enqueued {rescore_queued} articles for re-scoring (mode={rescore_mode})"
+            )
+
+    return {
+        "categorization_model": preferences.ollama_categorization_model,
+        "scoring_model": preferences.ollama_scoring_model,
+        "use_separate_models": preferences.ollama_use_separate_models,
+        "rescore_queued": rescore_queued,
+    }
+
+
+@app.get("/api/ollama/prompts", response_model=OllamaPromptsResponse)
+def get_ollama_prompts():
+    """Get current system prompt templates for categorization and scoring."""
+    from backend.prompts import build_categorization_prompt, build_scoring_prompt
+
+    categorization_prompt = build_categorization_prompt(
+        "[Article Title]", "[Article Content]", ["example-category"]
+    )
+    scoring_prompt = build_scoring_prompt(
+        "[Article Title]",
+        "[Article Content]",
+        "[User Interests]",
+        "[User Anti-Interests]",
+    )
+
+    return OllamaPromptsResponse(
+        categorization_prompt=categorization_prompt,
+        scoring_prompt=scoring_prompt,
+    )

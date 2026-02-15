@@ -23,9 +23,7 @@ settings = get_settings()
 class ScoringQueue:
     """Manages the article scoring queue and processing pipeline."""
 
-    async def enqueue_articles(
-        self, session: Session, article_ids: list[int]
-    ) -> int:
+    async def enqueue_articles(self, session: Session, article_ids: list[int]) -> int:
         """Enqueue articles for scoring.
 
         Args:
@@ -86,14 +84,15 @@ class ScoringQueue:
         logger.info(f"Enqueued {count} articles for re-scoring")
         return count
 
-    async def process_next_batch(
-        self, session: Session, batch_size: int = 1
-    ) -> int:
+    async def process_next_batch(self, session: Session, batch_size: int = 1) -> int:
         """Process next batch of queued articles.
 
         Two-step pipeline:
-        1. Categorize article
+        1. Categorize article (skip if rescore_mode == "score_only")
         2. Score article (skip if blocked)
+
+        Model names are read from UserPreferences per-batch (two-tier config).
+        Infrastructure settings (host, thinking) still come from Pydantic Settings.
 
         Args:
             session: Database session
@@ -102,11 +101,11 @@ class ScoringQueue:
         Returns:
             Number of articles processed
         """
-        # Get next batch of queued articles (oldest first)
+        # Get next batch -- priority articles first, then oldest
         articles = session.exec(
             select(Article)
             .where(Article.scoring_state == "queued")
-            .order_by(Article.published_at.asc())
+            .order_by(Article.scoring_priority.desc(), Article.published_at.asc())
             .limit(batch_size)
         ).all()
 
@@ -125,6 +124,18 @@ class ScoringQueue:
             session.add(preferences)
             session.commit()
 
+        # Resolve model names: UserPreferences overrides -> YAML/env defaults
+        categorization_model = (
+            preferences.ollama_categorization_model
+            or settings.ollama.categorization_model
+        )
+        if preferences.ollama_use_separate_models:
+            scoring_model = (
+                preferences.ollama_scoring_model or settings.ollama.scoring_model
+            )
+        else:
+            scoring_model = categorization_model
+
         # Get active categories list
         active_categories = await get_active_categories(session)
 
@@ -138,20 +149,31 @@ class ScoringQueue:
 
                 set_scoring_context(article.id)
 
-                # Step 1: Categorize
                 article_text = article.content or article.summary or ""
-                categorization = await categorize_article(
-                    article.title,
-                    article_text,
-                    active_categories,
-                    settings,
-                )
+                skip_categorization = article.rescore_mode == "score_only"
 
-                # Store categories (normalized to kebab-case)
-                article.categories = [
-                    cat.lower().replace("_", "-").replace(" ", "-").replace("/", "-")
-                    for cat in categorization.categories
-                ]
+                # Step 1: Categorize (unless score_only re-score)
+                if skip_categorization and article.categories:
+                    logger.info(
+                        f"Article {article.id}: score-only re-score, keeping existing categories"
+                    )
+                else:
+                    categorization = await categorize_article(
+                        article.title,
+                        article_text,
+                        active_categories,
+                        settings,
+                        model=categorization_model,
+                    )
+
+                    # Store categories (normalized to kebab-case)
+                    article.categories = [
+                        cat.lower()
+                        .replace("_", "-")
+                        .replace(" ", "-")
+                        .replace("/", "-")
+                        for cat in categorization.categories
+                    ]
 
                 # Step 2: Check if blocked
                 if is_blocked(article.categories, preferences.topic_weights):
@@ -159,7 +181,7 @@ class ScoringQueue:
                     article.interest_score = 0
                     article.quality_score = 0
                     article.composite_score = 0.0
-                    blocked_cats = ", ".join(article.categories)
+                    blocked_cats = ", ".join(article.categories or [])
                     article.score_reasoning = f"Blocked: {blocked_cats}"
                     article.scoring_state = "scored"
                     article.scored_at = datetime.now()
@@ -175,6 +197,7 @@ class ScoringQueue:
                         preferences.interests,
                         preferences.anti_interests,
                         settings,
+                        model=scoring_model,
                     )
 
                     article.interest_score = scoring.interest_score
@@ -199,6 +222,10 @@ class ScoringQueue:
                         f"composite={article.composite_score:.2f}"
                     )
 
+                # Clear re-scoring fields
+                article.scoring_priority = 0
+                article.rescore_mode = None
+
                 session.add(article)
                 session.commit()
                 processed += 1
@@ -209,6 +236,8 @@ class ScoringQueue:
                 )
                 # Mark as failed and continue
                 article.scoring_state = "failed"
+                article.scoring_priority = 0
+                article.rescore_mode = None
                 session.add(article)
                 session.commit()
             finally:

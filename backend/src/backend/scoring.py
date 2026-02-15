@@ -49,6 +49,7 @@ async def categorize_article(
     article_text: str,
     existing_categories: list[str],
     settings,
+    model: str,
 ) -> CategoryResponse:
     """Categorize an article using Ollama LLM.
 
@@ -56,7 +57,8 @@ async def categorize_article(
         article_title: Article title
         article_text: Article content
         existing_categories: List of existing categories to reuse
-        settings: Application settings with Ollama config
+        settings: Application settings with Ollama config (host, thinking)
+        model: Ollama model name to use for categorization
 
     Returns:
         CategoryResponse with assigned categories and suggestions
@@ -76,7 +78,7 @@ async def categorize_article(
     # Use streaming to prevent httpx.ReadTimeout on slower models
     content = ""
     async for chunk in await client.chat(
-        model=settings.ollama.categorization_model,
+        model=model,
         messages=[{"role": "user", "content": prompt}],
         format=CategoryResponse.model_json_schema(),
         options={"temperature": 0},
@@ -111,6 +113,7 @@ async def score_article(
     interests: str,
     anti_interests: str,
     settings,
+    model: str,
 ) -> ScoringResponse:
     """Score an article's interest and quality using Ollama LLM.
 
@@ -119,7 +122,8 @@ async def score_article(
         article_text: Article content
         interests: User's interest preferences
         anti_interests: User's anti-interest preferences
-        settings: Application settings with Ollama config
+        settings: Application settings with Ollama config (host, thinking)
+        model: Ollama model name to use for scoring
 
     Returns:
         ScoringResponse with interest/quality scores and reasoning
@@ -139,7 +143,7 @@ async def score_article(
     # Use streaming to prevent httpx.ReadTimeout on slower models
     content = ""
     async for chunk in await client.chat(
-        model=settings.ollama.scoring_model,
+        model=model,
         messages=[{"role": "user", "content": prompt}],
         format=ScoringResponse.model_json_schema(),
         options={"temperature": 0},
@@ -201,9 +205,7 @@ def compute_composite_score(
             weight = topic_weights.get(category.lower(), "neutral")
             weights.append(weight_map.get(weight, 1.0))
 
-        category_multiplier = (
-            sum(weights) / len(weights) if weights else 1.0
-        )
+        category_multiplier = sum(weights) / len(weights) if weights else 1.0
 
     # Quality multiplier: maps 0-10 to 0.5-1.0
     quality_multiplier = 0.5 + (quality_score / 10.0) * 0.5
@@ -215,9 +217,7 @@ def compute_composite_score(
     return min(composite, 20.0)
 
 
-def is_blocked(
-    categories: list[str], topic_weights: dict[str, str] | None
-) -> bool:
+def is_blocked(categories: list[str], topic_weights: dict[str, str] | None) -> bool:
     """Check if any category in the list is blocked.
 
     Args:
