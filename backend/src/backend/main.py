@@ -640,7 +640,9 @@ async def rescore_articles(
 def get_scoring_status(
     session: Session = Depends(get_session),
 ):
-    """Get counts of articles by scoring state."""
+    """Get counts of articles by scoring state, plus live activity phase."""
+    from backend.scoring import get_scoring_activity
+
     # Query counts by scoring_state
     states = ["unscored", "queued", "scoring", "scored", "failed"]
     counts = {}
@@ -659,6 +661,11 @@ def get_scoring_status(
         .where(Article.composite_score == 0)
     ).one()
     counts["blocked"] = blocked_count
+
+    # Add live scoring activity (ephemeral phase tracking)
+    activity = get_scoring_activity()
+    counts["current_article_id"] = activity["article_id"]
+    counts["phase"] = activity["phase"]
 
     return counts
 

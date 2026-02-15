@@ -239,6 +239,8 @@ export interface ScoringStatus {
   scored: number;
   failed: number;
   blocked: number;
+  current_article_id: number | null;
+  phase: string;
 }
 
 export async function fetchScoringStatus(): Promise<ScoringStatus> {

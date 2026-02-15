@@ -23,6 +23,21 @@ from backend.prompts import (
 
 logger = logging.getLogger(__name__)
 
+# Ephemeral in-memory state for real-time scoring phase tracking.
+# Safe in single-worker asyncio — no threading concerns.
+_scoring_activity: dict = {"article_id": None, "phase": "idle"}
+
+
+def set_scoring_context(article_id: int | None) -> None:
+    """Set the article currently being scored. Called by scoring_queue."""
+    _scoring_activity["article_id"] = article_id
+    _scoring_activity["phase"] = "starting" if article_id else "idle"
+
+
+def get_scoring_activity() -> dict:
+    """Get current scoring activity state. Called by API endpoint."""
+    return _scoring_activity.copy()
+
 
 @retry(
     retry=retry_if_exception_type(Exception),
@@ -59,6 +74,7 @@ async def categorize_article(
     )
 
     # Use streaming to prevent httpx.ReadTimeout on slower models
+    _scoring_activity["phase"] = "starting"
     content = ""
     async for chunk in await client.chat(
         model=settings.ollama.categorization_model,
@@ -66,8 +82,13 @@ async def categorize_article(
         format=CategoryResponse.model_json_schema(),
         options={"temperature": 0},
         stream=True,
+        think=True,
     ):
-        content += chunk["message"]["content"]
+        if chunk["message"]["thinking"]:
+            _scoring_activity["phase"] = "thinking"
+        if chunk["message"]["content"]:
+            _scoring_activity["phase"] = "scoring"
+        content += chunk["message"]["content"] or ""
 
     # Parse accumulated structured response
     result = CategoryResponse.model_validate_json(content)
@@ -117,6 +138,7 @@ async def score_article(
     )
 
     # Use streaming to prevent httpx.ReadTimeout on slower models
+    _scoring_activity["phase"] = "starting"
     content = ""
     async for chunk in await client.chat(
         model=settings.ollama.scoring_model,
@@ -124,8 +146,13 @@ async def score_article(
         format=ScoringResponse.model_json_schema(),
         options={"temperature": 0},
         stream=True,
+        think=True,
     ):
-        content += chunk["message"]["content"]
+        if chunk["message"]["thinking"]:
+            _scoring_activity["phase"] = "thinking"
+        if chunk["message"]["content"]:
+            _scoring_activity["phase"] = "scoring"
+        content += chunk["message"]["content"] or ""
 
     # Parse accumulated structured response
     result = ScoringResponse.model_validate_json(content)

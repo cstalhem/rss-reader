@@ -26,6 +26,7 @@ interface ArticleRowProps {
   onSelect: (article: Article) => void;
   onToggleRead: (article: Article) => void;
   isCompleting?: boolean;
+  scoringPhase?: string;
 }
 
 export function ArticleRow({
@@ -34,6 +35,7 @@ export function ArticleRow({
   onSelect,
   onToggleRead,
   isCompleting = false,
+  scoringPhase,
 }: ArticleRowProps) {
   // Add subtle accent background tint for high-scored rows
   const isHighScored = article.scoring_state === "scored" &&
@@ -118,8 +120,23 @@ export function ArticleRow({
         {/* Scoring state indicators for non-scored states */}
         {article.scoring_state === "scoring" && (
           <Flex alignItems="center" gap={1.5}>
-            <Text fontSize="xs" color="fg.muted">Scoring…</Text>
-            <Spinner size="xs" colorPalette="accent" />
+            <Text fontSize="xs" color="fg.muted">
+              {scoringPhase === "thinking"
+                ? "Thinking…"
+                : scoringPhase === "scoring"
+                  ? "Scoring…"
+                  : "Starting scoring"}
+            </Text>
+            <Spinner
+              size="xs"
+              colorPalette={
+                scoringPhase === "thinking"
+                  ? "blue"
+                  : scoringPhase === "scoring"
+                    ? "accent"
+                    : "gray"
+              }
+            />
           </Flex>
         )}
         {(article.scoring_state === "queued" || article.scoring_state === "unscored") && (

@@ -13,6 +13,7 @@ from backend.scoring import (
     get_active_categories,
     is_blocked,
     score_article,
+    set_scoring_context,
 )
 
 logger = logging.getLogger(__name__)
@@ -135,6 +136,8 @@ class ScoringQueue:
                 session.add(article)
                 session.commit()
 
+                set_scoring_context(article.id)
+
                 # Step 1: Categorize
                 article_text = article.content or article.summary or ""
                 categorization = await categorize_article(
@@ -165,6 +168,9 @@ class ScoringQueue:
                         f"Article {article.id} blocked by categories: {blocked_cats}"
                     )
                 else:
+                    # Reset phase for scoring step
+                    set_scoring_context(article.id)
+
                     # Step 3: Score non-blocked articles
                     scoring = await score_article(
                         article.title,
@@ -208,5 +214,7 @@ class ScoringQueue:
                 article.scoring_state = "failed"
                 session.add(article)
                 session.commit()
+            finally:
+                set_scoring_context(None)
 
         return processed

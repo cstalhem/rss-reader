@@ -198,6 +198,12 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
                 onSelect={handleSelect}
                 onToggleRead={handleToggleRead}
                 isCompleting={completingIds.has(article.id)}
+                scoringPhase={
+                  article.scoring_state === "scoring" &&
+                  scoringStatus?.current_article_id === article.id
+                    ? scoringStatus.phase
+                    : undefined
+                }
               />
             ))}
           </Box>
