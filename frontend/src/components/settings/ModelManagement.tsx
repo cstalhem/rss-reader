@@ -312,6 +312,7 @@ export function ModelManagement({
             disabled={!customModel.trim() || pullHook.isDownloading}
             onClick={handleCustomPull}
           >
+            <LuDownload size={14} />
             Pull
           </Button>
         </Flex>

@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import {
   Box,
   Button,
   createListCollection,
   Flex,
+  Grid,
   Portal,
   Select,
   Stack,
@@ -12,7 +14,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { LuTriangleAlert } from "react-icons/lu";
-import { RescoreButton } from "./RescoreButton";
+import { useScoringStatus } from "@/hooks/useScoringStatus";
 import type { OllamaConfig, OllamaModel } from "@/lib/types";
 
 interface ModelSelectorProps {
@@ -37,6 +39,51 @@ function modelLabel(model: OllamaModel): string {
   return `${model.name} \u2014 ${size}${loaded}`;
 }
 
+function ModelSelect({
+  collection,
+  value,
+  onChange,
+}: {
+  collection: ReturnType<typeof createListCollection<{ label: string; value: string }>>;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <Select.Root
+      collection={collection}
+      size="sm"
+      value={[value]}
+      onValueChange={(details) => {
+        const selected = details.value[0];
+        if (selected) onChange(selected);
+      }}
+      positioning={{ sameWidth: true }}
+    >
+      <Select.HiddenSelect />
+      <Select.Control>
+        <Select.Trigger>
+          <Select.ValueText placeholder="Select model" />
+        </Select.Trigger>
+        <Select.IndicatorGroup>
+          <Select.Indicator />
+        </Select.IndicatorGroup>
+      </Select.Control>
+      <Portal>
+        <Select.Positioner>
+          <Select.Content>
+            {collection.items.map((item) => (
+              <Select.Item key={item.value} item={item}>
+                {item.label}
+                <Select.ItemIndicator />
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Positioner>
+      </Portal>
+    </Select.Root>
+  );
+}
+
 export function ModelSelector({
   models,
   config,
@@ -48,9 +95,24 @@ export function ModelSelector({
   const hasMultipleModels = models.length >= 2;
   const isDirty = JSON.stringify(config) !== JSON.stringify(savedConfig);
 
+  // Rescore state
+  const [initialConfig] = useState(() => JSON.stringify(savedConfig));
+  const [hasRescored, setHasRescored] = useState(false);
+  const { data: scoringStatus } = useScoringStatus();
+
+  const configChanged = JSON.stringify(savedConfig) !== initialConfig;
+  const canRescore = configChanged && !hasRescored && !isSaving;
+  const isScoring =
+    scoringStatus &&
+    (scoringStatus.queued > 0 || scoringStatus.scoring > 0);
+
+  const handleRescore = () => {
+    setHasRescored(true);
+    onSave(true);
+  };
+
   const handleModelChange = (field: keyof OllamaConfig, value: string) => {
     const next = { ...config, [field]: value };
-    // When in single-model mode, keep both models in sync
     if (!next.use_separate_models && field === "categorization_model") {
       next.scoring_model = value;
     }
@@ -65,7 +127,6 @@ export function ModelSelector({
     onConfigChange(next);
   };
 
-  // Create collection for Chakra Select
   const modelCollection = createListCollection({
     items: models.map((m) => ({
       label: modelLabel(m),
@@ -75,48 +136,12 @@ export function ModelSelector({
 
   return (
     <Stack gap={4}>
-      {/* Single model selector (or categorization model when split) */}
-      <Box>
-        <Text fontSize="sm" fontWeight="medium" mb={1.5}>
-          {config.use_separate_models ? "Categorization Model" : "Model"}
-        </Text>
-        <Select.Root
-          collection={modelCollection}
-          size="sm"
-          value={[config.categorization_model]}
-          onValueChange={(details) => {
-            const selectedValue = details.value[0];
-            if (selectedValue) {
-              handleModelChange("categorization_model", selectedValue);
-            }
-          }}
-          positioning={{ sameWidth: true }}
-        >
-          <Select.HiddenSelect />
-          <Select.Control>
-            <Select.Trigger>
-              <Select.ValueText placeholder="Select model" />
-            </Select.Trigger>
-            <Select.IndicatorGroup>
-              <Select.Indicator />
-            </Select.IndicatorGroup>
-          </Select.Control>
-          <Portal>
-            <Select.Positioner>
-              <Select.Content>
-                {modelCollection.items.map((item) => (
-                  <Select.Item key={item.value} item={item}>
-                    {item.label}
-                    <Select.ItemIndicator />
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Positioner>
-          </Portal>
-        </Select.Root>
-      </Box>
+      {/* Sub-section heading */}
+      <Text fontSize="sm" fontWeight="medium" color="fg.muted">
+        Active Model
+      </Text>
 
-      {/* Separate models toggle */}
+      {/* Mode toggle — before dropdowns so it acts as a mode switch */}
       {hasMultipleModels && (
         <Switch.Root
           checked={config.use_separate_models}
@@ -132,77 +157,79 @@ export function ModelSelector({
         </Switch.Root>
       )}
 
-      {/* Scoring model selector (only when split) */}
-      {config.use_separate_models && (
-        <Box>
-          <Text fontSize="sm" fontWeight="medium" mb={1.5}>
-            Scoring Model
-          </Text>
-          <Select.Root
-            collection={modelCollection}
-            size="sm"
-            value={[config.scoring_model]}
-            onValueChange={(details) => {
-              const selectedValue = details.value[0];
-              if (selectedValue) {
-                handleModelChange("scoring_model", selectedValue);
-              }
-            }}
-            positioning={{ sameWidth: true }}
-          >
-            <Select.HiddenSelect />
-            <Select.Control>
-              <Select.Trigger>
-                <Select.ValueText placeholder="Select model" />
-              </Select.Trigger>
-              <Select.IndicatorGroup>
-                <Select.Indicator />
-              </Select.IndicatorGroup>
-            </Select.Control>
-            <Portal>
-              <Select.Positioner>
-                <Select.Content>
-                  {modelCollection.items.map((item) => (
-                    <Select.Item key={item.value} item={item}>
-                      {item.label}
-                      <Select.ItemIndicator />
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Positioner>
-            </Portal>
-          </Select.Root>
-
-          {/* RAM warning */}
-          <Flex alignItems="center" gap={2} mt={2}>
+      {/* Model dropdown(s) */}
+      {config.use_separate_models ? (
+        <>
+          <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4}>
+            <Box>
+              <Text fontSize="sm" fontWeight="medium" mb={1.5}>
+                Categorization
+              </Text>
+              <ModelSelect
+                collection={modelCollection}
+                value={config.categorization_model}
+                onChange={(v) => handleModelChange("categorization_model", v)}
+              />
+            </Box>
+            <Box>
+              <Text fontSize="sm" fontWeight="medium" mb={1.5}>
+                Scoring
+              </Text>
+              <ModelSelect
+                collection={modelCollection}
+                value={config.scoring_model}
+                onChange={(v) => handleModelChange("scoring_model", v)}
+              />
+            </Box>
+          </Grid>
+          <Flex alignItems="center" gap={2}>
             <LuTriangleAlert size={14} color="var(--chakra-colors-orange-400)" />
             <Text fontSize="xs" color="orange.400">
-              Both models need to fit in available memory when loaded
-              simultaneously.
+              Both models need to fit in available memory when loaded simultaneously.
             </Text>
           </Flex>
+        </>
+      ) : (
+        <Box>
+          <Text fontSize="sm" fontWeight="medium" mb={1.5}>
+            Model
+          </Text>
+          <ModelSelect
+            collection={modelCollection}
+            value={config.categorization_model}
+            onChange={(v) => handleModelChange("categorization_model", v)}
+          />
         </Box>
       )}
 
-      {/* Save button */}
-      <Flex gap={3} alignItems="center">
-        <Button
-          colorPalette="accent"
-          size="sm"
-          disabled={!isDirty}
-          loading={isSaving}
-          onClick={() => onSave(false)}
-        >
-          Save
-        </Button>
-      </Flex>
-
-      {/* Rescore button */}
-      <RescoreButton
-        savedConfig={savedConfig}
-        onRescore={() => onSave(true)}
-        isRescoring={isSaving}
-      />
+      {/* Actions — separated from form fields */}
+      <Box borderTopWidth="1px" borderColor="border.subtle" pt={4} mt={1}>
+        <Flex gap={3} alignItems="center">
+          <Button
+            colorPalette="accent"
+            size="sm"
+            disabled={!isDirty}
+            loading={isSaving}
+            onClick={() => onSave(false)}
+          >
+            Save
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!canRescore}
+            loading={isSaving}
+            onClick={handleRescore}
+          >
+            Re-evaluate unread articles
+          </Button>
+        </Flex>
+        {isScoring && configChanged && (
+          <Text fontSize="xs" color="fg.muted" mt={2}>
+            Model change will take effect after current batch completes.
+          </Text>
+        )}
+      </Box>
     </Stack>
   );
 }
