@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 7 of 9 (Ollama Configuration UI)
-Plan: Ready to plan phase 7
-Status: Ready to plan
-Last activity: 2026-02-15 - Completed Phase 6: UI & Theme Polish (3/3 plans, verified)
+Plan: 1 of 3 complete
+Status: Executing phase 7
+Last activity: 2026-02-15 - Completed 07-01: Backend API for Ollama Configuration
 
-Progress: [██████░░░░] 65% (22/34 total plans estimated)
+Progress: [██████░░░░] 68% (23/34 total plans estimated)
 
 ## Performance Metrics
 
@@ -41,6 +41,9 @@ Progress: [██████░░░░] 65% (22/34 total plans estimated)
 | Phase 06-ui-theme-polish P02 | 2.7 | 2 tasks | 5 files |
 | Phase 06-ui-theme-polish P03 | 2.9 | 2 tasks | 6 files |
 
+**Phase 07 Metrics:**
+| Phase 07-ollama-configuration-ui P01 | 4.0 | 2 tasks | 6 files |
+
 ## Accumulated Context
 
 ### Decisions
@@ -54,6 +57,9 @@ Key architectural decisions carrying forward to v1.1:
 - Pydantic Settings config with `@lru_cache` - creates constraint for Phase 7 (need two-tier config pattern)
 - [Phase 06-ui-theme-polish]: Use OKLCH color space with hue ~55 (warm amber) and low chroma (0.01-0.02) for subtle warmth
 - [Phase 06-ui-theme-polish]: Three distinct surface levels: bg.DEFAULT (15%), bg.subtle (17%), bg.panel (16%)
+- [Phase 07-01]: Two-tier config: UserPreferences for runtime model names, Pydantic Settings for host/thinking/infrastructure
+- [Phase 07-01]: Module-level state for download tracking (safe in single-worker asyncio)
+- [Phase 07-01]: Score-only re-scoring skips categorization when only scoring model changed
 
 ### Pending Todos
 
@@ -80,9 +86,9 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 6 complete, verified, roadmap updated
+Stopped at: Completed 07-01-PLAN.md (Backend API for Ollama Configuration)
 Resume file: None
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-14 after roadmap creation*
+*Last updated: 2026-02-15 after 07-01 execution*
