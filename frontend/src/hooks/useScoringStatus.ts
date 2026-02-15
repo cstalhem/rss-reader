@@ -13,7 +13,7 @@ export function useScoringStatus() {
       if (!data) return 30000;
       // Poll faster when articles are actively being scored
       const activeCount = (data.unscored ?? 0) + (data.queued ?? 0) + (data.scoring ?? 0);
-      return activeCount > 0 ? 5000 : 30000;
+      return activeCount > 0 ? 2500 : 30000;
     },
   });
 

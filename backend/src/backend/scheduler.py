@@ -45,6 +45,7 @@ async def process_scoring_queue():
         logger.info("Running scoring queue processor...")
 
     with next(get_session()) as session:
+        session.expire_on_commit = False
         try:
             processed = await scoring_queue.process_next_batch(session, batch_size=5)
             if settings.scheduler.log_job_execution and processed > 0:
