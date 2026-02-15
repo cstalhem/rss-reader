@@ -117,72 +117,78 @@ export function ModelManagement({
           const canDelete = installed && !activeModels.has(curated.name);
 
           return (
-            <Flex
+            <Box
               key={curated.name}
-              alignItems="center"
-              justifyContent="space-between"
-              py={2.5}
-              px={3}
               borderBottomWidth="1px"
               borderColor="border.subtle"
               _last={{ borderBottomWidth: 0 }}
             >
-              {/* Left: info */}
-              <Box flex={1} minWidth={0}>
-                <Flex alignItems="center" gap={2}>
-                  <Text fontSize="sm" fontWeight="medium">
-                    {curated.name}
-                  </Text>
+              <Flex
+                alignItems="center"
+                justifyContent="space-between"
+                py={2.5}
+                px={3}
+              >
+                {/* Left: info */}
+                <Box flex={1} minWidth={0}>
+                  <Flex alignItems="center" gap={2}>
+                    <Text fontSize="sm" fontWeight="medium">
+                      {curated.name}
+                    </Text>
+                    <Text fontSize="xs" color="fg.muted">
+                      {curated.size}
+                    </Text>
+                    {installed && (
+                      <Badge
+                        size="sm"
+                        colorPalette="green"
+                        variant="subtle"
+                      >
+                        Installed
+                      </Badge>
+                    )}
+                  </Flex>
                   <Text fontSize="xs" color="fg.muted">
-                    {curated.size}
+                    {curated.description}
                   </Text>
-                  {installed && (
-                    <Badge
-                      size="sm"
-                      colorPalette="green"
-                      variant="subtle"
-                    >
-                      Installed
-                    </Badge>
-                  )}
-                </Flex>
-                <Text fontSize="xs" color="fg.muted">
-                  {curated.description}
-                </Text>
-              </Box>
+                </Box>
 
-              {/* Right: action */}
-              <Flex alignItems="center" gap={1} ml={2} flexShrink={0}>
-                {isPulling && pullHook.progress ? (
-                  <Box width="160px">
-                    <ModelPullProgress
-                      progress={pullHook.progress}
-                      onCancel={pullHook.cancelPull}
-                    />
-                  </Box>
-                ) : !installed ? (
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    disabled={pullHook.isDownloading}
-                    onClick={() => handlePull(curated.name)}
-                  >
-                    <LuDownload size={14} />
-                    Pull
-                  </Button>
-                ) : canDelete ? (
-                  <IconButton
-                    aria-label={`Delete ${curated.name}`}
-                    size="xs"
-                    variant="ghost"
-                    color="fg.muted"
-                    onClick={() => setDeleteTarget(curated.name)}
-                  >
-                    <LuTrash2 size={14} />
-                  </IconButton>
-                ) : null}
+                {/* Right: action */}
+                <Flex alignItems="center" gap={1} ml={2} flexShrink={0}>
+                  {!installed ? (
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      disabled={pullHook.isDownloading}
+                      onClick={() => handlePull(curated.name)}
+                    >
+                      <LuDownload size={14} />
+                      Pull
+                    </Button>
+                  ) : canDelete ? (
+                    <IconButton
+                      aria-label={`Delete ${curated.name}`}
+                      size="xs"
+                      variant="ghost"
+                      color="fg.muted"
+                      onClick={() => setDeleteTarget(curated.name)}
+                    >
+                      <LuTrash2 size={14} />
+                    </IconButton>
+                  ) : null}
+                </Flex>
               </Flex>
-            </Flex>
+
+              {/* Progress bar - full width below row */}
+              {isPulling && pullHook.progress && (
+                <Box px={3} pb={2.5}>
+                  <ModelPullProgress
+                    progress={pullHook.progress}
+                    onCancel={pullHook.cancelPull}
+                  />
+                </Box>
+              )}
+            </Box>
           );
         })}
       </Stack>
@@ -196,45 +202,51 @@ export function ModelManagement({
             pullHook.isDownloading && pullingModel === m.name;
 
           return (
-            <Flex
+            <Box
               key={m.name}
-              alignItems="center"
-              justifyContent="space-between"
-              py={2.5}
-              px={3}
               borderBottomWidth="1px"
               borderColor="border.subtle"
               _last={{ borderBottomWidth: 0 }}
             >
-              <Flex alignItems="center" gap={2}>
-                <Text fontSize="sm" fontWeight="medium">
-                  {m.name}
-                </Text>
-                <Badge size="sm" colorPalette="green" variant="subtle">
-                  Installed
-                </Badge>
+              <Flex
+                alignItems="center"
+                justifyContent="space-between"
+                py={2.5}
+                px={3}
+              >
+                <Flex alignItems="center" gap={2}>
+                  <Text fontSize="sm" fontWeight="medium">
+                    {m.name}
+                  </Text>
+                  <Badge size="sm" colorPalette="green" variant="subtle">
+                    Installed
+                  </Badge>
+                </Flex>
+                <Flex alignItems="center" gap={1} ml={2} flexShrink={0}>
+                  {canDelete && (
+                    <IconButton
+                      aria-label={`Delete ${m.name}`}
+                      size="xs"
+                      variant="ghost"
+                      color="fg.muted"
+                      onClick={() => setDeleteTarget(m.name)}
+                    >
+                      <LuTrash2 size={14} />
+                    </IconButton>
+                  )}
+                </Flex>
               </Flex>
-              <Flex alignItems="center" gap={1} ml={2} flexShrink={0}>
-                {isPulling && pullHook.progress ? (
-                  <Box width="160px">
-                    <ModelPullProgress
-                      progress={pullHook.progress}
-                      onCancel={pullHook.cancelPull}
-                    />
-                  </Box>
-                ) : canDelete ? (
-                  <IconButton
-                    aria-label={`Delete ${m.name}`}
-                    size="xs"
-                    variant="ghost"
-                    color="fg.muted"
-                    onClick={() => setDeleteTarget(m.name)}
-                  >
-                    <LuTrash2 size={14} />
-                  </IconButton>
-                ) : null}
-              </Flex>
-            </Flex>
+
+              {/* Progress bar - full width below row */}
+              {isPulling && pullHook.progress && (
+                <Box px={3} pb={2.5}>
+                  <ModelPullProgress
+                    progress={pullHook.progress}
+                    onCancel={pullHook.cancelPull}
+                  />
+                </Box>
+              )}
+            </Box>
           );
         })}
 
