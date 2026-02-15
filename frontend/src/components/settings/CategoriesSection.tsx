@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Accordion,
   Badge,
@@ -12,6 +12,22 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { LuTag } from "react-icons/lu";
+import {
+  DndContext,
+  DragOverlay,
+  DragStartEvent,
+  DragOverEvent,
+  DragEndEvent,
+  closestCorners,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCategories } from "@/hooks/useCategories";
 import { usePreferences } from "@/hooks/usePreferences";
@@ -22,6 +38,37 @@ import {
 import { CategoryGroupAccordion } from "./CategoryGroupAccordion";
 import { CategoryRow } from "./CategoryRow";
 import type { CategoryGroups } from "@/lib/types";
+
+function toTitleCase(kebab: string): string {
+  return kebab
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/** Droppable wrapper for the ungrouped categories list */
+function UngroupedDroppable({
+  items,
+  children,
+}: {
+  items: string[];
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: "ungrouped" });
+  return (
+    <Box
+      ref={setNodeRef}
+      bg={isOver ? "bg.muted" : undefined}
+      borderRadius="sm"
+      transition="background 0.15s"
+      p={isOver ? 1 : 0}
+    >
+      <SortableContext items={items} strategy={verticalListSortingStrategy}>
+        {children}
+      </SortableContext>
+    </Box>
+  );
+}
 
 export function CategoriesSection() {
   const {
@@ -36,6 +83,21 @@ export function CategoriesSection() {
   } = useCategories();
   const { preferences } = usePreferences();
   const queryClient = useQueryClient();
+
+  // DnD state
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const isDragActive = activeId !== null;
+
+  // Checkbox selection for ungrouped categories
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
+    new Set()
+  );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    })
+  );
 
   const categoryWeightMutation = useMutation({
     mutationFn: ({ category, weight }: { category: string; weight: string }) =>
@@ -91,6 +153,18 @@ export function CategoriesSection() {
       a.name.localeCompare(b.name)
     );
   }, [categoryGroups]);
+
+  // Helper: find which container (group id or "ungrouped") a category belongs to
+  const findContainer = useCallback(
+    (categoryName: string): string => {
+      if (!categoryGroups) return "ungrouped";
+      for (const group of categoryGroups.groups) {
+        if (group.categories.includes(categoryName)) return group.id;
+      }
+      return "ungrouped";
+    },
+    [categoryGroups]
+  );
 
   const handleGroupWeightChange = useCallback(
     (groupId: string, weight: string) => {
@@ -148,6 +222,87 @@ export function CategoriesSection() {
     [acknowledge]
   );
 
+  // DnD handlers
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  }, []);
+
+  const handleDragOver = useCallback((_event: DragOverEvent) => {
+    // Visual feedback is handled by useDroppable isOver in each container.
+    // The actual move happens on dragEnd.
+  }, []);
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActiveId(null);
+
+      if (!over || !categoryGroups) return;
+
+      const draggedCategory = active.id as string;
+      const sourceContainer = findContainer(draggedCategory);
+
+      // Determine destination container:
+      // If we're over a container droppable ID, use that. Otherwise find the container of the category we're over.
+      let destContainer: string;
+      const overId = over.id as string;
+      if (
+        overId === "ungrouped" ||
+        categoryGroups.groups.some((g) => g.id === overId)
+      ) {
+        destContainer = overId;
+      } else {
+        // overId is a category name -- find its container
+        destContainer = findContainer(overId);
+      }
+
+      if (sourceContainer === destContainer) return; // No cross-container move
+
+      // Build updated groups
+      const updatedGroups = categoryGroups.groups.map((g) => {
+        let cats = [...g.categories];
+
+        // Remove from source group
+        if (g.id === sourceContainer) {
+          cats = cats.filter((c) => c !== draggedCategory);
+        }
+
+        // Add to destination group
+        if (g.id === destContainer) {
+          if (!cats.includes(draggedCategory)) {
+            cats.push(draggedCategory);
+          }
+        }
+
+        return { ...g, categories: cats };
+      });
+
+      const updated: CategoryGroups = {
+        ...categoryGroups,
+        groups: updatedGroups,
+      };
+
+      saveGroups(updated);
+    },
+    [categoryGroups, findContainer, saveGroups]
+  );
+
+  // Checkbox handlers
+  const handleCheckChange = useCallback(
+    (category: string, checked: boolean) => {
+      setSelectedCategories((prev) => {
+        const next = new Set(prev);
+        if (checked) {
+          next.add(category);
+        } else {
+          next.delete(category);
+        }
+        return next;
+      });
+    },
+    []
+  );
+
   if (isLoading) {
     return (
       <Stack gap={4}>
@@ -187,6 +342,9 @@ export function CategoriesSection() {
 
   const totalNew = newCount + returnedCount;
 
+  // Find the active category's display name for DragOverlay
+  const activeCategoryDisplay = activeId ? toTitleCase(activeId) : null;
+
   return (
     <Stack gap={6}>
       {/* Panel header */}
@@ -200,73 +358,109 @@ export function CategoriesSection() {
           </Badge>
         )}
         <Box flex={1} />
-        <Button size="sm" variant="outline" disabled>
-          Group selected
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={selectedCategories.size === 0}
+        >
+          Group selected ({selectedCategories.size})
         </Button>
       </Flex>
 
-      {/* Accordion groups */}
-      {sortedGroups.length > 0 && (
-        <Box
-          bg="bg.subtle"
-          borderRadius="md"
-          borderWidth="1px"
-          borderColor="border.subtle"
-        >
-          <Accordion.Root multiple collapsible>
-            {sortedGroups.map((group) => (
-              <CategoryGroupAccordion
-                key={group.id}
-                group={group}
-                topicWeights={preferences?.topic_weights ?? null}
-                onGroupWeightChange={handleGroupWeightChange}
-                onCategoryWeightChange={handleCategoryWeightChange}
-                onResetCategoryWeight={handleResetCategoryWeight}
-                onHideCategory={handleHideCategory}
-                onBadgeDismiss={handleBadgeDismiss}
-                newCategories={newCategories}
-                returnedCategories={returnedCategories}
-              />
-            ))}
-          </Accordion.Root>
-        </Box>
-      )}
-
-      {/* Ungrouped categories */}
-      {ungroupedCategories.length > 0 && (
-        <Box>
-          <Text
-            fontSize="sm"
-            fontWeight="semibold"
-            color="fg.muted"
-            textTransform="uppercase"
-            letterSpacing="wider"
-            mb={3}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
+        {/* Accordion groups */}
+        {sortedGroups.length > 0 && (
+          <Box
+            bg="bg.subtle"
+            borderRadius="md"
+            borderWidth="1px"
+            borderColor="border.subtle"
           >
-            Ungrouped
-          </Text>
-          <Stack gap={1}>
-            {ungroupedCategories.map((category) => {
-              const weight =
-                preferences?.topic_weights?.[category] || "normal";
-              return (
-                <CategoryRow
-                  key={category}
-                  category={category}
-                  weight={weight}
-                  isNew={newCategories.has(category)}
-                  isReturned={returnedCategories.has(category)}
-                  onWeightChange={(w) =>
-                    handleCategoryWeightChange(category, w)
-                  }
-                  onHide={() => handleHideCategory(category)}
-                  onBadgeDismiss={() => handleBadgeDismiss(category)}
+            <Accordion.Root multiple collapsible>
+              {sortedGroups.map((group) => (
+                <CategoryGroupAccordion
+                  key={group.id}
+                  group={group}
+                  topicWeights={preferences?.topic_weights ?? null}
+                  onGroupWeightChange={handleGroupWeightChange}
+                  onCategoryWeightChange={handleCategoryWeightChange}
+                  onResetCategoryWeight={handleResetCategoryWeight}
+                  onHideCategory={handleHideCategory}
+                  onBadgeDismiss={handleBadgeDismiss}
+                  newCategories={newCategories}
+                  returnedCategories={returnedCategories}
+                  isDragActive={isDragActive}
                 />
-              );
-            })}
-          </Stack>
-        </Box>
-      )}
+              ))}
+            </Accordion.Root>
+          </Box>
+        )}
+
+        {/* Ungrouped categories */}
+        {ungroupedCategories.length > 0 && (
+          <Box>
+            <Text
+              fontSize="sm"
+              fontWeight="semibold"
+              color="fg.muted"
+              textTransform="uppercase"
+              letterSpacing="wider"
+              mb={3}
+            >
+              Ungrouped
+            </Text>
+            <UngroupedDroppable items={ungroupedCategories}>
+              <Stack gap={1}>
+                {ungroupedCategories.map((category) => {
+                  const weight =
+                    preferences?.topic_weights?.[category] || "normal";
+                  return (
+                    <CategoryRow
+                      key={category}
+                      category={category}
+                      weight={weight}
+                      isNew={newCategories.has(category)}
+                      isReturned={returnedCategories.has(category)}
+                      onWeightChange={(w) =>
+                        handleCategoryWeightChange(category, w)
+                      }
+                      onHide={() => handleHideCategory(category)}
+                      onBadgeDismiss={() => handleBadgeDismiss(category)}
+                      showCheckbox
+                      isChecked={selectedCategories.has(category)}
+                      onCheckChange={(checked) =>
+                        handleCheckChange(category, checked)
+                      }
+                    />
+                  );
+                })}
+              </Stack>
+            </UngroupedDroppable>
+          </Box>
+        )}
+
+        {/* Drag overlay -- visual preview during drag */}
+        <DragOverlay>
+          {activeId && (
+            <Box
+              bg="bg.subtle"
+              borderWidth="1px"
+              borderColor="border.subtle"
+              borderRadius="sm"
+              p={2}
+              shadow="md"
+            >
+              <Text fontSize="sm">{activeCategoryDisplay}</Text>
+            </Box>
+          )}
+        </DragOverlay>
+      </DndContext>
     </Stack>
   );
 }

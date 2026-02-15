@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Flex, Text, Badge, IconButton } from "@chakra-ui/react";
+import { Flex, Text, Badge, IconButton, Checkbox } from "@chakra-ui/react";
 import { LuGripVertical, LuX } from "react-icons/lu";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { WeightPresets } from "./WeightPresets";
 
 function toTitleCase(kebab: string): string {
@@ -25,8 +27,6 @@ interface CategoryRowProps {
   showCheckbox?: boolean;
   isChecked?: boolean;
   onCheckChange?: (checked: boolean) => void;
-  isDraggable?: boolean;
-  dragHandleProps?: Record<string, unknown>;
 }
 
 export function CategoryRow({
@@ -39,13 +39,31 @@ export function CategoryRow({
   onResetWeight,
   onHide,
   onBadgeDismiss,
-  isDraggable,
-  dragHandleProps,
+  showCheckbox,
+  isChecked,
+  onCheckChange,
 }: CategoryRowProps) {
   const [isHovered, setIsHovered] = useState(false);
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: category });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   return (
     <Flex
+      ref={setNodeRef}
+      style={style}
       alignItems="center"
       gap={2}
       p={2}
@@ -54,17 +72,27 @@ export function CategoryRow({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {isDraggable && (
-        <Flex
-          {...dragHandleProps}
-          cursor="grab"
-          _active={{ cursor: "grabbing" }}
-          color="fg.muted"
-          alignItems="center"
+      {showCheckbox && (
+        <Checkbox.Root
+          size="sm"
+          checked={isChecked}
+          onCheckedChange={(e) => onCheckChange?.(!!e.checked)}
         >
-          <LuGripVertical size={14} />
-        </Flex>
+          <Checkbox.HiddenInput />
+          <Checkbox.Control />
+        </Checkbox.Root>
       )}
+
+      <Flex
+        {...attributes}
+        {...listeners}
+        cursor="grab"
+        _active={{ cursor: "grabbing" }}
+        color="fg.muted"
+        alignItems="center"
+      >
+        <LuGripVertical size={14} />
+      </Flex>
 
       <Text fontSize="sm" flex={1} truncate>
         {toTitleCase(category)}
