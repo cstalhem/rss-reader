@@ -11,7 +11,7 @@ import {
   Switch,
   Text,
 } from "@chakra-ui/react";
-import { LuTriangleAlert, LuServerOff } from "react-icons/lu";
+import { LuTriangleAlert } from "react-icons/lu";
 import { RescoreButton } from "./RescoreButton";
 import type { OllamaConfig, OllamaModel } from "@/lib/types";
 
@@ -47,31 +47,6 @@ export function ModelSelector({
   onSave,
   isSaving,
 }: ModelSelectorProps) {
-  if (!isConnected) {
-    return (
-      <Flex
-        direction="column"
-        alignItems="center"
-        justifyContent="center"
-        gap={4}
-        py={16}
-        px={8}
-        bg="bg.subtle"
-        borderRadius="md"
-        borderWidth="1px"
-        borderColor="border.subtle"
-      >
-        <LuServerOff size={40} color="var(--chakra-colors-fg-subtle)" />
-        <Text fontSize="lg" color="fg.muted" textAlign="center">
-          Ollama is not connected
-        </Text>
-        <Text fontSize="sm" color="fg.muted" textAlign="center">
-          Start Ollama to select models
-        </Text>
-      </Flex>
-    );
-  }
-
   const hasMultipleModels = models.length >= 2;
   const isDirty = JSON.stringify(config) !== JSON.stringify(savedConfig);
 

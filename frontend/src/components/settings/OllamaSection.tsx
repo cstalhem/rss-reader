@@ -2,6 +2,7 @@
 
 import { useCallback, useReducer } from "react";
 import { Box, Flex, Stack, Text } from "@chakra-ui/react";
+import { LuServerOff } from "react-icons/lu";
 import { toaster } from "@/components/ui/toaster";
 import { useOllamaHealth } from "@/hooks/useOllamaHealth";
 import { useOllamaModels } from "@/hooks/useOllamaModels";
@@ -83,44 +84,69 @@ export function OllamaSection({ isVisible }: OllamaSectionProps) {
         <OllamaHealthBadge health={health} isLoading={healthLoading} />
       </Flex>
 
-      {/* Panel 1: Model Configuration */}
-      <Box bg="bg.subtle" borderRadius="md" borderWidth="1px" borderColor="border.subtle" p={6}>
-        <Text fontSize="lg" fontWeight="semibold" mb={4}>
-          Model Configuration
-        </Text>
-        {!configLoading && effectiveConfig && savedConfig && (
-          <ModelSelector
-            models={models ?? []}
-            config={effectiveConfig}
-            savedConfig={savedConfig}
-            isConnected={isConnected}
-            onConfigChange={handleConfigChange}
-            onSave={handleSave}
-            isSaving={saveMutation.isPending}
-          />
-        )}
-      </Box>
+      {!isConnected ? (
+        <Flex
+          direction="column"
+          alignItems="center"
+          justifyContent="center"
+          gap={4}
+          py={16}
+          px={8}
+          bg="bg.subtle"
+          borderRadius="md"
+          borderWidth="1px"
+          borderColor="border.subtle"
+        >
+          <LuServerOff size={40} color="var(--chakra-colors-fg-subtle)" />
+          <Text fontSize="lg" color="fg.muted" textAlign="center">
+            Ollama is not connected
+          </Text>
+          <Text fontSize="sm" color="fg.muted" textAlign="center">
+            Start Ollama to configure models and prompts
+          </Text>
+        </Flex>
+      ) : (
+        <>
+          {/* Panel 1: Model Configuration */}
+          <Box bg="bg.subtle" borderRadius="md" borderWidth="1px" borderColor="border.subtle" p={6}>
+            <Text fontSize="lg" fontWeight="semibold" mb={4}>
+              Model Configuration
+            </Text>
+            {!configLoading && effectiveConfig && savedConfig && (
+              <ModelSelector
+                models={models ?? []}
+                config={effectiveConfig}
+                savedConfig={savedConfig}
+                isConnected={isConnected}
+                onConfigChange={handleConfigChange}
+                onSave={handleSave}
+                isSaving={saveMutation.isPending}
+              />
+            )}
+          </Box>
 
-      {/* Panel 2: Model Library */}
-      <Box bg="bg.subtle" borderRadius="md" borderWidth="1px" borderColor="border.subtle" p={6}>
-        <Text fontSize="lg" fontWeight="semibold" mb={4}>
-          Model Library
-        </Text>
-        <ModelManagement
-          models={models ?? []}
-          isConnected={isConnected}
-          config={effectiveConfig}
-          pullHook={pullHook}
-        />
-      </Box>
+          {/* Panel 2: Model Library */}
+          <Box bg="bg.subtle" borderRadius="md" borderWidth="1px" borderColor="border.subtle" p={6}>
+            <Text fontSize="lg" fontWeight="semibold" mb={4}>
+              Model Library
+            </Text>
+            <ModelManagement
+              models={models ?? []}
+              isConnected={isConnected}
+              config={effectiveConfig}
+              pullHook={pullHook}
+            />
+          </Box>
 
-      {/* Panel 3: System Prompts */}
-      <Box bg="bg.subtle" borderRadius="md" borderWidth="1px" borderColor="border.subtle" p={6}>
-        <Text fontSize="lg" fontWeight="semibold" mb={4}>
-          System Prompts
-        </Text>
-        <SystemPrompts />
-      </Box>
+          {/* Panel 3: System Prompts */}
+          <Box bg="bg.subtle" borderRadius="md" borderWidth="1px" borderColor="border.subtle" p={6}>
+            <Text fontSize="lg" fontWeight="semibold" mb={4}>
+              System Prompts
+            </Text>
+            <SystemPrompts />
+          </Box>
+        </>
+      )}
     </Stack>
   );
 }
