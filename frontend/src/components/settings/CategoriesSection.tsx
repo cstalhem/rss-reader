@@ -5,7 +5,6 @@ import {
   Accordion,
   Badge,
   Box,
-  Button,
   Flex,
   Stack,
   Skeleton,
@@ -35,9 +34,12 @@ import {
   updateCategoryWeight as apiUpdateCategoryWeight,
   updatePreferences as apiUpdatePreferences,
 } from "@/lib/api";
+import { toaster } from "@/components/ui/toaster";
 import { CategoryGroupAccordion } from "./CategoryGroupAccordion";
 import { CategoryRow } from "./CategoryRow";
-import type { CategoryGroups } from "@/lib/types";
+import { GroupNamePopover } from "./GroupNamePopover";
+import { DeleteGroupDialog } from "./DeleteGroupDialog";
+import type { CategoryGroups, CategoryGroup } from "@/lib/types";
 
 function toTitleCase(kebab: string): string {
   return kebab
@@ -91,6 +93,11 @@ export function CategoriesSection() {
   // Checkbox selection for ungrouped categories
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
     new Set()
+  );
+
+  // Delete group dialog state
+  const [deletingGroup, setDeletingGroup] = useState<CategoryGroup | null>(
+    null
   );
 
   const sensors = useSensors(
@@ -227,7 +234,7 @@ export function CategoriesSection() {
     setActiveId(event.active.id as string);
   }, []);
 
-  const handleDragOver = useCallback((_event: DragOverEvent) => {
+  const handleDragOver = useCallback((_: DragOverEvent) => {
     // Visual feedback is handled by useDroppable isOver in each container.
     // The actual move happens on dragEnd.
   }, []);
@@ -242,8 +249,7 @@ export function CategoriesSection() {
       const draggedCategory = active.id as string;
       const sourceContainer = findContainer(draggedCategory);
 
-      // Determine destination container:
-      // If we're over a container droppable ID, use that. Otherwise find the container of the category we're over.
+      // Determine destination container
       let destContainer: string;
       const overId = over.id as string;
       if (
@@ -252,22 +258,19 @@ export function CategoriesSection() {
       ) {
         destContainer = overId;
       } else {
-        // overId is a category name -- find its container
         destContainer = findContainer(overId);
       }
 
-      if (sourceContainer === destContainer) return; // No cross-container move
+      if (sourceContainer === destContainer) return;
 
       // Build updated groups
       const updatedGroups = categoryGroups.groups.map((g) => {
         let cats = [...g.categories];
 
-        // Remove from source group
         if (g.id === sourceContainer) {
           cats = cats.filter((c) => c !== draggedCategory);
         }
 
-        // Add to destination group
         if (g.id === destContainer) {
           if (!cats.includes(draggedCategory)) {
             cats.push(draggedCategory);
@@ -302,6 +305,84 @@ export function CategoriesSection() {
     },
     []
   );
+
+  // Group CRUD handlers
+  const handleCreateGroup = useCallback(
+    (name: string) => {
+      if (!categoryGroups) return;
+
+      const newGroup: CategoryGroup = {
+        id: crypto.randomUUID(),
+        name,
+        weight: "normal",
+        categories: Array.from(selectedCategories),
+      };
+
+      // Add selected categories to seen_categories to dismiss "New" badges
+      const seenSet = new Set(categoryGroups.seen_categories ?? []);
+      for (const cat of selectedCategories) {
+        seenSet.add(cat);
+      }
+
+      const updated: CategoryGroups = {
+        ...categoryGroups,
+        groups: [...categoryGroups.groups, newGroup].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        ),
+        seen_categories: Array.from(seenSet),
+      };
+
+      saveGroups(updated);
+      setSelectedCategories(new Set());
+      toaster.create({
+        title: `Created group "${name}"`,
+        type: "success",
+      });
+    },
+    [categoryGroups, selectedCategories, saveGroups]
+  );
+
+  const handleRenameGroup = useCallback(
+    (groupId: string, newName: string) => {
+      if (!categoryGroups) return;
+
+      const updated: CategoryGroups = {
+        ...categoryGroups,
+        groups: categoryGroups.groups
+          .map((g) => (g.id === groupId ? { ...g, name: newName } : g))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      };
+
+      saveGroups(updated);
+    },
+    [categoryGroups, saveGroups]
+  );
+
+  const handleDeleteGroupRequest = useCallback(
+    (groupId: string) => {
+      const group = categoryGroups?.groups.find((g) => g.id === groupId);
+      if (group) {
+        setDeletingGroup(group);
+      }
+    },
+    [categoryGroups]
+  );
+
+  const handleDeleteGroupConfirm = useCallback(() => {
+    if (!categoryGroups || !deletingGroup) return;
+
+    const updated: CategoryGroups = {
+      ...categoryGroups,
+      groups: categoryGroups.groups.filter((g) => g.id !== deletingGroup.id),
+    };
+
+    saveGroups(updated);
+    toaster.create({
+      title: `Deleted group "${deletingGroup.name}"`,
+      type: "success",
+    });
+    setDeletingGroup(null);
+  }, [categoryGroups, deletingGroup, saveGroups]);
 
   if (isLoading) {
     return (
@@ -341,9 +422,8 @@ export function CategoriesSection() {
   }
 
   const totalNew = newCount + returnedCount;
-
-  // Find the active category's display name for DragOverlay
   const activeCategoryDisplay = activeId ? toTitleCase(activeId) : null;
+  const existingGroupNames = sortedGroups.map((g) => g.name);
 
   return (
     <Stack gap={6}>
@@ -358,13 +438,12 @@ export function CategoriesSection() {
           </Badge>
         )}
         <Box flex={1} />
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={selectedCategories.size === 0}
-        >
-          Group selected ({selectedCategories.size})
-        </Button>
+        <GroupNamePopover
+          selectedCount={selectedCategories.size}
+          onCreateGroup={handleCreateGroup}
+          isDisabled={selectedCategories.size === 0}
+          existingNames={existingGroupNames}
+        />
       </Flex>
 
       <DndContext
@@ -393,6 +472,8 @@ export function CategoriesSection() {
                   onResetCategoryWeight={handleResetCategoryWeight}
                   onHideCategory={handleHideCategory}
                   onBadgeDismiss={handleBadgeDismiss}
+                  onRenameGroup={handleRenameGroup}
+                  onDeleteGroup={handleDeleteGroupRequest}
                   newCategories={newCategories}
                   returnedCategories={returnedCategories}
                   isDragActive={isDragActive}
@@ -445,7 +526,7 @@ export function CategoriesSection() {
           </Box>
         )}
 
-        {/* Drag overlay -- visual preview during drag */}
+        {/* Drag overlay */}
         <DragOverlay>
           {activeId && (
             <Box
@@ -461,6 +542,14 @@ export function CategoriesSection() {
           )}
         </DragOverlay>
       </DndContext>
+
+      {/* Delete group confirmation dialog */}
+      <DeleteGroupDialog
+        groupName={deletingGroup?.name ?? null}
+        categoryCount={deletingGroup?.categories.length ?? 0}
+        onConfirm={handleDeleteGroupConfirm}
+        onCancel={() => setDeletingGroup(null)}
+      />
     </Stack>
   );
 }

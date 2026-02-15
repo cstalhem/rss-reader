@@ -1,7 +1,15 @@
 "use client";
 
-import { Accordion, Box, Flex, Text, Stack } from "@chakra-ui/react";
-import { LuChevronDown } from "react-icons/lu";
+import { useState, useRef, useEffect } from "react";
+import {
+  Accordion,
+  Box,
+  Flex,
+  Text,
+  Stack,
+  IconButton,
+} from "@chakra-ui/react";
+import { LuChevronDown, LuTrash2 } from "react-icons/lu";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { WeightPresets } from "./WeightPresets";
@@ -16,6 +24,8 @@ interface CategoryGroupAccordionProps {
   onResetCategoryWeight: (category: string) => void;
   onHideCategory: (category: string) => void;
   onBadgeDismiss: (category: string) => void;
+  onRenameGroup: (groupId: string, newName: string) => void;
+  onDeleteGroup: (groupId: string) => void;
   newCategories: Set<string>;
   returnedCategories: Set<string>;
   isDragActive?: boolean;
@@ -29,46 +39,158 @@ export function CategoryGroupAccordion({
   onResetCategoryWeight,
   onHideCategory,
   onBadgeDismiss,
+  onRenameGroup,
+  onDeleteGroup,
   newCategories,
   returnedCategories,
   isDragActive,
 }: CategoryGroupAccordionProps) {
   const sortedCategories = [...group.categories].sort();
-
   const { setNodeRef, isOver } = useDroppable({ id: group.id });
+
+  // Rename state (matches FeedRow pattern)
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(group.name);
+  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(
+    null
+  );
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isRenaming && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isRenaming]);
+
+  const handleDoubleClick = () => {
+    setRenameValue(group.name);
+    setIsRenaming(true);
+  };
+
+  const handleRenameSubmit = () => {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== group.name) {
+      onRenameGroup(group.id, trimmed);
+    }
+    setIsRenaming(false);
+  };
+
+  const handleRenameCancel = () => {
+    setRenameValue(group.name);
+    setIsRenaming(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleRenameSubmit();
+    } else if (e.key === "Escape") {
+      handleRenameCancel();
+    }
+  };
+
+  // Mobile long-press for rename
+  const handleTouchStart = () => {
+    const timer = setTimeout(() => {
+      setRenameValue(group.name);
+      setIsRenaming(true);
+    }, 500);
+    setLongPressTimer(timer);
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+  };
+
+  const handleTouchMove = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+  };
 
   return (
     <Accordion.Item value={group.id}>
       <Flex alignItems="center" justifyContent="space-between">
         <Accordion.ItemTrigger
-          cursor={isDragActive ? "default" : "pointer"}
+          cursor={isDragActive || isRenaming ? "default" : "pointer"}
           flex={1}
           py={3}
           px={4}
-          _hover={{ bg: isDragActive ? undefined : "bg.muted" }}
+          _hover={{
+            bg: isDragActive || isRenaming ? undefined : "bg.muted",
+          }}
           borderRadius="md"
-          disabled={isDragActive}
+          disabled={isDragActive || isRenaming}
         >
           <Flex alignItems="center" gap={2} flex={1}>
             <Accordion.ItemIndicator>
               <LuChevronDown />
             </Accordion.ItemIndicator>
-            <Text fontWeight="semibold" fontSize="sm">
-              {group.name}
-            </Text>
+            {isRenaming ? (
+              <input
+                ref={inputRef}
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onBlur={handleRenameSubmit}
+                onKeyDown={handleKeyDown}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  flex: 1,
+                  fontSize: "0.875rem",
+                  fontWeight: 600,
+                  background: "transparent",
+                  border:
+                    "1px solid var(--chakra-colors-border-subtle)",
+                  borderRadius: "4px",
+                  padding: "2px 6px",
+                  color: "inherit",
+                }}
+              />
+            ) : (
+              <Text
+                fontWeight="semibold"
+                fontSize="sm"
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  handleDoubleClick();
+                }}
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+                onTouchMove={handleTouchMove}
+              >
+                {group.name}
+              </Text>
+            )}
             <Text fontSize="xs" color="fg.muted">
               ({group.categories.length})
             </Text>
           </Flex>
         </Accordion.ItemTrigger>
 
-        <Flex pr={2}>
+        <Flex pr={2} gap={1} alignItems="center">
           <WeightPresets
             value={group.weight || "normal"}
             onChange={(weight) => onGroupWeightChange(group.id, weight)}
             size="sm"
             onClick={(e) => e.stopPropagation()}
           />
+          <IconButton
+            aria-label="Delete group"
+            size="xs"
+            variant="ghost"
+            colorPalette="red"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteGroup(group.id);
+            }}
+          >
+            <LuTrash2 size={14} />
+          </IconButton>
         </Flex>
       </Flex>
 
