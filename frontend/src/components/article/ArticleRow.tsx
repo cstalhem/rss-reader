@@ -123,18 +123,24 @@ export function ArticleRow({
             <Text fontSize="xs" color="fg.muted">
               {scoringPhase === "thinking"
                 ? "Thinking…"
-                : scoringPhase === "scoring"
-                  ? "Scoring…"
-                  : "Starting scoring"}
+                : scoringPhase === "categorizing"
+                  ? "Categorizing…"
+                  : scoringPhase === "scoring"
+                    ? "Scoring…"
+                    : scoringPhase === "starting"
+                      ? "Starting…"
+                      : "Scoring complete"}
             </Text>
             <Spinner
               size="xs"
               colorPalette={
                 scoringPhase === "thinking"
                   ? "blue"
-                  : scoringPhase === "scoring"
+                  : scoringPhase === "categorizing" || scoringPhase === "scoring"
                     ? "accent"
-                    : "gray"
+                    : scoringPhase
+                      ? "gray"
+                      : "green"
               }
             />
           </Flex>

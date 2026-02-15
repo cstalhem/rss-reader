@@ -74,7 +74,6 @@ async def categorize_article(
     )
 
     # Use streaming to prevent httpx.ReadTimeout on slower models
-    _scoring_activity["phase"] = "starting"
     content = ""
     async for chunk in await client.chat(
         model=settings.ollama.categorization_model,
@@ -84,11 +83,11 @@ async def categorize_article(
         stream=True,
         think=True if settings.ollama.thinking else None,
     ):
-        if chunk["message"]["thinking"]:
+        if chunk["message"].get("thinking"):
             _scoring_activity["phase"] = "thinking"
-        if chunk["message"]["content"]:
-            _scoring_activity["phase"] = "scoring"
-        content += chunk["message"]["content"] or ""
+        if chunk["message"].get("content"):
+            _scoring_activity["phase"] = "categorizing"
+        content += chunk["message"].get("content") or ""
 
     # Parse accumulated structured response
     result = CategoryResponse.model_validate_json(content)
@@ -138,7 +137,6 @@ async def score_article(
     )
 
     # Use streaming to prevent httpx.ReadTimeout on slower models
-    _scoring_activity["phase"] = "starting"
     content = ""
     async for chunk in await client.chat(
         model=settings.ollama.scoring_model,
@@ -148,11 +146,11 @@ async def score_article(
         stream=True,
         think=True if settings.ollama.thinking else None,
     ):
-        if chunk["message"]["thinking"]:
+        if chunk["message"].get("thinking"):
             _scoring_activity["phase"] = "thinking"
-        if chunk["message"]["content"]:
+        if chunk["message"].get("content"):
             _scoring_activity["phase"] = "scoring"
-        content += chunk["message"]["content"] or ""
+        content += chunk["message"].get("content") or ""
 
     # Parse accumulated structured response
     result = ScoringResponse.model_validate_json(content)

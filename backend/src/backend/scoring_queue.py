@@ -168,9 +168,6 @@ class ScoringQueue:
                         f"Article {article.id} blocked by categories: {blocked_cats}"
                     )
                 else:
-                    # Reset phase for scoring step
-                    set_scoring_context(article.id)
-
                     # Step 3: Score non-blocked articles
                     scoring = await score_article(
                         article.title,
