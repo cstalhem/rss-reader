@@ -84,16 +84,6 @@ skipped: 0
 
 ## Gaps
 
-- truth: "Models currently loaded in Ollama memory show a (loaded) indicator in the dropdown"
-  status: failed
-  reason: "User reported: (loaded) indicator missing"
-  severity: major
-  test: 2
-  root_cause: ""
-  artifacts: []
-  missing: []
-  debug_session: ""
-
 - truth: "Model selector uses Chakra UI styled dropdown instead of native select"
   status: failed
   reason: "User reported: using native drop-down, should use ChakraUI drop-down instead"
@@ -119,10 +109,10 @@ skipped: 0
   reason: "User reported: Navigating to the main article page during an active download causes the progress-bar to disappear from the interface. It should remain in place until the download is complete or fails."
   severity: major
   test: 9
-  root_cause: ""
-  artifacts: []
+  root_cause: "TanStack Query refetchInterval doesn't restart when changed from false to a number. On remount, hook initializes with isDownloading=false → refetchInterval=false. When download-status returns active=true, useEffect sets isDownloading=true, but TanStack Query's polling timer never starts. Fix: use explicit state variable for refetchInterval."
+  artifacts: [frontend/src/hooks/useModelPull.ts]
   missing: []
-  debug_session: ""
+  debug_session: ".planning/debug/model-download-progress-disappears.md"
 
 - truth: "Recommended model progress bar shows full-width below the model row, matching custom model layout"
   status: failed
@@ -159,17 +149,17 @@ skipped: 0
   reason: "User reported: Trying to pull a model that does not exist shows a progress bar that completes almost instantly. It should show an error message instead saying model does not exist."
   severity: major
   test: 10
-  root_cause: ""
-  artifacts: []
+  root_cause: "Ollama returns errors as {\"error\": \"pull model manifest: file does not exist\"} in SSE stream data, not as HTTP errors. Frontend useModelPull.ts SSE parser (lines 127-154) only reads status/completed/total/digest — never checks for error field. Backend ollama_service.py passes chunks through without checking for error field either."
+  artifacts: [frontend/src/hooks/useModelPull.ts, backend/src/backend/ollama_service.py, backend/src/backend/main.py]
   missing: []
-  debug_session: ""
+  debug_session: ".planning/debug/ollama-pull-error-display.md"
 
 - truth: "Re-evaluate button triggers re-scoring of unread articles with toast confirmation and articles added back to scoring queue"
   status: failed
   reason: "User reported: The button becomes active, but no toast is displayed and already scored, unread articles are not added to the queue again."
   severity: blocker
   test: 12
-  root_cause: ""
-  artifacts: []
+  root_cause: "Backend PUT /api/ollama/config only re-queues when it detects model config diff. Re-evaluate sends current savedConfig which already matches DB → backend sees no change → rescore_mode=None → skips re-queueing → returns rescore_queued=0. Frontend checks if rescore_queued > 0 for toast → no toast shown. Fix: backend should unconditionally re-queue when rescore=true."
+  artifacts: [backend/src/backend/main.py, frontend/src/components/settings/RescoreButton.tsx, frontend/src/components/settings/OllamaSection.tsx]
   missing: []
-  debug_session: ""
+  debug_session: ".planning/debug/re-evaluate-button-not-working.md"
