@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8 of 9 (Category Grouping)
-Plan: 4 of 5 complete (08-05 done, 08-04 pending)
-Status: Executing
-Last activity: 2026-02-16 - Plan 08-05 complete (new-category notification badges with auto-dismiss on weight changes)
+Plan: 5 of 5 complete
+Status: Phase Complete
+Last activity: 2026-02-16 - Plan 08-04 complete (DnD and group CRUD: create, rename, delete groups)
 
-Progress: [█████████░] 94% (32/34 total plans estimated)
+Progress: [██████████] 97% (33/34 total plans estimated)
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [█████████░] 94% (32/34 total plans estimated)
 | Phase 08-category-grouping P01 | 3.0 | 2 tasks | 5 files |
 | Phase 08-category-grouping P02 | 5.0 | 2 tasks | 9 files |
 | Phase 08-category-grouping P03 | 2.5 | 2 tasks | 4 files |
+| Phase 08-category-grouping P04 | 5.8 | 2 tasks | 5 files |
 | Phase 08-category-grouping P05 | 2.0 | 1 tasks | 2 files |
 
 ## Accumulated Context
@@ -84,6 +85,9 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08-02]: ArticleReader uses direct useMutation for inline tag weight changes (decoupled from usePreferences)
 - [Phase 08-03]: Compact Button group for weight presets (solid+accent active, ghost inactive) instead of SegmentGroup
 - [Phase 08-03]: Accordion header split pattern: trigger on left, presets on right outside trigger with stopPropagation
+- [Phase 08-04]: Single DndContext with closestCorners for cross-container category drag-and-drop
+- [Phase 08-04]: No optimistic onDragOver state -- move persists only on dragEnd for simplicity
+- [Phase 08-04]: FeedRow rename pattern replicated for group names (double-click desktop, long-press mobile)
 - [Phase 08-05]: Header dot badge via shared TanStack Query key reuses same cache as useCategories and SettingsSidebar
 - [Phase 08-05]: Auto-acknowledge categories on weight or group weight change for seamless badge dismissal
 
@@ -114,9 +118,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 08-05-PLAN.md
-Resume file: .planning/phases/08-category-grouping/08-05-SUMMARY.md
+Stopped at: Completed 08-04-PLAN.md (Phase 8 now fully complete)
+Resume file: .planning/phases/08-category-grouping/08-04-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-16 after Phase 08-05 execution*
+*Last updated: 2026-02-16 after Phase 08-04 execution*
