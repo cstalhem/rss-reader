@@ -12,9 +12,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 Phase: 8 of 9 (Category Grouping)
 Plan: Ready to plan phase 8
 Status: Ready to plan
-Last activity: 2026-02-15 - Completed Phase 7: Ollama Configuration UI (4/4 plans including gap closure, verified)
+Last activity: 2026-02-15 - Completed Phase 7: Ollama Configuration UI (5/5 plans including gap closure, fully verified)
 
-Progress: [████████░░] 74% (25/34 total plans estimated)
+Progress: [████████░░] 76% (26/34 total plans estimated)
 
 ## Performance Metrics
 
@@ -46,6 +46,7 @@ Progress: [████████░░] 74% (25/34 total plans estimated)
 | Phase 07-ollama-configuration-ui P02 | 5.4 | 2 tasks | 11 files |
 | Phase 07-ollama-configuration-ui P03 | 4.0 | 2 tasks | 5 files |
 | Phase 07-ollama-configuration-ui P04 | 5.0 | 3 tasks | 3 files |
+| Phase 07-ollama-configuration-ui P05 | 2.0 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 07-02]: NativeSelect for model dropdowns (simpler than Select.Root for short option lists)
 - [Phase 07-03]: fetch+ReadableStream for SSE (not EventSource) because pull endpoint is POST
 - [Phase 07-03]: Pulsing dot indicator via Emotion keyframes for download activity on sidebar
+- [Phase 07-05]: Explicit intervalMs state for TanStack Query refetchInterval to ensure polling restarts after remount
+- [Phase 07-05]: Full-width progress bar layout below trigger elements for consistent UX across all download types
 
 ### Pending Todos
 
@@ -93,7 +96,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Completed 07-04-PLAN.md (gap closure: error handling and unconditional re-scoring)
+Stopped at: Completed 07-05-PLAN.md (gap closure: progress persistence and layout standardization)
 Resume file: None
 
 ---
