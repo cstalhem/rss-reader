@@ -74,7 +74,7 @@ Key architectural decisions carrying forward to v1.1:
 
 ### Pending Todos
 
-None yet.
+1. **Establish design and UX principles for next milestone** (area: ui) — Define semantic status colors, interaction patterns, responsive UX conventions for v1.2+
 
 ### Blockers/Concerns
 
