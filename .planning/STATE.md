@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8 of 9 (Category Grouping)
-Plan: Ready to plan phase 8
-Status: Ready to plan
-Last activity: 2026-02-15 - Phase 7 gap closure complete (3 plans executed, all 8 UAT gaps closed, re-verified passed)
+Plan: 1 of 5 complete
+Status: Executing
+Last activity: 2026-02-15 - Plan 08-01 complete (backend data model, migration, scoring, API endpoints)
 
-Progress: [█████████░] 82% (28/34 total plans estimated)
+Progress: [█████████░] 85% (29/34 total plans estimated)
 
 ## Performance Metrics
 
@@ -49,6 +49,9 @@ Progress: [█████████░] 82% (28/34 total plans estimated)
 | Phase 07-ollama-configuration-ui P05 | 2.0 | 2 tasks | 2 files |
 | Phase 07-ollama-configuration-ui P06 | 2.0 | 3 tasks | 4 files |
 
+**Phase 08 Metrics:**
+| Phase 08-category-grouping P01 | 3.0 | 2 tasks | 5 files |
+
 ## Accumulated Context
 
 ### Decisions
@@ -71,6 +74,9 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 07-03→07-06]: Pulsing LuDownload icon via Emotion keyframes for download activity on sidebar
 - [Phase 07-05]: Explicit intervalMs state for TanStack Query refetchInterval to ensure polling restarts after remount
 - [Phase 07-05]: Full-width progress bar layout below trigger elements for consistent UX across all download types
+- [Phase 08-01]: Three-tier weight resolution: explicit override > group weight > default normal (1.0)
+- [Phase 08-01]: category_groups JSON structure: {groups, hidden_categories, seen_categories, returned_categories}
+- [Phase 08-01]: New weight names: block/reduce/normal/boost/max (old names kept as fallback aliases)
 
 ### Pending Todos
 
@@ -99,9 +105,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-category-grouping/08-CONTEXT.md
+Stopped at: Completed 08-01-PLAN.md
+Resume file: .planning/phases/08-category-grouping/08-01-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-15 after Phase 8 context gathering*
+*Last updated: 2026-02-15 after Phase 08-01 execution*
