@@ -6,8 +6,10 @@ import { toaster } from "@/components/ui/toaster";
 import { useOllamaHealth } from "@/hooks/useOllamaHealth";
 import { useOllamaModels } from "@/hooks/useOllamaModels";
 import { useOllamaConfig } from "@/hooks/useOllamaConfig";
+import { useModelPull } from "@/hooks/useModelPull";
 import { OllamaHealthBadge } from "./OllamaHealthBadge";
 import { ModelSelector } from "./ModelSelector";
+import { ModelManagement } from "./ModelManagement";
 import { SystemPrompts } from "./SystemPrompts";
 import type { OllamaConfig } from "@/lib/types";
 
@@ -21,6 +23,7 @@ export function OllamaSection({ isVisible }: OllamaSectionProps) {
   const { data: models } = useOllamaModels(isConnected);
   const { config: serverConfig, savedConfig, isLoading: configLoading, saveMutation } =
     useOllamaConfig();
+  const pullHook = useModelPull();
 
   // Track local edits as an overlay on top of server config.
   // Using useReducer to avoid the setState-in-effect pattern.
@@ -92,6 +95,14 @@ export function OllamaSection({ isVisible }: OllamaSectionProps) {
           isSaving={saveMutation.isPending}
         />
       )}
+
+      {/* Model management (download/delete) */}
+      <ModelManagement
+        models={models ?? []}
+        isConnected={isConnected}
+        config={effectiveConfig}
+        pullHook={pullHook}
+      />
 
       {/* System prompts */}
       <SystemPrompts />
