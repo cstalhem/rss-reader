@@ -30,6 +30,7 @@ interface CategoryGroupAccordionProps {
   returnedCategories: Set<string>;
   isDragActive?: boolean;
   activeId?: string | null;
+  sourceContainer?: string | null;
 }
 
 export function CategoryGroupAccordion({
@@ -46,6 +47,7 @@ export function CategoryGroupAccordion({
   returnedCategories,
   isDragActive,
   activeId,
+  sourceContainer,
 }: CategoryGroupAccordionProps) {
   const sortedCategories = [...group.categories].sort();
   const { setNodeRef, isOver } = useDroppable({ id: group.id });
@@ -88,7 +90,10 @@ export function CategoryGroupAccordion({
 
   // Show placeholder when dragging a category over this group and it's not already in the group
   const showPlaceholder =
-    isOver && activeId && !group.categories.includes(activeId);
+    isOver &&
+    activeId &&
+    sourceContainer !== group.id &&
+    !group.categories.includes(activeId);
 
   return (
     <Accordion.Item value={group.id}>
@@ -224,32 +229,32 @@ export function CategoryGroupAccordion({
                     />
                   );
                 })}
-                {showPlaceholder && (
-                  <Box
-                    p={2}
-                    bg="bg.muted"
-                    borderRadius="sm"
-                    borderWidth="1px"
-                    borderStyle="dashed"
-                    borderColor="border.subtle"
-                    opacity={0.5}
-                  >
-                    <Text fontSize="sm" color="fg.muted">
-                      {activeId
-                        .split("-")
-                        .map(
-                          (w: string) =>
-                            w.charAt(0).toUpperCase() + w.slice(1)
-                        )
-                        .join(" ")}
-                    </Text>
-                  </Box>
-                )}
               </Stack>
             </SortableContext>
           </Box>
         </Accordion.ItemBody>
       </Accordion.ItemContent>
+
+      {showPlaceholder && (
+        <Box
+          borderWidth="2px"
+          borderStyle="dashed"
+          borderColor="accent.subtle"
+          borderRadius="md"
+          p={3}
+          mx={4}
+          mb={2}
+          bg="bg.muted"
+          opacity={0.7}
+        >
+          <Text fontSize="sm" color="fg.muted">
+            {activeId
+              ?.split("-")
+              .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+              .join(" ")}
+          </Text>
+        </Box>
+      )}
     </Accordion.Item>
   );
 }
