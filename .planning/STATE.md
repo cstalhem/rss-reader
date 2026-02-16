@@ -56,6 +56,7 @@ Progress: [██████████] 100% (36/36 total plans estimated)
 | Phase 08-category-grouping P04 | 5.8 | 2 tasks | 5 files |
 | Phase 08-category-grouping P05 | 2.0 | 1 tasks | 2 files |
 | Phase 08-category-grouping P06 | 3.7 | 2 tasks | 2 files |
+| Phase 08-category-grouping P07 | 7.0 | 2 tasks | 3 files |
 | Phase 08-category-grouping P08 | 5.0 | 2 tasks | 3 files |
 
 ## Accumulated Context
@@ -93,6 +94,9 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08-05]: Header dot badge via shared TanStack Query key reuses same cache as useCategories and SettingsSidebar
 - [Phase 08-05]: Auto-acknowledge categories on weight or group weight change for seamless badge dismissal
 - [Phase 08-06]: scrollbar-gutter: stable on content wrapper reserves space permanently, preventing sidebar shift
+- [Phase 08-07]: Chakra Group+attached for segmented control weight preset buttons
+- [Phase 08-07]: Fixed-width Box placeholder for conditional reset button to prevent layout shift
+- [Phase 08-07]: Parent Flex hover instead of trigger-only hover for full-row group header coverage
 - [Phase 08-08]: Hover-reveal pencil button replaces double-click/long-press for group rename (avoids accordion toggle conflict)
 - [Phase 08-08]: Opacity-only visibility for badge X icon to avoid layout shift on hover
 
@@ -128,4 +132,4 @@ Resume file: .planning/phases/08-category-grouping/08-08-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-16 after Phase 08-08 execution*
+*Last updated: 2026-02-16 after Phase 08-07 execution*
