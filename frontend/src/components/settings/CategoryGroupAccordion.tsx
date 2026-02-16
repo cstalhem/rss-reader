@@ -95,6 +95,11 @@ export function CategoryGroupAccordion({
       <Flex
         alignItems="center"
         justifyContent="space-between"
+        borderRadius="md"
+        _hover={{
+          bg: isDragActive || isRenaming ? undefined : "bg.muted",
+        }}
+        transition="background 0.15s"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -103,9 +108,6 @@ export function CategoryGroupAccordion({
           flex={1}
           py={3}
           px={4}
-          _hover={{
-            bg: isDragActive || isRenaming ? undefined : "bg.muted",
-          }}
           borderRadius="md"
           disabled={isDragActive || isRenaming}
         >
