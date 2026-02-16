@@ -104,17 +104,13 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08-08]: Opacity-only visibility for badge X icon to avoid layout shift on hover
 - [Phase 08-09/11]: Source container tracking prevents drag placeholder from appearing in source (only destination)
 - [Phase 08-11]: Drag placeholder rendered outside Accordion.ItemContent for visibility when group is collapsed
+- [Quick 10]: useDroppable setNodeRef on Accordion.Item (always visible) instead of Box inside ItemContent (zero dimensions when collapsed)
 
 ### Pending Todos
 
 1. **Establish design and UX principles for next milestone** (area: ui) — Define semantic status colors, interaction patterns, responsive UX conventions for v1.2+
 2. **Codebase evaluation and simplification phase** (area: general) — Thorough evaluation of codebase, architecture, and data models to surface simplifications and address technical debt (hard-coded values, duplicated logic, inconsistencies) while retaining all functionality
 3. **Fix Ollama client file descriptor leak** (area: backend, severity: blocker) — `scoring.py:categorize_article` creates a new `ollama.AsyncClient` per call without closing it, leaking httpx connections and SSL contexts. After ~60-70 articles the process hits `OSError: [Errno 24] Too many open files` and stops accepting connections. Fix: reuse a single client instance or properly close after each call.
-4. **Fix category drag-and-drop placeholder and badge dismiss UX** (area: frontend/settings, severity: major) — Two issues in `CategoriesSection` / `CategoryGroupAccordion` / `CategoryRow`:
-   - **Drag placeholder positioning:** When dragging a category between containers (group-to-group, group-to-ungrouped, ungrouped-to-group), the dashed placeholder row only appears in the source container — never in the destination. This has persisted through two fix attempts (plans 08-08, 08-11) that added `sourceContainer` state tracking and moved the placeholder outside `Accordion.ItemContent`. The underlying @dnd-kit `isOver` detection with nested `useDroppable` + Chakra `Accordion` containers needs proper research to understand why the destination droppable never reports `isOver=true`. Performance is also poor — noticeable lag when dragging, likely from excessive re-renders on every drag position change.
-   - **Badge dismiss X icon:** New/Returned category badge chips in `CategoryRow.tsx` have a dismiss X icon that should be hidden by default and revealed on hover via smooth chip expansion. Current implementation (`maxW` transition from `"0"` to `"16px"` with `overflow: hidden`) still shows reserved space when not hovered due to `<Box pl={2}>` wrapper around the text always adding 8px left padding. The X icon at `size={10}` is also too small to read. The vertical divider (`borderRight`) between X and text should be removed per user preference. Fix: ensure zero visual footprint when not hovered (move all spacing inside the collapsing container), increase icon size to 14, remove divider.
-   - **UAT reference:** `.planning/phases/08-category-grouping/08-UAT-reverify.md` tests 2 and 3.
-
 ### Blockers/Concerns
 
 ### Quick Tasks Completed
@@ -125,6 +121,7 @@ Key architectural decisions carrying forward to v1.1:
 | 7 | Switch frontend Docker build from npm to bun for faster CI builds | 2026-02-14 | 6cf07cc | [7-switch-frontend-docker-build-from-npm-to](./quick/7-switch-frontend-docker-build-from-npm-to/) |
 | 8 | Switch Ollama client to streaming responses to prevent timeouts on slower models | 2026-02-15 | 7e0add4 | [8-switch-ollama-client-to-streaming-respon](./quick/8-switch-ollama-client-to-streaming-respon/) |
 | 9 | Consolidate Ollama disconnected state, split Model Library sub-sections, remove redundant SystemPrompts label | 2026-02-15 | 30be07b | [9-update-ollama-settings-panel-headings-se](./quick/9-update-ollama-settings-panel-headings-se/) |
+| 10 | Fix category drag-and-drop placeholder (destination detection) and badge dismiss X spacing/size/divider | 2026-02-16 | 0ffaebc | [10-fix-category-drag-and-drop-placeholder-a](./quick/10-fix-category-drag-and-drop-placeholder-a/) |
 
 **Phase 7 considerations:**
 - Pydantic Settings `@lru_cache` prevents runtime updates - requires two-tier config pattern (Settings for infrastructure, UserPreferences for runtime choices)
@@ -137,9 +134,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 08-11-PLAN.md (drag placeholder positioning fix - Phase 08 complete)
-Resume file: .planning/phases/08-category-grouping/08-11-SUMMARY.md
+Stopped at: Completed quick task 10 (drag placeholder + badge dismiss fix)
+Resume file: .planning/quick/10-fix-category-drag-and-drop-placeholder-a/10-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-16 after Phase 08-10 execution*
+*Last updated: 2026-02-16 after quick task 10 execution*
