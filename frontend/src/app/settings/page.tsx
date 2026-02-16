@@ -31,7 +31,13 @@ export default function SettingsPage() {
           </Box>
 
           {/* Content area */}
-          <Box flex={1} minW={0}>
+          <Box
+            flex={1}
+            minW={0}
+            overflowY="auto"
+            maxH="calc(100vh - 88px - 64px)"
+            css={{ scrollbarGutter: "stable" }}
+          >
             {/* Mobile: show all sections stacked */}
             <Box display={{ base: "block", md: "none" }}>
               <Stack gap={10}>
