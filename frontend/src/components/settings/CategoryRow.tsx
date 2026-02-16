@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Flex, Text, Badge, IconButton, Checkbox, Box } from "@chakra-ui/react";
 import { LuGripVertical, LuX } from "react-icons/lu";
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { Draggable } from "@hello-pangea/dnd";
 import { WeightPresets } from "./WeightPresets";
 
 function toTitleCase(kebab: string): string {
@@ -27,9 +26,10 @@ interface CategoryRowProps {
   showCheckbox?: boolean;
   isChecked?: boolean;
   onCheckChange?: (checked: boolean) => void;
+  index?: number;
 }
 
-export function CategoryRow({
+export const CategoryRow = memo(function CategoryRow({
   category,
   weight,
   isOverridden,
@@ -42,35 +42,27 @@ export function CategoryRow({
   showCheckbox,
   isChecked,
   onCheckChange,
+  index = 0,
 }: CategoryRowProps) {
   const [isHovered, setIsHovered] = useState(false);
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: category });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
   return (
+    <Draggable draggableId={category} index={index}>
+      {(provided, snapshot) => (
     <Flex
-      ref={setNodeRef}
-      style={style}
+      ref={provided.innerRef}
+      {...provided.draggableProps}
       alignItems="center"
       gap={2}
       p={2}
       bg="bg.subtle"
       borderRadius="sm"
       _hover={{ bg: "bg.muted" }}
-      transition="background 0.15s"
+      transition="background 0.15s, opacity 0.15s"
+      style={{
+        ...provided.draggableProps.style,
+        opacity: snapshot.isDragging ? 0.5 : 1,
+      }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -86,8 +78,7 @@ export function CategoryRow({
       )}
 
       <Flex
-        {...attributes}
-        {...listeners}
+        {...provided.dragHandleProps}
         cursor="grab"
         _active={{ cursor: "grabbing" }}
         color="fg.muted"
@@ -174,5 +165,7 @@ export function CategoryRow({
         <LuX size={14} />
       </IconButton>
     </Flex>
+      )}
+    </Draggable>
   );
-}
+});
