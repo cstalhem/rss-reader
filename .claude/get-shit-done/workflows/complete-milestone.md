@@ -48,6 +48,12 @@ This returns all phases with plan/summary counts and disk status. Use this to ve
 - All phases complete (all plans have summaries)? Check `disk_status === 'complete'` for each.
 - `progress_percent` should be 100%.
 
+**Requirements completion check (REQUIRED before presenting):**
+
+Parse REQUIREMENTS.md traceability table:
+- Count total v1 requirements vs checked-off (`[x]`) requirements
+- Identify any non-Complete rows in the traceability table
+
 Present:
 
 ```
@@ -60,7 +66,24 @@ Includes:
 - Phase 4: Polish (1/1 plan complete)
 
 Total: {phase_count} phases, {total_plans} plans, all complete
+Requirements: {N}/{M} v1 requirements checked off
 ```
+
+**If requirements incomplete** (N < M):
+
+```
+⚠ Unchecked Requirements:
+
+- [ ] {REQ-ID}: {description} (Phase {X})
+- [ ] {REQ-ID}: {description} (Phase {Y})
+```
+
+MUST present 3 options:
+1. **Proceed anyway** — mark milestone complete with known gaps
+2. **Run audit first** — `/gsd:audit-milestone` to assess gap severity
+3. **Abort** — return to development
+
+If user selects "Proceed anyway": note incomplete requirements in MILESTONES.md under `### Known Gaps` with REQ-IDs and descriptions.
 
 <config-check>
 
@@ -447,7 +470,7 @@ Use `init milestone-op` for context, or load config directly:
 INIT=$(node ./.claude/get-shit-done/bin/gsd-tools.cjs init execute-phase "1")
 ```
 
-Extract `branching_strategy`, `phase_branch_template`, `milestone_branch_template` from init JSON.
+Extract `branching_strategy`, `phase_branch_template`, `milestone_branch_template`, and `commit_docs` from init JSON.
 
 **If "none":** Skip to git_tag.
 
@@ -492,12 +515,20 @@ git checkout main
 if [ "$BRANCHING_STRATEGY" = "phase" ]; then
   for branch in $PHASE_BRANCHES; do
     git merge --squash "$branch"
+    # Strip .planning/ from staging if commit_docs is false
+    if [ "$COMMIT_DOCS" = "false" ]; then
+      git reset HEAD .planning/ 2>/dev/null || true
+    fi
     git commit -m "feat: $branch for v[X.Y]"
   done
 fi
 
 if [ "$BRANCHING_STRATEGY" = "milestone" ]; then
   git merge --squash "$MILESTONE_BRANCH"
+  # Strip .planning/ from staging if commit_docs is false
+  if [ "$COMMIT_DOCS" = "false" ]; then
+    git reset HEAD .planning/ 2>/dev/null || true
+  fi
   git commit -m "feat: $MILESTONE_BRANCH for v[X.Y]"
 fi
 
@@ -512,12 +543,22 @@ git checkout main
 
 if [ "$BRANCHING_STRATEGY" = "phase" ]; then
   for branch in $PHASE_BRANCHES; do
-    git merge --no-ff "$branch" -m "Merge branch '$branch' for v[X.Y]"
+    git merge --no-ff --no-commit "$branch"
+    # Strip .planning/ from staging if commit_docs is false
+    if [ "$COMMIT_DOCS" = "false" ]; then
+      git reset HEAD .planning/ 2>/dev/null || true
+    fi
+    git commit -m "Merge branch '$branch' for v[X.Y]"
   done
 fi
 
 if [ "$BRANCHING_STRATEGY" = "milestone" ]; then
-  git merge --no-ff "$MILESTONE_BRANCH" -m "Merge branch '$MILESTONE_BRANCH' for v[X.Y]"
+  git merge --no-ff --no-commit "$MILESTONE_BRANCH"
+  # Strip .planning/ from staging if commit_docs is false
+  if [ "$COMMIT_DOCS" = "false" ]; then
+    git reset HEAD .planning/ 2>/dev/null || true
+  fi
+  git commit -m "Merge branch '$MILESTONE_BRANCH' for v[X.Y]"
 fi
 
 git checkout "$CURRENT_BRANCH"
@@ -651,6 +692,9 @@ Milestone completion is successful when:
 - [ ] STATE.md updated with fresh project reference
 - [ ] Git tag created (v[X.Y])
 - [ ] Milestone commit made (includes archive files and deletion)
+- [ ] Requirements completion checked against REQUIREMENTS.md traceability table
+- [ ] Incomplete requirements surfaced with proceed/audit/abort options
+- [ ] Known gaps recorded in MILESTONES.md if user proceeded with incomplete requirements
 - [ ] User knows next step (/gsd:new-milestone)
 
 </success_criteria>

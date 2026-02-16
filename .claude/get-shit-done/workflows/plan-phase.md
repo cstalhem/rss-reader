@@ -61,6 +61,18 @@ Use `context_content` from init JSON (already loaded via `--include context`).
 
 If `context_content` is not null, display: `Using phase context from: ${PHASE_DIR}/*-CONTEXT.md`
 
+**If `context_content` is null (no CONTEXT.md exists):**
+
+Use AskUserQuestion:
+- header: "No context"
+- question: "No CONTEXT.md found for Phase {X}. Plans will use research and requirements only — your design preferences won't be included. Continue or capture context first?"
+- options:
+  - "Continue without context" — Plan using research + requirements only
+  - "Run discuss-phase first" — Capture design decisions before planning
+
+If "Continue without context": Proceed to step 5.
+If "Run discuss-phase first": Display `/gsd:discuss-phase {X}` and exit workflow.
+
 ## 5. Handle Research
 
 **Skip if:** `--gaps` flag, `--skip-research` flag, or `research_enabled` is false (from init) without `--research` override.
@@ -84,6 +96,7 @@ Display banner:
 PHASE_DESC=$(node ./.claude/get-shit-done/bin/gsd-tools.cjs roadmap get-phase "${PHASE}" | jq -r '.section')
 # Use requirements_content from INIT (already loaded via --include requirements)
 REQUIREMENTS=$(echo "$INIT" | jq -r '.requirements_content // empty' | grep -A100 "## Requirements" | head -50)
+PHASE_REQ_IDS=$(echo "$INIT" | jq -r '.roadmap_content // empty' | grep -i "Requirements:" | head -1 | sed 's/.*Requirements:\*\*\s*//' | sed 's/[\[\]]//g' | tr ',' '\n' | sed 's/^ *//;s/ *$//' | grep -v '^$' | tr '\n' ',' | sed 's/,$//')
 STATE_SNAP=$(node ./.claude/get-shit-done/bin/gsd-tools.cjs state-snapshot)
 # Extract decisions from state-snapshot JSON: jq '.decisions[] | "\(.phase): \(.summary) - \(.rationale)"'
 ```
@@ -107,6 +120,7 @@ IMPORTANT: If CONTEXT.md exists below, it contains user decisions from /gsd:disc
 
 <additional_context>
 **Phase description:** {phase_description}
+**Phase requirement IDs (MUST address):** {phase_req_ids}
 **Requirements:** {requirements}
 **Prior decisions:** {decisions}
 </additional_context>
@@ -173,6 +187,7 @@ Planner prompt:
 
 **Project State:** {state_content}
 **Roadmap:** {roadmap_content}
+**Phase requirement IDs (every ID MUST appear in a plan's `requirements` field):** {phase_req_ids}
 **Requirements:** {requirements_content}
 
 **Phase Context:**
@@ -243,6 +258,7 @@ Checker prompt:
 **Phase Goal:** {goal from ROADMAP}
 
 **Plans to verify:** {plans_content}
+**Phase requirement IDs (MUST ALL be covered):** {phase_req_ids}
 **Requirements:** {requirements_content}
 
 **Phase Context:**
@@ -336,7 +352,7 @@ Check for auto-advance trigger:
 1. Parse `--auto` flag from $ARGUMENTS
 2. Read `workflow.auto_advance` from config:
    ```bash
-   AUTO_CFG=$(node ./.claude/get-shit-done/bin/gsd-tools.cjs config get workflow.auto_advance 2>/dev/null || echo "false")
+   AUTO_CFG=$(node ./.claude/get-shit-done/bin/gsd-tools.cjs config-get workflow.auto_advance 2>/dev/null || echo "false")
    ```
 
 **If `--auto` flag present OR `AUTO_CFG` is true:**
@@ -353,7 +369,7 @@ Plans ready. Spawning execute-phase...
 Spawn execute-phase as Task:
 ```
 Task(
-  prompt="Run /gsd:execute-phase ${PHASE}",
+  prompt="Run /gsd:execute-phase ${PHASE} --auto",
   subagent_type="general-purpose",
   description="Execute Phase ${PHASE}"
 )
