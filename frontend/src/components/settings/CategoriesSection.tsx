@@ -52,9 +52,11 @@ function toTitleCase(kebab: string): string {
 function UngroupedDroppable({
   items,
   children,
+  activeId,
 }: {
   items: string[];
   children: React.ReactNode;
+  activeId: string | null;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: "ungrouped" });
   return (
@@ -67,6 +69,22 @@ function UngroupedDroppable({
     >
       <SortableContext items={items} strategy={verticalListSortingStrategy}>
         {children}
+        {isOver && activeId && !items.includes(activeId) && (
+          <Box
+            p={2}
+            mt={1}
+            bg="bg.muted"
+            borderRadius="sm"
+            borderWidth="1px"
+            borderStyle="dashed"
+            borderColor="border.subtle"
+            opacity={0.5}
+          >
+            <Text fontSize="sm" color="fg.muted">
+              {toTitleCase(activeId)}
+            </Text>
+          </Box>
+        )}
       </SortableContext>
     </Box>
   );
@@ -477,6 +495,7 @@ export function CategoriesSection() {
                   newCategories={newCategories}
                   returnedCategories={returnedCategories}
                   isDragActive={isDragActive}
+                  activeId={activeId}
                 />
               ))}
             </Accordion.Root>
@@ -496,7 +515,7 @@ export function CategoriesSection() {
             >
               Ungrouped
             </Text>
-            <UngroupedDroppable items={ungroupedCategories}>
+            <UngroupedDroppable items={ungroupedCategories} activeId={activeId}>
               <Stack gap={1}>
                 {ungroupedCategories.map((category) => {
                   const weight =
