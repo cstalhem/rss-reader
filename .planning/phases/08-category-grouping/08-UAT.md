@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 08-category-grouping
 source: [08-06-SUMMARY.md, 08-07-SUMMARY.md, 08-08-SUMMARY.md]
 started: 2026-02-16T15:00:00Z
@@ -73,8 +73,14 @@ skipped: 0
   reason: "User reported: Subheaders does not follow the same design as in the Ollama section. We want all headings, subheadings, labels, etc, in the settings to have the same design and not contain duplicate styling"
   severity: cosmetic
   test: 2
-  artifacts: []
-  missing: []
+  root_cause: "Inconsistent heading patterns across settings sections. InterestsSection uses fontSize=sm, textTransform=uppercase, letterSpacing=wider for panel subheaders. OllamaSection uses fontSize=lg, fontWeight=semibold, mb=4 for panel subheaders. Two completely different patterns for the same role. CategoriesSection uses yet another variant. No shared component or consistent convention."
+  artifacts:
+    - "frontend/src/components/settings/InterestsSection.tsx:86-91: uppercase sm subheaders"
+    - "frontend/src/components/settings/OllamaSection.tsx:112: lg semibold subheaders"
+    - "frontend/src/components/settings/CategoriesSection.tsx:510-513: yet another variant"
+  missing:
+    - "Establish one subheader pattern and apply consistently across all settings sections"
+    - "Consider extracting a shared SectionSubheader component or standardizing inline"
   debug_session: ""
 
 - truth: "Badge dismiss X icon has proper spacing, divider, and expands chip on hover instead of reserving space"
@@ -82,8 +88,15 @@ skipped: 0
   reason: "User reported: Need more spacing between left edge and X icon, full-height divider between X and text, and chip should expand on hover to reveal X section rather than pre-reserving invisible space"
   severity: cosmetic
   test: 9
-  artifacts: []
-  missing: []
+  root_cause: "CategoryRow.tsx lines 113-121 and 136-144: LuX icon is always rendered inside Badge Flex with opacity transition, but the icon always occupies space (gap=0.5 in Flex). No left padding before icon, no divider between icon and text. User wants the X section to be hidden entirely (not just invisible) and expand the chip width on hover."
+  artifacts:
+    - "frontend/src/components/settings/CategoryRow.tsx:103-123: New badge with always-present LuX"
+    - "frontend/src/components/settings/CategoryRow.tsx:126-147: Returned badge with same pattern"
+  missing:
+    - "Use width animation or conditional rendering with CSS transition to expand chip on hover"
+    - "Add left padding/margin before X icon"
+    - "Add a full-height thin divider (borderRight or Box with height=100%) between X icon and text"
+    - "Hide X section entirely when not hovered (display or width=0 with overflow=hidden)"
   debug_session: ""
 
 - truth: "Dragged category shows placeholder row in destination container (not source)"
@@ -91,6 +104,14 @@ skipped: 0
   reason: "User reported: Placeholder does not appear in destination container, only in current container. Performance is also laggy in Safari when dragging."
   severity: major
   test: 8
-  artifacts: []
-  missing: []
+  root_cause: "CategoriesSection.tsx passes activeId to child containers, and placeholder condition is isOver && activeId && !items.includes(activeId). The logic is semantically correct but may have timing issues — isOver can briefly be true for the source at drag start. More likely: the destination group accordion may be collapsed, hiding the placeholder inside Accordion.ItemContent. Also need to verify activeId prop is correctly wired to destination CategoryGroupAccordion instances. Safari lag is likely caused by re-renders on every drag position change."
+  artifacts:
+    - "frontend/src/components/settings/CategoriesSection.tsx:251-253: onDragStart sets activeId"
+    - "frontend/src/components/settings/CategoryGroupAccordion.tsx:90-91: placeholder condition"
+    - "frontend/src/components/settings/CategoriesSection.tsx:72-87: UngroupedDroppable placeholder"
+  missing:
+    - "Verify activeId is passed correctly to all CategoryGroupAccordion instances"
+    - "Render placeholder outside Accordion.ItemContent for collapsed groups"
+    - "Track source container to exclude from placeholder rendering"
+    - "Investigate Safari drag performance (minimize re-renders, use CSS transforms)"
   debug_session: ""
