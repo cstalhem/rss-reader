@@ -68,37 +68,62 @@ export function InterestsSection() {
   }
 
   return (
-    <Stack gap={8}>
-      <Box>
-        <Text fontSize="xl" fontWeight="semibold" mb={6}>
-          Interest Preferences
-        </Text>
-        <Stack gap={6}>
-          <Field
-            label="Interests"
-            helperText="Describe topics you want to see more of in natural language"
-          >
-            <Textarea
-              value={interests}
-              onChange={(e) => setInterests(e.target.value)}
-              rows={6}
-              resize="vertical"
-              placeholder="Example: I'm interested in software architecture, distributed systems, and developer productivity tools. I enjoy deep technical articles with code examples, especially about Python, TypeScript, and system design."
-            />
-          </Field>
+    <Stack gap={6}>
+      <Text fontSize="xl" fontWeight="semibold">
+        Interest Preferences
+      </Text>
 
-          <Field
-            label="Anti-interests"
-            helperText="Describe topics you want to avoid"
-          >
-            <Textarea
-              value={antiInterests}
-              onChange={(e) => setAntiInterests(e.target.value)}
-              rows={4}
-              resize="vertical"
-              placeholder="Example: I'm not interested in cryptocurrency price speculation, celebrity gossip, or marketing growth hacks. I'd rather skip low-effort listicles and SEO-optimized filler content."
-            />
-          </Field>
+      <Box
+        bg="bg.subtle"
+        borderRadius="md"
+        borderWidth="1px"
+        borderColor="border.subtle"
+        p={6}
+      >
+        <Stack gap={6}>
+          <Box>
+            <Text
+              fontSize="sm"
+              fontWeight="semibold"
+              color="fg.muted"
+              textTransform="uppercase"
+              letterSpacing="wider"
+              mb={2}
+            >
+              Interests
+            </Text>
+            <Field helperText="Describe topics you want to see more of in natural language">
+              <Textarea
+                value={interests}
+                onChange={(e) => setInterests(e.target.value)}
+                rows={6}
+                resize="vertical"
+                placeholder="Example: I'm interested in software architecture, distributed systems, and developer productivity tools. I enjoy deep technical articles with code examples, especially about Python, TypeScript, and system design."
+              />
+            </Field>
+          </Box>
+
+          <Box>
+            <Text
+              fontSize="sm"
+              fontWeight="semibold"
+              color="fg.muted"
+              textTransform="uppercase"
+              letterSpacing="wider"
+              mb={2}
+            >
+              Anti-interests
+            </Text>
+            <Field helperText="Describe topics you want to avoid">
+              <Textarea
+                value={antiInterests}
+                onChange={(e) => setAntiInterests(e.target.value)}
+                rows={4}
+                resize="vertical"
+                placeholder="Example: I'm not interested in cryptocurrency price speculation, celebrity gossip, or marketing growth hacks. I'd rather skip low-effort listicles and SEO-optimized filler content."
+              />
+            </Field>
+          </Box>
 
           <Button
             colorPalette="accent"
