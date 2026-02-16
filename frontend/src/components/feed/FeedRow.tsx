@@ -3,8 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Box, Flex, Text, Badge, IconButton } from "@chakra-ui/react";
 import { LuGripVertical, LuTrash2, LuCheckCheck } from "react-icons/lu";
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { Draggable } from "@hello-pangea/dnd";
 import { useSwipeable } from "react-swipeable";
 import { Feed } from "@/lib/types";
 
@@ -16,6 +15,7 @@ interface FeedRowProps {
   onMarkAllRead: (feedId: number) => void;
   onRename: (id: number, title: string) => void;
   isDraggable?: boolean;
+  index?: number;
 }
 
 export function FeedRow({
@@ -26,6 +26,7 @@ export function FeedRow({
   onMarkAllRead,
   onRename,
   isDraggable = true,
+  index = 0,
 }: FeedRowProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isRevealed, setIsRevealed] = useState(false);
@@ -33,24 +34,6 @@ export function FeedRow({
   const [renameValue, setRenameValue] = useState(feed.title);
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: feed.id,
-    disabled: !isDraggable,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
 
   const swipeHandlers = useSwipeable({
     onSwipedLeft: () => setIsRevealed(true),
@@ -113,55 +96,61 @@ export function FeedRow({
     }
   };
 
-  // Merge refs for dnd-kit and swipeable
-  const mergedRef = (el: HTMLDivElement | null) => {
-    setNodeRef(el);
+  // Merge refs for hello-pangea/dnd and swipeable
+  const mergedRef = (el: HTMLDivElement | null, dndRef: (el: HTMLElement | null) => void) => {
+    dndRef(el);
     if (swipeHandlers.ref) {
       (swipeHandlers.ref as any)(el);
     }
   };
 
-  return (
-    <Box
-      ref={mergedRef}
-      style={style}
-      position="relative"
-      overflow="hidden"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onMouseDown={swipeHandlers.onMouseDown}
-    >
-      <Flex
-        alignItems="center"
-        px={isDraggable ? 2 : 4}
-        py={3}
-        cursor="pointer"
-        bg={isSelected ? "colorPalette.subtle" : "transparent"}
-        _hover={{ bg: isSelected ? "colorPalette.subtle" : "bg.muted" }}
-        onClick={() => !isRenaming && onSelect(feed.id)}
-        borderLeftWidth="3px"
-        borderLeftColor={isSelected ? "colorPalette.solid" : "transparent"}
-        transform={isRevealed ? "translateX(-80px)" : "translateX(0)"}
-        transition="transform 0.2s ease"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onTouchMove={handleTouchMove}
+  const content = (provided?: any, snapshot?: any) => {
+    const isDragging = snapshot?.isDragging ?? false;
+
+    return (
+      <Box
+        ref={provided ? (el: HTMLDivElement | null) => mergedRef(el, provided.innerRef) : undefined}
+        {...(provided?.draggableProps ?? {})}
+        position="relative"
+        overflow="hidden"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onMouseDown={swipeHandlers.onMouseDown}
+        style={{
+          ...(provided?.draggableProps?.style ?? {}),
+          opacity: isDragging ? 0.5 : 1,
+        }}
       >
-        {/* Drag handle (desktop only) */}
-        {isDraggable && (
-          <Box
-            {...attributes}
-            {...listeners}
-            cursor="grab"
-            _active={{ cursor: "grabbing" }}
-            color="fg.muted"
-            mr={2}
-            display="flex"
-            alignItems="center"
-          >
-            <LuGripVertical size={16} />
-          </Box>
-        )}
+        <Flex
+          alignItems="center"
+          px={isDraggable ? 2 : 4}
+          py={3}
+          cursor="pointer"
+          bg={isSelected ? "colorPalette.subtle" : "transparent"}
+          _hover={{ bg: isSelected ? "colorPalette.subtle" : "bg.muted" }}
+          onClick={() => !isRenaming && onSelect(feed.id)}
+          borderLeftWidth="3px"
+          borderLeftColor={isSelected ? "colorPalette.solid" : "transparent"}
+          transform={isRevealed ? "translateX(-80px)" : "translateX(0)"}
+          transition="transform 0.2s ease"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onTouchMove={handleTouchMove}
+        >
+          {/* Drag handle (desktop only) */}
+          {isDraggable && (
+            <Box
+              {...(provided?.dragHandleProps ?? {})}
+              cursor="grab"
+              _active={{ cursor: "grabbing" }}
+              color="fg.muted"
+              mr={2}
+              display="flex"
+              alignItems="center"
+            >
+              <LuGripVertical size={16} />
+            </Box>
+          )}
 
         {/* Feed title or rename input */}
         {isRenaming ? (
@@ -294,5 +283,16 @@ export function FeedRow({
         </Flex>
       )}
     </Box>
+    );
+  };
+
+  if (!isDraggable) {
+    return content();
+  }
+
+  return (
+    <Draggable draggableId={String(feed.id)} index={index}>
+      {(provided, snapshot) => content(provided, snapshot)}
+    </Draggable>
   );
 }

@@ -4,20 +4,10 @@ import { useState } from "react";
 import { Box, Flex, IconButton, Text, Badge } from "@chakra-ui/react";
 import { LuChevronLeft, LuChevronRight, LuPlus } from "react-icons/lu";
 import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  arrayMove,
-  sortableKeyboardCoordinates,
-} from "@dnd-kit/sortable";
+  DragDropContext,
+  Droppable,
+  type DropResult,
+} from "@hello-pangea/dnd";
 import { useFeeds } from "@/hooks/useFeeds";
 import {
   useReorderFeeds,
@@ -56,30 +46,15 @@ export function Sidebar({
   // Calculate aggregate unread count
   const totalUnread = feeds?.reduce((sum, feed) => sum + feed.unread_count, 0) ?? 0;
 
-  // Configure drag sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5, // Prevent accidental drags on click
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  const handleDragEnd = (result: DropResult) => {
+    const { source, destination } = result;
+    if (!destination || !feeds) return;
+    if (source.index === destination.index) return;
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (!over || !feeds || active.id === over.id) return;
-
-    const oldIndex = feeds.findIndex((f) => f.id === active.id);
-    const newIndex = feeds.findIndex((f) => f.id === over.id);
-
-    const reorderedFeeds = arrayMove(feeds, oldIndex, newIndex);
-    const feedIds = reorderedFeeds.map((f) => f.id);
-
-    reorderFeeds.mutate(feedIds);
+    const reorderedFeeds = Array.from(feeds);
+    const [moved] = reorderedFeeds.splice(source.index, 1);
+    reorderedFeeds.splice(destination.index, 0, moved);
+    reorderFeeds.mutate(reorderedFeeds.map((f) => f.id));
   };
 
   const handleDelete = (feed: Feed) => {
@@ -196,29 +171,28 @@ export function Sidebar({
                 </Flex>
 
                 {/* Feed rows with drag-to-reorder */}
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext
-                    items={feeds.map((f) => f.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {feeds.map((feed) => (
-                      <FeedRow
-                        key={feed.id}
-                        feed={feed}
-                        isSelected={selectedFeedId === feed.id}
-                        onSelect={onSelectFeed}
-                        onDelete={handleDelete}
-                        onMarkAllRead={handleMarkAllRead}
-                        onRename={handleRename}
-                        isDraggable={true}
-                      />
-                    ))}
-                  </SortableContext>
-                </DndContext>
+                <DragDropContext onDragEnd={handleDragEnd}>
+                  <Droppable droppableId="sidebar-feeds">
+                    {(provided) => (
+                      <div ref={provided.innerRef} {...provided.droppableProps}>
+                        {feeds.map((feed, index) => (
+                          <FeedRow
+                            key={feed.id}
+                            feed={feed}
+                            index={index}
+                            isSelected={selectedFeedId === feed.id}
+                            onSelect={onSelectFeed}
+                            onDelete={handleDelete}
+                            onMarkAllRead={handleMarkAllRead}
+                            onRename={handleRename}
+                            isDraggable={true}
+                          />
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
               </Box>
             ) : (
               <EmptyFeedState />
