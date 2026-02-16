@@ -69,6 +69,8 @@ export function CategoryRow({
       p={2}
       bg="bg.subtle"
       borderRadius="sm"
+      _hover={{ bg: "bg.muted" }}
+      transition="background 0.15s"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -108,7 +110,16 @@ export function CategoryRow({
             onBadgeDismiss?.();
           }}
         >
-          New
+          <Flex alignItems="center" gap={0.5}>
+            <LuX
+              size={10}
+              style={{
+                opacity: isHovered ? 1 : 0,
+                transition: "opacity 0.15s",
+              }}
+            />
+            New
+          </Flex>
         </Badge>
       )}
 
@@ -122,7 +133,16 @@ export function CategoryRow({
             onBadgeDismiss?.();
           }}
         >
-          Returned
+          <Flex alignItems="center" gap={0.5}>
+            <LuX
+              size={10}
+              style={{
+                opacity: isHovered ? 1 : 0,
+                transition: "opacity 0.15s",
+              }}
+            />
+            Returned
+          </Flex>
         </Badge>
       )}
 
@@ -131,6 +151,7 @@ export function CategoryRow({
         onChange={onWeightChange}
         isOverridden={isOverridden}
         onReset={onResetWeight}
+        size="sm"
       />
 
       <IconButton

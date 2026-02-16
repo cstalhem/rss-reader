@@ -9,7 +9,7 @@ import {
   Stack,
   IconButton,
 } from "@chakra-ui/react";
-import { LuChevronDown, LuTrash2 } from "react-icons/lu";
+import { LuChevronDown, LuPencil, LuTrash2 } from "react-icons/lu";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { WeightPresets } from "./WeightPresets";
@@ -29,6 +29,7 @@ interface CategoryGroupAccordionProps {
   newCategories: Set<string>;
   returnedCategories: Set<string>;
   isDragActive?: boolean;
+  activeId?: string | null;
 }
 
 export function CategoryGroupAccordion({
@@ -44,16 +45,17 @@ export function CategoryGroupAccordion({
   newCategories,
   returnedCategories,
   isDragActive,
+  activeId,
 }: CategoryGroupAccordionProps) {
   const sortedCategories = [...group.categories].sort();
   const { setNodeRef, isOver } = useDroppable({ id: group.id });
 
-  // Rename state (matches FeedRow pattern)
+  // Hover state for edit/delete button reveal
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Rename state
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(group.name);
-  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(
-    null
-  );
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -62,11 +64,6 @@ export function CategoryGroupAccordion({
       inputRef.current.select();
     }
   }, [isRenaming]);
-
-  const handleDoubleClick = () => {
-    setRenameValue(group.name);
-    setIsRenaming(true);
-  };
 
   const handleRenameSubmit = () => {
     const trimmed = renameValue.trim();
@@ -89,32 +86,18 @@ export function CategoryGroupAccordion({
     }
   };
 
-  // Mobile long-press for rename
-  const handleTouchStart = () => {
-    const timer = setTimeout(() => {
-      setRenameValue(group.name);
-      setIsRenaming(true);
-    }, 500);
-    setLongPressTimer(timer);
-  };
-
-  const handleTouchEnd = () => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
-    }
-  };
-
-  const handleTouchMove = () => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
-    }
-  };
+  // Show placeholder when dragging a category over this group and it's not already in the group
+  const showPlaceholder =
+    isOver && activeId && !group.categories.includes(activeId);
 
   return (
     <Accordion.Item value={group.id}>
-      <Flex alignItems="center" justifyContent="space-between">
+      <Flex
+        alignItems="center"
+        justifyContent="space-between"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         <Accordion.ItemTrigger
           cursor={isDragActive || isRenaming ? "default" : "pointer"}
           flex={1}
@@ -152,17 +135,7 @@ export function CategoryGroupAccordion({
                 }}
               />
             ) : (
-              <Text
-                fontWeight="semibold"
-                fontSize="sm"
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  handleDoubleClick();
-                }}
-                onTouchStart={handleTouchStart}
-                onTouchEnd={handleTouchEnd}
-                onTouchMove={handleTouchMove}
-              >
+              <Text fontWeight="semibold" fontSize="sm">
                 {group.name}
               </Text>
             )}
@@ -180,6 +153,20 @@ export function CategoryGroupAccordion({
             onClick={(e) => e.stopPropagation()}
           />
           <IconButton
+            aria-label="Rename group"
+            size="xs"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              setRenameValue(group.name);
+              setIsRenaming(true);
+            }}
+            opacity={{ base: 1, md: isHovered ? 1 : 0 }}
+            transition="opacity 0.15s"
+          >
+            <LuPencil size={14} />
+          </IconButton>
+          <IconButton
             aria-label="Delete group"
             size="xs"
             variant="ghost"
@@ -188,6 +175,8 @@ export function CategoryGroupAccordion({
               e.stopPropagation();
               onDeleteGroup(group.id);
             }}
+            opacity={{ base: 1, md: isHovered ? 1 : 0 }}
+            transition="opacity 0.15s"
           >
             <LuTrash2 size={14} />
           </IconButton>
@@ -233,6 +222,27 @@ export function CategoryGroupAccordion({
                     />
                   );
                 })}
+                {showPlaceholder && (
+                  <Box
+                    p={2}
+                    bg="bg.muted"
+                    borderRadius="sm"
+                    borderWidth="1px"
+                    borderStyle="dashed"
+                    borderColor="border.subtle"
+                    opacity={0.5}
+                  >
+                    <Text fontSize="sm" color="fg.muted">
+                      {activeId
+                        .split("-")
+                        .map(
+                          (w: string) =>
+                            w.charAt(0).toUpperCase() + w.slice(1)
+                        )
+                        .join(" ")}
+                    </Text>
+                  </Box>
+                )}
               </Stack>
             </SortableContext>
           </Box>
