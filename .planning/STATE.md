@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 Phase: 8 of 9 (Category Grouping)
 Plan: 11 of 11 complete
 Status: Phase Complete (gap closure complete)
-Last activity: 2026-02-16 - Plan 08-11 complete (drag placeholder positioning fix)
+Last activity: 2026-02-16 - Completed quick task 10: Fix category drag-and-drop placeholder and badge dismiss UX
 
 Progress: [██████████] 100% (36/36 total plans estimated)
 
