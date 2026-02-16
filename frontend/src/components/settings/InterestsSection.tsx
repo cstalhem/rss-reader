@@ -82,14 +82,7 @@ export function InterestsSection() {
       >
         <Stack gap={6}>
           <Box>
-            <Text
-              fontSize="sm"
-              fontWeight="semibold"
-              color="fg.muted"
-              textTransform="uppercase"
-              letterSpacing="wider"
-              mb={2}
-            >
+            <Text fontSize="lg" fontWeight="semibold" mb={4}>
               Interests
             </Text>
             <Field helperText="Describe topics you want to see more of in natural language">
@@ -104,14 +97,7 @@ export function InterestsSection() {
           </Box>
 
           <Box>
-            <Text
-              fontSize="sm"
-              fontWeight="semibold"
-              color="fg.muted"
-              textTransform="uppercase"
-              letterSpacing="wider"
-              mb={2}
-            >
+            <Text fontSize="lg" fontWeight="semibold" mb={4}>
               Anti-interests
             </Text>
             <Field helperText="Describe topics you want to avoid">

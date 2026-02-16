@@ -53,10 +53,12 @@ function UngroupedDroppable({
   items,
   children,
   activeId,
+  sourceContainer,
 }: {
   items: string[];
   children: React.ReactNode;
   activeId: string | null;
+  sourceContainer: string | null;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: "ungrouped" });
   return (
@@ -69,7 +71,10 @@ function UngroupedDroppable({
     >
       <SortableContext items={items} strategy={verticalListSortingStrategy}>
         {children}
-        {isOver && activeId && !items.includes(activeId) && (
+        {isOver &&
+          activeId &&
+          sourceContainer !== "ungrouped" &&
+          !items.includes(activeId) && (
           <Box
             p={2}
             mt={1}
@@ -106,6 +111,7 @@ export function CategoriesSection() {
 
   // DnD state
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [sourceContainer, setSourceContainer] = useState<string | null>(null);
   const isDragActive = activeId !== null;
 
   // Checkbox selection for ungrouped categories
@@ -248,9 +254,15 @@ export function CategoriesSection() {
   );
 
   // DnD handlers
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  }, []);
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      const draggedCategory = event.active.id as string;
+      const source = findContainer(draggedCategory);
+      setActiveId(draggedCategory);
+      setSourceContainer(source);
+    },
+    [findContainer]
+  );
 
   const handleDragOver = useCallback((_: DragOverEvent) => {
     // Visual feedback is handled by useDroppable isOver in each container.
@@ -261,6 +273,7 @@ export function CategoriesSection() {
     (event: DragEndEvent) => {
       const { active, over } = event;
       setActiveId(null);
+      setSourceContainer(null);
 
       if (!over || !categoryGroups) return;
 
@@ -496,6 +509,7 @@ export function CategoriesSection() {
                   returnedCategories={returnedCategories}
                   isDragActive={isDragActive}
                   activeId={activeId}
+                  sourceContainer={sourceContainer}
                 />
               ))}
             </Accordion.Root>
@@ -505,17 +519,14 @@ export function CategoriesSection() {
         {/* Ungrouped categories */}
         {ungroupedCategories.length > 0 && (
           <Box>
-            <Text
-              fontSize="sm"
-              fontWeight="semibold"
-              color="fg.muted"
-              textTransform="uppercase"
-              letterSpacing="wider"
-              mb={3}
-            >
+            <Text fontSize="lg" fontWeight="semibold" mb={4}>
               Ungrouped
             </Text>
-            <UngroupedDroppable items={ungroupedCategories} activeId={activeId}>
+            <UngroupedDroppable
+              items={ungroupedCategories}
+              activeId={activeId}
+              sourceContainer={sourceContainer}
+            >
               <Stack gap={1}>
                 {ungroupedCategories.map((category) => {
                   const weight =
