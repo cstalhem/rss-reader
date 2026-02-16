@@ -96,7 +96,12 @@ export function CategoryGroupAccordion({
     !group.categories.includes(activeId);
 
   return (
-    <Accordion.Item value={group.id}>
+    <Accordion.Item
+      value={group.id}
+      ref={setNodeRef}
+      bg={isOver ? "bg.muted" : undefined}
+      transition="background 0.15s"
+    >
       <Flex
         alignItems="center"
         justifyContent="space-between"
@@ -192,13 +197,7 @@ export function CategoryGroupAccordion({
 
       <Accordion.ItemContent>
         <Accordion.ItemBody px={4} pb={3} pt={1}>
-          <Box
-            ref={setNodeRef}
-            bg={isOver ? "bg.muted" : undefined}
-            borderRadius="sm"
-            transition="background 0.15s"
-            p={isOver ? 1 : 0}
-          >
+          <Box borderRadius="sm">
             <SortableContext
               items={sortedCategories}
               strategy={verticalListSortingStrategy}
