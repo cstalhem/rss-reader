@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8 of 9 (Category Grouping)
-Plan: 6 of 8 complete
-Status: In Progress (gap closure)
-Last activity: 2026-02-16 - Plan 08-06 complete (scrollbar fix and Interests panel restyle)
+Plan: 8 of 8 complete
+Status: Phase Complete (gap closure complete)
+Last activity: 2026-02-16 - Plan 08-08 complete (hover-reveal buttons, drag placeholder, badge X icon)
 
-Progress: [██████████] 97% (34/36 total plans estimated)
+Progress: [██████████] 100% (36/36 total plans estimated)
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [██████████] 97% (34/36 total plans estimated)
 | Phase 08-category-grouping P04 | 5.8 | 2 tasks | 5 files |
 | Phase 08-category-grouping P05 | 2.0 | 1 tasks | 2 files |
 | Phase 08-category-grouping P06 | 3.7 | 2 tasks | 2 files |
+| Phase 08-category-grouping P08 | 5.0 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08-05]: Header dot badge via shared TanStack Query key reuses same cache as useCategories and SettingsSidebar
 - [Phase 08-05]: Auto-acknowledge categories on weight or group weight change for seamless badge dismissal
 - [Phase 08-06]: scrollbar-gutter: stable on content wrapper reserves space permanently, preventing sidebar shift
+- [Phase 08-08]: Hover-reveal pencil button replaces double-click/long-press for group rename (avoids accordion toggle conflict)
+- [Phase 08-08]: Opacity-only visibility for badge X icon to avoid layout shift on hover
 
 ### Pending Todos
 
@@ -120,9 +123,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 08-06-PLAN.md (gap closure: scrollbar fix + interests restyle)
-Resume file: .planning/phases/08-category-grouping/08-06-SUMMARY.md
+Stopped at: Completed 08-08-PLAN.md (Phase 08 gap closure fully complete)
+Resume file: .planning/phases/08-category-grouping/08-08-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-16 after Phase 08-06 execution*
+*Last updated: 2026-02-16 after Phase 08-08 execution*
