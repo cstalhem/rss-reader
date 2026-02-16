@@ -114,17 +114,14 @@ export function CategoryRow({
             <Box
               display="flex"
               alignItems="center"
-              maxW={isHovered ? "16px" : "0"}
+              maxW={isHovered ? "20px" : "0"}
               overflow="hidden"
               transition="max-width 0.15s"
-              pl={isHovered ? 1.5 : 0}
-              pr={1}
-              borderRight={isHovered ? "1px solid" : undefined}
-              borderColor="border.subtle"
+              pr={isHovered ? 1 : 0}
             >
-              <LuX size={10} />
+              <LuX size={14} />
             </Box>
-            <Box pl={2}>New</Box>
+            New
           </Flex>
         </Badge>
       )}
@@ -143,17 +140,14 @@ export function CategoryRow({
             <Box
               display="flex"
               alignItems="center"
-              maxW={isHovered ? "16px" : "0"}
+              maxW={isHovered ? "20px" : "0"}
               overflow="hidden"
               transition="max-width 0.15s"
-              pl={isHovered ? 1.5 : 0}
-              pr={1}
-              borderRight={isHovered ? "1px solid" : undefined}
-              borderColor="border.subtle"
+              pr={isHovered ? 1 : 0}
             >
-              <LuX size={10} />
+              <LuX size={14} />
             </Box>
-            <Box pl={2}>Returned</Box>
+            Returned
           </Flex>
         </Badge>
       )}
