@@ -1,9 +1,9 @@
 ---
-status: complete
+status: diagnosed
 phase: 08-category-grouping
 source: [08-01-SUMMARY.md, 08-02-SUMMARY.md, 08-03-SUMMARY.md, 08-04-SUMMARY.md, 08-05-SUMMARY.md]
 started: 2026-02-16T10:00:00Z
-updated: 2026-02-16T10:30:00Z
+updated: 2026-02-16T14:30:00Z
 ---
 
 ## Current Test
@@ -93,9 +93,11 @@ skipped: 0
   reason: "User reported: Works, but there is a shift of the layout when I move between either Feeds or Interests and any of the other three categories. The settings sidebar moves a couple of pixels to the right if I e.g. click from Feeds to Categories."
   severity: cosmetic
   test: 1
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "Some sections (Categories, Ollama, Feedback) have taller scrollable content that triggers a vertical scrollbar, while others (Feeds, Interests) don't. When the scrollbar appears, it takes up space (~15px on macOS), pushing the sidebar to the left. The container doesn't reserve space for the scrollbar, causing the shift."
+  artifacts:
+    - "frontend/src/app/settings/page.tsx: Desktop layout uses display:none to toggle sections, all mounted simultaneously but only one visible at a time"
+  missing:
+    - "Reserve scrollbar space on the container to prevent layout shift (e.g., `overflow-y: scroll` instead of `auto`, or scrollbar gutter CSS)"
   debug_session: ""
 
 - truth: "Weight preset buttons use attached prop to visually group as a single segmented control"
@@ -103,9 +105,11 @@ skipped: 0
   reason: "User reported: Pass, but I want the buttons to use the Attached prop so that it is clear they belong together."
   severity: cosmetic
   test: 4
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "WeightPresets component renders 5 individual Button components with gap={0.5} spacing between them, but doesn't wrap them in a Group component with attached prop. Chakra UI v3's Group component with attached prop fuses buttons into a segmented control by removing inner border radius."
+  artifacts:
+    - "frontend/src/components/settings/WeightPresets.tsx: Buttons rendered directly in Flex with gap={0.5}"
+  missing:
+    - "Wrap buttons in <Group attached> component from Chakra UI v3 to create segmented control appearance"
   debug_session: ""
 
 - truth: "Child category weight preset buttons match parent group header button size, no layout shift on reset button appear, and category rows have subtle hover highlight"
@@ -113,9 +117,16 @@ skipped: 0
   reason: "User reported: Button size mismatch between group header and child rows looks askew. Layout shift when reset button appears after overriding a child weight. Missing hover effect on child and ungrouped category rows (should match group header hover)."
   severity: cosmetic
   test: 6
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "Three separate issues: (1) Button size mismatch: CategoryGroupAccordion passes size='sm' to parent WeightPresets, but CategoryRow passes size='xs' (default) to child WeightPresets. (2) Reset button layout shift: Reset button appears conditionally with ml={0.5} in WeightPresets, causing preceding buttons to shift left when it appears. Need fixed-width reserved space. (3) Missing hover: CategoryRow has no hover background effect (bg='bg.subtle' already, no _hover prop), while CategoryGroupAccordion ItemTrigger has _hover={{ bg: 'bg.muted' }}."
+  artifacts:
+    - "frontend/src/components/settings/CategoryGroupAccordion.tsx:179: Passes size='sm' to WeightPresets"
+    - "frontend/src/components/settings/CategoryRow.tsx:129: Uses default size='xs' for WeightPresets"
+    - "frontend/src/components/settings/WeightPresets.tsx:53-67: Reset button conditionally rendered with ml={0.5}"
+    - "frontend/src/components/settings/CategoryRow.tsx:64-74: Flex wrapper has no _hover prop"
+  missing:
+    - "Change CategoryRow to pass size='sm' to WeightPresets to match parent"
+    - "Reserve fixed-width space for reset button in WeightPresets (render invisible placeholder when isOverridden=false)"
+    - "Add _hover={{ bg: 'bg.muted' }} to CategoryRow Flex wrapper"
   debug_session: ""
 
 - truth: "Group rename uses hover-reveal edit button instead of double-click, grouped with delete button in consistent hover pattern"
@@ -123,9 +134,15 @@ skipped: 0
   reason: "User reported: Group also opens when pressed to rename. Replace double-click with hover-reveal edit button grouped with delete button, both following the same hide/show-on-hover pattern."
   severity: minor
   test: 9
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "CategoryGroupAccordion uses onDoubleClick handler on the group name Text element to trigger rename mode, but the entire row is an Accordion.ItemTrigger that toggles open/closed on any click. Double-clicking triggers both the rename and the accordion toggle, causing awkward UX. The delete button (LuTrash2) is always visible, not hover-reveal."
+  artifacts:
+    - "frontend/src/components/settings/CategoryGroupAccordion.tsx:158-167: onDoubleClick handler on Text element inside ItemTrigger"
+    - "frontend/src/components/settings/CategoryGroupAccordion.tsx:182-193: Delete IconButton always visible, not conditional on hover"
+  missing:
+    - "Remove onDoubleClick rename trigger"
+    - "Add hover-reveal edit button (LuPencil icon) next to delete button"
+    - "Make both edit and delete buttons opacity-based hover-reveal (similar to CategoryRow hide button pattern)"
+    - "Group edit and delete buttons visually"
   debug_session: ""
 
 - truth: "Dragged category shows preview placeholder in destination container during drag"
@@ -133,9 +150,14 @@ skipped: 0
   reason: "User reported: Pass, but when dragged into a new group, there is no preview of the category row in the new group."
   severity: minor
   test: 8
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "DragOverlay in CategoriesSection shows the dragged category floating during drag, and destination containers (groups and ungrouped) highlight via useDroppable isOver state. However, there's no optimistic preview placeholder rendered *inside* the destination container showing where the category will land. dnd-kit doesn't automatically render this - it must be manually added by checking isDragging and isOver states."
+  artifacts:
+    - "frontend/src/components/settings/CategoriesSection.tsx:530-543: DragOverlay renders floating preview"
+    - "frontend/src/components/settings/CategoriesSection.tsx:59-72: UngroupedDroppable uses isOver for background highlight only"
+    - "frontend/src/components/settings/CategoryGroupAccordion.tsx:199-238: Group droppable uses isOver for background highlight only"
+  missing:
+    - "Add placeholder CategoryRow (with opacity=0.5, dashed border) inside destination containers when isOver=true during drag"
+    - "Pass isDragging and activeId state down to CategoryGroupAccordion and UngroupedDroppable to conditionally render placeholder"
   debug_session: ""
 
 - truth: "Inherited weights shown muted vs overridden, and group parent row hover highlights the full row including weight buttons and delete button"
@@ -143,9 +165,13 @@ skipped: 0
   reason: "User reported: Categories with inherited weights should show weight in more muted way compared to overridden. Parent category row hover only highlights first part, not the weight buttons and delete-button section."
   severity: cosmetic
   test: 7
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "Two separate issues: (1) Inherited weight styling: WeightPresets component doesn't differentiate between inherited (group default) and overridden weights visually. Buttons have same opacity and styling regardless of isOverridden prop. Need to reduce opacity when weight is inherited. (2) Group header hover incomplete: The hover bg effect in CategoryGroupAccordion only applies to the Accordion.ItemTrigger (left side), not the Flex on the right containing WeightPresets and delete IconButton. The layout has two sibling Flex elements - ItemTrigger and the right-side controls - so hover doesn't cover full row."
+  artifacts:
+    - "frontend/src/components/settings/WeightPresets.tsx:36-51: Button styling doesn't check isOverridden prop for opacity"
+    - "frontend/src/components/settings/CategoryGroupAccordion.tsx:117-194: Hover only on ItemTrigger, not the outer Flex wrapper"
+  missing:
+    - "Add opacity={isOverridden ? 1 : 0.6} or similar to WeightPresets buttons when !isOverridden"
+    - "Wrap entire group header (ItemTrigger + right controls) in a parent Flex with _hover state, or move hover state to a common parent"
   debug_session: ""
 
 - truth: "New category chip badge shows hover-reveal X icon on the left for dismiss affordance without layout shift"
@@ -153,9 +179,14 @@ skipped: 0
   reason: "User reported: Include a small x icon on the chip marking a new category that appears when hovered, so it becomes more obvious what happens when clicked. Icon should be on the left to avoid layout shift."
   severity: cosmetic
   test: 12
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "CategoryRow renders Badge components for 'New' and 'Returned' states with cursor='pointer' and onClick handlers to dismiss, but the badges show no visual affordance that they're clickable. No X icon or hover state change. The badge is just a colored chip with text, giving no indication that clicking it will dismiss the badge."
+  artifacts:
+    - "frontend/src/components/settings/CategoryRow.tsx:101-127: Badge components with onClick but no icon or hover affordance"
+  missing:
+    - "Add hover state tracking to CategoryRow"
+    - "Render LuX icon inside Badge with opacity-based hover-reveal (opacity: 0 → 1 on row hover)"
+    - "Position icon on the left inside Badge to avoid layout shift (badge width increases leftward, not rightward)"
+    - "Consider using Badge children slot pattern or Flex inside Badge for icon+text layout"
   debug_session: ""
 
 - truth: "Interests section design matches the panel card pattern used in Ollama and other settings sections"
@@ -163,7 +194,12 @@ skipped: 0
   reason: "User reported: Pass, but I would like the design to match the panels in the Ollama section. I want a single panel that contains both text fields, and that the labels for the input fields match the subheader style in the other sections for better visual continuity."
   severity: cosmetic
   test: 2
-  root_cause: ""
-  artifacts: []
-  missing: []
+  root_cause: "InterestsSection renders Field components directly in a Stack without wrapping them in a panel Box. OllamaSection wraps each logical section in a Box with bg='bg.subtle', borderRadius='md', borderWidth='1px', borderColor='border.subtle', p={6}, and uses Text with fontSize='lg', fontWeight='semibold' for subheaders. InterestsSection uses fontSize='xl' for the main heading and Field label prop for input labels, not matching the subheader pattern."
+  artifacts:
+    - "frontend/src/components/settings/InterestsSection.tsx:70-114: No panel Box wrapper, Field labels don't match subheader style"
+    - "frontend/src/components/settings/OllamaSection.tsx:111-125: Panel Box pattern with Text subheader at line 112"
+  missing:
+    - "Wrap both Field components in a single panel Box with the standard bg/border/padding props"
+    - "Replace Field label prop with Text component using fontSize='sm', fontWeight='semibold', color='fg.muted', textTransform='uppercase', letterSpacing='wider' (matching subheader pattern from CategoriesSection ungrouped heading)"
+    - "Keep section title 'Interest Preferences' outside the panel as the main heading"
   debug_session: ""
