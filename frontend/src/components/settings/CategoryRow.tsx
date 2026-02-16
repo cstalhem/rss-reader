@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Flex, Text, Badge, IconButton, Checkbox } from "@chakra-ui/react";
+import { Flex, Text, Badge, IconButton, Checkbox, Box } from "@chakra-ui/react";
 import { LuGripVertical, LuX } from "react-icons/lu";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -110,15 +110,21 @@ export function CategoryRow({
             onBadgeDismiss?.();
           }}
         >
-          <Flex alignItems="center" gap={0.5}>
-            <LuX
-              size={10}
-              style={{
-                opacity: isHovered ? 1 : 0,
-                transition: "opacity 0.15s",
-              }}
-            />
-            New
+          <Flex alignItems="center" gap={0}>
+            <Box
+              display="flex"
+              alignItems="center"
+              maxW={isHovered ? "16px" : "0"}
+              overflow="hidden"
+              transition="max-width 0.15s"
+              pl={isHovered ? 1.5 : 0}
+              pr={1}
+              borderRight={isHovered ? "1px solid" : undefined}
+              borderColor="border.subtle"
+            >
+              <LuX size={10} />
+            </Box>
+            <Box pl={2}>New</Box>
           </Flex>
         </Badge>
       )}
@@ -133,15 +139,21 @@ export function CategoryRow({
             onBadgeDismiss?.();
           }}
         >
-          <Flex alignItems="center" gap={0.5}>
-            <LuX
-              size={10}
-              style={{
-                opacity: isHovered ? 1 : 0,
-                transition: "opacity 0.15s",
-              }}
-            />
-            Returned
+          <Flex alignItems="center" gap={0}>
+            <Box
+              display="flex"
+              alignItems="center"
+              maxW={isHovered ? "16px" : "0"}
+              overflow="hidden"
+              transition="max-width 0.15s"
+              pl={isHovered ? 1.5 : 0}
+              pr={1}
+              borderRight={isHovered ? "1px solid" : undefined}
+              borderColor="border.subtle"
+            >
+              <LuX size={10} />
+            </Box>
+            <Box pl={2}>Returned</Box>
           </Flex>
         </Badge>
       )}
