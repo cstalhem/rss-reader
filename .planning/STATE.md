@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 Phase: 8 of 9 (Category Grouping)
 Plan: 11 of 11 complete
 Status: Phase Complete (gap closure complete)
-Last activity: 2026-02-16 - Completed quick task 10: Fix category drag-and-drop placeholder and badge dismiss UX
+Last activity: 2026-02-16 - Completed quick task 11: Migrate DnD from @dnd-kit to @hello-pangea/dnd
 
 Progress: [██████████] 100% (36/36 total plans estimated)
 
@@ -91,7 +91,7 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08-02]: ArticleReader uses direct useMutation for inline tag weight changes (decoupled from usePreferences)
 - [Phase 08-03]: Compact Button group for weight presets (solid+accent active, ghost inactive) instead of SegmentGroup
 - [Phase 08-03]: Accordion header split pattern: trigger on left, presets on right outside trigger with stopPropagation
-- [Phase 08-04]: Single DndContext with closestCorners for cross-container category drag-and-drop
+- [Phase 08-04→Quick 11]: DragDropContext with Droppable/Draggable render props for cross-container category drag-and-drop (@hello-pangea/dnd)
 - [Phase 08-04]: No optimistic onDragOver state -- move persists only on dragEnd for simplicity
 - [Phase 08-04]: FeedRow rename pattern replicated for group names (double-click desktop, long-press mobile)
 - [Phase 08-05]: Header dot badge via shared TanStack Query key reuses same cache as useCategories and SettingsSidebar
@@ -105,12 +105,14 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08-09/11]: Source container tracking prevents drag placeholder from appearing in source (only destination)
 - [Phase 08-11]: Drag placeholder rendered outside Accordion.ItemContent for visibility when group is collapsed
 - [Quick 10]: useDroppable setNodeRef on Accordion.Item (always visible) instead of Box inside ItemContent (zero dimensions when collapsed)
+- [Quick 11]: Migrated all DnD from @dnd-kit to @hello-pangea/dnd -- Draggable/Droppable render props replace useSortable/useDraggable/useDroppable hooks, DragOverlay removed
 
 ### Pending Todos
 
 1. **Establish design and UX principles for next milestone** (area: ui) — Define semantic status colors, interaction patterns, responsive UX conventions for v1.2+
 2. **Codebase evaluation and simplification phase** (area: general) — Thorough evaluation of codebase, architecture, and data models to surface simplifications and address technical debt (hard-coded values, duplicated logic, inconsistencies) while retaining all functionality
 3. **Fix Ollama client file descriptor leak** (area: backend, severity: blocker) — `scoring.py:categorize_article` creates a new `ollama.AsyncClient` per call without closing it, leaking httpx connections and SSL contexts. After ~60-70 articles the process hits `OSError: [Errno 24] Too many open files` and stops accepting connections. Fix: reuse a single client instance or properly close after each call.
+
 ### Blockers/Concerns
 
 ### Quick Tasks Completed
@@ -122,6 +124,7 @@ Key architectural decisions carrying forward to v1.1:
 | 8 | Switch Ollama client to streaming responses to prevent timeouts on slower models | 2026-02-15 | 7e0add4 | [8-switch-ollama-client-to-streaming-respon](./quick/8-switch-ollama-client-to-streaming-respon/) |
 | 9 | Consolidate Ollama disconnected state, split Model Library sub-sections, remove redundant SystemPrompts label | 2026-02-15 | 30be07b | [9-update-ollama-settings-panel-headings-se](./quick/9-update-ollama-settings-panel-headings-se/) |
 | 10 | Fix category drag-and-drop placeholder (destination detection) and badge dismiss X spacing/size/divider | 2026-02-16 | 0ffaebc | [10-fix-category-drag-and-drop-placeholder-a](./quick/10-fix-category-drag-and-drop-placeholder-a/) |
+| 11 | Migrate all DnD from @dnd-kit to @hello-pangea/dnd for better animations and cleaner API | 2026-02-16 | 75b5cf7 | [11-migrate-drag-and-drop-from-dnd-kit-to-he](./quick/11-migrate-drag-and-drop-from-dnd-kit-to-he/) |
 
 **Phase 7 considerations:**
 - Pydantic Settings `@lru_cache` prevents runtime updates - requires two-tier config pattern (Settings for infrastructure, UserPreferences for runtime choices)
@@ -134,9 +137,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed quick task 10 (drag placeholder + badge dismiss fix)
-Resume file: .planning/quick/10-fix-category-drag-and-drop-placeholder-a/10-SUMMARY.md
+Stopped at: Completed quick task 11 (migrate DnD from @dnd-kit to @hello-pangea/dnd)
+Resume file: .planning/quick/11-migrate-drag-and-drop-from-dnd-kit-to-he/11-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-16 after quick task 10 execution*
+*Last updated: 2026-02-16 after quick task 11 execution*
