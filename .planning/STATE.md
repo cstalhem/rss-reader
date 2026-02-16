@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8 of 9 (Category Grouping)
-Plan: 10 of 11 complete
-Status: In Progress (gap closure)
-Last activity: 2026-02-16 - Plan 08-09 complete (standardize settings subheader styling)
+Plan: 11 of 11 complete
+Status: Phase Complete (gap closure complete)
+Last activity: 2026-02-16 - Plan 08-11 complete (drag placeholder positioning fix)
 
 Progress: [██████████] 100% (36/36 total plans estimated)
 
@@ -58,8 +58,9 @@ Progress: [██████████] 100% (36/36 total plans estimated)
 | Phase 08-category-grouping P06 | 3.7 | 2 tasks | 2 files |
 | Phase 08-category-grouping P07 | 7.0 | 2 tasks | 3 files |
 | Phase 08-category-grouping P08 | 5.0 | 2 tasks | 3 files |
+| Phase 08-category-grouping P09 | 2.0 | 1 tasks | 2 files |
 | Phase 08-category-grouping P10 | 2.0 | 1 tasks | 1 files |
-| Phase 08-category-grouping P09 | 2 | 1 tasks | 2 files |
+| Phase 08-category-grouping P11 | 3.0 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08-07]: Parent Flex hover instead of trigger-only hover for full-row group header coverage
 - [Phase 08-08]: Hover-reveal pencil button replaces double-click/long-press for group rename (avoids accordion toggle conflict)
 - [Phase 08-08]: Opacity-only visibility for badge X icon to avoid layout shift on hover
+- [Phase 08-09/11]: Source container tracking prevents drag placeholder from appearing in source (only destination)
+- [Phase 08-11]: Drag placeholder rendered outside Accordion.ItemContent for visibility when group is collapsed
 
 ### Pending Todos
 
@@ -129,8 +132,8 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 08-09-PLAN.md (standardize settings subheader styling)
-Resume file: .planning/phases/08-category-grouping/08-09-SUMMARY.md
+Stopped at: Completed 08-11-PLAN.md (drag placeholder positioning fix - Phase 08 complete)
+Resume file: .planning/phases/08-category-grouping/08-11-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
