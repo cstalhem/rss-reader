@@ -113,7 +113,7 @@ Plans:
   3. User can set a weight on a group that applies to all child categories by default
   4. User can override the group weight for individual categories within a group
   5. Scoring pipeline resolves effective weight using priority: explicit override > group default > neutral (1.0)
-**Plans**: 8 plans
+**Plans**: 11 plans
 
 Plans:
 - [x] 08-01-PLAN.md -- Backend: data model, migration, weight resolution, and API endpoints
@@ -121,9 +121,12 @@ Plans:
 - [x] 08-03-PLAN.md -- Frontend: CategoriesSection with accordion groups, weight presets, ungrouped list
 - [x] 08-04-PLAN.md -- Frontend: cross-container drag-and-drop, group create/rename/delete
 - [x] 08-05-PLAN.md -- Frontend: three-tier notification badges, new/returned category chips
-- [ ] 08-06-PLAN.md -- Gap closure: scrollbar layout shift fix and Interests section panel restyle
-- [ ] 08-07-PLAN.md -- Gap closure: attached weight presets, size matching, hover highlights, muted inherited styling
-- [ ] 08-08-PLAN.md -- Gap closure: hover-reveal rename/delete, drag placeholder, badge dismiss icon
+- [x] 08-06-PLAN.md -- Gap closure: scrollbar layout shift fix and Interests section panel restyle
+- [x] 08-07-PLAN.md -- Gap closure: attached weight presets, size matching, hover highlights, muted inherited styling
+- [x] 08-08-PLAN.md -- Gap closure: hover-reveal rename/delete, drag placeholder, badge dismiss icon
+- [ ] 08-09-PLAN.md -- Gap closure: standardize subheader styling across all settings sections
+- [ ] 08-10-PLAN.md -- Gap closure: expandable badge X icon with spacing and divider
+- [ ] 08-11-PLAN.md -- Gap closure: correct drag placeholder positioning and Safari performance
 
 #### Phase 9: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
@@ -155,9 +158,9 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 5. Interest-Driven UI | v1.0 | 2/2 | Complete | 2026-02-14 |
 | 6. UI & Theme Polish | v1.1 | 3/3 | Complete | 2026-02-15 |
 | 7. Ollama Configuration UI | v1.1 | 6/6 | Complete | 2026-02-15 |
-| 8. Category Grouping | v1.1 | 5/8 | In progress | - |
+| 8. Category Grouping | v1.1 | 8/11 | In progress | - |
 | 9. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-16 after Phase 8 gap closure planning*
+*Last updated: 2026-02-16 after Phase 8 gap closure planning (plans 09-11)*
