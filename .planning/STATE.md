@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8 of 9 (Category Grouping)
-Plan: 5 of 5 complete
-Status: Phase Complete
-Last activity: 2026-02-16 - Plan 08-04 complete (DnD and group CRUD: create, rename, delete groups)
+Plan: 6 of 8 complete
+Status: In Progress (gap closure)
+Last activity: 2026-02-16 - Plan 08-06 complete (scrollbar fix and Interests panel restyle)
 
-Progress: [██████████] 97% (33/34 total plans estimated)
+Progress: [██████████] 97% (34/36 total plans estimated)
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [██████████] 97% (33/34 total plans estimated)
 | Phase 08-category-grouping P03 | 2.5 | 2 tasks | 4 files |
 | Phase 08-category-grouping P04 | 5.8 | 2 tasks | 5 files |
 | Phase 08-category-grouping P05 | 2.0 | 1 tasks | 2 files |
+| Phase 08-category-grouping P06 | 3.7 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,7 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08-04]: FeedRow rename pattern replicated for group names (double-click desktop, long-press mobile)
 - [Phase 08-05]: Header dot badge via shared TanStack Query key reuses same cache as useCategories and SettingsSidebar
 - [Phase 08-05]: Auto-acknowledge categories on weight or group weight change for seamless badge dismissal
+- [Phase 08-06]: scrollbar-gutter: stable on content wrapper reserves space permanently, preventing sidebar shift
 
 ### Pending Todos
 
@@ -118,9 +120,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 08-04-PLAN.md (Phase 8 now fully complete)
-Resume file: .planning/phases/08-category-grouping/08-04-SUMMARY.md
+Stopped at: Completed 08-06-PLAN.md (gap closure: scrollbar fix + interests restyle)
+Resume file: .planning/phases/08-category-grouping/08-06-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-16 after Phase 08-04 execution*
+*Last updated: 2026-02-16 after Phase 08-06 execution*
