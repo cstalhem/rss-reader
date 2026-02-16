@@ -109,6 +109,7 @@ Key architectural decisions carrying forward to v1.1:
 
 1. **Establish design and UX principles for next milestone** (area: ui) — Define semantic status colors, interaction patterns, responsive UX conventions for v1.2+
 2. **Codebase evaluation and simplification phase** (area: general) — Thorough evaluation of codebase, architecture, and data models to surface simplifications and address technical debt (hard-coded values, duplicated logic, inconsistencies) while retaining all functionality
+3. **Fix Ollama client file descriptor leak** (area: backend, severity: blocker) — `scoring.py:categorize_article` creates a new `ollama.AsyncClient` per call without closing it, leaking httpx connections and SSL contexts. After ~60-70 articles the process hits `OSError: [Errno 24] Too many open files` and stops accepting connections. Fix: reuse a single client instance or properly close after each call.
 
 ### Blockers/Concerns
 
