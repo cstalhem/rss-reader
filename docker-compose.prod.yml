@@ -30,14 +30,6 @@ services:
       retries: 3
       start_period: 10s
     stop_grace_period: 30s
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.rss-reader-backend.rule: Host(`rss-reader.tailsrv1.home.stalhem.se`) && PathPrefix(`/api`)
-      traefik.http.routers.rss-reader-backend.entrypoints: websecure
-      traefik.http.routers.rss-reader-backend.tls: "true"
-      traefik.http.routers.rss-reader-backend.tls.certresolver: cloudflare
-      traefik.http.routers.rss-reader-backend.service: rss-reader-backend-service
-      traefik.http.services.rss-reader-backend-service.loadbalancer.server.port: "8000"
     networks:
       - srv1_docker_net
       - internal
@@ -50,14 +42,6 @@ services:
       backend:
         condition: service_healthy
         restart: true
-    labels:
-      traefik.enable: "true"
-      traefik.http.routers.rss-reader-frontend.rule: Host(`rss-reader.tailsrv1.home.stalhem.se`)
-      traefik.http.routers.rss-reader-frontend.entrypoints: websecure
-      traefik.http.routers.rss-reader-frontend.tls: "true"
-      traefik.http.routers.rss-reader-frontend.tls.certresolver: cloudflare
-      traefik.http.routers.rss-reader-frontend.service: rss-reader-frontend-service
-      traefik.http.services.rss-reader-frontend-service.loadbalancer.server.port: "3000"
     networks:
       - srv1_docker_net
 
