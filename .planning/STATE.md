@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8.1 of 9 (Categories Settings UI Redesign)
-Plan: 2 of TBD complete
+Plan: 3 of TBD complete
 Status: In Progress
-Last activity: 2026-02-17 - Completed Phase 08.1 Plan 02 (frontend tree view with parent-child hierarchy)
+Last activity: 2026-02-17 - Completed Phase 08.1 Plan 03 (interactive category tree with DnD and CRUD)
 
 Progress: [██████████] 100% (36/36 total plans estimated from v1.1)
 
@@ -65,7 +65,7 @@ Progress: [██████████] 100% (36/36 total plans estimated fro
 **Phase 08.1 Metrics:**
 | Phase 08.1-categories-settings-ui-redesign P01 | 4.4 | 2 tasks | 5 files |
 | Phase 08.1-categories-settings-ui-redesign P02 | 3.8 | 2 tasks | 7 files |
-| Phase 08.1 P02 | 3.8 | 2 tasks | 7 files |
+| Phase 08.1-categories-settings-ui-redesign P03 | 6.4 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -123,6 +123,11 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08.1-02]: Render ungrouped categories as flat list after parents (not as a separate section header)
 - [Phase 08.1-02]: Display inherited weights at 50% opacity to distinguish from explicit overrides
 - [Phase 08.1-02]: Render ungrouped categories as flat list after parents (not as a separate section header)
+- [Phase 08.1-03]: Use @dnd-kit instead of @hello-pangea/dnd for tree DnD (better suited for non-list structures)
+- [Phase 08.1-03]: Search filtering disables DnD to avoid confusion with filtered tree structure
+- [Phase 08.1-03]: Prevent nesting parents with children under other parents (max 2-level hierarchy)
+- [Phase 08.1-03]: Drop placeholder shows inside parent row when hovering with active drag
+- [Phase 08.1-03]: Hover-reveal pencil/trash buttons replace double-click/long-press for rename/delete
 
 ### Pending Todos
 
@@ -154,9 +159,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 08.1-02-PLAN.md
-Resume file: .planning/phases/08.1-categories-settings-ui-redesign/08.1-02-SUMMARY.md
+Stopped at: Completed 08.1-03-PLAN.md
+Resume file: .planning/phases/08.1-categories-settings-ui-redesign/08.1-03-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-17 after Phase 08.1 Plan 02 completion*
+*Last updated: 2026-02-17 after Phase 08.1 Plan 03 completion*
