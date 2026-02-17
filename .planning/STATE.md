@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8.2 of 9 (Category Data Model Refactor)
-Plan: 5 of 5 complete
-Status: Complete
-Last activity: 2026-02-17 - Completed Phase 08.2 Plan 05 (Frontend Component Updates)
+Plan: 6 of 7 complete
+Status: In Progress
+Last activity: 2026-02-17 - Completed Phase 08.2 Plan 06 (Settings Panel UI Gap Closure)
 
 Progress: [██████████] 100% (36/36 total plans estimated from v1.1) + 08.2 in progress
 
@@ -80,6 +80,7 @@ Progress: [██████████] 100% (36/36 total plans estimated fro
 | Phase 08.2-category-data-model-refactor P03 | 6.0 | 2 tasks | 2 files |
 | Phase 08.2-category-data-model-refactor P04 | 3.0 | 2 tasks | 3 files |
 | Phase 08.2-category-data-model-refactor P05 | 8.0 | 2 tasks | 11 files |
+| Phase 08.2-category-data-model-refactor P06 | 2.9 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -177,6 +178,9 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08.2-05]: DnD uses category.id.toString() IDs, parent_id=-1 sentinel for ungroup
 - [Phase 08.2-05]: TagChip new weight names (max/boost/normal/reduce/block) with old aliases for backward compat
 - [Phase 08.2-05]: ArticleReader uses effective_weight from ArticleCategory embed (no more topic_weights lookup)
+- [Phase 08.2-06]: Local optimistic state (localValue) in WeightPresetStrip with useEffect sync for instant visual feedback
+- [Phase 08.2-06]: Auto-acknowledge (is_seen: true) injected in useCategories.updateCategory wrapper when weight changes
+- [Phase 08.2-06]: React state-driven hover reveal (onMouseEnter/Leave + isHovered state) replaces broken _groupHover CSS patterns
 
 ### Pending Todos
 
@@ -209,9 +213,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 08.2-05-PLAN.md (Phase 08.2 complete)
-Resume file: .planning/phases/08.2-category-data-model-refactor/08.2-05-SUMMARY.md
+Stopped at: Completed 08.2-06-PLAN.md
+Resume file: .planning/phases/08.2-category-data-model-refactor/08.2-06-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-17 after Phase 08.2 Plan 05 execution*
+*Last updated: 2026-02-17 after Phase 08.2 Plan 06 execution*
