@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 Phase: 8 of 9 (Category Grouping)
 Plan: 11 of 11 complete
 Status: Phase Complete (gap closure complete)
-Last activity: 2026-02-16 - Completed quick task 11: Migrate DnD from @dnd-kit to @hello-pangea/dnd
+Last activity: 2026-02-17 - Reverted quick task 11 (hello-pangea/dnd migration) — collapsed accordion drop targets incompatible
 
 Progress: [██████████] 100% (36/36 total plans estimated)
 
@@ -124,7 +124,7 @@ Key architectural decisions carrying forward to v1.1:
 | 8 | Switch Ollama client to streaming responses to prevent timeouts on slower models | 2026-02-15 | 7e0add4 | [8-switch-ollama-client-to-streaming-respon](./quick/8-switch-ollama-client-to-streaming-respon/) |
 | 9 | Consolidate Ollama disconnected state, split Model Library sub-sections, remove redundant SystemPrompts label | 2026-02-15 | 30be07b | [9-update-ollama-settings-panel-headings-se](./quick/9-update-ollama-settings-panel-headings-se/) |
 | 10 | Fix category drag-and-drop placeholder (destination detection) and badge dismiss X spacing/size/divider | 2026-02-16 | 0ffaebc | [10-fix-category-drag-and-drop-placeholder-a](./quick/10-fix-category-drag-and-drop-placeholder-a/) |
-| 11 | Migrate all DnD from @dnd-kit to @hello-pangea/dnd for better animations and cleaner API | 2026-02-16 | 75b5cf7 | [11-migrate-drag-and-drop-from-dnd-kit-to-he](./quick/11-migrate-drag-and-drop-from-dnd-kit-to-he/) |
+| 11 | ~~Migrate all DnD from @dnd-kit to @hello-pangea/dnd~~ (reverted: collapsed accordion drop targets incompatible) | 2026-02-17 | 34908f2 | [11-migrate-drag-and-drop-from-dnd-kit-to-he](./quick/11-migrate-drag-and-drop-from-dnd-kit-to-he/) |
 
 **Phase 7 considerations:**
 - Pydantic Settings `@lru_cache` prevents runtime updates - requires two-tier config pattern (Settings for infrastructure, UserPreferences for runtime choices)
@@ -136,9 +136,9 @@ Key architectural decisions carrying forward to v1.1:
 
 ## Session Continuity
 
-Last session: 2026-02-16
-Stopped at: Completed quick task 11 (migrate DnD from @dnd-kit to @hello-pangea/dnd)
-Resume file: .planning/quick/11-migrate-drag-and-drop-from-dnd-kit-to-he/11-SUMMARY.md
+Last session: 2026-02-17
+Stopped at: Reverted quick task 11 — adding new phase for categories settings UI redesign before Phase 9
+Resume file: N/A
 
 ---
 *State initialized: 2026-02-14*
