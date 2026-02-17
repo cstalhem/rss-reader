@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 from datetime import datetime
 
-from sqlalchemy import JSON, Column
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
 
 
 class Feed(SQLModel, table=True):
@@ -14,6 +15,52 @@ class Feed(SQLModel, table=True):
     title: str
     display_order: int = Field(default=0)
     last_fetched_at: datetime | None = None
+
+
+class ArticleCategoryLink(SQLModel, table=True):
+    """Junction table for many-to-many Article <-> Category."""
+
+    __tablename__ = "article_category_link"
+
+    article_id: int = Field(
+        foreign_key="articles.id", primary_key=True, ondelete="CASCADE"
+    )
+    category_id: int = Field(
+        foreign_key="categories.id", primary_key=True, ondelete="CASCADE"
+    )
+
+
+class Category(SQLModel, table=True):
+    """A topic category for articles."""
+
+    __tablename__ = "categories"
+
+    id: int | None = Field(default=None, primary_key=True)
+    display_name: str = Field(index=True)
+    slug: str = Field(unique=True, index=True)
+    parent_id: int | None = Field(default=None, foreign_key="categories.id")
+    weight: str | None = Field(default=None)
+    is_hidden: bool = Field(default=False)
+    is_seen: bool = Field(default=False)
+    is_manually_created: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    # Relationships
+    articles: list[Article] = Relationship(
+        back_populates="categories_rel",
+        link_model=ArticleCategoryLink,
+    )
+    parent: Category | None = Relationship(
+        sa_relationship_kwargs={
+            "remote_side": "Category.id",
+            "foreign_keys": "[Category.parent_id]",
+        }
+    )
+    children: list[Category] = Relationship(
+        sa_relationship_kwargs={
+            "foreign_keys": "[Category.parent_id]",
+        }
+    )
 
 
 class Article(SQLModel, table=True):
@@ -34,7 +81,6 @@ class Article(SQLModel, table=True):
     is_read: bool = Field(default=False)
 
     # LLM scoring fields
-    categories: list[str] | None = Field(default=None, sa_column=Column(JSON))
     interest_score: int | None = Field(default=None)
     quality_score: int | None = Field(default=None)
     composite_score: float | None = Field(default=None)
@@ -46,22 +92,22 @@ class Article(SQLModel, table=True):
     scoring_priority: int = Field(default=0)
     rescore_mode: str | None = Field(default=None)
 
+    # Relationships
+    categories_rel: list[Category] = Relationship(
+        back_populates="articles",
+        link_model=ArticleCategoryLink,
+    )
+
 
 class UserPreferences(SQLModel, table=True):
     """User preferences for content curation (single-row table)."""
 
     __tablename__ = "user_preferences"
 
-    model_config = {"arbitrary_types_allowed": True}
-
     id: int | None = Field(default=None, primary_key=True)
     interests: str = Field(default="")
     anti_interests: str = Field(default="")
-    topic_weights: dict[str, str] | None = Field(default=None, sa_column=Column(JSON))
     updated_at: datetime = Field(default_factory=datetime.now)
-
-    # Category grouping and organization
-    category_groups: dict | None = Field(default=None, sa_column=Column(JSON))
 
     # Runtime Ollama model configuration (overrides YAML/env defaults)
     ollama_categorization_model: str | None = Field(default=None)
