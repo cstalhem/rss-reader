@@ -59,7 +59,7 @@ const CategoryChildRowComponent = ({
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
     id: `drop:${category.id}`,
     data: { type: "category", categoryId: category.id },
-    disabled: !isDndEnabled,
+    disabled: !isDndEnabled || isDragging,
   });
 
   // Combine sortable and droppable refs
