@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8.2 of 9 (Category Data Model Refactor)
-Plan: 2 of 5 complete
+Plan: 3 of 5 complete
 Status: In Progress
-Last activity: 2026-02-17 - Completed Phase 08.2 Plan 02 (Scoring Pipeline Update)
+Last activity: 2026-02-17 - Completed Phase 08.2 Plan 03 (Category API Endpoints)
 
 Progress: [██████████] 100% (36/36 total plans estimated from v1.1) + 08.2 in progress
 
@@ -77,6 +77,7 @@ Progress: [██████████] 100% (36/36 total plans estimated fro
 **Phase 08.2 Metrics:**
 | Phase 08.2-category-data-model-refactor P01 | 3.7 | 2 tasks | 4 files |
 | Phase 08.2-category-data-model-refactor P02 | 4.3 | 2 tasks | 3 files |
+| Phase 08.2-category-data-model-refactor P03 | 6.0 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -163,6 +164,10 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08.2-02]: LLM outputs display names, system slugifies for matching via get_or_create pattern
 - [Phase 08.2-02]: Hidden categories auto-unhide (is_hidden=False, is_seen=False) when they reappear in scoring, replacing returned_categories JSON list
 - [Phase 08.2-02]: get_effective_weight three-tier resolution: category.weight > parent.weight > "normal"
+- [Phase 08.2-03]: selectinload(categories_rel).joinedload(parent) chain for eager loading article categories + parent
+- [Phase 08.2-03]: ArticleResponse Pydantic model for enriched article serialization with rich category embeds
+- [Phase 08.2-03]: Merge endpoint deletes source links and creates new target links (composite PK can't be updated in-place)
+- [Phase 08.2-03]: CategoryUpdate uses parent_id=-1 sentinel to move to root, weight="inherit" sets to None
 
 ### Pending Todos
 
@@ -195,9 +200,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 08.2-02-PLAN.md
-Resume file: .planning/phases/08.2-category-data-model-refactor/08.2-02-SUMMARY.md
+Stopped at: Completed 08.2-03-PLAN.md
+Resume file: .planning/phases/08.2-category-data-model-refactor/08.2-03-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-17 after Phase 08.2 Plan 02 execution*
+*Last updated: 2026-02-17 after Phase 08.2 Plan 03 execution*
