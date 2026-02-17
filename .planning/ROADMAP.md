@@ -145,6 +145,21 @@ Plans:
 - [ ] 08.1-07-PLAN.md -- Gap closure: Optimistic weight updates with toast feedback
 - [ ] 08.1-08-PLAN.md -- Gap closure: Visual polish (connector lines, weight icons, row layouts, animations)
 
+### Phase 08.2: Category Group Management Redesign
+
+**Goal:** Replace drag-and-drop category grouping with a more reliable UI paradigm (button-based or alternative interaction model)
+**Depends on:** Phase 08.1
+**Requirements:** CATGRP-02, CATGRP-03
+**Deferred from:** 08.1-UAT-r2.md gaps #5 (DnD performance) and #6 (ungroup via DnD)
+**Success Criteria** (what must be TRUE):
+  1. User can group/ungroup categories with a smooth, reliable interaction (no DnD bugs)
+  2. Grouping interaction works on both desktop and mobile
+  3. Visual feedback is clear during group management actions
+**Plans**: TBD (requires design decision on interaction paradigm)
+
+Plans:
+- [ ] 08.2-01: TBD during planning
+
 #### Phase 9: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
 **Depends on**: Phase 8 (category weight resolution needed)
@@ -176,9 +191,10 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 6. UI & Theme Polish | v1.1 | 3/3 | Complete | 2026-02-15 |
 | 7. Ollama Configuration UI | v1.1 | 6/6 | Complete | 2026-02-15 |
 | 8. Category Grouping | v1.1 | 8/11 | In progress | - |
-| 08.1. Categories UI Redesign | v1.1 | Complete    | 2026-02-17 | - |
+| 08.1. Categories UI Redesign | v1.1 | 8/8 | UAT R2: 6 gaps fixing | 2026-02-17 |
+| 08.2. Group Management Redesign | v1.1 | 0/TBD | Not started (deferred from 08.1) | - |
 | 9. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-17 after Phase 08.1 gap closure planning (plans 05-08)*
+*Last updated: 2026-02-17 after Phase 08.1 UAT R2 diagnosis — DnD gaps deferred to 08.2*
