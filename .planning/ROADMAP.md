@@ -133,7 +133,7 @@ Plans:
 **Goal:** Redesign categories settings panel from accordion-based groups to tree view with parent-child category model
 **Depends on:** Phase 8
 **Requirements:** CATGRP-01, CATGRP-02, CATGRP-03, CATGRP-04, CATGRP-05
-**Plans:** 8/10 plans complete (need gap closure plans 09-10)
+**Plans:** 10/10 plans complete
 
 Plans:
 - [x] 08.1-01-PLAN.md -- Backend: data model migration, seeded hierarchy, weight resolution, API updates
@@ -211,7 +211,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 6. UI & Theme Polish | v1.1 | 3/3 | Complete | 2026-02-15 |
 | 7. Ollama Configuration UI | v1.1 | 6/6 | Complete | 2026-02-15 |
 | 8. Category Grouping | v1.1 | 8/11 | In progress | - |
-| 08.1. Categories UI Redesign | v1.1 | 8/10 | UAT R2: gap closure planned | 2026-02-17 |
+| 08.1. Categories UI Redesign | v1.1 | Complete    | 2026-02-17 | 2026-02-17 |
 | 08.2. Category Data Model Refactor | v1.1 | 0/TBD | Not started (JSON → table migration) | - |
 | 08.3. Group Management Redesign | v1.1 | 0/TBD | Not started (deferred from 08.1) | - |
 | 9. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
