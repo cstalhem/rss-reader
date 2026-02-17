@@ -31,6 +31,18 @@ DEFAULT_CATEGORIES = [
     "startups",
 ]
 
+# Default category hierarchy for new installs (parent -> children)
+DEFAULT_CATEGORY_HIERARCHY: dict[str, list[str]] = {
+    "technology": ["cybersecurity", "ai-ml", "programming"],
+    "science": ["climate", "space"],
+    "business": ["finance", "startups"],
+    "entertainment": ["gaming", "film", "music"],
+    "culture": ["philosophy", "history", "design"],
+    "health": [],
+    "politics": ["law"],
+    "education": [],
+}
+
 
 def get_default_topic_weights() -> dict[str, str]:
     """Build seed topic_weights dict with all DEFAULT_CATEGORIES set to neutral."""
@@ -69,6 +81,7 @@ def build_categorization_prompt(
     article_title: str,
     article_text: str,
     existing_categories: list[str],
+    category_hierarchy: dict[str, list[str]] | None = None,
 ) -> str:
     """Build prompt for LLM categorization of article.
 
@@ -76,6 +89,7 @@ def build_categorization_prompt(
         article_title: Article title
         article_text: Article content (will be truncated to 2000 chars)
         existing_categories: List of known categories to reuse
+        category_hierarchy: Optional parent->children hierarchy to inform category selection
 
     Returns:
         Prompt string for categorization
@@ -85,6 +99,21 @@ def build_categorization_prompt(
 
     # Format existing categories
     categories_list = ", ".join(sorted(existing_categories))
+
+    # Format hierarchy if provided
+    hierarchy_section = ""
+    if category_hierarchy:
+        hierarchy_lines = []
+        for parent, children in sorted(category_hierarchy.items()):
+            if children:
+                children_str = ", ".join(children)
+                hierarchy_lines.append(f"{parent} > {children_str}")
+        if hierarchy_lines:
+            hierarchy_section = f"""
+
+**Category hierarchy (assign new categories as children of these parents when appropriate):**
+{chr(10).join(hierarchy_lines)}
+"""
 
     prompt = f"""Categorize this article into 1-4 topic categories.
 
@@ -96,8 +125,9 @@ def build_categorization_prompt(
 5. Keep categories BROAD. Use "ai-ml" not "ai-assisted-programming" or "generative-ai". Use "programming" not "python-development".
 6. Only suggest a new category if NO existing category covers the article's primary topic AND the topic is likely to recur across many articles.
 7. Maximum 4 categories per article. Fewer is better.
+8. When suggesting a new category, if it fits under an existing parent category, note which parent it belongs to.
 
-**Existing categories:** {categories_list}
+**Existing categories:** {categories_list}{hierarchy_section}
 
 **Article:**
 Title: {article_title}

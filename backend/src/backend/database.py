@@ -167,11 +167,13 @@ def _migrate_weight_names():
         # Seed seen_categories from all topic_weights keys to avoid stale "New" badges
         category_groups = json.loads(row[2]) if row[2] else None
         if category_groups is None:
+            # Use new children-based structure, not groups array
             category_groups = {
-                "groups": [],
+                "children": {},
                 "hidden_categories": [],
                 "seen_categories": list(weights.keys()),
                 "returned_categories": [],
+                "manually_created": [],
             }
             conn.execute(
                 text("UPDATE user_preferences SET category_groups = :cg WHERE id = :id"),
@@ -180,6 +182,130 @@ def _migrate_weight_names():
             logger.info(
                 f"Seeded category_groups with {len(weights)} seen categories"
             )
+
+
+def _migrate_groups_to_children():
+    """Convert old groups array format to new children map format.
+
+    Converts: groups: [{id, name, weight, categories: [...]}]
+    To: children: {parent_name: [child1, child2, ...]}
+
+    Parent categories inherit the group's weight. Name collisions get "-group" suffix.
+    """
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT id, topic_weights, category_groups FROM user_preferences LIMIT 1")
+        ).first()
+        if not row or not row[2]:
+            return
+
+        category_groups = json.loads(row[2]) if isinstance(row[2], str) else row[2]
+
+        # Skip if already migrated or fresh (has children key)
+        if "children" in category_groups:
+            return
+
+        # Skip if no groups to migrate
+        if "groups" not in category_groups or not category_groups["groups"]:
+            # Restructure to new format with empty children
+            category_groups = {
+                "children": {},
+                "hidden_categories": category_groups.get("hidden_categories", []),
+                "seen_categories": category_groups.get("seen_categories", []),
+                "returned_categories": category_groups.get("returned_categories", []),
+                "manually_created": [],
+            }
+            conn.execute(
+                text("UPDATE user_preferences SET category_groups = :cg WHERE id = :id"),
+                {"cg": json.dumps(category_groups), "id": row[0]},
+            )
+            logger.info("Restructured category_groups to children map format (no groups to migrate)")
+            return
+
+        # Migrate groups to children map
+        children_map = {}
+        topic_weights = json.loads(row[1]) if row[1] else {}
+        seen_categories = list(category_groups.get("seen_categories", []))
+        existing_categories = set(cat.lower() for cat in topic_weights.keys())
+
+        for group in category_groups["groups"]:
+            # Kebab-case the group name
+            group_name = group.get("name", "").strip().lower().replace(" ", "-")
+            if not group_name:
+                continue
+
+            # Check for collision with existing categories
+            if group_name in existing_categories:
+                group_name = f"{group_name}-group"
+
+            # Map children
+            children_map[group_name] = group.get("categories", [])
+
+            # Inherit group weight as parent weight
+            group_weight = group.get("weight")
+            if group_weight:
+                topic_weights[group_name] = group_weight
+
+            # Add parent to seen_categories to avoid "New" badge
+            if group_name not in [s.lower() for s in seen_categories]:
+                seen_categories.append(group_name)
+
+        # Build new category_groups structure
+        new_category_groups = {
+            "children": children_map,
+            "hidden_categories": category_groups.get("hidden_categories", []),
+            "seen_categories": seen_categories,
+            "returned_categories": category_groups.get("returned_categories", []),
+            "manually_created": [],
+        }
+
+        # Write both category_groups and topic_weights
+        conn.execute(
+            text("UPDATE user_preferences SET category_groups = :cg, topic_weights = :weights WHERE id = :id"),
+            {"cg": json.dumps(new_category_groups), "weights": json.dumps(topic_weights), "id": row[0]},
+        )
+        logger.info(f"Migrated {len(children_map)} groups to children map format")
+
+
+def _seed_category_hierarchy():
+    """Seed DEFAULT_CATEGORY_HIERARCHY for fresh installs.
+
+    Only runs if category_groups is None (truly fresh, no previous data).
+    """
+    from backend.prompts import DEFAULT_CATEGORY_HIERARCHY
+
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT id, category_groups FROM user_preferences LIMIT 1")
+        ).first()
+        if not row:
+            return
+
+        category_groups = json.loads(row[1]) if row[1] else None
+
+        # Only seed if truly fresh (None)
+        if category_groups is not None:
+            return
+
+        # Collect all parent and child category names for seen_categories
+        all_categories = set()
+        for parent, children in DEFAULT_CATEGORY_HIERARCHY.items():
+            all_categories.add(parent)
+            all_categories.update(children)
+
+        seeded_category_groups = {
+            "children": DEFAULT_CATEGORY_HIERARCHY,
+            "hidden_categories": [],
+            "seen_categories": list(all_categories),
+            "returned_categories": [],
+            "manually_created": [],
+        }
+
+        conn.execute(
+            text("UPDATE user_preferences SET category_groups = :cg WHERE id = :id"),
+            {"cg": json.dumps(seeded_category_groups), "id": row[0]},
+        )
+        logger.info(f"Seeded category hierarchy with {len(DEFAULT_CATEGORY_HIERARCHY)} parents")
 
 
 def _seed_default_topic_weights():
@@ -213,6 +339,8 @@ def create_db_and_tables():
     # Category grouping migrations
     _migrate_category_groups_column()
     _migrate_weight_names()
+    _migrate_groups_to_children()
+    _seed_category_hierarchy()
 
 
 def get_session():
