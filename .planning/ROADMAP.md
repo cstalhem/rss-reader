@@ -128,6 +128,19 @@ Plans:
 - [ ] 08-10-PLAN.md -- Gap closure: expandable badge X icon with spacing and divider
 - [ ] 08-11-PLAN.md -- Gap closure: correct drag placeholder positioning and Safari performance
 
+### Phase 08.1: Categories Settings UI Redesign (INSERTED)
+
+**Goal:** Redesign categories settings panel from accordion-based groups to tree view with parent-child category model
+**Depends on:** Phase 8
+**Requirements:** CATGRP-01, CATGRP-02, CATGRP-03, CATGRP-04, CATGRP-05
+**Plans:** 4 plans
+
+Plans:
+- [ ] 08.1-01-PLAN.md -- Backend: data model migration, seeded hierarchy, weight resolution, API updates
+- [ ] 08.1-02-PLAN.md -- Frontend: types, API, hook, tree view rendering with weight display
+- [ ] 08.1-03-PLAN.md -- Frontend: DnD integration, search filtering, category CRUD
+- [ ] 08.1-04-PLAN.md -- Frontend: weight preset strip, mobile swipe, visual verification
+
 #### Phase 9: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
 **Depends on**: Phase 8 (category weight resolution needed)
