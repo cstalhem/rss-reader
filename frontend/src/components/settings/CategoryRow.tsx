@@ -1,9 +1,10 @@
 "use client";
 
-import { memo, useState } from "react";
+import { useState } from "react";
 import { Flex, Text, Badge, IconButton, Checkbox, Box } from "@chakra-ui/react";
 import { LuGripVertical, LuX } from "react-icons/lu";
-import { Draggable } from "@hello-pangea/dnd";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { WeightPresets } from "./WeightPresets";
 
 function toTitleCase(kebab: string): string {
@@ -26,10 +27,9 @@ interface CategoryRowProps {
   showCheckbox?: boolean;
   isChecked?: boolean;
   onCheckChange?: (checked: boolean) => void;
-  index?: number;
 }
 
-export const CategoryRow = memo(function CategoryRow({
+export function CategoryRow({
   category,
   weight,
   isOverridden,
@@ -42,27 +42,35 @@ export const CategoryRow = memo(function CategoryRow({
   showCheckbox,
   isChecked,
   onCheckChange,
-  index = 0,
 }: CategoryRowProps) {
   const [isHovered, setIsHovered] = useState(false);
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: category });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   return (
-    <Draggable draggableId={category} index={index}>
-      {(provided, snapshot) => (
     <Flex
-      ref={provided.innerRef}
-      {...provided.draggableProps}
+      ref={setNodeRef}
+      style={style}
       alignItems="center"
       gap={2}
       p={2}
       bg="bg.subtle"
       borderRadius="sm"
       _hover={{ bg: "bg.muted" }}
-      transition="background 0.15s, opacity 0.15s"
-      style={{
-        ...provided.draggableProps.style,
-        opacity: snapshot.isDragging ? 0.5 : 1,
-      }}
+      transition="background 0.15s"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -78,7 +86,8 @@ export const CategoryRow = memo(function CategoryRow({
       )}
 
       <Flex
-        {...provided.dragHandleProps}
+        {...attributes}
+        {...listeners}
         cursor="grab"
         _active={{ cursor: "grabbing" }}
         color="fg.muted"
@@ -165,7 +174,5 @@ export const CategoryRow = memo(function CategoryRow({
         <LuX size={14} />
       </IconButton>
     </Flex>
-      )}
-    </Draggable>
   );
-});
+}

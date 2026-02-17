@@ -12,11 +12,21 @@ import {
 } from "@chakra-ui/react";
 import { LuTag } from "react-icons/lu";
 import {
-  DragDropContext,
-  Droppable,
-  type DropResult,
-  type DragStart,
-} from "@hello-pangea/dnd";
+  DndContext,
+  DragOverlay,
+  DragStartEvent,
+  DragOverEvent,
+  DragEndEvent,
+  closestCorners,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCategories } from "@/hooks/useCategories";
 import { usePreferences } from "@/hooks/usePreferences";
@@ -50,41 +60,38 @@ function UngroupedDroppable({
   activeId: string | null;
   sourceContainer: string | null;
 }) {
+  const { setNodeRef, isOver } = useDroppable({ id: "ungrouped" });
   return (
-    <Droppable droppableId="ungrouped" type="CATEGORY">
-      {(provided, snapshot) => (
-        <Box
-          ref={provided.innerRef}
-          {...provided.droppableProps}
-          bg={snapshot.isDraggingOver ? "bg.muted" : undefined}
-          borderRadius="sm"
-          transition="background 0.15s"
-          p={snapshot.isDraggingOver ? 1 : 0}
-        >
-          {children}
-          {provided.placeholder}
-          {snapshot.isDraggingOver &&
-            activeId &&
-            sourceContainer !== "ungrouped" &&
-            !items.includes(activeId) && (
-            <Box
-              p={2}
-              mt={1}
-              bg="bg.muted"
-              borderRadius="sm"
-              borderWidth="1px"
-              borderStyle="dashed"
-              borderColor="border.subtle"
-              opacity={0.5}
-            >
-              <Text fontSize="sm" color="fg.muted">
-                {toTitleCase(activeId)}
-              </Text>
-            </Box>
-          )}
-        </Box>
-      )}
-    </Droppable>
+    <Box
+      ref={setNodeRef}
+      bg={isOver ? "bg.muted" : undefined}
+      borderRadius="sm"
+      transition="background 0.15s"
+      p={isOver ? 1 : 0}
+    >
+      <SortableContext items={items} strategy={verticalListSortingStrategy}>
+        {children}
+        {isOver &&
+          activeId &&
+          sourceContainer !== "ungrouped" &&
+          !items.includes(activeId) && (
+          <Box
+            p={2}
+            mt={1}
+            bg="bg.muted"
+            borderRadius="sm"
+            borderWidth="1px"
+            borderStyle="dashed"
+            borderColor="border.subtle"
+            opacity={0.5}
+          >
+            <Text fontSize="sm" color="fg.muted">
+              {toTitleCase(activeId)}
+            </Text>
+          </Box>
+        )}
+      </SortableContext>
+    </Box>
   );
 }
 
@@ -115,6 +122,12 @@ export function CategoriesSection() {
   // Delete group dialog state
   const [deletingGroup, setDeletingGroup] = useState<CategoryGroup | null>(
     null
+  );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    })
   );
 
   const categoryWeightMutation = useMutation({
@@ -242,38 +255,56 @@ export function CategoriesSection() {
 
   // DnD handlers
   const handleDragStart = useCallback(
-    (start: DragStart) => {
-      const draggedCategory = start.draggableId;
+    (event: DragStartEvent) => {
+      const draggedCategory = event.active.id as string;
+      const source = findContainer(draggedCategory);
       setActiveId(draggedCategory);
-      setSourceContainer(findContainer(draggedCategory));
+      setSourceContainer(source);
     },
     [findContainer]
   );
 
+  const handleDragOver = useCallback((_: DragOverEvent) => {
+    // Visual feedback is handled by useDroppable isOver in each container.
+    // The actual move happens on dragEnd.
+  }, []);
+
   const handleDragEnd = useCallback(
-    (result: DropResult) => {
+    (event: DragEndEvent) => {
+      const { active, over } = event;
       setActiveId(null);
       setSourceContainer(null);
 
-      const { source, destination, draggableId } = result;
-      if (!destination || !categoryGroups) return;
+      if (!over || !categoryGroups) return;
 
-      const sourceContainerId = source.droppableId;
-      const destContainerId = destination.droppableId;
+      const draggedCategory = active.id as string;
+      const sourceContainer = findContainer(draggedCategory);
 
-      if (sourceContainerId === destContainerId) return;
+      // Determine destination container
+      let destContainer: string;
+      const overId = over.id as string;
+      if (
+        overId === "ungrouped" ||
+        categoryGroups.groups.some((g) => g.id === overId)
+      ) {
+        destContainer = overId;
+      } else {
+        destContainer = findContainer(overId);
+      }
+
+      if (sourceContainer === destContainer) return;
 
       // Build updated groups
       const updatedGroups = categoryGroups.groups.map((g) => {
         let cats = [...g.categories];
 
-        if (g.id === sourceContainerId) {
-          cats = cats.filter((c) => c !== draggableId);
+        if (g.id === sourceContainer) {
+          cats = cats.filter((c) => c !== draggedCategory);
         }
 
-        if (g.id === destContainerId) {
-          if (!cats.includes(draggableId)) {
-            cats.push(draggableId);
+        if (g.id === destContainer) {
+          if (!cats.includes(draggedCategory)) {
+            cats.push(draggedCategory);
           }
         }
 
@@ -287,7 +318,7 @@ export function CategoriesSection() {
 
       saveGroups(updated);
     },
-    [categoryGroups, saveGroups]
+    [categoryGroups, findContainer, saveGroups]
   );
 
   // Checkbox handlers
@@ -422,6 +453,7 @@ export function CategoriesSection() {
   }
 
   const totalNew = newCount + returnedCount;
+  const activeCategoryDisplay = activeId ? toTitleCase(activeId) : null;
   const existingGroupNames = sortedGroups.map((g) => g.name);
 
   return (
@@ -445,7 +477,13 @@ export function CategoriesSection() {
         />
       </Flex>
 
-      <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
         {/* Accordion groups */}
         {sortedGroups.length > 0 && (
           <Box
@@ -478,26 +516,25 @@ export function CategoriesSection() {
           </Box>
         )}
 
-        {/* Ungrouped categories — always visible during drag so items can be moved out of groups */}
-        {(ungroupedCategories.length > 0 || isDragActive) && (
-          <UngroupedDroppable
-            items={ungroupedCategories}
-            activeId={activeId}
-            sourceContainer={sourceContainer}
-          >
+        {/* Ungrouped categories */}
+        {ungroupedCategories.length > 0 && (
+          <Box>
             <Text fontSize="lg" fontWeight="semibold" mb={4}>
               Ungrouped
             </Text>
-            {ungroupedCategories.length > 0 && (
+            <UngroupedDroppable
+              items={ungroupedCategories}
+              activeId={activeId}
+              sourceContainer={sourceContainer}
+            >
               <Stack gap={1}>
-                {ungroupedCategories.map((category, index) => {
+                {ungroupedCategories.map((category) => {
                   const weight =
                     preferences?.topic_weights?.[category] || "normal";
                   return (
                     <CategoryRow
                       key={category}
                       category={category}
-                      index={index}
                       weight={weight}
                       isNew={newCategories.has(category)}
                       isReturned={returnedCategories.has(category)}
@@ -515,10 +552,26 @@ export function CategoriesSection() {
                   );
                 })}
               </Stack>
-            )}
-          </UngroupedDroppable>
+            </UngroupedDroppable>
+          </Box>
         )}
-      </DragDropContext>
+
+        {/* Drag overlay */}
+        <DragOverlay>
+          {activeId && (
+            <Box
+              bg="bg.subtle"
+              borderWidth="1px"
+              borderColor="border.subtle"
+              borderRadius="sm"
+              p={2}
+              shadow="md"
+            >
+              <Text fontSize="sm">{activeCategoryDisplay}</Text>
+            </Box>
+          )}
+        </DragOverlay>
+      </DndContext>
 
       {/* Delete group confirmation dialog */}
       <DeleteGroupDialog
