@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 
 ## Current Position
 
-Phase: 8 of 9 (Category Grouping)
-Plan: 11 of 11 complete
-Status: Phase Complete (gap closure complete)
-Last activity: 2026-02-17 - Reverted quick task 11 (hello-pangea/dnd migration) — collapsed accordion drop targets incompatible
+Phase: 8.1 of 9 (Categories Settings UI Redesign)
+Plan: 1 of TBD complete
+Status: In Progress
+Last activity: 2026-02-17 - Completed Phase 08.1 Plan 01 (backend data model migration to children map)
 
-Progress: [██████████] 100% (36/36 total plans estimated)
+Progress: [██████████] 100% (36/36 total plans estimated from v1.1)
 
 ## Performance Metrics
 
@@ -61,6 +61,10 @@ Progress: [██████████] 100% (36/36 total plans estimated)
 | Phase 08-category-grouping P09 | 2.0 | 1 tasks | 2 files |
 | Phase 08-category-grouping P10 | 2.0 | 1 tasks | 1 files |
 | Phase 08-category-grouping P11 | 3.0 | 2 tasks | 1 files |
+
+**Phase 08.1 Metrics:**
+| Phase 08.1-categories-settings-ui-redesign P01 | 4.4 | 2 tasks | 5 files |
+| Phase 08.1-categories-settings-ui-redesign P01 | 4.4 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -110,6 +114,12 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08-11]: Drag placeholder rendered outside Accordion.ItemContent for visibility when group is collapsed
 - [Quick 10]: useDroppable setNodeRef on Accordion.Item (always visible) instead of Box inside ItemContent (zero dimensions when collapsed)
 - [Quick 11]: Migrated all DnD from @dnd-kit to @hello-pangea/dnd -- Draggable/Droppable render props replace useSortable/useDraggable/useDroppable hooks, DragOverlay removed
+- [Phase 08.1-01]: Use children map (dict[parent, list[child]]) instead of groups array for simpler parent-child lookup
+- [Phase 08.1-01]: Seed 8 parent categories on fresh install to provide structure out of the box
+- [Phase 08.1-01]: Parent categories inherit group weights during migration to preserve user preferences
+- [Phase 08.1-01]: Use children map (dict[parent, list[child]]) instead of groups array for simpler parent-child lookup
+- [Phase 08.1-01]: Seed 8 parent categories on fresh install to provide structure out of the box
+- [Phase 08.1-01]: Parent categories inherit group weights during migration to preserve user preferences
 
 ### Pending Todos
 
@@ -141,9 +151,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Phase 08.1 context gathered — categories-as-parents tree view, manual creation, seeded base categories, DnD with always-expanded tree
-Resume file: .planning/phases/08.1-categories-settings-ui-redesign/08.1-CONTEXT.md
+Stopped at: Completed 08.1-01-PLAN.md
+Resume file: .planning/phases/08.1-categories-settings-ui-redesign/08.1-01-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-17 after Phase 08.1 context gathering*
+*Last updated: 2026-02-17 after Phase 08.1 Plan 01 completion*
