@@ -6,11 +6,12 @@ from datetime import datetime, timedelta
 from sqlmodel import Session, select
 
 from backend.config import get_settings
-from backend.models import Article, UserPreferences
+from backend.models import Article, ArticleCategoryLink, Category, UserPreferences
 from backend.scoring import (
     categorize_article,
     compute_composite_score,
     get_active_categories,
+    get_or_create_category,
     is_blocked,
     score_article,
     set_scoring_context,
@@ -119,7 +120,6 @@ class ScoringQueue:
             preferences = UserPreferences(
                 interests="",
                 anti_interests="",
-                topic_weights=None,
             )
             session.add(preferences)
             session.commit()
@@ -153,11 +153,23 @@ class ScoringQueue:
                 skip_categorization = article.rescore_mode == "score_only"
 
                 # Step 1: Categorize (unless score_only re-score)
-                if skip_categorization and article.categories:
-                    logger.info(
-                        f"Article {article.id}: score-only re-score, keeping existing categories"
+                article_categories: list[Category] = []
+
+                if skip_categorization:
+                    # Load existing categories from junction table
+                    article_categories = list(
+                        session.exec(
+                            select(Category)
+                            .join(ArticleCategoryLink)
+                            .where(ArticleCategoryLink.article_id == article.id)
+                        ).all()
                     )
-                else:
+                    if article_categories:
+                        logger.info(
+                            f"Article {article.id}: score-only re-score, keeping existing categories"
+                        )
+
+                if not skip_categorization or not article_categories:
                     categorization = await categorize_article(
                         article.title,
                         article_text,
@@ -167,63 +179,58 @@ class ScoringQueue:
                         category_hierarchy=category_hierarchy,
                     )
 
-                    # Store categories (normalized to kebab-case)
-                    article.categories = [
-                        cat.lower()
-                        .replace("_", "-")
-                        .replace(" ", "-")
-                        .replace("/", "-")
-                        for cat in categorization.categories
-                    ]
+                    # Create/find categories and write junction table links
+                    for cat_name in categorization.categories:
+                        category = get_or_create_category(session, cat_name)
+                        article_categories.append(category)
+
+                    for cat_name in categorization.suggested_new:
+                        category = get_or_create_category(
+                            session,
+                            cat_name,
+                            suggested_parent=categorization.suggested_parent,
+                        )
+                        article_categories.append(category)
+
+                    # Write ArticleCategoryLink rows (skip if already exists)
+                    for category in article_categories:
+                        existing_link = session.exec(
+                            select(ArticleCategoryLink).where(
+                                ArticleCategoryLink.article_id == article.id,
+                                ArticleCategoryLink.category_id == category.id,
+                            )
+                        ).first()
+                        if not existing_link:
+                            link = ArticleCategoryLink(
+                                article_id=article.id,
+                                category_id=category.id,
+                            )
+                            session.add(link)
+
+                    session.flush()
 
                 # Step 1.5: Handle returned hidden categories
-                if (
-                    not skip_categorization
-                    and article.categories
-                    and preferences.category_groups
-                ):
-                    hidden = preferences.category_groups.get("hidden_categories", [])
-                    hidden_lower = [h.lower() for h in hidden]
-                    returned = list(
-                        preferences.category_groups.get("returned_categories", [])
-                    )
-                    new_hidden = list(hidden)
-                    cg_changed = False
-
-                    for cat in article.categories:
-                        if cat.lower() in hidden_lower:
-                            # Category reappeared -- move from hidden to returned
-                            new_hidden = [
-                                h for h in new_hidden if h.lower() != cat.lower()
-                            ]
-                            if cat.lower() not in [r.lower() for r in returned]:
-                                returned.append(cat)
-                            cg_changed = True
-
-                    if cg_changed:
-                        # Reassign entire dict (SQLAlchemy JSON mutation rule)
-                        preferences.category_groups = {
-                            **preferences.category_groups,
-                            "hidden_categories": new_hidden,
-                            "returned_categories": returned,
-                        }
-                        session.add(preferences)
-                        session.commit()
-                        logger.info(
-                            f"Article {article.id}: moved returned categories from hidden to returned"
-                        )
+                if not skip_categorization and article_categories:
+                    for cat in article_categories:
+                        if cat.is_hidden:
+                            # Category reappeared -- unhide it and mark unseen
+                            cat.is_hidden = False
+                            cat.is_seen = False
+                            session.add(cat)
+                            logger.info(
+                                f"Article {article.id}: unhid returned category '{cat.display_name}'"
+                            )
+                    session.flush()
 
                 # Step 2: Check if blocked
-                if is_blocked(
-                    article.categories,
-                    preferences.topic_weights,
-                    preferences.category_groups,
-                ):
+                if is_blocked(article_categories):
                     # Auto-score 0 for blocked articles
                     article.interest_score = 0
                     article.quality_score = 0
                     article.composite_score = 0.0
-                    blocked_cats = ", ".join(article.categories or [])
+                    blocked_cats = ", ".join(
+                        cat.display_name for cat in article_categories
+                    )
                     article.score_reasoning = f"Blocked: {blocked_cats}"
                     article.scoring_state = "scored"
                     article.scored_at = datetime.now()
@@ -250,9 +257,7 @@ class ScoringQueue:
                     article.composite_score = compute_composite_score(
                         scoring.interest_score,
                         scoring.quality_score,
-                        article.categories,
-                        preferences.topic_weights,
-                        preferences.category_groups,
+                        article_categories,
                     )
 
                     article.scoring_state = "scored"
