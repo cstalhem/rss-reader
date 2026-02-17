@@ -1,8 +1,8 @@
 ---
-status: diagnosed
+status: resolved
 trigger: "optimistic-update-delay"
 created: 2026-02-17T00:00:00Z
-updated: 2026-02-17T00:00:00Z
+updated: 2026-02-17
 ---
 
 ## Current Focus
