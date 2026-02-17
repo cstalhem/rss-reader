@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8.2 of 9 (Category Data Model Refactor)
-Plan: 1 of 5 complete
+Plan: 2 of 5 complete
 Status: In Progress
-Last activity: 2026-02-17 - Completed Phase 08.2 Plan 01 (Schema & Migration)
+Last activity: 2026-02-17 - Completed Phase 08.2 Plan 02 (Scoring Pipeline Update)
 
 Progress: [██████████] 100% (36/36 total plans estimated from v1.1) + 08.2 in progress
 
@@ -76,6 +76,7 @@ Progress: [██████████] 100% (36/36 total plans estimated fro
 
 **Phase 08.2 Metrics:**
 | Phase 08.2-category-data-model-refactor P01 | 3.7 | 2 tasks | 4 files |
+| Phase 08.2-category-data-model-refactor P02 | 4.3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -159,6 +160,9 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08.2-01]: Category/ArticleCategoryLink SQLModel tables replace JSON blobs (Article.categories, UserPreferences.topic_weights/category_groups)
 - [Phase 08.2-01]: Two-pass category creation in migration: create all rows first, then resolve parent_id from slug lookup
 - [Phase 08.2-01]: SMART_CASE_MAP dictionary for known acronym/brand casing (AI, iOS, macOS, etc.) with kebab_to_display helper
+- [Phase 08.2-02]: LLM outputs display names, system slugifies for matching via get_or_create pattern
+- [Phase 08.2-02]: Hidden categories auto-unhide (is_hidden=False, is_seen=False) when they reappear in scoring, replacing returned_categories JSON list
+- [Phase 08.2-02]: get_effective_weight three-tier resolution: category.weight > parent.weight > "normal"
 
 ### Pending Todos
 
@@ -191,9 +195,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 08.2-01-PLAN.md
-Resume file: .planning/phases/08.2-category-data-model-refactor/08.2-01-SUMMARY.md
+Stopped at: Completed 08.2-02-PLAN.md
+Resume file: .planning/phases/08.2-category-data-model-refactor/08.2-02-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-17 after Phase 08.2 Plan 01 execution*
+*Last updated: 2026-02-17 after Phase 08.2 Plan 02 execution*
