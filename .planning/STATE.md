@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8.2 of 9 (Category Data Model Refactor)
-Plan: 6 of 7 complete
-Status: In Progress
-Last activity: 2026-02-17 - Completed Phase 08.2 Plan 06 (Settings Panel UI Gap Closure)
+Plan: 7 of 7 complete
+Status: Complete
+Last activity: 2026-02-17 - Completed Phase 08.2 Plan 07 (DnD Ungroup and Article Reader Weight Fixes)
 
 Progress: [██████████] 100% (36/36 total plans estimated from v1.1) + 08.2 in progress
 
@@ -81,6 +81,8 @@ Progress: [██████████] 100% (36/36 total plans estimated fro
 | Phase 08.2-category-data-model-refactor P04 | 3.0 | 2 tasks | 3 files |
 | Phase 08.2-category-data-model-refactor P05 | 8.0 | 2 tasks | 11 files |
 | Phase 08.2-category-data-model-refactor P06 | 2.9 | 2 tasks | 4 files |
+| Phase 08.2-category-data-model-refactor P07 | 1.7 | 2 tasks | 3 files |
+| Phase 08.2-category-data-model-refactor PP07 | 1.7 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -213,9 +215,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 08.2-06-PLAN.md
-Resume file: .planning/phases/08.2-category-data-model-refactor/08.2-06-SUMMARY.md
+Stopped at: Completed 08.2-07-PLAN.md (Phase 08.2 complete)
+Resume file: .planning/phases/08.2-category-data-model-refactor/08.2-07-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-17 after Phase 08.2 Plan 06 execution*
+*Last updated: 2026-02-17 after Phase 08.2 Plan 07 execution*
