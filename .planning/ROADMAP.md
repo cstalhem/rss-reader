@@ -133,17 +133,19 @@ Plans:
 **Goal:** Redesign categories settings panel from accordion-based groups to tree view with parent-child category model
 **Depends on:** Phase 8
 **Requirements:** CATGRP-01, CATGRP-02, CATGRP-03, CATGRP-04, CATGRP-05
-**Plans:** 8/8 plans complete
+**Plans:** 8/10 plans complete (need gap closure plans 09-10)
 
 Plans:
 - [x] 08.1-01-PLAN.md -- Backend: data model migration, seeded hierarchy, weight resolution, API updates
 - [x] 08.1-02-PLAN.md -- Frontend: types, API, hook, tree view rendering with weight display
 - [x] 08.1-03-PLAN.md -- Frontend: DnD integration, search filtering, category CRUD
 - [x] 08.1-04-PLAN.md -- Frontend: weight preset strip, mobile swipe, visual verification
-- [ ] 08.1-05-PLAN.md -- Gap closure: Backend API fixes (create discovery, rename persistence, URL routing, split behavior)
-- [ ] 08.1-06-PLAN.md -- Gap closure: DnD performance optimization, ungroup zone, sensors fix
-- [ ] 08.1-07-PLAN.md -- Gap closure: Optimistic weight updates with toast feedback
-- [ ] 08.1-08-PLAN.md -- Gap closure: Visual polish (connector lines, weight icons, row layouts, animations)
+- [x] 08.1-05-PLAN.md -- Gap closure R1: Backend API fixes (create discovery, rename persistence, URL routing, split behavior)
+- [x] 08.1-06-PLAN.md -- Gap closure R1: DnD performance optimization, ungroup zone, sensors fix
+- [x] 08.1-07-PLAN.md -- Gap closure R1: Optimistic weight updates with toast feedback
+- [x] 08.1-08-PLAN.md -- Gap closure R1: Visual polish (connector lines, weight icons, row layouts, animations)
+- [ ] 08.1-09-PLAN.md -- Gap closure R2: Visual fixes (connector line gaps, action icon hover, weight button sizing)
+- [ ] 08.1-10-PLAN.md -- Gap closure R2: Functional fixes (duplicate category validation/toasts, optimistic update latency)
 
 ### Phase 08.2: Category Data Model Refactor
 
@@ -209,7 +211,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 6. UI & Theme Polish | v1.1 | 3/3 | Complete | 2026-02-15 |
 | 7. Ollama Configuration UI | v1.1 | 6/6 | Complete | 2026-02-15 |
 | 8. Category Grouping | v1.1 | 8/11 | In progress | - |
-| 08.1. Categories UI Redesign | v1.1 | 8/8 | UAT R2: 5 gaps fixing | 2026-02-17 |
+| 08.1. Categories UI Redesign | v1.1 | 8/10 | UAT R2: gap closure planned | 2026-02-17 |
 | 08.2. Category Data Model Refactor | v1.1 | 0/TBD | Not started (JSON → table migration) | - |
 | 08.3. Group Management Redesign | v1.1 | 0/TBD | Not started (deferred from 08.1) | - |
 | 9. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
