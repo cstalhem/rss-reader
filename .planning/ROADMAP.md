@@ -161,14 +161,16 @@ Plans:
   5. Frontend API contract unchanged or cleanly migrated (no regressions)
   6. Data migration preserves all existing categories, weights, groupings, and article associations
   7. Split group = `UPDATE SET parent_id = NULL` (one operation, no data loss)
-**Plans**: 5 plans
+**Plans**: 7 plans
 
 Plans:
-- [ ] 08.2-01-PLAN.md -- Backend: Category and ArticleCategoryLink models, data migration with backup
-- [ ] 08.2-02-PLAN.md -- Backend: Scoring pipeline and prompts update for display names and relational writes
-- [ ] 08.2-03-PLAN.md -- Backend: Category API endpoints rewrite and article response enrichment
-- [ ] 08.2-04-PLAN.md -- Frontend: TypeScript types, API client, and hooks for new category model
-- [ ] 08.2-05-PLAN.md -- Frontend: Component updates for display names and rich category objects
+- [x] 08.2-01-PLAN.md -- Backend: Category and ArticleCategoryLink models, data migration with backup
+- [x] 08.2-02-PLAN.md -- Backend: Scoring pipeline and prompts update for display names and relational writes
+- [x] 08.2-03-PLAN.md -- Backend: Category API endpoints rewrite and article response enrichment
+- [x] 08.2-04-PLAN.md -- Frontend: TypeScript types, API client, and hooks for new category model
+- [x] 08.2-05-PLAN.md -- Frontend: Component updates for display names and rich category objects
+- [ ] 08.2-06-PLAN.md -- Gap closure: Settings UI optimistic updates, button visibility, badge dismiss
+- [ ] 08.2-07-PLAN.md -- Gap closure: DnD ungroup fix and article reader weight change fix
 
 ### Phase 08.3: Category Group Management Redesign
 
