@@ -190,6 +190,7 @@ Key architectural decisions carrying forward to v1.1:
 2. **Codebase evaluation and simplification phase** (area: general) — Thorough evaluation of codebase, architecture, and data models to surface simplifications and address technical debt (hard-coded values, duplicated logic, inconsistencies) while retaining all functionality
 3. **Fix Ollama client file descriptor leak** (area: backend, severity: blocker) — `scoring.py:categorize_article` creates a new `ollama.AsyncClient` per call without closing it, leaking httpx connections and SSL contexts. After ~60-70 articles the process hits `OSError: [Errno 24] Too many open files` and stops accepting connections. Fix: reuse a single client instance or properly close after each call.
 4. **Add category search tool for categorisation LLM** (area: backend) — Replace embedded category list in the categorisation prompt with an Ollama tool-use approach, letting the LLM search for existing categories/parents by keyword for accurate matching
+5. **Adopt article reader weight pattern in settings view** (area: ui) — Article reader tag chip weight changes are instant; settings WeightPresetStrip has a visible delay. Compare implementations and adopt the faster pattern.
 
 ### Blockers/Concerns
 
