@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8.2 of 9 (Category Data Model Refactor)
-Plan: 3 of 5 complete
+Plan: 4 of 5 complete
 Status: In Progress
-Last activity: 2026-02-17 - Completed Phase 08.2 Plan 03 (Category API Endpoints)
+Last activity: 2026-02-17 - Completed Phase 08.2 Plan 04 (Frontend Data Layer)
 
 Progress: [██████████] 100% (36/36 total plans estimated from v1.1) + 08.2 in progress
 
@@ -78,6 +78,7 @@ Progress: [██████████] 100% (36/36 total plans estimated fro
 | Phase 08.2-category-data-model-refactor P01 | 3.7 | 2 tasks | 4 files |
 | Phase 08.2-category-data-model-refactor P02 | 4.3 | 2 tasks | 3 files |
 | Phase 08.2-category-data-model-refactor P03 | 6.0 | 2 tasks | 2 files |
+| Phase 08.2-category-data-model-refactor P04 | 3.0 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -168,6 +169,9 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08.2-03]: ArticleResponse Pydantic model for enriched article serialization with rich category embeds
 - [Phase 08.2-03]: Merge endpoint deletes source links and creates new target links (composite PK can't be updated in-place)
 - [Phase 08.2-03]: CategoryUpdate uses parent_id=-1 sentinel to move to root, weight="inherit" sets to None
+- [Phase 08.2-04]: Optimistic cache update only for updateCategory mutation (instant weight/rename feedback); simple invalidation for structural mutations
+- [Phase 08.2-04]: useCategories exposes wrapper functions instead of raw mutate for cleaner consumer API
+- [Phase 08.2-04]: Articles query invalidated on category mutations that affect article display (weight change, delete, merge, hide)
 
 ### Pending Todos
 
@@ -200,9 +204,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 08.2-03-PLAN.md
-Resume file: .planning/phases/08.2-category-data-model-refactor/08.2-03-SUMMARY.md
+Stopped at: Completed 08.2-04-PLAN.md
+Resume file: .planning/phases/08.2-category-data-model-refactor/08.2-04-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-17 after Phase 08.2 Plan 03 execution*
+*Last updated: 2026-02-17 after Phase 08.2 Plan 04 execution*
