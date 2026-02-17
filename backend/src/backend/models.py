@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -48,7 +49,7 @@ class Category(SQLModel, table=True):
         back_populates="categories_rel",
         link_model=ArticleCategoryLink,
     )
-    parent: "Category | None" = Relationship(
+    parent: Optional["Category"] = Relationship(
         sa_relationship_kwargs={
             "remote_side": "Category.id",
             "foreign_keys": "[Category.parent_id]",
@@ -57,6 +58,7 @@ class Category(SQLModel, table=True):
     children: list["Category"] = Relationship(
         sa_relationship_kwargs={
             "foreign_keys": "[Category.parent_id]",
+            "overlaps": "parent",
         }
     )
 
