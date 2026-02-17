@@ -1,32 +1,37 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React from "react";
 import { Stack, Box } from "@chakra-ui/react";
+import { Category } from "@/lib/types";
 import { CategoryParentRow } from "./CategoryParentRow";
 import { CategoryChildRow } from "./CategoryChildRow";
 
 interface CategoryTreeProps {
-  children: Record<string, string[]>;
-  ungroupedCategories: string[];
-  topicWeights: Record<string, string> | null;
-  newCategories: Set<string>;
-  returnedCategories: Set<string>;
-  onWeightChange: (category: string, weight: string) => void;
-  onResetWeight: (category: string) => void;
-  onHide: (category: string) => void;
-  onBadgeDismiss: (category: string) => void;
+  parents: Category[];
+  childrenMap: Record<number, Category[]>;
+  ungroupedCategories: Category[];
+  newCategoryIds: Set<number>;
+  onWeightChange: (categoryId: number, weight: string) => void;
+  onResetWeight: (categoryId: number) => void;
+  onHide: (categoryId: number) => void;
+  onBadgeDismiss: (categoryId: number) => void;
   isDndEnabled?: boolean;
   activeId?: string | null;
-  onRename: (oldName: string, newName: string) => void;
-  onDelete: (name: string) => void;
+  onRename: (categoryId: number, newName: string) => void;
+  onDelete: (categoryId: number) => void;
+}
+
+function getEffectiveWeight(category: Category, parent?: Category): string {
+  if (category.weight !== null) return category.weight;
+  if (parent?.weight !== null && parent?.weight !== undefined) return parent.weight;
+  return "normal";
 }
 
 const CategoryTreeComponent = ({
-  children,
+  parents,
+  childrenMap,
   ungroupedCategories,
-  topicWeights,
-  newCategories,
-  returnedCategories,
+  newCategoryIds,
   onWeightChange,
   onResetWeight,
   onHide,
@@ -36,65 +41,38 @@ const CategoryTreeComponent = ({
   onRename,
   onDelete,
 }: CategoryTreeProps) => {
-  // Sort parents alphabetically
-  const sortedParents = useMemo(() => {
-    return Object.keys(children).sort((a, b) => a.localeCompare(b));
-  }, [children]);
-
-  // Sort ungrouped categories alphabetically
-  const sortedUngrouped = useMemo(() => {
-    return [...ungroupedCategories].sort((a, b) => a.localeCompare(b));
-  }, [ungroupedCategories]);
-
-  const getEffectiveWeight = (category: string, parentCategory?: string): string => {
-    // Explicit weight takes precedence
-    if (topicWeights?.[category]) {
-      return topicWeights[category];
-    }
-    // Inherit from parent if parent exists
-    if (parentCategory && topicWeights?.[parentCategory]) {
-      return topicWeights[parentCategory];
-    }
-    // Default
-    return "normal";
-  };
-
-  const isOverridden = (category: string): boolean => {
-    return topicWeights?.[category] !== undefined;
-  };
-
   return (
     <Stack gap={1}>
-      {sortedParents.map((parent) => {
-        const childCategories = [...children[parent]].sort((a, b) => a.localeCompare(b));
-        const parentWeight = topicWeights?.[parent] || "normal";
+      {parents.map((parent) => {
+        const children = childrenMap[parent.id] ?? [];
+        const parentWeight = parent.weight ?? "normal";
 
         return (
-          <Box key={parent}>
+          <Box key={parent.id}>
             {/* Parent row */}
             <CategoryParentRow
               category={parent}
               weight={parentWeight}
-              childCount={childCategories.length}
-              onWeightChange={(weight) => onWeightChange(parent, weight)}
+              childCount={children.length}
+              onWeightChange={(weight) => onWeightChange(parent.id, weight)}
               isDndEnabled={isDndEnabled}
               activeId={activeId}
-              onRename={(newName) => onRename(parent, newName)}
-              onDelete={() => onDelete(parent)}
+              onRename={(newName) => onRename(parent.id, newName)}
+              onDelete={() => onDelete(parent.id)}
             />
 
             {/* Children with connector lines */}
-            {childCategories.length > 0 && (
+            {children.length > 0 && (
               <Box ml={6} pl={3} position="relative">
                 <Stack gap={1}>
-                  {childCategories.map((child, idx) => {
+                  {children.map((child, idx) => {
                     const effectiveWeight = getEffectiveWeight(child, parent);
-                    const override = isOverridden(child);
-                    const isLast = idx === childCategories.length - 1;
+                    const isOverridden = child.weight !== null;
+                    const isLast = idx === children.length - 1;
 
                     return (
                       <Box
-                        key={child}
+                        key={child.id}
                         position="relative"
                         _before={{
                           content: '""',
@@ -118,17 +96,16 @@ const CategoryTreeComponent = ({
                         <CategoryChildRow
                           category={child}
                           weight={effectiveWeight}
-                          isOverridden={override}
+                          isOverridden={isOverridden}
                           parentWeight={parentWeight}
-                          isNew={newCategories.has(child)}
-                          isReturned={returnedCategories.has(child)}
-                          onWeightChange={(weight) => onWeightChange(child, weight)}
-                          onResetWeight={() => onResetWeight(child)}
-                          onHide={() => onHide(child)}
-                          onBadgeDismiss={() => onBadgeDismiss(child)}
+                          isNew={newCategoryIds.has(child.id)}
+                          onWeightChange={(weight) => onWeightChange(child.id, weight)}
+                          onResetWeight={() => onResetWeight(child.id)}
+                          onHide={() => onHide(child.id)}
+                          onBadgeDismiss={() => onBadgeDismiss(child.id)}
                           isDndEnabled={isDndEnabled}
-                          onRename={(newName) => onRename(child, newName)}
-                          onDelete={() => onDelete(child)}
+                          onRename={(newName) => onRename(child.id, newName)}
+                          onDelete={() => onDelete(child.id)}
                         />
                       </Box>
                     );
@@ -141,24 +118,23 @@ const CategoryTreeComponent = ({
       })}
 
       {/* Ungrouped categories as simple leaf nodes */}
-      {sortedUngrouped.map((category) => {
-        const weight = topicWeights?.[category] || "normal";
+      {ungroupedCategories.map((category) => {
+        const weight = category.weight ?? "normal";
         return (
           <CategoryChildRow
-            key={category}
+            key={category.id}
             category={category}
             weight={weight}
-            isOverridden={isOverridden(category)}
+            isOverridden={category.weight !== null}
             parentWeight="normal"
-            isNew={newCategories.has(category)}
-            isReturned={returnedCategories.has(category)}
-            onWeightChange={(w) => onWeightChange(category, w)}
-            onResetWeight={() => onResetWeight(category)}
-            onHide={() => onHide(category)}
-            onBadgeDismiss={() => onBadgeDismiss(category)}
+            isNew={newCategoryIds.has(category.id)}
+            onWeightChange={(w) => onWeightChange(category.id, w)}
+            onResetWeight={() => onResetWeight(category.id)}
+            onHide={() => onHide(category.id)}
+            onBadgeDismiss={() => onBadgeDismiss(category.id)}
             isDndEnabled={isDndEnabled}
-            onRename={(newName) => onRename(category, newName)}
-            onDelete={() => onDelete(category)}
+            onRename={(newName) => onRename(category.id, newName)}
+            onDelete={() => onDelete(category.id)}
           />
         );
       })}

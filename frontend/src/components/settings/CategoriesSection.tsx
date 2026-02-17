@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { Badge, Box, Flex, Stack, Skeleton, Text, Input } from "@chakra-ui/react";
 import { LuTag } from "react-icons/lu";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
   DragOverlay,
@@ -15,39 +14,22 @@ import {
   useDroppable,
 } from "@dnd-kit/core";
 import { useCategories } from "@/hooks/useCategories";
-import { usePreferences } from "@/hooks/usePreferences";
-import {
-  updateCategoryWeight as apiUpdateCategoryWeight,
-  updatePreferences as apiUpdatePreferences,
-} from "@/lib/api";
-import { toaster } from "@/components/ui/toaster";
+import { Category } from "@/lib/types";
 import { CategoryTree } from "./CategoryTree";
 import { CreateCategoryPopover } from "./CreateCategoryPopover";
 import { DeleteCategoryDialog } from "./DeleteCategoryDialog";
 
-function toTitleCase(kebab: string): string {
-  return kebab
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
 export function CategoriesSection() {
   const {
-    categoryGroups,
-    allCategories,
+    categories,
     newCount,
-    returnedCount,
     isLoading,
-    hideCategory,
-    acknowledge,
-    saveGroups,
+    updateCategory,
     createCategory,
     deleteCategory,
-    renameCategory,
+    hideCategory,
+    acknowledge,
   } = useCategories();
-  const { preferences } = usePreferences();
-  const queryClient = useQueryClient();
 
   // DnD state
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -61,173 +43,93 @@ export function CategoriesSection() {
 
   // Delete state
   const [deletingCategory, setDeletingCategory] = useState<{
-    name: string;
+    id: number;
+    displayName: string;
     childCount: number;
     isParent: boolean;
   } | null>(null);
 
-  const categoryWeightMutation = useMutation({
-    mutationFn: ({ category, weight }: { category: string; weight: string }) =>
-      apiUpdateCategoryWeight(category, weight),
-    onMutate: async ({ category, weight }) => {
-      await Promise.all([
-        queryClient.cancelQueries({ queryKey: ["preferences"] }),
-        queryClient.cancelQueries({ queryKey: ["categoryGroups"] }),
-      ]);
+  // Build tree from flat Category array
+  const { parents, childrenMap, ungroupedCategories } = useMemo(() => {
+    const cMap: Record<number, Category[]> = {};
+    const parentIds = new Set<number>();
 
-      const previousPreferences = queryClient.getQueryData(["preferences"]);
-      const previousCategoryGroups = queryClient.getQueryData(["categoryGroups"]);
-
-      queryClient.setQueryData(["preferences"], (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          topic_weights: {
-            ...old.topic_weights,
-            [category]: weight,
-          },
-        };
-      });
-
-      return { previousPreferences, previousCategoryGroups };
-    },
-    onError: (err, _variables, context) => {
-      if (context?.previousPreferences) {
-        queryClient.setQueryData(["preferences"], context.previousPreferences);
+    // Group children by parent_id
+    for (const cat of categories) {
+      if (cat.parent_id !== null) {
+        if (!cMap[cat.parent_id]) cMap[cat.parent_id] = [];
+        cMap[cat.parent_id].push(cat);
+        parentIds.add(cat.parent_id);
       }
-      if (context?.previousCategoryGroups) {
-        queryClient.setQueryData(["categoryGroups"], context.previousCategoryGroups);
-      }
-      toaster.create({
-        title: "Failed to update weight",
-        description: err instanceof Error ? err.message : "Unknown error",
-        type: "error",
-      });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["preferences"] });
-      queryClient.invalidateQueries({ queryKey: ["categoryGroups"] });
-    },
-  });
+    }
 
-  const resetWeightMutation = useMutation({
-    mutationFn: (category: string) => {
-      const currentWeights = { ...preferences?.topic_weights };
-      delete currentWeights[category];
-      return apiUpdatePreferences({ topic_weights: currentWeights });
-    },
-    onMutate: async (category) => {
-      await Promise.all([
-        queryClient.cancelQueries({ queryKey: ["preferences"] }),
-        queryClient.cancelQueries({ queryKey: ["categoryGroups"] }),
-      ]);
+    // Parents: root-level categories that have children
+    const parentCats = categories
+      .filter((c) => c.parent_id === null && parentIds.has(c.id) && !c.is_hidden)
+      .sort((a, b) => a.display_name.localeCompare(b.display_name));
 
-      const previousPreferences = queryClient.getQueryData(["preferences"]);
-      const previousCategoryGroups = queryClient.getQueryData(["categoryGroups"]);
+    // Ungrouped: root-level categories that have no children and are not hidden
+    const ungrouped = categories
+      .filter((c) => c.parent_id === null && !parentIds.has(c.id) && !c.is_hidden)
+      .sort((a, b) => a.display_name.localeCompare(b.display_name));
 
-      queryClient.setQueryData(["preferences"], (old: any) => {
-        if (!old) return old;
-        const newWeights = { ...old.topic_weights };
-        delete newWeights[category];
-        return { ...old, topic_weights: newWeights };
-      });
+    // Sort children within each parent
+    for (const parentId of Object.keys(cMap)) {
+      cMap[Number(parentId)].sort((a, b) => a.display_name.localeCompare(b.display_name));
+    }
 
-      return { previousPreferences, previousCategoryGroups };
-    },
-    onError: (err, _variable, context) => {
-      if (context?.previousPreferences) {
-        queryClient.setQueryData(["preferences"], context.previousPreferences);
-      }
-      if (context?.previousCategoryGroups) {
-        queryClient.setQueryData(["categoryGroups"], context.previousCategoryGroups);
-      }
-      toaster.create({
-        title: "Failed to reset weight",
-        description: err instanceof Error ? err.message : "Unknown error",
-        type: "error",
-      });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["preferences"] });
-      queryClient.invalidateQueries({ queryKey: ["categoryGroups"] });
-    },
-  });
+    return { parents: parentCats, childrenMap: cMap, ungroupedCategories: ungrouped };
+  }, [categories]);
 
-  // Compute new and returned category sets from categoryGroups data
-  const newCategories = useMemo(() => {
-    if (!categoryGroups) return new Set<string>();
-    const seen = new Set(categoryGroups.seen_categories ?? []);
-    const hidden = new Set(categoryGroups.hidden_categories ?? []);
+  // New categories: unseen and not hidden
+  const newCategoryIds = useMemo(() => {
     return new Set(
-      allCategories.filter((c) => !seen.has(c) && !hidden.has(c))
+      categories
+        .filter((c) => !c.is_seen && !c.is_hidden)
+        .map((c) => c.id)
     );
-  }, [categoryGroups, allCategories]);
-
-  const returnedCategories = useMemo(() => {
-    if (!categoryGroups) return new Set<string>();
-    return new Set(categoryGroups.returned_categories ?? []);
-  }, [categoryGroups]);
-
-  // Compute ungrouped categories: not in any parent-child relationship, not hidden
-  const ungroupedCategories = useMemo(() => {
-    if (!categoryGroups) return allCategories;
-    const childSet = new Set(
-      Object.values(categoryGroups.children).flat().map((c) => c.toLowerCase())
-    );
-    const parentSet = new Set(
-      Object.keys(categoryGroups.children).map((c) => c.toLowerCase())
-    );
-    const hidden = new Set(
-      (categoryGroups.hidden_categories ?? []).map((c) => c.toLowerCase())
-    );
-    return allCategories
-      .filter((c) => {
-        const lower = c.toLowerCase();
-        return !childSet.has(lower) && !parentSet.has(lower) && !hidden.has(lower);
-      })
-      .sort();
-  }, [categoryGroups, allCategories]);
+  }, [categories]);
 
   // Search filtering
-  const { filteredChildren, filteredUngrouped } = useMemo(() => {
+  const { filteredParents, filteredChildrenMap, filteredUngrouped } = useMemo(() => {
     if (!searchQuery) {
       return {
-        filteredChildren: categoryGroups?.children ?? {},
+        filteredParents: parents,
+        filteredChildrenMap: childrenMap,
         filteredUngrouped: ungroupedCategories,
       };
     }
 
     const query = searchQuery.toLowerCase();
-    const children = categoryGroups?.children ?? {};
-    const newFilteredChildren: Record<string, string[]> = {};
+    const newParents: Category[] = [];
+    const newChildrenMap: Record<number, Category[]> = {};
 
-    // Filter parents: include parent if parent name matches OR any child name matches
-    for (const [parent, childList] of Object.entries(children)) {
-      const parentMatches = parent.toLowerCase().includes(query);
-      const matchingChildren = childList.filter((c) =>
-        c.toLowerCase().includes(query)
+    for (const parent of parents) {
+      const parentMatches = parent.display_name.toLowerCase().includes(query);
+      const children = childrenMap[parent.id] ?? [];
+      const matchingChildren = children.filter((c) =>
+        c.display_name.toLowerCase().includes(query)
       );
 
       if (parentMatches) {
-        // Parent matches — include all children
-        newFilteredChildren[parent] = childList;
+        newParents.push(parent);
+        newChildrenMap[parent.id] = children;
       } else if (matchingChildren.length > 0) {
-        // Parent doesn't match but some children do — include only matching children
-        newFilteredChildren[parent] = matchingChildren;
+        newParents.push(parent);
+        newChildrenMap[parent.id] = matchingChildren;
       }
-      // If neither parent nor children match, exclude this parent entirely
     }
 
-    // Filter ungrouped categories
-    const newFilteredUngrouped = ungroupedCategories.filter((c) =>
-      c.toLowerCase().includes(query)
+    const newUngrouped = ungroupedCategories.filter((c) =>
+      c.display_name.toLowerCase().includes(query)
     );
 
     return {
-      filteredChildren: newFilteredChildren,
-      filteredUngrouped: newFilteredUngrouped,
+      filteredParents: newParents,
+      filteredChildrenMap: newChildrenMap,
+      filteredUngrouped: newUngrouped,
     };
-  }, [searchQuery, categoryGroups, ungroupedCategories]);
+  }, [searchQuery, parents, childrenMap, ungroupedCategories]);
 
   // Ungroup drop zone
   const { setNodeRef: setUngroupDropRef, isOver: isOverUngroup } = useDroppable({
@@ -235,143 +137,128 @@ export function CategoriesSection() {
     disabled: isDndDisabled,
   });
 
+  // Helper to find a category by ID
+  const findCategory = useCallback(
+    (id: number): Category | undefined => categories.find((c) => c.id === id),
+    [categories]
+  );
+
   // DnD handler
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       const { active, over } = event;
       setActiveId(null);
-      if (!over || !categoryGroups) return;
+      if (!over) return;
 
-      const draggedCategory = active.id as string;
+      const draggedIdStr = active.id as string;
       const rawOverId = over.id as string;
 
-      // Guard: prevent self-grouping
-      if (draggedCategory === rawOverId) return;
+      if (draggedIdStr === rawOverId) return;
+
+      // Parse dragged category ID
+      const draggedCategoryId = Number(draggedIdStr);
+      const draggedCat = findCategory(draggedCategoryId);
+      if (!draggedCat) return;
 
       // Strip drop: prefix from CategoryChildRow droppable IDs
       const overId = rawOverId.startsWith("drop:") ? rawOverId.slice(5) : rawOverId;
 
-      // Guard: still prevent self-grouping after prefix strip
-      if (draggedCategory === overId) return;
+      if (draggedIdStr === overId) return;
 
-      // Determine destination
-      let destParent: string | null = null; // null = root level
+      // Determine destination parent
+      let destParentId: number | null = null;
 
       if (overId === "ungroup-zone" || overId === "root") {
-        destParent = null;
+        destParentId = null;
       } else if (overId.startsWith("parent:")) {
-        destParent = overId.replace("parent:", "");
+        destParentId = Number(overId.replace("parent:", ""));
       } else {
-        // Dropped onto a category — check if it's a root-level ungrouped category
-        // (which becomes a parent) or a parent that already has children
-        const children = categoryGroups.children;
-        if (overId in children) {
-          // Dropped onto an existing parent
-          destParent = overId;
+        // Dropped onto a category -- check if it's a parent or ungrouped
+        const overCategoryId = Number(overId);
+        const overCat = findCategory(overCategoryId);
+        if (!overCat) return;
+
+        // If it has children, it's a parent — drop into it
+        if (childrenMap[overCat.id]) {
+          destParentId = overCat.id;
+        } else if (overCat.parent_id === null) {
+          // It's an ungrouped root category — it becomes a parent
+          destParentId = overCat.id;
         } else {
-          // Check if it's an ungrouped root-level category
-          const isChild = Object.values(children).flat().includes(overId);
-          if (!isChild) {
-            // It's a root-level ungrouped category — it becomes a parent
-            destParent = overId;
-          } else {
-            // Dropped onto a child of a parent — invalid target, no-op
-            return;
-          }
+          // Dropped onto a child — invalid
+          return;
         }
       }
 
-      // Build updated children map
-      const newChildren = { ...categoryGroups.children };
-
-      // Remove dragged category from current parent (if it's a child)
-      for (const [parent, childList] of Object.entries(newChildren)) {
-        newChildren[parent] = childList.filter((c) => c !== draggedCategory);
+      // Prevent nesting a parent with children under another parent
+      if (destParentId !== null && childrenMap[draggedCat.id]?.length > 0) {
+        return;
       }
 
-      // Only remove if it's being moved into another parent (not staying at root)
-      if (destParent !== null && draggedCategory in newChildren) {
-        // If draggedCategory is a parent (has children key), skip the drop
-        if (
-          newChildren[draggedCategory] &&
-          newChildren[draggedCategory].length > 0
-        ) {
-          return; // Can't nest a parent with children under another parent
-        }
-        delete newChildren[draggedCategory];
-      }
-
-      if (destParent === null) {
-        // Moving to root — already removed from parent above, nothing more to do
-      } else {
-        // Add to destination parent
-        if (!newChildren[destParent]) {
-          newChildren[destParent] = [];
-        }
-        if (!newChildren[destParent].includes(draggedCategory)) {
-          newChildren[destParent].push(draggedCategory);
-          newChildren[destParent].sort();
-        }
-      }
-
-      saveGroups({
-        ...categoryGroups,
-        children: newChildren,
-      });
+      // Use -1 sentinel for "move to root" (backend convention)
+      const parentIdValue = destParentId === null ? -1 : destParentId;
+      updateCategory(draggedCat.id, { parent_id: parentIdValue });
     },
-    [categoryGroups, saveGroups]
+    [categories, childrenMap, findCategory, updateCategory]
   );
 
-  const handleCategoryWeightChange = useCallback(
-    (category: string, weight: string) => {
-      categoryWeightMutation.mutate({ category, weight });
+  const handleWeightChange = useCallback(
+    (categoryId: number, weight: string) => {
+      updateCategory(categoryId, { weight });
     },
-    [categoryWeightMutation]
+    [updateCategory]
   );
 
-  const handleResetCategoryWeight = useCallback(
-    (category: string) => {
-      resetWeightMutation.mutate(category);
+  const handleResetWeight = useCallback(
+    (categoryId: number) => {
+      // Send "inherit" to clear explicit weight (backend convention)
+      updateCategory(categoryId, { weight: "inherit" as string | null });
     },
-    [resetWeightMutation]
+    [updateCategory]
   );
 
   const handleHideCategory = useCallback(
-    (category: string) => {
-      hideCategory(category);
+    (categoryId: number) => {
+      hideCategory(categoryId);
     },
     [hideCategory]
   );
 
   const handleBadgeDismiss = useCallback(
-    (category: string) => {
-      acknowledge([category]);
+    (categoryId: number) => {
+      acknowledge([categoryId]);
     },
     [acknowledge]
   );
 
   const handleDeleteCategory = useCallback(
-    (name: string) => {
-      const children = categoryGroups?.children ?? {};
-      const isParent = name in children;
-      const childCount = isParent ? children[name].length : 0;
-      setDeletingCategory({ name, childCount, isParent });
+    (categoryId: number) => {
+      const cat = findCategory(categoryId);
+      if (!cat) return;
+      const children = childrenMap[categoryId] ?? [];
+      const isParent = children.length > 0;
+      setDeletingCategory({
+        id: categoryId,
+        displayName: cat.display_name,
+        childCount: children.length,
+        isParent,
+      });
     },
-    [categoryGroups]
+    [findCategory, childrenMap]
   );
 
   const handleDeleteConfirm = useCallback(() => {
     if (deletingCategory) {
-      deleteCategory(deletingCategory.name);
+      deleteCategory(deletingCategory.id);
       setDeletingCategory(null);
     }
   }, [deletingCategory, deleteCategory]);
 
   const handleRenameCategory = useCallback(
-    (oldName: string, newName: string) => {
-      renameCategory({ name: oldName, newName });
+    (categoryId: number, newName: string) => {
+      updateCategory(categoryId, { display_name: newName });
     },
-    [renameCategory]
+    [updateCategory]
   );
 
   if (isLoading) {
@@ -382,7 +269,7 @@ export function CategoriesSection() {
     );
   }
 
-  if (allCategories.length === 0) {
+  if (categories.length === 0) {
     return (
       <Stack gap={8}>
         <Box>
@@ -411,8 +298,6 @@ export function CategoriesSection() {
     );
   }
 
-  const totalNew = newCount + returnedCount;
-
   return (
     <Stack gap={6}>
       {/* Header with title and new badge */}
@@ -420,15 +305,15 @@ export function CategoriesSection() {
         <Text fontSize="xl" fontWeight="semibold">
           Topic Categories
         </Text>
-        {totalNew > 0 && (
+        {newCount > 0 && (
           <Badge colorPalette="accent" size="sm">
-            {totalNew} new
+            {newCount} new
           </Badge>
         )}
         <Box flex={1} />
         <CreateCategoryPopover
-          onCreateCategory={(name) => createCategory(name)}
-          existingCategories={allCategories}
+          onCreateCategory={(displayName) => createCategory(displayName)}
+          existingCategories={categories}
         />
       </Flex>
 
@@ -449,13 +334,12 @@ export function CategoriesSection() {
         onDragEnd={handleDragEnd}
       >
         <CategoryTree
-          children={filteredChildren}
+          parents={filteredParents}
+          childrenMap={filteredChildrenMap}
           ungroupedCategories={filteredUngrouped}
-          topicWeights={preferences?.topic_weights ?? null}
-          newCategories={newCategories}
-          returnedCategories={returnedCategories}
-          onWeightChange={handleCategoryWeightChange}
-          onResetWeight={handleResetCategoryWeight}
+          newCategoryIds={newCategoryIds}
+          onWeightChange={handleWeightChange}
+          onResetWeight={handleResetWeight}
           onHide={handleHideCategory}
           onBadgeDismiss={handleBadgeDismiss}
           isDndEnabled={!isDndDisabled}
@@ -486,23 +370,26 @@ export function CategoriesSection() {
         )}
 
         <DragOverlay>
-          {activeId && (
-            <Box
-              bg="bg.subtle"
-              borderWidth="1px"
-              borderColor="border.subtle"
-              borderRadius="sm"
-              p={2}
-              shadow="md"
-            >
-              <Text fontSize="sm">{toTitleCase(activeId)}</Text>
-            </Box>
-          )}
+          {activeId && (() => {
+            const cat = findCategory(Number(activeId));
+            return (
+              <Box
+                bg="bg.subtle"
+                borderWidth="1px"
+                borderColor="border.subtle"
+                borderRadius="sm"
+                p={2}
+                shadow="md"
+              >
+                <Text fontSize="sm">{cat?.display_name ?? activeId}</Text>
+              </Box>
+            );
+          })()}
         </DragOverlay>
       </DndContext>
 
       <DeleteCategoryDialog
-        categoryName={deletingCategory?.name ?? null}
+        categoryName={deletingCategory?.displayName ?? null}
         childCount={deletingCategory?.childCount ?? 0}
         isParent={deletingCategory?.isParent ?? false}
         onConfirm={handleDeleteConfirm}

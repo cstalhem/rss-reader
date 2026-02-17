@@ -10,13 +10,6 @@ interface DeleteCategoryDialogProps {
   onCancel: () => void;
 }
 
-function toTitleCase(kebab: string): string {
-  return kebab
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
 export function DeleteCategoryDialog({
   categoryName,
   childCount,
@@ -36,13 +29,13 @@ export function DeleteCategoryDialog({
             <Dialog.Body>
               {isParent && childCount > 0 ? (
                 <Text>
-                  Delete parent category <strong>{categoryName ? toTitleCase(categoryName) : ""}</strong>?
+                  Delete parent category <strong>{categoryName ?? ""}</strong>?
                   The {childCount} child {childCount === 1 ? "category" : "categories"} will be
                   released to the root level. Their individual weight overrides will be preserved.
                 </Text>
               ) : (
                 <Text>
-                  Delete category <strong>{categoryName ? toTitleCase(categoryName) : ""}</strong>?
+                  Delete category <strong>{categoryName ?? ""}</strong>?
                   If the LLM discovers this category again, it will reappear.
                 </Text>
               )}

@@ -5,18 +5,12 @@ import { Flex, Text, Box, IconButton, Input } from "@chakra-ui/react";
 import { LuFolder, LuPencil, LuTrash2 } from "react-icons/lu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useDroppable } from "@dnd-kit/core";
+import { Category } from "@/lib/types";
 import { WeightPresetStrip } from "./WeightPresetStrip";
 import { SwipeableRow } from "./SwipeableRow";
 
-function toTitleCase(kebab: string): string {
-  return kebab
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
 interface CategoryParentRowProps {
-  category: string;
+  category: Category;
   weight: string;
   childCount: number;
   onWeightChange: (weight: string) => void;
@@ -37,11 +31,11 @@ const CategoryParentRowComponent = ({
   onDelete,
 }: CategoryParentRowProps) => {
   const [isRenaming, setIsRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState(toTitleCase(category));
+  const [renameValue, setRenameValue] = useState(category.display_name);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { setNodeRef, isOver } = useDroppable({
-    id: `parent:${category}`,
+    id: `parent:${category.id}`,
     disabled: !isDndEnabled,
   });
 
@@ -53,17 +47,17 @@ const CategoryParentRowComponent = ({
   }, [isRenaming]);
 
   const handleRenameSubmit = () => {
-    const trimmed = renameValue.trim().toLowerCase().replace(/\s+/g, "-");
-    if (trimmed && trimmed !== category) {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== category.display_name) {
       onRename(trimmed);
     }
     setIsRenaming(false);
-    setRenameValue(toTitleCase(category));
+    setRenameValue(category.display_name);
   };
 
   const handleRenameCancel = () => {
     setIsRenaming(false);
-    setRenameValue(toTitleCase(category));
+    setRenameValue(category.display_name);
   };
 
   return (
@@ -100,7 +94,7 @@ const CategoryParentRowComponent = ({
           />
         ) : (
           <Text fontSize="sm" fontWeight="semibold" truncate>
-            {toTitleCase(category)}
+            {category.display_name}
           </Text>
         )}
 
@@ -149,7 +143,7 @@ const CategoryParentRowComponent = ({
           </Flex>
         )}
 
-        {isOver && activeId && activeId !== category && (
+        {isOver && activeId && activeId !== String(category.id) && (
           <Box
             position="absolute"
             bottom="-8px"
@@ -164,7 +158,7 @@ const CategoryParentRowComponent = ({
             opacity={0.5}
           >
             <Text fontSize="sm" color="fg.muted">
-              {toTitleCase(activeId)}
+              Drop here
             </Text>
           </Box>
         )}

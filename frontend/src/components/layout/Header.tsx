@@ -17,8 +17,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
     queryFn: fetchNewCategoryCount,
     refetchInterval: 30000,
   });
-  const hasNewCategories =
-    (newCatCount?.count ?? 0) + (newCatCount?.returned_count ?? 0) > 0;
+  const hasNewCategories = (newCatCount?.count ?? 0) > 0;
 
   return (
     <Box

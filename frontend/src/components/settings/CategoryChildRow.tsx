@@ -7,23 +7,16 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useSortable } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
+import { Category } from "@/lib/types";
 import { WeightPresetStrip } from "./WeightPresetStrip";
 import { SwipeableRow } from "./SwipeableRow";
 
-function toTitleCase(kebab: string): string {
-  return kebab
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-}
-
 interface CategoryChildRowProps {
-  category: string;
+  category: Category;
   weight: string;
   isOverridden: boolean;
   parentWeight: string;
   isNew?: boolean;
-  isReturned?: boolean;
   onWeightChange: (weight: string) => void;
   onResetWeight?: () => void;
   onHide: () => void;
@@ -38,7 +31,6 @@ const CategoryChildRowComponent = ({
   weight,
   isOverridden,
   isNew,
-  isReturned,
   onWeightChange,
   onResetWeight,
   onHide,
@@ -48,7 +40,7 @@ const CategoryChildRowComponent = ({
   onDelete,
 }: CategoryChildRowProps) => {
   const [isRenaming, setIsRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState(toTitleCase(category));
+  const [renameValue, setRenameValue] = useState(category.display_name);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -59,13 +51,13 @@ const CategoryChildRowComponent = ({
     transition,
     isDragging,
   } = useSortable({
-    id: category,
+    id: category.id.toString(),
     disabled: !isDndEnabled,
   });
 
   const { setNodeRef: setDroppableRef, isOver } = useDroppable({
-    id: `drop:${category}`,
-    data: { type: "category", category },
+    id: `drop:${category.id}`,
+    data: { type: "category", categoryId: category.id },
     disabled: !isDndEnabled,
   });
 
@@ -92,17 +84,17 @@ const CategoryChildRowComponent = ({
   }, [isRenaming]);
 
   const handleRenameSubmit = () => {
-    const trimmed = renameValue.trim().toLowerCase().replace(/\s+/g, "-");
-    if (trimmed && trimmed !== category) {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== category.display_name) {
       onRename(trimmed);
     }
     setIsRenaming(false);
-    setRenameValue(toTitleCase(category));
+    setRenameValue(category.display_name);
   };
 
   const handleRenameCancel = () => {
     setIsRenaming(false);
-    setRenameValue(toTitleCase(category));
+    setRenameValue(category.display_name);
   };
 
   return (
@@ -149,7 +141,7 @@ const CategoryChildRowComponent = ({
           />
         ) : (
           <Text fontSize="sm" truncate>
-            {toTitleCase(category)}
+            {category.display_name}
           </Text>
         )}
 
@@ -175,32 +167,6 @@ const CategoryChildRowComponent = ({
                 <LuX size={14} />
               </Box>
               New
-            </Flex>
-          </Badge>
-        )}
-
-        {isReturned && (
-          <Badge
-            colorPalette="yellow"
-            size="sm"
-            cursor="pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              onBadgeDismiss?.();
-            }}
-          >
-            <Flex alignItems="center" gap={0}>
-              <Box
-                display="flex"
-                alignItems="center"
-                maxW="0"
-                overflow="hidden"
-                transition="max-width 0.15s, padding 0.15s"
-                _groupHover={{ maxW: "20px", pr: 1 }}
-              >
-                <LuX size={14} />
-              </Box>
-              Returned
             </Flex>
           </Badge>
         )}

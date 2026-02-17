@@ -49,7 +49,7 @@ export function SettingsSidebar({
   });
 
   const isDownloadActive = downloadStatus?.active ?? false;
-  const categoryBadgeCount = (newCategoryCount?.count ?? 0) + (newCategoryCount?.returned_count ?? 0);
+  const categoryBadgeCount = newCategoryCount?.count ?? 0;
 
   return (
     <Stack gap={1}>
