@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8.1 of 9 (Categories Settings UI Redesign)
-Plan: 9 of 10 complete
-Status: In Progress
-Last activity: 2026-02-17 - Completed Phase 08.1 Plan 09 (Visual polish gap closure)
+Plan: 10 of 10 complete
+Status: Phase Complete
+Last activity: 2026-02-17 - Completed Phase 08.1 Plan 10 (Category validation and weight latency)
 
 Progress: [██████████] 100% (36/36 total plans estimated from v1.1)
 
@@ -71,6 +71,7 @@ Progress: [██████████] 100% (36/36 total plans estimated fro
 | Phase 08.1-categories-settings-ui-redesign P06 | 4.4 | 2 tasks | 5 files |
 | Phase 08.1-categories-settings-ui-redesign P07 | 1.5 | 1 tasks | 1 files |
 | Phase 08.1 P08 | 3.1 | 2 tasks | 4 files |
+| Phase 08.1 P10 | 2.4 | 2 tasks | 4 files |
 | Phase 08.1 P09 | 2.0 | 2 tasks | 4 files |
 
 ## Accumulated Context
@@ -150,6 +151,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08.1]: Outline variant with accent border/color for active weight icon (not solid fill)
 - [Phase 08.1-09]: Unified Flex wrapper for all action icons per row with maxWidth collapse animation (no per-button opacity)
 - [Phase 08.1-09]: calc(100% + 4px) connector pseudo-element height to bridge Stack gap=1 between child rows
+- [Phase 08.1-10]: Remove auto-acknowledge from weight change handler to eliminate dual categoryGroups invalidation
+- [Phase 08.1-10]: Backend detail message propagation in createCategory API error for informative toast feedback
 
 ### Pending Todos
 
@@ -181,9 +184,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 08.1-09-PLAN.md
-Resume file: .planning/phases/08.1-categories-settings-ui-redesign/08.1-09-SUMMARY.md
+Stopped at: Completed 08.1-10-PLAN.md (Phase 08.1 all 10 plans complete)
+Resume file: .planning/phases/08.1-categories-settings-ui-redesign/08.1-10-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-17 after Phase 08.1 Plan 09 completion*
+*Last updated: 2026-02-17 after Phase 08.1 Plan 10 completion*
