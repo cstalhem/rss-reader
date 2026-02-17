@@ -5,18 +5,18 @@ import { Flex, Box, IconButton, Text } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   LuBan,
-  LuArrowDown,
+  LuChevronDown,
   LuMinus,
-  LuArrowUp,
+  LuChevronUp,
   LuChevronsUp,
   LuUndo2,
 } from "react-icons/lu";
 
 const WEIGHT_OPTIONS = [
   { value: "block", icon: LuBan, label: "Block", color: "red" },
-  { value: "reduce", icon: LuArrowDown, label: "Reduce", color: "orange" },
+  { value: "reduce", icon: LuChevronDown, label: "Reduce", color: "orange" },
   { value: "normal", icon: LuMinus, label: "Normal", color: "gray" },
-  { value: "boost", icon: LuArrowUp, label: "Boost", color: "green" },
+  { value: "boost", icon: LuChevronUp, label: "Boost", color: "green" },
   { value: "max", icon: LuChevronsUp, label: "Max", color: "yellow" },
 ];
 
@@ -43,19 +43,12 @@ const WeightPresetStripComponent = ({
       onClick={(e) => e.stopPropagation()}
       opacity={isOverridden === false ? 0.5 : 1}
     >
-      <Flex gap={0}>
+      <Flex gap={0} alignItems="center">
         {WEIGHT_OPTIONS.map((option) => {
           const isActive = value === option.value;
           const Icon = option.icon;
 
-          // Desktop: show only active icon when collapsed, all when expanded
-          // Mobile: always show all icons
-          const isVisible =
-            isActive || isExpanded
-              ? { base: "flex", md: "flex" }
-              : { base: "flex", md: "none" };
-
-          return (
+          const button = (
             <Tooltip
               key={option.value}
               content={option.label}
@@ -65,19 +58,34 @@ const WeightPresetStripComponent = ({
               <IconButton
                 aria-label={option.label}
                 size="xs"
-                variant={isActive ? "solid" : "ghost"}
+                variant={isActive ? "outline" : "ghost"}
                 colorPalette={isActive ? "accent" : undefined}
+                borderColor={isActive ? "accent.solid" : undefined}
+                color={isActive ? "accent.solid" : undefined}
                 onClick={(e) => {
                   e.stopPropagation();
                   onChange(option.value);
                 }}
                 minW="28px"
-                display={isVisible}
-                transition="all 0.2s"
               >
                 <Icon size={14} />
               </IconButton>
             </Tooltip>
+          );
+
+          // Active icon always visible; inactive icons animate on desktop
+          if (isActive) return button;
+
+          return (
+            <Box
+              key={option.value}
+              overflow="hidden"
+              display={{ base: "block", md: "block" }}
+              maxW={{ base: "28px", md: isExpanded ? "28px" : "0" }}
+              transition="max-width 0.2s ease-out"
+            >
+              {button}
+            </Box>
           );
         })}
 

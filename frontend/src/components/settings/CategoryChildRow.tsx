@@ -3,6 +3,7 @@
 import React, { useCallback, useState, useRef, useEffect } from "react";
 import { Flex, Text, Badge, IconButton, Box, Input } from "@chakra-ui/react";
 import { LuGripVertical, LuX, LuPencil, LuTrash2 } from "react-icons/lu";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useSortable } from "@dnd-kit/sortable";
 import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
@@ -147,7 +148,7 @@ const CategoryChildRowComponent = ({
             flex={1}
           />
         ) : (
-          <Text fontSize="sm" flex={1} truncate>
+          <Text fontSize="sm" truncate>
             {toTitleCase(category)}
           </Text>
         )}
@@ -204,39 +205,7 @@ const CategoryChildRowComponent = ({
           </Badge>
         )}
 
-        {!isRenaming && (
-          <>
-            <IconButton
-              aria-label="Rename category"
-              size="xs"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsRenaming(true);
-              }}
-              opacity={{ base: 1, md: 0 }}
-              _groupHover={{ opacity: 1 }}
-              transition="opacity 0.15s"
-            >
-              <LuPencil size={14} />
-            </IconButton>
-
-            <IconButton
-              aria-label="Delete category"
-              size="xs"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              opacity={{ base: 1, md: 0 }}
-              _groupHover={{ opacity: 1 }}
-              transition="opacity 0.15s"
-            >
-              <LuTrash2 size={14} />
-            </IconButton>
-          </>
-        )}
+        <Box flex={1} />
 
         <WeightPresetStrip
           value={weight}
@@ -245,20 +214,60 @@ const CategoryChildRowComponent = ({
           onReset={onResetWeight}
         />
 
-        <IconButton
-          aria-label="Hide category"
-          size="xs"
-          variant="ghost"
-          onClick={(e) => {
-            e.stopPropagation();
-            onHide();
-          }}
-          opacity={{ base: 1, md: 0 }}
-          _groupHover={{ opacity: 1 }}
-          transition="opacity 0.15s"
-        >
-          <LuX size={14} />
-        </IconButton>
+        {!isRenaming && (
+          <>
+            <Tooltip content="Rename category" openDelay={300}>
+              <IconButton
+                aria-label="Rename category"
+                size="xs"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsRenaming(true);
+                }}
+                opacity={{ base: 1, md: 0 }}
+                _groupHover={{ opacity: 1 }}
+                transition="opacity 0.15s"
+              >
+                <LuPencil size={14} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content="Delete category" openDelay={300}>
+              <IconButton
+                aria-label="Delete category"
+                size="xs"
+                variant="ghost"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                opacity={{ base: 1, md: 0 }}
+                _groupHover={{ opacity: 1 }}
+                transition="opacity 0.15s"
+              >
+                <LuTrash2 size={14} />
+              </IconButton>
+            </Tooltip>
+          </>
+        )}
+
+        <Tooltip content="Hide category" openDelay={300}>
+          <IconButton
+            aria-label="Hide category"
+            size="xs"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              onHide();
+            }}
+            opacity={{ base: 1, md: 0 }}
+            _groupHover={{ opacity: 1 }}
+            transition="opacity 0.15s"
+          >
+            <LuX size={14} />
+          </IconButton>
+        </Tooltip>
       </Flex>
     </SwipeableRow>
   );
