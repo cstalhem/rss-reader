@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from datetime import datetime
 
 from sqlmodel import Field, Relationship, SQLModel
@@ -46,17 +44,17 @@ class Category(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
 
     # Relationships
-    articles: list[Article] = Relationship(
+    articles: list["Article"] = Relationship(
         back_populates="categories_rel",
         link_model=ArticleCategoryLink,
     )
-    parent: Category | None = Relationship(
+    parent: "Category | None" = Relationship(
         sa_relationship_kwargs={
             "remote_side": "Category.id",
             "foreign_keys": "[Category.parent_id]",
         }
     )
-    children: list[Category] = Relationship(
+    children: list["Category"] = Relationship(
         sa_relationship_kwargs={
             "foreign_keys": "[Category.parent_id]",
         }
