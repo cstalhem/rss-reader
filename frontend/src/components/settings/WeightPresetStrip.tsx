@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Flex, Box, IconButton, Text } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
@@ -34,6 +34,12 @@ const WeightPresetStripComponent = ({
   onReset,
 }: WeightPresetStripProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [localValue, setLocalValue] = useState(value);
+
+  // Sync with prop when server data arrives (or on revert)
+  useEffect(() => {
+    setLocalValue(value);
+  }, [value]);
 
   return (
     <Flex
@@ -45,7 +51,7 @@ const WeightPresetStripComponent = ({
     >
       <Flex gap={0} alignItems="center">
         {WEIGHT_OPTIONS.map((option) => {
-          const isActive = value === option.value;
+          const isActive = localValue === option.value;
           const Icon = option.icon;
 
           const button = (
@@ -64,7 +70,8 @@ const WeightPresetStripComponent = ({
                 color={isActive ? "accent.solid" : undefined}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onChange(option.value);
+                  setLocalValue(option.value); // instant visual update — same frame
+                  onChange(option.value); // triggers mutation chain
                 }}
                 minW="24px"
                 h="24px"
@@ -93,7 +100,7 @@ const WeightPresetStripComponent = ({
 
         {/* Mobile text labels - only show on mobile */}
         {WEIGHT_OPTIONS.map((option) => {
-          const isActive = value === option.value;
+          const isActive = localValue === option.value;
           return (
             <Text
               key={`label-${option.value}`}

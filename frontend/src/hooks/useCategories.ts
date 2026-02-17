@@ -55,6 +55,7 @@ export function useCategories() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       queryClient.invalidateQueries({ queryKey: ["articles"] });
+      queryClient.invalidateQueries({ queryKey: ["categories", "new-count"] });
     },
   });
 
@@ -156,8 +157,11 @@ export function useCategories() {
     categories: categoriesQuery.data ?? [],
     newCount: newCountQuery.data?.count ?? 0,
     isLoading: categoriesQuery.isLoading,
-    updateCategory: (id: number, data: Partial<Pick<Category, "display_name" | "parent_id" | "weight" | "is_hidden" | "is_seen">>) =>
-      updateCategoryMutation.mutate({ id, data }),
+    updateCategory: (id: number, data: Partial<Pick<Category, "display_name" | "parent_id" | "weight" | "is_hidden" | "is_seen">>) => {
+      // Auto-acknowledge when changing weight
+      const payload = data.weight !== undefined ? { ...data, is_seen: true } : data;
+      updateCategoryMutation.mutate({ id, data: payload });
+    },
     createCategory: (displayName: string, parentId?: number | null) =>
       createCategoryMutation.mutate({ displayName, parentId }),
     deleteCategory: (id: number) => deleteCategoryMutation.mutate(id),
