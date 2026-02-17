@@ -1,3 +1,23 @@
+export interface ArticleCategory {
+  id: number;
+  display_name: string;
+  slug: string;
+  effective_weight: string;
+  parent_display_name: string | null;
+}
+
+export interface Category {
+  id: number;
+  display_name: string;
+  slug: string;
+  weight: string | null;
+  parent_id: number | null;
+  is_hidden: boolean;
+  is_seen: boolean;
+  is_manually_created: boolean;
+  article_count: number;
+}
+
 export interface Article {
   id: number;
   feed_id: number;
@@ -9,7 +29,7 @@ export interface Article {
   content: string | null;
   is_read: boolean;
   // LLM scoring fields
-  categories: string[] | null;
+  categories: ArticleCategory[] | null;
   interest_score: number | null;
   quality_score: number | null;
   composite_score: number | null;
@@ -30,8 +50,6 @@ export interface Feed {
 export interface UserPreferences {
   interests: string;
   anti_interests: string;
-  topic_weights: Record<string, string> | null;
-  category_groups: CategoryGroups | null;
   updated_at: string;
 }
 
@@ -62,14 +80,6 @@ export interface OllamaPrompts {
 
 export interface OllamaConfigSaveResult extends OllamaConfig {
   rescore_queued: number;
-}
-
-export interface CategoryGroups {
-  children: Record<string, string[]>;  // parent -> child category names
-  hidden_categories: string[];
-  seen_categories: string[];
-  returned_categories: string[];
-  manually_created: string[];
 }
 
 export type SortOption = "score_desc" | "score_asc" | "date_desc" | "date_asc";

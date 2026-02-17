@@ -1,8 +1,8 @@
 import {
   Article,
+  Category,
   Feed,
   UserPreferences,
-  CategoryGroups,
   OllamaHealth,
   OllamaModel,
   OllamaConfig,
@@ -208,147 +208,33 @@ export async function updatePreferences(
   return response.json();
 }
 
-export async function fetchCategories(): Promise<string[]> {
+export async function fetchCategories(): Promise<Category[]> {
   const response = await fetch(`${API_BASE_URL}/api/categories`);
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch categories: ${response.statusText}`);
-  }
-
+  if (!response.ok) throw new Error(`Failed to fetch categories: ${response.statusText}`);
   return response.json();
 }
 
-export async function updateCategoryWeight(
-  category: string,
-  weight: string
-): Promise<UserPreferences> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/categories/${encodeURIComponent(category)}/weight`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ weight }),
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to update category weight: ${response.statusText}`
-    );
-  }
-
-  return response.json();
-}
-
-// --- Category Groups API ---
-
-export async function fetchCategoryGroups(): Promise<CategoryGroups> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/groups`);
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch category groups: ${response.statusText}`
-    );
-  }
-
-  return response.json();
-}
-
-export async function saveCategoryGroups(
-  data: CategoryGroups
-): Promise<CategoryGroups> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/groups`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
+export async function updateCategory(
+  id: number,
+  data: { display_name?: string; parent_id?: number | null; weight?: string | null; is_hidden?: boolean; is_seen?: boolean }
+): Promise<Category> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to save category groups: ${response.statusText}`
-    );
-  }
-
+  if (!response.ok) throw new Error(`Failed to update category: ${response.statusText}`);
   return response.json();
 }
 
-export async function hideCategory(name: string): Promise<CategoryGroups> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/categories/${encodeURIComponent(name)}/hide`,
-    {
-      method: "PATCH",
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to hide category: ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
-export async function unhideCategory(name: string): Promise<CategoryGroups> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/categories/${encodeURIComponent(name)}/unhide`,
-    {
-      method: "PATCH",
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to unhide category: ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
-export async function fetchNewCategoryCount(): Promise<{
-  count: number;
-  returned_count: number;
-}> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/new-count`);
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch new category count: ${response.statusText}`
-    );
-  }
-
-  return response.json();
-}
-
-export async function acknowledgeCategories(
-  categories: string[]
-): Promise<{ ok: boolean }> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/categories/acknowledge`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ categories }),
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to acknowledge categories: ${response.statusText}`
-    );
-  }
-
-  return response.json();
-}
-
-export async function createCategory(name: string): Promise<{ name: string }> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/create`, {
+export async function createCategory(
+  displayName: string,
+  parentId?: number | null
+): Promise<Category> {
+  const response = await fetch(`${API_BASE_URL}/api/categories`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ display_name: displayName, parent_id: parentId }),
   });
   if (!response.ok) {
     const body = await response.json().catch(() => null);
@@ -357,30 +243,52 @@ export async function createCategory(name: string): Promise<{ name: string }> {
   return response.json();
 }
 
-export async function deleteCategory(name: string): Promise<{ ok: boolean }> {
-  const response = await fetch(`${API_BASE_URL}/api/categories`, {
+export async function deleteCategory(id: number): Promise<{ ok: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
   });
-  if (!response.ok) {
-    throw new Error(`Failed to delete category: ${response.statusText}`);
-  }
+  if (!response.ok) throw new Error(`Failed to delete category: ${response.statusText}`);
   return response.json();
 }
 
-export async function renameCategory(
-  oldName: string,
-  newName: string
-): Promise<{ old_name: string; new_name: string }> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/rename`, {
-    method: "PATCH",
+export async function mergeCategories(
+  sourceId: number,
+  targetId: number
+): Promise<{ ok: boolean; articles_moved: number }> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/merge`, {
+    method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ old_name: oldName, new_name: newName }),
+    body: JSON.stringify({ source_id: sourceId, target_id: targetId }),
   });
-  if (!response.ok) {
-    throw new Error(`Failed to rename category: ${response.statusText}`);
-  }
+  if (!response.ok) throw new Error(`Failed to merge categories: ${response.statusText}`);
+  return response.json();
+}
+
+export async function hideCategory(id: number): Promise<Category> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/${id}/hide`, { method: "PATCH" });
+  if (!response.ok) throw new Error(`Failed to hide category: ${response.statusText}`);
+  return response.json();
+}
+
+export async function unhideCategory(id: number): Promise<Category> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/${id}/unhide`, { method: "PATCH" });
+  if (!response.ok) throw new Error(`Failed to unhide category: ${response.statusText}`);
+  return response.json();
+}
+
+export async function fetchNewCategoryCount(): Promise<{ count: number }> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/new-count`);
+  if (!response.ok) throw new Error(`Failed to fetch new category count: ${response.statusText}`);
+  return response.json();
+}
+
+export async function acknowledgeCategories(categoryIds: number[]): Promise<{ ok: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/acknowledge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ category_ids: categoryIds }),
+  });
+  if (!response.ok) throw new Error(`Failed to acknowledge categories: ${response.statusText}`);
   return response.json();
 }
 
