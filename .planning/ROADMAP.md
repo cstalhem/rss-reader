@@ -145,10 +145,28 @@ Plans:
 - [ ] 08.1-07-PLAN.md -- Gap closure: Optimistic weight updates with toast feedback
 - [ ] 08.1-08-PLAN.md -- Gap closure: Visual polish (connector lines, weight icons, row layouts, animations)
 
-### Phase 08.2: Category Group Management Redesign
+### Phase 08.2: Category Data Model Refactor
+
+**Goal:** Migrate categories from JSON blobs to a proper Category table with ArticleCategoryLink junction table, enabling clean relational operations for grouping, renaming, splitting, and Phase 9 feedback aggregation
+**Depends on:** Phase 08.1
+**Deferred from:** 08.1-UAT-r2.md gap #10 (parent split vs delete — root cause: JSON blob surgery too fragile)
+**Success Criteria** (what must be TRUE):
+  1. Category table exists with columns: id, name, parent_id, weight, is_hidden, is_manually_created, is_seen
+  2. ArticleCategoryLink junction table replaces Article.categories JSON column
+  3. All category API endpoints use relational queries (no JSON blob manipulation)
+  4. Scoring pipeline writes to junction table via get_or_create pattern
+  5. Frontend API contract unchanged or cleanly migrated (no regressions)
+  6. Data migration preserves all existing categories, weights, groupings, and article associations
+  7. Split group = `UPDATE SET parent_id = NULL` (one operation, no data loss)
+**Plans**: TBD
+
+Plans:
+- [ ] 08.2-01: TBD during planning
+
+### Phase 08.3: Category Group Management Redesign
 
 **Goal:** Replace drag-and-drop category grouping with a more reliable UI paradigm (button-based or alternative interaction model)
-**Depends on:** Phase 08.1
+**Depends on:** Phase 08.2
 **Requirements:** CATGRP-02, CATGRP-03
 **Deferred from:** 08.1-UAT-r2.md gaps #5 (DnD performance) and #6 (ungroup via DnD)
 **Success Criteria** (what must be TRUE):
@@ -158,7 +176,7 @@ Plans:
 **Plans**: TBD (requires design decision on interaction paradigm)
 
 Plans:
-- [ ] 08.2-01: TBD during planning
+- [ ] 08.3-01: TBD during planning
 
 #### Phase 9: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
@@ -191,10 +209,11 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 6. UI & Theme Polish | v1.1 | 3/3 | Complete | 2026-02-15 |
 | 7. Ollama Configuration UI | v1.1 | 6/6 | Complete | 2026-02-15 |
 | 8. Category Grouping | v1.1 | 8/11 | In progress | - |
-| 08.1. Categories UI Redesign | v1.1 | 8/8 | UAT R2: 6 gaps fixing | 2026-02-17 |
-| 08.2. Group Management Redesign | v1.1 | 0/TBD | Not started (deferred from 08.1) | - |
+| 08.1. Categories UI Redesign | v1.1 | 8/8 | UAT R2: 5 gaps fixing | 2026-02-17 |
+| 08.2. Category Data Model Refactor | v1.1 | 0/TBD | Not started (JSON → table migration) | - |
+| 08.3. Group Management Redesign | v1.1 | 0/TBD | Not started (deferred from 08.1) | - |
 | 9. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-17 after Phase 08.1 UAT R2 diagnosis — DnD gaps deferred to 08.2*
+*Last updated: 2026-02-17 — 08.2 (data model refactor) inserted, DnD gaps moved to 08.3*
