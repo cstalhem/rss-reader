@@ -1,9 +1,9 @@
 """LLM-powered article scoring and categorization."""
 
 import logging
-from datetime import datetime, timedelta
 
 from ollama import AsyncClient
+from slugify import slugify
 from sqlmodel import Session, select
 from tenacity import (
     retry,
@@ -12,9 +12,9 @@ from tenacity import (
     wait_exponential,
 )
 
-from backend.models import Article, UserPreferences
+from backend.database import smart_case
+from backend.models import Category
 from backend.prompts import (
-    DEFAULT_CATEGORIES,
     CategoryResponse,
     ScoringResponse,
     build_categorization_prompt,
@@ -37,6 +37,49 @@ def set_scoring_context(article_id: int | None) -> None:
 def get_scoring_activity() -> dict:
     """Get current scoring activity state. Called by API endpoint."""
     return _scoring_activity.copy()
+
+
+def get_or_create_category(
+    session: Session,
+    display_name: str,
+    suggested_parent: str | None = None,
+) -> Category:
+    """Find existing category by slug, or create new one.
+
+    Args:
+        session: Database session
+        display_name: Human-readable category name
+        suggested_parent: Optional parent category display name for new categories
+
+    Returns:
+        Existing or newly created Category
+    """
+    slug = slugify(display_name)
+    category = session.exec(
+        select(Category).where(Category.slug == slug)
+    ).first()
+    if category:
+        return category
+
+    # Create new category
+    category = Category(
+        display_name=smart_case(display_name),
+        slug=slug,
+        is_seen=False,
+    )
+
+    # Resolve parent if suggested
+    if suggested_parent:
+        parent_slug = slugify(suggested_parent)
+        parent = session.exec(
+            select(Category).where(Category.slug == parent_slug)
+        ).first()
+        if parent:
+            category.parent_id = parent.id
+
+    session.add(category)
+    session.flush()
+    return category
 
 
 @retry(
@@ -169,29 +212,35 @@ async def score_article(
     return result
 
 
+def get_effective_weight(category: Category) -> str:
+    """Resolve weight: explicit override > parent weight > 'normal'."""
+    if category.weight is not None:
+        return category.weight
+    if category.parent_id is not None and category.parent is not None:
+        if category.parent.weight is not None:
+            return category.parent.weight
+    return "normal"
+
+
 def compute_composite_score(
     interest_score: int,
     quality_score: int,
-    categories: list[str],
-    topic_weights: dict[str, str] | None,
-    category_groups: dict | None = None,
+    categories: list[Category],
 ) -> float:
-    """Compute final composite score from interest, quality, and topic weights.
+    """Compute final composite score from interest, quality, and category weights.
 
     Formula: interest_score * category_multiplier * quality_multiplier
     Capped at 20.0 maximum.
 
-    Weight resolution priority:
-    1. topic_weights[category] -- explicit override
-    2. Group weight for the group containing this category
+    Weight resolution uses Category objects directly:
+    1. category.weight (explicit override)
+    2. category.parent.weight (inherited from parent)
     3. "normal" (1.0) default
 
     Args:
         interest_score: Interest score 0-10
         quality_score: Quality score 0-10
-        categories: List of article categories
-        topic_weights: User's topic weight preferences
-        category_groups: Category groups structure with group-level weights
+        categories: List of Category objects
 
     Returns:
         Composite score (0.0-20.0)
@@ -203,7 +252,7 @@ def compute_composite_score(
         "normal": 1.0,
         "boost": 1.5,
         "max": 2.0,
-        # Old names for backward compatibility during migration
+        # Old names for backward compatibility
         "blocked": 0.0,
         "low": 0.5,
         "neutral": 1.0,
@@ -215,29 +264,11 @@ def compute_composite_score(
     if not categories:
         category_multiplier = 1.0
     else:
-        # Build category -> parent_weight lookup using children map
-        parent_weights: dict[str, str] = {}
-        if category_groups and "children" in category_groups:
-            for parent, children_list in category_groups["children"].items():
-                for child in children_list:
-                    parent_weights[child.lower()] = parent.lower()
-
         weights = []
         for category in categories:
-            cat_lower = category.lower()
-            # Priority 1: explicit override in topic_weights
-            if topic_weights and cat_lower in topic_weights:
-                weight_str = topic_weights[cat_lower]
-            # Priority 2: parent weight (if category is a child)
-            elif cat_lower in parent_weights:
-                parent_name = parent_weights[cat_lower]
-                weight_str = topic_weights.get(parent_name, "normal") if topic_weights else "normal"
-            # Priority 3: default
-            else:
-                weight_str = "normal"
+            weight_str = get_effective_weight(category)
             weights.append(weight_map.get(weight_str, 1.0))
-
-        category_multiplier = sum(weights) / len(weights) if weights else 1.0
+        category_multiplier = sum(weights) / len(weights)
 
     # Quality multiplier: maps 0-10 to 0.5-1.0
     quality_multiplier = 0.5 + (quality_score / 10.0) * 0.5
@@ -249,92 +280,59 @@ def compute_composite_score(
     return min(composite, 20.0)
 
 
-def is_blocked(
-    categories: list[str],
-    topic_weights: dict[str, str] | None,
-    category_groups: dict | None = None,
-) -> bool:
-    """Check if any category in the list is blocked or hidden.
+def is_blocked(categories: list[Category]) -> bool:
+    """Check if any category is blocked or hidden.
 
     Args:
-        categories: List of article categories
-        topic_weights: User's topic weight preferences
-        category_groups: Category groups structure with hidden_categories
+        categories: List of Category objects
 
     Returns:
-        True if any category has weight "block"/"blocked" or is in hidden_categories
+        True if any category is hidden or has effective weight "block"/"blocked"
     """
     if not categories:
         return False
 
-    # Check hidden_categories
-    if category_groups:
-        hidden = category_groups.get("hidden_categories", [])
-        for category in categories:
-            if category.lower() in [h.lower() for h in hidden]:
-                return True
-
-    # Check topic_weights for blocked
-    if topic_weights:
-        for category in categories:
-            weight = topic_weights.get(category.lower())
-            if weight in ("blocked", "block"):
-                return True
+    for category in categories:
+        if category.is_hidden:
+            return True
+        weight = get_effective_weight(category)
+        if weight in ("blocked", "block"):
+            return True
 
     return False
 
 
 async def get_active_categories(session: Session) -> tuple[list[str], dict[str, list[str]] | None]:
-    """Get list of active categories and hierarchy from recent articles and preferences.
-
-    Merges:
-    - Unique categories from articles scored in last 30 days
-    - Non-blocked categories from user preferences
-    - DEFAULT_CATEGORIES
+    """Get list of active (non-hidden) categories and hierarchy from Category table.
 
     Args:
         session: Database session
 
     Returns:
-        Tuple of (sorted categories list, category hierarchy dict or None)
+        Tuple of (sorted display name list, category hierarchy dict or None)
     """
-    # Get categories from recent articles
-    cutoff_date = datetime.now() - timedelta(days=30)
-    recent_articles = session.exec(
-        select(Article)
-        .where(Article.scored_at.is_not(None))
-        .where(Article.scored_at >= cutoff_date)
+    # Query all non-hidden categories
+    categories = session.exec(
+        select(Category).where(Category.is_hidden == False)  # noqa: E712
     ).all()
 
-    categories_seen = {}  # lowercase -> original case
+    # Collect display names
+    display_names = sorted(
+        [cat.display_name for cat in categories],
+        key=str.lower,
+    )
 
-    # Collect from articles
-    for article in recent_articles:
-        if article.categories:
-            for cat in article.categories:
-                lower_cat = cat.lower()
-                if lower_cat not in categories_seen:
-                    categories_seen[lower_cat] = cat
+    # Build hierarchy from parent-child relationships
+    hierarchy: dict[str, list[str]] = {}
+    for cat in categories:
+        if cat.parent_id is not None and cat.parent is not None:
+            parent_name = cat.parent.display_name
+            if parent_name not in hierarchy:
+                hierarchy[parent_name] = []
+            hierarchy[parent_name].append(cat.display_name)
 
-    # Add non-blocked categories from preferences and extract hierarchy
-    category_hierarchy = None
-    preferences = session.exec(select(UserPreferences)).first()
-    if preferences:
-        if preferences.topic_weights:
-            for category, weight in preferences.topic_weights.items():
-                lower_cat = category.lower()
-                if weight not in ("blocked", "block") and lower_cat not in categories_seen:
-                    categories_seen[lower_cat] = category
+    # Sort children lists for consistency
+    for children in hierarchy.values():
+        children.sort(key=str.lower)
 
-        # Extract hierarchy if available
-        if preferences.category_groups and "children" in preferences.category_groups:
-            category_hierarchy = preferences.category_groups["children"]
-
-    # Add default categories
-    for cat in DEFAULT_CATEGORIES:
-        lower_cat = cat.lower()
-        if lower_cat not in categories_seen:
-            categories_seen[lower_cat] = cat
-
-    # Return sorted list and hierarchy
-    return sorted(categories_seen.values(), key=str.lower), category_hierarchy
+    return display_names, hierarchy if hierarchy else None
