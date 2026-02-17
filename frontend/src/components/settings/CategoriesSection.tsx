@@ -162,9 +162,9 @@ export function CategoriesSection() {
     };
   }, [searchQuery, categoryGroups, ungroupedCategories]);
 
-  // Root droppable zone
-  const { setNodeRef: setRootDropRef } = useDroppable({
-    id: "root",
+  // Ungroup drop zone
+  const { setNodeRef: setUngroupDropRef, isOver: isOverUngroup } = useDroppable({
+    id: "ungroup-zone",
     disabled: isDndDisabled,
   });
 
@@ -176,12 +176,21 @@ export function CategoriesSection() {
       if (!over || !categoryGroups) return;
 
       const draggedCategory = active.id as string;
-      const overId = over.id as string;
+      const rawOverId = over.id as string;
+
+      // Guard: prevent self-grouping
+      if (draggedCategory === rawOverId) return;
+
+      // Strip drop: prefix from CategoryChildRow droppable IDs
+      const overId = rawOverId.startsWith("drop:") ? rawOverId.slice(5) : rawOverId;
+
+      // Guard: still prevent self-grouping after prefix strip
+      if (draggedCategory === overId) return;
 
       // Determine destination
       let destParent: string | null = null; // null = root level
 
-      if (overId === "root") {
+      if (overId === "ungroup-zone" || overId === "root") {
         destParent = null;
       } else if (overId.startsWith("parent:")) {
         destParent = overId.replace("parent:", "");
@@ -370,29 +379,49 @@ export function CategoriesSection() {
 
       {/* Category tree with DnD */}
       <DndContext
-        sensors={isDndDisabled ? undefined : sensors}
+        sensors={sensors}
         onDragStart={(e: DragStartEvent) =>
           !isDndDisabled && setActiveId(e.active.id as string)
         }
         onDragEnd={handleDragEnd}
       >
-        <Box ref={setRootDropRef}>
-          <CategoryTree
-            children={filteredChildren}
-            ungroupedCategories={filteredUngrouped}
-            topicWeights={preferences?.topic_weights ?? null}
-            newCategories={newCategories}
-            returnedCategories={returnedCategories}
-            onWeightChange={handleCategoryWeightChange}
-            onResetWeight={handleResetCategoryWeight}
-            onHide={handleHideCategory}
-            onBadgeDismiss={handleBadgeDismiss}
-            isDndEnabled={!isDndDisabled}
-            activeId={activeId}
-            onRename={handleRenameCategory}
-            onDelete={handleDeleteCategory}
-          />
-        </Box>
+        <CategoryTree
+          children={filteredChildren}
+          ungroupedCategories={filteredUngrouped}
+          topicWeights={preferences?.topic_weights ?? null}
+          newCategories={newCategories}
+          returnedCategories={returnedCategories}
+          onWeightChange={handleCategoryWeightChange}
+          onResetWeight={handleResetCategoryWeight}
+          onHide={handleHideCategory}
+          onBadgeDismiss={handleBadgeDismiss}
+          isDndEnabled={!isDndDisabled}
+          activeId={activeId}
+          onRename={handleRenameCategory}
+          onDelete={handleDeleteCategory}
+        />
+
+        {/* Explicit ungroup drop zone */}
+        {activeId && (
+          <Box
+            ref={setUngroupDropRef}
+            py={3}
+            px={4}
+            mt={2}
+            borderWidth="2px"
+            borderStyle="dashed"
+            borderColor={isOverUngroup ? "accent.solid" : "border.subtle"}
+            borderRadius="md"
+            bg={isOverUngroup ? "accent.subtle" : "transparent"}
+            textAlign="center"
+            fontSize="sm"
+            color="fg.muted"
+            transition="all 0.2s"
+          >
+            Drop here to ungroup
+          </Box>
+        )}
+
         <DragOverlay>
           {activeId && (
             <Box
