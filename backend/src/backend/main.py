@@ -8,14 +8,15 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from slugify import slugify
 from sqlalchemy import desc, nulls_last
 from sqlmodel import Session, func, select
 
 from backend import ollama_service
 from backend.config import get_settings
-from backend.database import create_db_and_tables, get_session
+from backend.database import create_db_and_tables, get_session, smart_case
 from backend.feeds import fetch_feed, refresh_feed, save_articles
-from backend.models import Article, Feed, UserPreferences
+from backend.models import Article, ArticleCategoryLink, Category, Feed, UserPreferences
 from backend.scheduler import shutdown_scheduler, start_scheduler
 
 settings = get_settings()
@@ -106,57 +107,50 @@ class FeedResponse(BaseModel):
 class PreferencesResponse(BaseModel):
     interests: str
     anti_interests: str
-    topic_weights: dict[str, str] | None
-    category_groups: dict | None = None
     updated_at: datetime
 
 
 class PreferencesUpdate(BaseModel):
     interests: str | None = None
     anti_interests: str | None = None
-    topic_weights: dict[str, str] | None = None
 
 
-class CategoryWeightUpdate(BaseModel):
-    weight: str
+# --- Category Pydantic models ---
 
 
-class CategoryGroupsResponse(BaseModel):
-    children: dict[str, list[str]] = {}
-    hidden_categories: list[str] = []
-    seen_categories: list[str] = []
-    returned_categories: list[str] = []
-    manually_created: list[str] = []
+class CategoryResponse(BaseModel):
+    """Category object returned by API."""
+    id: int
+    display_name: str
+    slug: str
+    weight: str | None
+    parent_id: int | None
+    is_hidden: bool
+    is_seen: bool
+    is_manually_created: bool
+    article_count: int
 
 
-class CategoryGroupsUpdate(BaseModel):
-    children: dict[str, list[str]] = {}
-    hidden_categories: list[str] = []
-    seen_categories: list[str] = []
-    returned_categories: list[str] = []
-    manually_created: list[str] = []
+class CategoryCreateRequest(BaseModel):
+    display_name: str
+    parent_id: int | None = None
 
 
-class CategoryAcknowledge(BaseModel):
-    categories: list[str]
+class CategoryUpdate(BaseModel):
+    display_name: str | None = None
+    parent_id: int | None = None
+    weight: str | None = None
+    is_hidden: bool | None = None
+    is_seen: bool | None = None
 
 
-class CategoryCreate(BaseModel):
-    name: str
+class CategoryMerge(BaseModel):
+    source_id: int
+    target_id: int
 
 
-class CategoryDelete(BaseModel):
-    name: str
-
-
-class CategoryRename(BaseModel):
-    old_name: str
-    new_name: str
-
-
-class NewCategoryCountResponse(BaseModel):
-    count: int
-    returned_count: int
+class CategoryAcknowledgeRequest(BaseModel):
+    category_ids: list[int]
 
 
 # Ollama API models
@@ -571,27 +565,11 @@ def get_preferences(
     session: Session = Depends(get_session),
 ):
     """Get user preferences. Creates default preferences if none exist."""
-    preferences = session.exec(select(UserPreferences)).first()
-
-    if not preferences:
-        # Create default preferences with seed category weights
-        from backend.prompts import get_default_topic_weights
-
-        preferences = UserPreferences(
-            interests="",
-            anti_interests="",
-            topic_weights=get_default_topic_weights(),
-            updated_at=datetime.now(),
-        )
-        session.add(preferences)
-        session.commit()
-        session.refresh(preferences)
+    preferences = _get_or_create_preferences(session)
 
     return PreferencesResponse(
         interests=preferences.interests,
         anti_interests=preferences.anti_interests,
-        topic_weights=preferences.topic_weights,
-        category_groups=preferences.category_groups,
         updated_at=preferences.updated_at,
     )
 
@@ -602,19 +580,7 @@ async def update_preferences(
     session: Session = Depends(get_session),
 ):
     """Update user preferences. Merges non-None fields and triggers re-scoring."""
-    preferences = session.exec(select(UserPreferences)).first()
-
-    if not preferences:
-        # Create if doesn't exist with seed category weights
-        from backend.prompts import get_default_topic_weights
-
-        preferences = UserPreferences(
-            interests="",
-            anti_interests="",
-            topic_weights=get_default_topic_weights(),
-            updated_at=datetime.now(),
-        )
-        session.add(preferences)
+    preferences = _get_or_create_preferences(session)
 
     # Update non-None fields
     if update.interests is not None:
@@ -622,9 +588,6 @@ async def update_preferences(
 
     if update.anti_interests is not None:
         preferences.anti_interests = update.anti_interests
-
-    if update.topic_weights is not None:
-        preferences.topic_weights = update.topic_weights
 
     preferences.updated_at = datetime.now()
 
@@ -640,97 +603,20 @@ async def update_preferences(
     return PreferencesResponse(
         interests=preferences.interests,
         anti_interests=preferences.anti_interests,
-        topic_weights=preferences.topic_weights,
-        category_groups=preferences.category_groups,
         updated_at=preferences.updated_at,
     )
 
 
-@app.get("/api/categories")
-def get_categories(
-    session: Session = Depends(get_session),
-):
-    """Get list of unique categories, seeded with defaults and manually created."""
-    from backend.prompts import DEFAULT_CATEGORIES
-
-    # Start with default seed categories
-    categories_seen = {cat.lower(): cat for cat in DEFAULT_CATEGORIES}
-
-    # Merge in categories from scored articles (overrides preserve article casing)
-    articles = session.exec(
-        select(Article).where(Article.categories.is_not(None))
-    ).all()
-    for article in articles:
-        if article.categories:
-            for category in article.categories:
-                categories_seen[category.lower()] = category
-
-    # Include manually created categories from UserPreferences
-    preferences = session.exec(select(UserPreferences)).first()
-    if preferences:
-        cg = _get_category_groups(preferences)
-        for cat in cg.get("manually_created", []):
-            if cat.lower() not in categories_seen:
-                categories_seen[cat.lower()] = cat
-
-    return sorted(categories_seen.values(), key=str.lower)
-
-
-@app.patch("/api/categories/{category_name}/weight", response_model=PreferencesResponse)
-def update_category_weight(
-    category_name: str,
-    weight_update: CategoryWeightUpdate,
-    session: Session = Depends(get_session),
-):
-    """Update weight for a single category.
-
-    Accepts weight values: block, reduce, normal, boost, max
-    (also accepts legacy names: blocked, low, neutral, medium, high)
-    """
-    valid_weights = {
-        "block", "reduce", "normal", "boost", "max",
-        "blocked", "low", "neutral", "medium", "high",
-    }
-    if weight_update.weight not in valid_weights:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid weight '{weight_update.weight}'. Must be one of: block, reduce, normal, boost, max",
-        )
-
-    preferences = _get_or_create_preferences(session)
-
-    # Reassign dict to ensure SQLAlchemy detects the change on JSON column
-    new_weights = dict(preferences.topic_weights or {})
-    new_weights[category_name.lower()] = weight_update.weight
-    preferences.topic_weights = new_weights
-    preferences.updated_at = datetime.now()
-
-    session.add(preferences)
-    session.commit()
-    session.refresh(preferences)
-
-    return PreferencesResponse(
-        interests=preferences.interests,
-        anti_interests=preferences.anti_interests,
-        topic_weights=preferences.topic_weights,
-        category_groups=preferences.category_groups,
-        updated_at=preferences.updated_at,
-    )
-
-
-# --- Category Group Management Endpoints ---
+# --- Helper ---
 
 
 def _get_or_create_preferences(session: Session) -> UserPreferences:
-    """Get existing preferences or create defaults. Shared by category endpoints."""
+    """Get existing preferences or create defaults."""
     preferences = session.exec(select(UserPreferences)).first()
     if not preferences:
-        from backend.prompts import get_default_topic_weights
-
         preferences = UserPreferences(
             interests="",
             anti_interests="",
-            topic_weights=get_default_topic_weights(),
             updated_at=datetime.now(),
         )
         session.add(preferences)
@@ -739,388 +625,339 @@ def _get_or_create_preferences(session: Session) -> UserPreferences:
     return preferences
 
 
-def _get_category_groups(preferences: UserPreferences) -> dict:
-    """Get category_groups from preferences, returning default structure if null."""
-    if preferences.category_groups:
-        return preferences.category_groups
-    return {
-        "children": {},
-        "hidden_categories": [],
-        "seen_categories": [],
-        "returned_categories": [],
-        "manually_created": [],
-    }
+def _category_article_count(session: Session, category_id: int) -> int:
+    """Get article count for a category via junction table."""
+    return session.exec(
+        select(func.count(ArticleCategoryLink.article_id))
+        .where(ArticleCategoryLink.category_id == category_id)
+    ).one()
 
 
-@app.get("/api/categories/groups", response_model=CategoryGroupsResponse)
-def get_category_groups(
+def _category_to_response(session: Session, category: Category) -> CategoryResponse:
+    """Convert a Category model to a CategoryResponse with article_count."""
+    return CategoryResponse(
+        id=category.id,
+        display_name=category.display_name,
+        slug=category.slug,
+        weight=category.weight,
+        parent_id=category.parent_id,
+        is_hidden=category.is_hidden,
+        is_seen=category.is_seen,
+        is_manually_created=category.is_manually_created,
+        article_count=_category_article_count(session, category.id),
+    )
+
+
+# --- Category CRUD Endpoints ---
+
+
+VALID_WEIGHTS = {"block", "reduce", "normal", "boost", "max"}
+
+
+@app.get("/api/categories", response_model=list[CategoryResponse])
+def list_categories(
     session: Session = Depends(get_session),
 ):
-    """Get the category groups structure from UserPreferences."""
-    preferences = _get_or_create_preferences(session)
-    cg = _get_category_groups(preferences)
-    return CategoryGroupsResponse(**cg)
+    """Get flat list of all categories with article counts."""
+    # Query categories with article counts via LEFT JOIN
+    statement = (
+        select(Category, func.count(ArticleCategoryLink.article_id).label("article_count"))
+        .outerjoin(ArticleCategoryLink, Category.id == ArticleCategoryLink.category_id)
+        .group_by(Category.id)
+        .order_by(Category.display_name)
+    )
+    results = session.exec(statement).all()
+
+    return [
+        CategoryResponse(
+            id=cat.id,
+            display_name=cat.display_name,
+            slug=cat.slug,
+            weight=cat.weight,
+            parent_id=cat.parent_id,
+            is_hidden=cat.is_hidden,
+            is_seen=cat.is_seen,
+            is_manually_created=cat.is_manually_created,
+            article_count=count,
+        )
+        for cat, count in results
+    ]
 
 
-@app.put("/api/categories/groups", response_model=CategoryGroupsResponse)
-async def update_category_groups(
-    update: CategoryGroupsUpdate,
+@app.post("/api/categories", response_model=CategoryResponse, status_code=201)
+def create_category(
+    body: CategoryCreateRequest,
     session: Session = Depends(get_session),
 ):
-    """Save full category_groups JSON and trigger re-scoring."""
-    preferences = _get_or_create_preferences(session)
+    """Create a new category with display_name and optional parent_id."""
+    slug = slugify(body.display_name)
+    if not slug:
+        raise HTTPException(status_code=400, detail="Invalid category name")
 
-    # Reassign entire dict (SQLAlchemy JSON mutation rule)
-    preferences.category_groups = update.model_dump()
-    preferences.updated_at = datetime.now()
+    # Check for duplicate slug
+    existing = session.exec(select(Category).where(Category.slug == slug)).first()
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Category '{body.display_name}' already exists",
+        )
 
-    session.add(preferences)
+    # Validate parent if provided
+    if body.parent_id is not None:
+        parent = session.get(Category, body.parent_id)
+        if not parent:
+            raise HTTPException(status_code=404, detail="Parent category not found")
+
+    category = Category(
+        display_name=smart_case(body.display_name),
+        slug=slug,
+        parent_id=body.parent_id,
+        is_manually_created=True,
+        is_seen=True,
+    )
+    session.add(category)
     session.commit()
-    session.refresh(preferences)
+    session.refresh(category)
 
-    # Trigger re-scoring since weight changes affect scores
-    from backend.scheduler import scoring_queue
+    return CategoryResponse(
+        id=category.id,
+        display_name=category.display_name,
+        slug=category.slug,
+        weight=category.weight,
+        parent_id=category.parent_id,
+        is_hidden=category.is_hidden,
+        is_seen=category.is_seen,
+        is_manually_created=category.is_manually_created,
+        article_count=0,
+    )
 
-    await scoring_queue.enqueue_recent_for_rescoring(session)
 
-    cg = _get_category_groups(preferences)
-    return CategoryGroupsResponse(**cg)
-
-
-@app.patch("/api/categories/{name}/hide", response_model=CategoryGroupsResponse)
-def hide_category(
-    name: str,
+@app.patch("/api/categories/{category_id}", response_model=CategoryResponse)
+def update_category(
+    category_id: int,
+    body: CategoryUpdate,
     session: Session = Depends(get_session),
 ):
-    """Hide a category: add to hidden_categories, remove from children map and topic_weights."""
-    preferences = _get_or_create_preferences(session)
-    cg = _get_category_groups(preferences)
-    cat_lower = name.lower()
+    """Update a category (rename, reparent, weight change, etc.)."""
+    category = session.get(Category, category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
 
-    # Add to hidden_categories if not already there
-    hidden = list(cg.get("hidden_categories", []))
-    if cat_lower not in [h.lower() for h in hidden]:
-        hidden.append(cat_lower)
+    if body.display_name is not None:
+        new_slug = slugify(body.display_name)
+        if not new_slug:
+            raise HTTPException(status_code=400, detail="Invalid category name")
+        # Check slug uniqueness (skip if same category)
+        existing = session.exec(
+            select(Category).where(Category.slug == new_slug).where(Category.id != category_id)
+        ).first()
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Category '{body.display_name}' already exists",
+            )
+        category.display_name = smart_case(body.display_name)
+        category.slug = new_slug
 
-    # Remove from children map
-    children = dict(cg.get("children", {}))
-    # Remove if it's a parent
-    children.pop(cat_lower, None)
-    # Remove if it's a child
-    for parent, child_list in children.items():
-        children[parent] = [c for c in child_list if c.lower() != cat_lower]
+    if body.parent_id is not None:
+        if body.parent_id == -1:
+            # Sentinel: move to root
+            category.parent_id = None
+        else:
+            # Prevent self-parenting
+            if body.parent_id == category_id:
+                raise HTTPException(status_code=400, detail="Category cannot be its own parent")
+            # Prevent circular: can't parent to own child
+            child_ids = {c.id for c in (category.children or [])}
+            if body.parent_id in child_ids:
+                raise HTTPException(status_code=400, detail="Cannot parent to own child")
+            parent = session.get(Category, body.parent_id)
+            if not parent:
+                raise HTTPException(status_code=404, detail="Parent category not found")
+            category.parent_id = body.parent_id
+    elif body.model_fields_set and "parent_id" in body.model_fields_set:
+        # Explicitly set to None -> move to root
+        category.parent_id = None
 
-    # Reassign category_groups
-    preferences.category_groups = {
-        **cg,
-        "hidden_categories": hidden,
-        "children": children,
-    }
+    if body.weight is not None:
+        if body.weight == "inherit":
+            category.weight = None
+        elif body.weight not in VALID_WEIGHTS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid weight '{body.weight}'. Must be one of: {', '.join(VALID_WEIGHTS)} or 'inherit'",
+            )
+        else:
+            category.weight = body.weight
 
-    # Remove from topic_weights
-    if preferences.topic_weights and cat_lower in preferences.topic_weights:
-        new_weights = {k: v for k, v in preferences.topic_weights.items() if k != cat_lower}
-        preferences.topic_weights = new_weights
+    if body.is_hidden is not None:
+        category.is_hidden = body.is_hidden
 
-    preferences.updated_at = datetime.now()
-    session.add(preferences)
+    if body.is_seen is not None:
+        category.is_seen = body.is_seen
+
+    session.add(category)
     session.commit()
-    session.refresh(preferences)
+    session.refresh(category)
 
-    return CategoryGroupsResponse(**_get_category_groups(preferences))
+    return _category_to_response(session, category)
 
 
-@app.patch("/api/categories/{name}/unhide", response_model=CategoryGroupsResponse)
-def unhide_category(
-    name: str,
+@app.delete("/api/categories/{category_id}")
+def delete_category(
+    category_id: int,
     session: Session = Depends(get_session),
 ):
-    """Unhide a category: remove from hidden_categories and returned_categories."""
-    preferences = _get_or_create_preferences(session)
-    cg = _get_category_groups(preferences)
-    cat_lower = name.lower()
+    """Delete a category. Children are released to root."""
+    category = session.get(Category, category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
 
-    # Remove from hidden_categories
-    hidden = [h for h in cg.get("hidden_categories", []) if h.lower() != cat_lower]
+    # Release children to root
+    children = session.exec(
+        select(Category).where(Category.parent_id == category_id)
+    ).all()
+    for child in children:
+        child.parent_id = None
+        session.add(child)
 
-    # Remove from returned_categories
-    returned = [r for r in cg.get("returned_categories", []) if r.lower() != cat_lower]
+    # Delete article-category links explicitly
+    from sqlalchemy import delete as sa_delete
+    session.exec(sa_delete(ArticleCategoryLink).where(ArticleCategoryLink.category_id == category_id))
 
-    preferences.category_groups = {
-        **cg,
-        "hidden_categories": hidden,
-        "returned_categories": returned,
-    }
-    preferences.updated_at = datetime.now()
-
-    session.add(preferences)
+    # Delete the category
+    session.delete(category)
     session.commit()
-    session.refresh(preferences)
 
-    return CategoryGroupsResponse(**_get_category_groups(preferences))
+    return {"ok": True}
 
 
-@app.get("/api/categories/new-count", response_model=NewCategoryCountResponse)
+@app.post("/api/categories/merge")
+def merge_categories(
+    body: CategoryMerge,
+    session: Session = Depends(get_session),
+):
+    """Merge source category into target. Moves article associations, reparents children, deletes source."""
+    if body.source_id == body.target_id:
+        raise HTTPException(status_code=400, detail="Source and target must be different")
+
+    source = session.get(Category, body.source_id)
+    if not source:
+        raise HTTPException(status_code=404, detail="Source category not found")
+
+    target = session.get(Category, body.target_id)
+    if not target:
+        raise HTTPException(status_code=404, detail="Target category not found")
+
+    # Move article associations from source to target
+    source_links = session.exec(
+        select(ArticleCategoryLink).where(ArticleCategoryLink.category_id == body.source_id)
+    ).all()
+
+    articles_moved = 0
+    for link in source_links:
+        # Check if target link already exists for this article
+        existing = session.exec(
+            select(ArticleCategoryLink)
+            .where(ArticleCategoryLink.article_id == link.article_id)
+            .where(ArticleCategoryLink.category_id == body.target_id)
+        ).first()
+        if existing:
+            # Already linked to target, just delete source link
+            session.delete(link)
+        else:
+            # Move: delete old, create new (composite PK can't be updated)
+            session.delete(link)
+            new_link = ArticleCategoryLink(
+                article_id=link.article_id,
+                category_id=body.target_id,
+            )
+            session.add(new_link)
+        articles_moved += 1
+
+    # Reparent source's children to target
+    source_children = session.exec(
+        select(Category).where(Category.parent_id == body.source_id)
+    ).all()
+    for child in source_children:
+        child.parent_id = body.target_id
+        session.add(child)
+
+    # Delete source category
+    session.delete(source)
+    session.commit()
+
+    return {"ok": True, "articles_moved": articles_moved}
+
+
+@app.get("/api/categories/new-count")
 def get_new_category_count(
     session: Session = Depends(get_session),
 ):
-    """Get count of categories not yet seen by the user (for badges)."""
-    from backend.prompts import DEFAULT_CATEGORIES
+    """Get count of unseen, non-hidden categories (for badges)."""
+    count = session.exec(
+        select(func.count(Category.id))
+        .where(Category.is_seen.is_(False))
+        .where(Category.is_hidden.is_(False))
+    ).one()
 
-    preferences = _get_or_create_preferences(session)
-    cg = _get_category_groups(preferences)
-
-    # Collect all known categories
-    all_categories: set[str] = set()
-
-    # From articles
-    articles = session.exec(
-        select(Article).where(Article.categories.is_not(None))
-    ).all()
-    for article in articles:
-        if article.categories:
-            for cat in article.categories:
-                all_categories.add(cat.lower())
-
-    # From topic_weights
-    if preferences.topic_weights:
-        for cat in preferences.topic_weights:
-            all_categories.add(cat.lower())
-
-    # From children map (parents and children)
-    for parent, child_list in cg.get("children", {}).items():
-        all_categories.add(parent.lower())
-        for child in child_list:
-            all_categories.add(child.lower())
-
-    # From defaults
-    for cat in DEFAULT_CATEGORIES:
-        all_categories.add(cat.lower())
-
-    # Subtract seen and hidden
-    seen = {s.lower() for s in cg.get("seen_categories", [])}
-    hidden = {h.lower() for h in cg.get("hidden_categories", [])}
-    new_categories = all_categories - seen - hidden
-
-    # Returned count
-    returned = cg.get("returned_categories", [])
-
-    return NewCategoryCountResponse(
-        count=len(new_categories),
-        returned_count=len(returned),
-    )
+    return {"count": count}
 
 
 @app.post("/api/categories/acknowledge")
 def acknowledge_categories(
-    body: CategoryAcknowledge,
+    body: CategoryAcknowledgeRequest,
     session: Session = Depends(get_session),
 ):
-    """Mark categories as seen (dismiss 'New' badges)."""
-    preferences = _get_or_create_preferences(session)
-    cg = _get_category_groups(preferences)
+    """Mark categories as seen by ID."""
+    for cat_id in body.category_ids:
+        category = session.get(Category, cat_id)
+        if category:
+            category.is_seen = True
+            session.add(category)
 
-    # Add to seen_categories
-    seen = list(cg.get("seen_categories", []))
-    seen_lower = {s.lower() for s in seen}
-    for cat in body.categories:
-        if cat.lower() not in seen_lower:
-            seen.append(cat.lower())
-            seen_lower.add(cat.lower())
-
-    # Remove from returned_categories
-    ack_lower = {c.lower() for c in body.categories}
-    returned = [r for r in cg.get("returned_categories", []) if r.lower() not in ack_lower]
-
-    preferences.category_groups = {
-        **cg,
-        "seen_categories": seen,
-        "returned_categories": returned,
-    }
-    preferences.updated_at = datetime.now()
-
-    session.add(preferences)
     session.commit()
 
     return {"ok": True}
 
 
-@app.post("/api/categories/create")
-def create_category(
-    body: CategoryCreate,
+@app.patch("/api/categories/{category_id}/hide", response_model=CategoryResponse)
+def hide_category(
+    category_id: int,
     session: Session = Depends(get_session),
 ):
-    """Create a manually-named category at root level."""
-    preferences = _get_or_create_preferences(session)
-    cg = _get_category_groups(preferences)
+    """Hide a category and set weight to block."""
+    category = session.get(Category, category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
 
-    # Normalize to kebab-case
-    cat_name = body.name.strip().lower().replace(" ", "-")
-
-    # Duplicate check: collect all existing category names
-    existing_names: set[str] = set()
-    existing_names.update(s.lower() for s in cg.get("seen_categories", []))
-    for parent, child_list in cg.get("children", {}).items():
-        existing_names.add(parent.lower())
-        existing_names.update(c.lower() for c in child_list)
-    # Also check article categories and manually_created
-    existing_names.update(m.lower() for m in cg.get("manually_created", []))
-
-    if cat_name in existing_names:
-        raise HTTPException(
-            status_code=409, detail=f"Category '{cat_name}' already exists"
-        )
-
-    # Add to seen_categories and manually_created
-    seen = list(cg.get("seen_categories", []))
-    if cat_name not in [s.lower() for s in seen]:
-        seen.append(cat_name)
-
-    manually_created = list(cg.get("manually_created", []))
-    if cat_name not in manually_created:
-        manually_created.append(cat_name)
-
-    preferences.category_groups = {
-        **cg,
-        "seen_categories": seen,
-        "manually_created": manually_created,
-    }
-    preferences.updated_at = datetime.now()
-    session.add(preferences)
+    category.is_hidden = True
+    category.weight = "block"
+    session.add(category)
     session.commit()
-    session.refresh(preferences)
+    session.refresh(category)
 
-    return {"name": cat_name}
+    return _category_to_response(session, category)
 
 
-@app.delete("/api/categories")
-def delete_category(
-    body: CategoryDelete,
+@app.patch("/api/categories/{category_id}/unhide", response_model=CategoryResponse)
+def unhide_category(
+    category_id: int,
     session: Session = Depends(get_session),
 ):
-    """Delete a category. If parent, split group: parent becomes ungrouped, children released."""
-    preferences = _get_or_create_preferences(session)
-    cg = _get_category_groups(preferences)
-    cat_lower = body.name.lower()
+    """Unhide a category. Reset weight to inherit if it was block."""
+    category = session.get(Category, category_id)
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
 
-    children = dict(cg.get("children", {}))
-
-    # If deleting a parent, release children (remove from children map)
-    released_children = children.pop(cat_lower, None)
-    if released_children:
-        logger.info(
-            "Category delete (parent split): '%s' released children %s",
-            cat_lower,
-            released_children,
-        )
-
-    # Verify parent key was actually removed
-    if cat_lower in children:
-        logger.warning(
-            "Category delete: parent key '%s' still present after pop, forcing removal",
-            cat_lower,
-        )
-        del children[cat_lower]
-
-    # If deleting a child, remove from parent's children list
-    for parent, child_list in children.items():
-        before = len(child_list)
-        children[parent] = [c for c in child_list if c.lower() != cat_lower]
-        if len(children[parent]) < before:
-            logger.info(
-                "Category delete (child removal): '%s' removed from parent '%s'",
-                cat_lower,
-                parent,
-            )
-
-    # Remove from manually_created if present
-    manually_created = [m for m in cg.get("manually_created", []) if m.lower() != cat_lower]
-
-    # Remove from topic_weights
-    if preferences.topic_weights and cat_lower in preferences.topic_weights:
-        new_weights = {k: v for k, v in preferences.topic_weights.items() if k != cat_lower}
-        preferences.topic_weights = new_weights
-
-    preferences.category_groups = {
-        **cg,
-        "children": children,
-        "manually_created": manually_created,
-    }
-    preferences.updated_at = datetime.now()
-    session.add(preferences)
+    category.is_hidden = False
+    if category.weight == "block":
+        category.weight = None
+    session.add(category)
     session.commit()
+    session.refresh(category)
 
-    return {"ok": True}
-
-
-@app.patch("/api/categories/rename")
-def rename_category(
-    body: CategoryRename,
-    session: Session = Depends(get_session),
-):
-    """Rename a category. Updates children map, topic_weights, seen/hidden/returned lists, and article categories."""
-    preferences = _get_or_create_preferences(session)
-    cg = _get_category_groups(preferences)
-    old_name = body.old_name.strip().lower().replace(" ", "-")
-    new_name = body.new_name.strip().lower().replace(" ", "-")
-
-    children = dict(cg.get("children", {}))
-
-    # If renaming a parent, update the key
-    if old_name in children:
-        children[new_name] = children.pop(old_name)
-
-    # If renaming a child, update in parent's list
-    for parent, child_list in children.items():
-        children[parent] = [new_name if c.lower() == old_name else c for c in child_list]
-
-    # Update topic_weights key
-    if preferences.topic_weights and old_name in preferences.topic_weights:
-        new_weights = dict(preferences.topic_weights)
-        new_weights[new_name] = new_weights.pop(old_name)
-        preferences.topic_weights = new_weights
-
-    # Update in seen/hidden/returned/manually_created lists
-    def rename_in_list(lst):
-        return [new_name if item.lower() == old_name else item for item in lst]
-
-    preferences.category_groups = {
-        **cg,
-        "children": children,
-        "seen_categories": rename_in_list(cg.get("seen_categories", [])),
-        "hidden_categories": rename_in_list(cg.get("hidden_categories", [])),
-        "returned_categories": rename_in_list(cg.get("returned_categories", [])),
-        "manually_created": rename_in_list(cg.get("manually_created", [])),
-    }
-    preferences.updated_at = datetime.now()
-    session.add(preferences)
-    session.commit()
-
-    # Update article.categories in database
-    articles_with_cat = session.exec(
-        select(Article).where(Article.categories.is_not(None))
-    ).all()
-    updated_count = 0
-    for article in articles_with_cat:
-        if article.categories and old_name in [c.lower() for c in article.categories]:
-            article.categories = [
-                new_name if c.lower() == old_name else c
-                for c in article.categories
-            ]
-            session.add(article)
-            updated_count += 1
-    if updated_count:
-        session.commit()
-        logger.info(
-            "Category rename: updated %d articles from '%s' to '%s'",
-            updated_count,
-            old_name,
-            new_name,
-        )
-
-    session.refresh(preferences)
-
-    return {"old_name": old_name, "new_name": new_name}
+    return _category_to_response(session, category)
 
 
 @app.post("/api/scoring/rescore")
@@ -1261,12 +1098,9 @@ async def update_ollama_config(
     preferences = session.exec(select(UserPreferences)).first()
 
     if not preferences:
-        from backend.prompts import get_default_topic_weights
-
         preferences = UserPreferences(
             interests="",
             anti_interests="",
-            topic_weights=get_default_topic_weights(),
             updated_at=datetime.now(),
         )
         session.add(preferences)
