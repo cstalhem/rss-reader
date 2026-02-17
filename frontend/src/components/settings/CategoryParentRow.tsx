@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Flex, Text, Box, IconButton, Input } from "@chakra-ui/react";
 import { LuFolder, LuPencil, LuTrash2 } from "react-icons/lu";
 import { useDroppable } from "@dnd-kit/core";
@@ -25,7 +25,7 @@ interface CategoryParentRowProps {
   onDelete: () => void;
 }
 
-export function CategoryParentRow({
+const CategoryParentRowComponent = ({
   category,
   weight,
   childCount,
@@ -34,8 +34,7 @@ export function CategoryParentRow({
   activeId,
   onRename,
   onDelete,
-}: CategoryParentRowProps) {
-  const [isHovered, setIsHovered] = useState(false);
+}: CategoryParentRowProps) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(toTitleCase(category));
   const inputRef = useRef<HTMLInputElement>(null);
@@ -70,6 +69,7 @@ export function CategoryParentRow({
     <SwipeableRow onEditReveal={() => setIsRenaming(true)}>
       <Flex
         ref={setNodeRef}
+        role="group"
         alignItems="center"
         gap={2}
         py={3}
@@ -78,8 +78,6 @@ export function CategoryParentRow({
         borderRadius="sm"
         _hover={{ bg: "bg.muted" }}
         transition="background 0.15s"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         <LuFolder size={16} color="var(--chakra-colors-fg-muted)" />
 
@@ -119,7 +117,8 @@ export function CategoryParentRow({
                 e.stopPropagation();
                 setIsRenaming(true);
               }}
-              opacity={{ base: 1, md: isHovered ? 1 : 0 }}
+              opacity={{ base: 1, md: 0 }}
+              _groupHover={{ opacity: 1 }}
               transition="opacity 0.15s"
             >
               <LuPencil size={14} />
@@ -133,7 +132,8 @@ export function CategoryParentRow({
                 e.stopPropagation();
                 onDelete();
               }}
-              opacity={{ base: 1, md: isHovered ? 1 : 0 }}
+              opacity={{ base: 1, md: 0 }}
+              _groupHover={{ opacity: 1 }}
               transition="opacity 0.15s"
             >
               <LuTrash2 size={14} />
@@ -165,4 +165,6 @@ export function CategoryParentRow({
       </Flex>
     </SwipeableRow>
   );
-}
+};
+
+export const CategoryParentRow = React.memo(CategoryParentRowComponent);

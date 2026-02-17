@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { Stack, Box } from "@chakra-ui/react";
 import { CategoryParentRow } from "./CategoryParentRow";
 import { CategoryChildRow } from "./CategoryChildRow";
@@ -21,7 +21,7 @@ interface CategoryTreeProps {
   onDelete: (name: string) => void;
 }
 
-export function CategoryTree({
+const CategoryTreeComponent = ({
   children,
   ungroupedCategories,
   topicWeights,
@@ -35,7 +35,7 @@ export function CategoryTree({
   activeId,
   onRename,
   onDelete,
-}: CategoryTreeProps) {
+}: CategoryTreeProps) => {
   // Sort parents alphabetically
   const sortedParents = useMemo(() => {
     return Object.keys(children).sort((a, b) => a.localeCompare(b));
@@ -181,4 +181,6 @@ export function CategoryTree({
       })}
     </Stack>
   );
-}
+};
+
+export const CategoryTree = React.memo(CategoryTreeComponent);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { Flex, Box, IconButton, Text } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
@@ -27,12 +27,12 @@ interface WeightPresetStripProps {
   onReset?: () => void; // reset to parent weight
 }
 
-export function WeightPresetStrip({
+const WeightPresetStripComponent = ({
   value,
   onChange,
   isOverridden,
   onReset,
-}: WeightPresetStripProps) {
+}: WeightPresetStripProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -118,4 +118,6 @@ export function WeightPresetStrip({
       </Box>
     </Flex>
   );
-}
+};
+
+export const WeightPresetStrip = React.memo(WeightPresetStripComponent);

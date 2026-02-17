@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useCallback, useState, useRef, useEffect } from "react";
 import { Flex, Text, Badge, IconButton, Box, Input } from "@chakra-ui/react";
 import { LuGripVertical, LuX, LuPencil, LuTrash2 } from "react-icons/lu";
 import { useSortable } from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { WeightPresetStrip } from "./WeightPresetStrip";
 import { SwipeableRow } from "./SwipeableRow";
@@ -31,7 +32,7 @@ interface CategoryChildRowProps {
   onDelete: () => void;
 }
 
-export function CategoryChildRow({
+const CategoryChildRowComponent = ({
   category,
   weight,
   isOverridden,
@@ -44,8 +45,7 @@ export function CategoryChildRow({
   isDndEnabled = false,
   onRename,
   onDelete,
-}: CategoryChildRowProps) {
-  const [isHovered, setIsHovered] = useState(false);
+}: CategoryChildRowProps) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(toTitleCase(category));
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,7 +53,7 @@ export function CategoryChildRow({
   const {
     attributes,
     listeners,
-    setNodeRef,
+    setNodeRef: setSortableRef,
     transform,
     transition,
     isDragging,
@@ -61,6 +61,21 @@ export function CategoryChildRow({
     id: category,
     disabled: !isDndEnabled,
   });
+
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: `drop:${category}`,
+    data: { type: "category", category },
+    disabled: !isDndEnabled,
+  });
+
+  // Combine sortable and droppable refs
+  const setNodeRef = useCallback(
+    (node: HTMLElement | null) => {
+      setSortableRef(node);
+      setDroppableRef(node);
+    },
+    [setSortableRef, setDroppableRef]
+  );
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -93,17 +108,16 @@ export function CategoryChildRow({
     <SwipeableRow onEditReveal={() => setIsRenaming(true)}>
       <Flex
         ref={setNodeRef}
+        role="group"
         style={style}
         alignItems="center"
         gap={2}
         py={2}
         px={3}
-        bg="bg.subtle"
+        bg={isOver ? "accent.subtle" : "bg.subtle"}
         borderRadius="sm"
-        _hover={{ bg: "bg.muted" }}
+        _hover={{ bg: isOver ? "accent.subtle" : "bg.muted" }}
         transition="background 0.15s"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         <Flex
           color="fg.muted"
@@ -152,10 +166,10 @@ export function CategoryChildRow({
               <Box
                 display="flex"
                 alignItems="center"
-                maxW={isHovered ? "20px" : "0"}
+                maxW="0"
                 overflow="hidden"
-                transition="max-width 0.15s"
-                pr={isHovered ? 1 : 0}
+                transition="max-width 0.15s, padding 0.15s"
+                _groupHover={{ maxW: "20px", pr: 1 }}
               >
                 <LuX size={14} />
               </Box>
@@ -178,10 +192,10 @@ export function CategoryChildRow({
               <Box
                 display="flex"
                 alignItems="center"
-                maxW={isHovered ? "20px" : "0"}
+                maxW="0"
                 overflow="hidden"
-                transition="max-width 0.15s"
-                pr={isHovered ? 1 : 0}
+                transition="max-width 0.15s, padding 0.15s"
+                _groupHover={{ maxW: "20px", pr: 1 }}
               >
                 <LuX size={14} />
               </Box>
@@ -200,7 +214,8 @@ export function CategoryChildRow({
                 e.stopPropagation();
                 setIsRenaming(true);
               }}
-              opacity={{ base: 1, md: isHovered ? 1 : 0 }}
+              opacity={{ base: 1, md: 0 }}
+              _groupHover={{ opacity: 1 }}
               transition="opacity 0.15s"
             >
               <LuPencil size={14} />
@@ -214,7 +229,8 @@ export function CategoryChildRow({
                 e.stopPropagation();
                 onDelete();
               }}
-              opacity={{ base: 1, md: isHovered ? 1 : 0 }}
+              opacity={{ base: 1, md: 0 }}
+              _groupHover={{ opacity: 1 }}
               transition="opacity 0.15s"
             >
               <LuTrash2 size={14} />
@@ -237,7 +253,8 @@ export function CategoryChildRow({
             e.stopPropagation();
             onHide();
           }}
-          opacity={{ base: 1, md: isHovered ? 1 : 0 }}
+          opacity={{ base: 1, md: 0 }}
+          _groupHover={{ opacity: 1 }}
           transition="opacity 0.15s"
         >
           <LuX size={14} />
@@ -245,4 +262,6 @@ export function CategoryChildRow({
       </Flex>
     </SwipeableRow>
   );
-}
+};
+
+export const CategoryChildRow = React.memo(CategoryChildRowComponent);
