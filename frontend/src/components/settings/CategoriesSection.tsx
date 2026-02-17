@@ -21,6 +21,8 @@ import {
   updatePreferences as apiUpdatePreferences,
 } from "@/lib/api";
 import { CategoryTree } from "./CategoryTree";
+import { CreateCategoryPopover } from "./CreateCategoryPopover";
+import { DeleteCategoryDialog } from "./DeleteCategoryDialog";
 
 function toTitleCase(kebab: string): string {
   return kebab
@@ -39,6 +41,9 @@ export function CategoriesSection() {
     hideCategory,
     acknowledge,
     saveGroups,
+    createCategory,
+    deleteCategory,
+    renameCategory,
   } = useCategories();
   const { preferences } = usePreferences();
   const queryClient = useQueryClient();
@@ -52,6 +57,13 @@ export function CategoriesSection() {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
+
+  // Delete state
+  const [deletingCategory, setDeletingCategory] = useState<{
+    name: string;
+    childCount: number;
+    isParent: boolean;
+  } | null>(null);
 
   const categoryWeightMutation = useMutation({
     mutationFn: ({ category, weight }: { category: string; weight: string }) =>
@@ -266,6 +278,30 @@ export function CategoriesSection() {
     [acknowledge]
   );
 
+  const handleDeleteCategory = useCallback(
+    (name: string) => {
+      const children = categoryGroups?.children ?? {};
+      const isParent = name in children;
+      const childCount = isParent ? children[name].length : 0;
+      setDeletingCategory({ name, childCount, isParent });
+    },
+    [categoryGroups]
+  );
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (deletingCategory) {
+      deleteCategory(deletingCategory.name);
+      setDeletingCategory(null);
+    }
+  }, [deletingCategory, deleteCategory]);
+
+  const handleRenameCategory = useCallback(
+    (oldName: string, newName: string) => {
+      renameCategory({ name: oldName, newName });
+    },
+    [renameCategory]
+  );
+
   if (isLoading) {
     return (
       <Stack gap={4}>
@@ -318,7 +354,10 @@ export function CategoriesSection() {
           </Badge>
         )}
         <Box flex={1} />
-        {/* Create category button placeholder — functional in Plan 04 */}
+        <CreateCategoryPopover
+          onCreateCategory={(name) => createCategory(name)}
+          existingCategories={allCategories}
+        />
       </Flex>
 
       {/* Search input */}
@@ -350,6 +389,8 @@ export function CategoriesSection() {
             onBadgeDismiss={handleBadgeDismiss}
             isDndEnabled={!isDndDisabled}
             activeId={activeId}
+            onRename={handleRenameCategory}
+            onDelete={handleDeleteCategory}
           />
         </Box>
         <DragOverlay>
@@ -367,6 +408,14 @@ export function CategoriesSection() {
           )}
         </DragOverlay>
       </DndContext>
+
+      <DeleteCategoryDialog
+        categoryName={deletingCategory?.name ?? null}
+        childCount={deletingCategory?.childCount ?? 0}
+        isParent={deletingCategory?.isParent ?? false}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeletingCategory(null)}
+      />
     </Stack>
   );
 }

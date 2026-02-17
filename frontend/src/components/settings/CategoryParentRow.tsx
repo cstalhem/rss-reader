@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Flex, Text, Box } from "@chakra-ui/react";
-import { LuFolder } from "react-icons/lu";
+import { useState, useRef, useEffect } from "react";
+import { Flex, Text, Box, IconButton, Input } from "@chakra-ui/react";
+import { LuFolder, LuPencil, LuTrash2 } from "react-icons/lu";
 import { useDroppable } from "@dnd-kit/core";
 import { WeightPresets } from "./WeightPresets";
 
@@ -20,6 +20,8 @@ interface CategoryParentRowProps {
   onWeightChange: (weight: string) => void;
   isDndEnabled?: boolean;
   activeId?: string | null;
+  onRename: (newName: string) => void;
+  onDelete: () => void;
 }
 
 export function CategoryParentRow({
@@ -29,13 +31,39 @@ export function CategoryParentRow({
   onWeightChange,
   isDndEnabled = false,
   activeId,
+  onRename,
+  onDelete,
 }: CategoryParentRowProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(toTitleCase(category));
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const { setNodeRef, isOver } = useDroppable({
     id: `parent:${category}`,
     disabled: !isDndEnabled,
   });
+
+  useEffect(() => {
+    if (isRenaming && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isRenaming]);
+
+  const handleRenameSubmit = () => {
+    const trimmed = renameValue.trim().toLowerCase().replace(/\s+/g, "-");
+    if (trimmed && trimmed !== category) {
+      onRename(trimmed);
+    }
+    setIsRenaming(false);
+    setRenameValue(toTitleCase(category));
+  };
+
+  const handleRenameCancel = () => {
+    setIsRenaming(false);
+    setRenameValue(toTitleCase(category));
+  };
 
   return (
     <Flex
@@ -53,13 +81,63 @@ export function CategoryParentRow({
     >
       <LuFolder size={16} color="var(--chakra-colors-fg-muted)" />
 
-      <Text fontSize="sm" fontWeight="semibold" flex={1} truncate>
-        {toTitleCase(category)}
-      </Text>
+      {isRenaming ? (
+        <Input
+          ref={inputRef}
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleRenameSubmit();
+            } else if (e.key === "Escape") {
+              handleRenameCancel();
+            }
+          }}
+          onBlur={handleRenameSubmit}
+          size="sm"
+          flex={1}
+        />
+      ) : (
+        <Text fontSize="sm" fontWeight="semibold" flex={1} truncate>
+          {toTitleCase(category)}
+        </Text>
+      )}
 
       <Text fontSize="xs" color="fg.muted">
         ({childCount})
       </Text>
+
+      {!isRenaming && (
+        <>
+          <IconButton
+            aria-label="Rename category"
+            size="xs"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsRenaming(true);
+            }}
+            opacity={{ base: 1, md: isHovered ? 1 : 0 }}
+            transition="opacity 0.15s"
+          >
+            <LuPencil size={14} />
+          </IconButton>
+
+          <IconButton
+            aria-label="Delete category"
+            size="xs"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            opacity={{ base: 1, md: isHovered ? 1 : 0 }}
+            transition="opacity 0.15s"
+          >
+            <LuTrash2 size={14} />
+          </IconButton>
+        </>
+      )}
 
       <WeightPresets value={weight} onChange={onWeightChange} size="sm" />
 
