@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from slugify import slugify
 from sqlalchemy import desc, nulls_last
+from sqlalchemy.orm import selectinload
 from sqlmodel import Session, func, select
 
 from backend import ollama_service
@@ -153,6 +154,37 @@ class CategoryAcknowledgeRequest(BaseModel):
     category_ids: list[int]
 
 
+# --- Article category embedding ---
+
+
+class ArticleCategoryEmbed(BaseModel):
+    """Category embedded in article response."""
+    id: int
+    display_name: str
+    slug: str
+    effective_weight: str
+    parent_display_name: str | None
+
+
+class ArticleResponse(BaseModel):
+    id: int
+    feed_id: int
+    title: str
+    url: str
+    author: str | None
+    published_at: datetime | None
+    summary: str | None
+    content: str | None
+    is_read: bool
+    categories: list[ArticleCategoryEmbed] | None
+    interest_score: int | None
+    quality_score: int | None
+    composite_score: float | None
+    score_reasoning: str | None
+    scoring_state: str
+    scored_at: datetime | None
+
+
 # Ollama API models
 class OllamaHealthResponse(BaseModel):
     connected: bool
@@ -227,7 +259,9 @@ def list_articles(
         exclude_blocked: When True (default), only show scored non-blocked articles in main views.
             Unscored/queued/scoring articles are hidden until scoring completes.
     """
-    statement = select(Article)
+    statement = select(Article).options(
+        selectinload(Article.categories_rel).joinedload(Category.parent)
+    )
 
     # Apply filters
     if is_read is not None:
@@ -283,31 +317,43 @@ def list_articles(
 
     statement = statement.offset(skip).limit(limit)
     articles = session.exec(statement).all()
-    return articles
+    return [_article_to_response(article) for article in articles]
 
 
-@app.get("/api/articles/{article_id}")
+@app.get("/api/articles/{article_id}", response_model=ArticleResponse)
 def get_article(
     article_id: int,
     session: Session = Depends(get_session),
 ):
-    """Get a single article by ID with full content."""
-    article = session.get(Article, article_id)
+    """Get a single article by ID with full content and rich categories."""
+    article = session.exec(
+        select(Article)
+        .where(Article.id == article_id)
+        .options(
+            selectinload(Article.categories_rel).joinedload(Category.parent)
+        )
+    ).first()
 
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
 
-    return article
+    return _article_to_response(article)
 
 
-@app.patch("/api/articles/{article_id}")
+@app.patch("/api/articles/{article_id}", response_model=ArticleResponse)
 def update_article(
     article_id: int,
     update: ArticleUpdate,
     session: Session = Depends(get_session),
 ):
     """Update article read status."""
-    article = session.get(Article, article_id)
+    article = session.exec(
+        select(Article)
+        .where(Article.id == article_id)
+        .options(
+            selectinload(Article.categories_rel).joinedload(Category.parent)
+        )
+    ).first()
 
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
@@ -317,7 +363,7 @@ def update_article(
     session.commit()
     session.refresh(article)
 
-    return article
+    return _article_to_response(article)
 
 
 @app.get("/api/feeds", response_model=list[FeedResponse])
@@ -607,7 +653,44 @@ async def update_preferences(
     )
 
 
-# --- Helper ---
+# --- Helpers ---
+
+
+def _article_to_response(article: Article) -> ArticleResponse:
+    """Convert an Article with loaded categories_rel to an ArticleResponse."""
+    from backend.scoring import get_effective_weight
+
+    categories = None
+    if article.categories_rel:
+        categories = [
+            ArticleCategoryEmbed(
+                id=cat.id,
+                display_name=cat.display_name,
+                slug=cat.slug,
+                effective_weight=get_effective_weight(cat),
+                parent_display_name=cat.parent.display_name if cat.parent else None,
+            )
+            for cat in article.categories_rel
+        ]
+
+    return ArticleResponse(
+        id=article.id,
+        feed_id=article.feed_id,
+        title=article.title,
+        url=article.url,
+        author=article.author,
+        published_at=article.published_at,
+        summary=article.summary,
+        content=article.content,
+        is_read=article.is_read,
+        categories=categories,
+        interest_score=article.interest_score,
+        quality_score=article.quality_score,
+        composite_score=article.composite_score,
+        score_reasoning=article.score_reasoning,
+        scoring_state=article.scoring_state,
+        scored_at=article.scored_at,
+    )
 
 
 def _get_or_create_preferences(session: Session) -> UserPreferences:
