@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8.1 of 9 (Categories Settings UI Redesign)
-Plan: 6 of 8 complete
+Plan: 7 of 8 complete
 Status: In Progress
-Last activity: 2026-02-17 - Completed Phase 08.1 Plan 06 (DnD performance and ungroup zone)
+Last activity: 2026-02-17 - Completed Phase 08.1 Plan 07 (Optimistic weight updates)
 
 Progress: [██████████] 100% (36/36 total plans estimated from v1.1)
 
@@ -69,6 +69,7 @@ Progress: [██████████] 100% (36/36 total plans estimated fro
 | Phase 08.1-categories-settings-ui-redesign P04 | 4.3 | 2 tasks | 4 files |
 | Phase 08.1-categories-settings-ui-redesign P05 | 2.0 | 2 tasks | 2 files |
 | Phase 08.1-categories-settings-ui-redesign P06 | 4.4 | 2 tasks | 5 files |
+| Phase 08.1-categories-settings-ui-redesign P07 | 1.5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -140,6 +141,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08.1-06]: Combined useDroppable + useSortable via callback ref for drop feedback on ungrouped rows
 - [Phase 08.1-06]: Ungroup drop zone renders only during active drag (conditional on activeId)
 - [Phase 08.1-06]: Prefixed droppable IDs (drop:category) stripped in handleDragEnd to resolve to actual category names
+- [Phase 08.1-07]: Optimistic mutations with onMutate snapshot/setQueryData, onError rollback + toast, onSettled invalidate
+- [Phase 08.1-07]: Success toasts omitted to reduce noise -- instant UI update is primary feedback
 
 ### Pending Todos
 
@@ -171,9 +174,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 08.1-06-PLAN.md
-Resume file: .planning/phases/08.1-categories-settings-ui-redesign/08.1-06-SUMMARY.md
+Stopped at: Completed 08.1-07-PLAN.md
+Resume file: .planning/phases/08.1-categories-settings-ui-redesign/08.1-07-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-17 after Phase 08.1 Plan 05 completion*
+*Last updated: 2026-02-17 after Phase 08.1 Plan 07 completion*
