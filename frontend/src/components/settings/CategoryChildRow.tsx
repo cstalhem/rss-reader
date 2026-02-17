@@ -41,6 +41,7 @@ const CategoryChildRowComponent = ({
 }: CategoryChildRowProps) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(category.display_name);
+  const [isHovered, setIsHovered] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -111,6 +112,8 @@ const CategoryChildRowComponent = ({
         borderRadius="sm"
         _hover={{ bg: isOver ? "accent.subtle" : "bg.muted" }}
         transition="background 0.15s"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         <Flex
           color="fg.muted"
@@ -159,10 +162,10 @@ const CategoryChildRowComponent = ({
               <Box
                 display="flex"
                 alignItems="center"
-                maxW="0"
+                maxW={{ base: "20px", md: isHovered ? "20px" : "0" }}
                 overflow="hidden"
                 transition="max-width 0.15s, padding 0.15s"
-                _groupHover={{ maxW: "20px", pr: 1 }}
+                pr={isHovered ? 1 : 0}
               >
                 <LuX size={14} />
               </Box>
@@ -182,8 +185,7 @@ const CategoryChildRowComponent = ({
 
         <Flex
           overflow="hidden"
-          maxW={{ base: "auto", md: "0" }}
-          _groupHover={{ maxW: "110px" }}
+          maxW={{ base: "auto", md: isHovered ? "110px" : "0" }}
           transition="max-width 0.2s ease-out"
         >
           {!isRenaming && (

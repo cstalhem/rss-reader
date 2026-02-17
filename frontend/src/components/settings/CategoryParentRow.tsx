@@ -32,6 +32,7 @@ const CategoryParentRowComponent = ({
 }: CategoryParentRowProps) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(category.display_name);
+  const [isHovered, setIsHovered] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { setNodeRef, isOver } = useDroppable({
@@ -73,6 +74,8 @@ const CategoryParentRowComponent = ({
         borderRadius="sm"
         _hover={{ bg: "bg.muted" }}
         transition="background 0.15s"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         <LuFolder size={16} color="var(--chakra-colors-fg-muted)" />
 
@@ -109,8 +112,7 @@ const CategoryParentRowComponent = ({
         {!isRenaming && (
           <Flex
             overflow="hidden"
-            maxW={{ base: "auto", md: "0" }}
-            _groupHover={{ maxW: "80px" }}
+            maxW={{ base: "auto", md: isHovered ? "80px" : "0" }}
             transition="max-width 0.2s ease-out"
           >
             <Tooltip content="Rename category" openDelay={300}>
