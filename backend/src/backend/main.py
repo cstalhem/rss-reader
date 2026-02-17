@@ -957,6 +957,20 @@ def create_category(
     # Normalize to kebab-case
     cat_name = body.name.strip().lower().replace(" ", "-")
 
+    # Duplicate check: collect all existing category names
+    existing_names: set[str] = set()
+    existing_names.update(s.lower() for s in cg.get("seen_categories", []))
+    for parent, child_list in cg.get("children", {}).items():
+        existing_names.add(parent.lower())
+        existing_names.update(c.lower() for c in child_list)
+    # Also check article categories and manually_created
+    existing_names.update(m.lower() for m in cg.get("manually_created", []))
+
+    if cat_name in existing_names:
+        raise HTTPException(
+            status_code=409, detail=f"Category '{cat_name}' already exists"
+        )
+
     # Add to seen_categories and manually_created
     seen = list(cg.get("seen_categories", []))
     if cat_name not in [s.lower() for s in seen]:

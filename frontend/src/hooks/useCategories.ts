@@ -13,6 +13,7 @@ import {
   deleteCategory as apiDeleteCategory,
   renameCategory as apiRenameCategory,
 } from "@/lib/api";
+import { toaster } from "@/components/ui/toaster";
 
 export function useCategories() {
   const queryClient = useQueryClient();
@@ -72,6 +73,17 @@ export function useCategories() {
       queryClient.invalidateQueries({ queryKey: ["categoryGroups"] });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       queryClient.invalidateQueries({ queryKey: ["categories", "new-count"] });
+      toaster.create({
+        title: "Category created",
+        type: "success",
+      });
+    },
+    onError: (err: Error) => {
+      toaster.create({
+        title: "Failed to create category",
+        description: err.message,
+        type: "error",
+      });
     },
   });
 
@@ -83,6 +95,13 @@ export function useCategories() {
       queryClient.invalidateQueries({ queryKey: ["categories", "new-count"] });
       queryClient.invalidateQueries({ queryKey: ["preferences"] });
     },
+    onError: (err: Error) => {
+      toaster.create({
+        title: "Failed to delete category",
+        description: err.message,
+        type: "error",
+      });
+    },
   });
 
   const renameCategoryMutation = useMutation({
@@ -92,6 +111,13 @@ export function useCategories() {
       queryClient.invalidateQueries({ queryKey: ["categoryGroups"] });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       queryClient.invalidateQueries({ queryKey: ["preferences"] });
+    },
+    onError: (err: Error) => {
+      toaster.create({
+        title: "Failed to rename category",
+        description: err.message,
+        type: "error",
+      });
     },
   });
 
