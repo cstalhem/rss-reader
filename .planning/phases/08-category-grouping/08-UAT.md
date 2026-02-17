@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: resolved
 phase: 08-category-grouping
 source: [08-06-SUMMARY.md, 08-07-SUMMARY.md, 08-08-SUMMARY.md]
 started: 2026-02-16T15:00:00Z
@@ -69,7 +69,7 @@ skipped: 0
 ## Gaps
 
 - truth: "Interests section subheaders match the same design pattern as Ollama and other settings sections"
-  status: failed
+  status: resolved
   reason: "User reported: Subheaders does not follow the same design as in the Ollama section. We want all headings, subheadings, labels, etc, in the settings to have the same design and not contain duplicate styling"
   severity: cosmetic
   test: 2
@@ -84,7 +84,7 @@ skipped: 0
   debug_session: ""
 
 - truth: "Badge dismiss X icon has proper spacing, divider, and expands chip on hover instead of reserving space"
-  status: failed
+  status: resolved
   reason: "User reported: Need more spacing between left edge and X icon, full-height divider between X and text, and chip should expand on hover to reveal X section rather than pre-reserving invisible space"
   severity: cosmetic
   test: 9
@@ -100,7 +100,7 @@ skipped: 0
   debug_session: ""
 
 - truth: "Dragged category shows placeholder row in destination container (not source)"
-  status: failed
+  status: resolved
   reason: "User reported: Placeholder does not appear in destination container, only in current container. Performance is also laggy in Safari when dragging."
   severity: major
   test: 8

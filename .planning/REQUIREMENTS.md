@@ -24,11 +24,11 @@ Requirements for milestone v1.1 — Configuration, Feedback & Polish. Each maps 
 
 ### Category Grouping
 
-- [ ] **CATGRP-01**: User can create named category groups (e.g., "Programming", "Vehicles")
-- [ ] **CATGRP-02**: User can drag existing categories into groups via tree UI
-- [ ] **CATGRP-03**: User can set a weight on a group that cascades to all child categories
-- [ ] **CATGRP-04**: User can override the cascaded weight for individual categories within a group
-- [ ] **CATGRP-05**: Scoring pipeline resolves effective weight: explicit override > group default > 1.0
+- [x] **CATGRP-01**: User can create named category groups (e.g., "Programming", "Vehicles")
+- [x] **CATGRP-02**: User can drag existing categories into groups via tree UI
+- [x] **CATGRP-03**: User can set a weight on a group that cascades to all child categories
+- [x] **CATGRP-04**: User can override the cascaded weight for individual categories within a group
+- [x] **CATGRP-05**: Scoring pipeline resolves effective weight: explicit override > group default > 1.0
 
 ### UI & Theme Polish
 
@@ -98,11 +98,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OLLAMA-03 | Phase 7 | Pending |
 | OLLAMA-04 | Phase 7 | Pending |
 | OLLAMA-05 | Phase 7 | Pending |
-| CATGRP-01 | Phase 8 | Pending |
-| CATGRP-02 | Phase 8 | Pending |
-| CATGRP-03 | Phase 8 | Pending |
-| CATGRP-04 | Phase 8 | Pending |
-| CATGRP-05 | Phase 8 | Pending |
+| CATGRP-01 | Phase 8 | Complete |
+| CATGRP-02 | Phase 8 | Complete |
+| CATGRP-03 | Phase 8 | Complete |
+| CATGRP-04 | Phase 8 | Complete |
+| CATGRP-05 | Phase 8 | Complete |
 | FEEDBACK-01 | Phase 9 | Pending |
 | FEEDBACK-02 | Phase 9 | Pending |
 | FEEDBACK-03 | Phase 9 | Pending |
