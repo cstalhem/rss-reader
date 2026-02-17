@@ -66,9 +66,11 @@ const WeightPresetStripComponent = ({
                   e.stopPropagation();
                   onChange(option.value);
                 }}
-                minW="28px"
+                minW="24px"
+                h="24px"
+                p="4px"
               >
-                <Icon size={14} />
+                <Icon size={12} />
               </IconButton>
             </Tooltip>
           );
@@ -81,7 +83,7 @@ const WeightPresetStripComponent = ({
               key={option.value}
               overflow="hidden"
               display={{ base: "block", md: "block" }}
-              maxW={{ base: "28px", md: isExpanded ? "28px" : "0" }}
+              maxW={{ base: "24px", md: isExpanded ? "24px" : "0" }}
               transition="max-width 0.2s ease-out"
             >
               {button}
@@ -108,7 +110,7 @@ const WeightPresetStripComponent = ({
       </Flex>
 
       {/* Reset button - only when overridden */}
-      <Box w="28px" ml={0.5}>
+      <Box w="24px" ml={0.5}>
         {isOverridden && onReset && (
           <IconButton
             aria-label="Reset to parent weight"
