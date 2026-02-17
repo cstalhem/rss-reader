@@ -15,6 +15,8 @@ interface CategoryTreeProps {
   onResetWeight: (category: string) => void;
   onHide: (category: string) => void;
   onBadgeDismiss: (category: string) => void;
+  isDndEnabled?: boolean;
+  activeId?: string | null;
 }
 
 export function CategoryTree({
@@ -27,6 +29,8 @@ export function CategoryTree({
   onResetWeight,
   onHide,
   onBadgeDismiss,
+  isDndEnabled = false,
+  activeId,
 }: CategoryTreeProps) {
   // Sort parents alphabetically
   const sortedParents = useMemo(() => {
@@ -69,6 +73,8 @@ export function CategoryTree({
               weight={parentWeight}
               childCount={childCategories.length}
               onWeightChange={(weight) => onWeightChange(parent, weight)}
+              isDndEnabled={isDndEnabled}
+              activeId={activeId}
             />
 
             {/* Children with connector lines */}
@@ -131,6 +137,7 @@ export function CategoryTree({
                           onResetWeight={() => onResetWeight(child)}
                           onHide={() => onHide(child)}
                           onBadgeDismiss={() => onBadgeDismiss(child)}
+                          isDndEnabled={isDndEnabled}
                         />
                       </Box>
                     );
@@ -158,6 +165,7 @@ export function CategoryTree({
             onResetWeight={() => onResetWeight(category)}
             onHide={() => onHide(category)}
             onBadgeDismiss={() => onBadgeDismiss(category)}
+            isDndEnabled={isDndEnabled}
           />
         );
       })}

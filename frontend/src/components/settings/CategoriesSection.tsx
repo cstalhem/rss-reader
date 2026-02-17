@@ -1,9 +1,19 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
-import { Badge, Box, Flex, Stack, Skeleton, Text } from "@chakra-ui/react";
+import { useCallback, useMemo, useState } from "react";
+import { Badge, Box, Flex, Stack, Skeleton, Text, Input } from "@chakra-ui/react";
 import { LuTag } from "react-icons/lu";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  DndContext,
+  DragOverlay,
+  DragStartEvent,
+  DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+} from "@dnd-kit/core";
 import { useCategories } from "@/hooks/useCategories";
 import { usePreferences } from "@/hooks/usePreferences";
 import {
@@ -11,6 +21,13 @@ import {
   updatePreferences as apiUpdatePreferences,
 } from "@/lib/api";
 import { CategoryTree } from "./CategoryTree";
+
+function toTitleCase(kebab: string): string {
+  return kebab
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
 
 export function CategoriesSection() {
   const {
@@ -21,9 +38,20 @@ export function CategoriesSection() {
     isLoading,
     hideCategory,
     acknowledge,
+    saveGroups,
   } = useCategories();
   const { preferences } = usePreferences();
   const queryClient = useQueryClient();
+
+  // DnD state
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const isDndDisabled = searchQuery.length > 0;
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
 
   const categoryWeightMutation = useMutation({
     mutationFn: ({ category, weight }: { category: string; weight: string }) =>
@@ -80,6 +108,131 @@ export function CategoriesSection() {
       })
       .sort();
   }, [categoryGroups, allCategories]);
+
+  // Search filtering
+  const { filteredChildren, filteredUngrouped } = useMemo(() => {
+    if (!searchQuery) {
+      return {
+        filteredChildren: categoryGroups?.children ?? {},
+        filteredUngrouped: ungroupedCategories,
+      };
+    }
+
+    const query = searchQuery.toLowerCase();
+    const children = categoryGroups?.children ?? {};
+    const newFilteredChildren: Record<string, string[]> = {};
+
+    // Filter parents: include parent if parent name matches OR any child name matches
+    for (const [parent, childList] of Object.entries(children)) {
+      const parentMatches = parent.toLowerCase().includes(query);
+      const matchingChildren = childList.filter((c) =>
+        c.toLowerCase().includes(query)
+      );
+
+      if (parentMatches) {
+        // Parent matches — include all children
+        newFilteredChildren[parent] = childList;
+      } else if (matchingChildren.length > 0) {
+        // Parent doesn't match but some children do — include only matching children
+        newFilteredChildren[parent] = matchingChildren;
+      }
+      // If neither parent nor children match, exclude this parent entirely
+    }
+
+    // Filter ungrouped categories
+    const newFilteredUngrouped = ungroupedCategories.filter((c) =>
+      c.toLowerCase().includes(query)
+    );
+
+    return {
+      filteredChildren: newFilteredChildren,
+      filteredUngrouped: newFilteredUngrouped,
+    };
+  }, [searchQuery, categoryGroups, ungroupedCategories]);
+
+  // Root droppable zone
+  const { setNodeRef: setRootDropRef } = useDroppable({
+    id: "root",
+    disabled: isDndDisabled,
+  });
+
+  // DnD handler
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActiveId(null);
+      if (!over || !categoryGroups) return;
+
+      const draggedCategory = active.id as string;
+      const overId = over.id as string;
+
+      // Determine destination
+      let destParent: string | null = null; // null = root level
+
+      if (overId === "root") {
+        destParent = null;
+      } else if (overId.startsWith("parent:")) {
+        destParent = overId.replace("parent:", "");
+      } else {
+        // Dropped onto a category — check if it's a root-level ungrouped category
+        // (which becomes a parent) or a parent that already has children
+        const children = categoryGroups.children;
+        if (overId in children) {
+          // Dropped onto an existing parent
+          destParent = overId;
+        } else {
+          // Check if it's an ungrouped root-level category
+          const isChild = Object.values(children).flat().includes(overId);
+          if (!isChild) {
+            // It's a root-level ungrouped category — it becomes a parent
+            destParent = overId;
+          } else {
+            // Dropped onto a child of a parent — invalid target, no-op
+            return;
+          }
+        }
+      }
+
+      // Build updated children map
+      const newChildren = { ...categoryGroups.children };
+
+      // Remove dragged category from current parent (if it's a child)
+      for (const [parent, childList] of Object.entries(newChildren)) {
+        newChildren[parent] = childList.filter((c) => c !== draggedCategory);
+      }
+
+      // Only remove if it's being moved into another parent (not staying at root)
+      if (destParent !== null && draggedCategory in newChildren) {
+        // If draggedCategory is a parent (has children key), skip the drop
+        if (
+          newChildren[draggedCategory] &&
+          newChildren[draggedCategory].length > 0
+        ) {
+          return; // Can't nest a parent with children under another parent
+        }
+        delete newChildren[draggedCategory];
+      }
+
+      if (destParent === null) {
+        // Moving to root — already removed from parent above, nothing more to do
+      } else {
+        // Add to destination parent
+        if (!newChildren[destParent]) {
+          newChildren[destParent] = [];
+        }
+        if (!newChildren[destParent].includes(draggedCategory)) {
+          newChildren[destParent].push(draggedCategory);
+          newChildren[destParent].sort();
+        }
+      }
+
+      saveGroups({
+        ...categoryGroups,
+        children: newChildren,
+      });
+    },
+    [categoryGroups, saveGroups]
+  );
 
   const handleCategoryWeightChange = useCallback(
     (category: string, weight: string) => {
@@ -168,18 +321,52 @@ export function CategoriesSection() {
         {/* Create category button placeholder — functional in Plan 04 */}
       </Flex>
 
-      {/* Category tree */}
-      <CategoryTree
-        children={categoryGroups?.children ?? {}}
-        ungroupedCategories={ungroupedCategories}
-        topicWeights={preferences?.topic_weights ?? null}
-        newCategories={newCategories}
-        returnedCategories={returnedCategories}
-        onWeightChange={handleCategoryWeightChange}
-        onResetWeight={handleResetCategoryWeight}
-        onHide={handleHideCategory}
-        onBadgeDismiss={handleBadgeDismiss}
+      {/* Search input */}
+      <Input
+        placeholder="Filter categories..."
+        size="sm"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
       />
+
+      {/* Category tree with DnD */}
+      <DndContext
+        sensors={isDndDisabled ? undefined : sensors}
+        onDragStart={(e: DragStartEvent) =>
+          !isDndDisabled && setActiveId(e.active.id as string)
+        }
+        onDragEnd={handleDragEnd}
+      >
+        <Box ref={setRootDropRef}>
+          <CategoryTree
+            children={filteredChildren}
+            ungroupedCategories={filteredUngrouped}
+            topicWeights={preferences?.topic_weights ?? null}
+            newCategories={newCategories}
+            returnedCategories={returnedCategories}
+            onWeightChange={handleCategoryWeightChange}
+            onResetWeight={handleResetCategoryWeight}
+            onHide={handleHideCategory}
+            onBadgeDismiss={handleBadgeDismiss}
+            isDndEnabled={!isDndDisabled}
+            activeId={activeId}
+          />
+        </Box>
+        <DragOverlay>
+          {activeId && (
+            <Box
+              bg="bg.subtle"
+              borderWidth="1px"
+              borderColor="border.subtle"
+              borderRadius="sm"
+              p={2}
+              shadow="md"
+            >
+              <Text fontSize="sm">{toTitleCase(activeId)}</Text>
+            </Box>
+          )}
+        </DragOverlay>
+      </DndContext>
     </Stack>
   );
 }
