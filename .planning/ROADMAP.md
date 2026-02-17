@@ -133,13 +133,17 @@ Plans:
 **Goal:** Redesign categories settings panel from accordion-based groups to tree view with parent-child category model
 **Depends on:** Phase 8
 **Requirements:** CATGRP-01, CATGRP-02, CATGRP-03, CATGRP-04, CATGRP-05
-**Plans:** 4/4 plans complete
+**Plans:** 8 plans (4 implementation + 4 gap closure)
 
 Plans:
-- [ ] 08.1-01-PLAN.md -- Backend: data model migration, seeded hierarchy, weight resolution, API updates
-- [ ] 08.1-02-PLAN.md -- Frontend: types, API, hook, tree view rendering with weight display
-- [ ] 08.1-03-PLAN.md -- Frontend: DnD integration, search filtering, category CRUD
-- [ ] 08.1-04-PLAN.md -- Frontend: weight preset strip, mobile swipe, visual verification
+- [x] 08.1-01-PLAN.md -- Backend: data model migration, seeded hierarchy, weight resolution, API updates
+- [x] 08.1-02-PLAN.md -- Frontend: types, API, hook, tree view rendering with weight display
+- [x] 08.1-03-PLAN.md -- Frontend: DnD integration, search filtering, category CRUD
+- [x] 08.1-04-PLAN.md -- Frontend: weight preset strip, mobile swipe, visual verification
+- [ ] 08.1-05-PLAN.md -- Gap closure: Backend API fixes (create discovery, rename persistence, URL routing, split behavior)
+- [ ] 08.1-06-PLAN.md -- Gap closure: DnD performance optimization, ungroup zone, sensors fix
+- [ ] 08.1-07-PLAN.md -- Gap closure: Optimistic weight updates with toast feedback
+- [ ] 08.1-08-PLAN.md -- Gap closure: Visual polish (connector lines, weight icons, row layouts, animations)
 
 #### Phase 9: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
@@ -172,8 +176,9 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 6. UI & Theme Polish | v1.1 | 3/3 | Complete | 2026-02-15 |
 | 7. Ollama Configuration UI | v1.1 | 6/6 | Complete | 2026-02-15 |
 | 8. Category Grouping | v1.1 | 8/11 | In progress | - |
+| 08.1. Categories UI Redesign | v1.1 | 4/8 | In progress | - |
 | 9. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-16 after Phase 8 gap closure planning (plans 09-11)*
+*Last updated: 2026-02-17 after Phase 08.1 gap closure planning (plans 05-08)*
