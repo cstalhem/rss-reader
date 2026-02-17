@@ -102,7 +102,7 @@ const CategoryTreeComponent = ({
                           left: "-12px",
                           top: 0,
                           width: "2px",
-                          height: isLast ? "50%" : "100%",
+                          height: isLast ? "50%" : "calc(100% + 4px)",
                           bg: "border",
                         }}
                         _after={{

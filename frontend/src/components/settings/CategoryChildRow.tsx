@@ -214,60 +214,58 @@ const CategoryChildRowComponent = ({
           onReset={onResetWeight}
         />
 
-        {!isRenaming && (
-          <>
-            <Tooltip content="Rename category" openDelay={300}>
-              <IconButton
-                aria-label="Rename category"
-                size="xs"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsRenaming(true);
-                }}
-                opacity={{ base: 1, md: 0 }}
-                _groupHover={{ opacity: 1 }}
-                transition="opacity 0.15s"
-              >
-                <LuPencil size={14} />
-              </IconButton>
-            </Tooltip>
+        <Flex
+          overflow="hidden"
+          maxW={{ base: "auto", md: "0" }}
+          _groupHover={{ maxW: "110px" }}
+          transition="max-width 0.2s ease-out"
+        >
+          {!isRenaming && (
+            <>
+              <Tooltip content="Rename category" openDelay={300}>
+                <IconButton
+                  aria-label="Rename category"
+                  size="xs"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsRenaming(true);
+                  }}
+                >
+                  <LuPencil size={14} />
+                </IconButton>
+              </Tooltip>
 
-            <Tooltip content="Delete category" openDelay={300}>
-              <IconButton
-                aria-label="Delete category"
-                size="xs"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-                opacity={{ base: 1, md: 0 }}
-                _groupHover={{ opacity: 1 }}
-                transition="opacity 0.15s"
-              >
-                <LuTrash2 size={14} />
-              </IconButton>
-            </Tooltip>
-          </>
-        )}
+              <Tooltip content="Delete category" openDelay={300}>
+                <IconButton
+                  aria-label="Delete category"
+                  size="xs"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                >
+                  <LuTrash2 size={14} />
+                </IconButton>
+              </Tooltip>
+            </>
+          )}
 
-        <Tooltip content="Hide category" openDelay={300}>
-          <IconButton
-            aria-label="Hide category"
-            size="xs"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              onHide();
-            }}
-            opacity={{ base: 1, md: 0 }}
-            _groupHover={{ opacity: 1 }}
-            transition="opacity 0.15s"
-          >
-            <LuX size={14} />
-          </IconButton>
-        </Tooltip>
+          <Tooltip content="Hide category" openDelay={300}>
+            <IconButton
+              aria-label="Hide category"
+              size="xs"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                onHide();
+              }}
+            >
+              <LuX size={14} />
+            </IconButton>
+          </Tooltip>
+        </Flex>
       </Flex>
     </SwipeableRow>
   );
