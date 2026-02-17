@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8.2 of 9 (Category Data Model Refactor)
-Plan: 4 of 5 complete
-Status: In Progress
-Last activity: 2026-02-17 - Completed Phase 08.2 Plan 04 (Frontend Data Layer)
+Plan: 5 of 5 complete
+Status: Complete
+Last activity: 2026-02-17 - Completed Phase 08.2 Plan 05 (Frontend Component Updates)
 
 Progress: [██████████] 100% (36/36 total plans estimated from v1.1) + 08.2 in progress
 
@@ -79,6 +79,7 @@ Progress: [██████████] 100% (36/36 total plans estimated fro
 | Phase 08.2-category-data-model-refactor P02 | 4.3 | 2 tasks | 3 files |
 | Phase 08.2-category-data-model-refactor P03 | 6.0 | 2 tasks | 2 files |
 | Phase 08.2-category-data-model-refactor P04 | 3.0 | 2 tasks | 3 files |
+| Phase 08.2-category-data-model-refactor P05 | 8.0 | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -172,6 +173,10 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08.2-04]: Optimistic cache update only for updateCategory mutation (instant weight/rename feedback); simple invalidation for structural mutations
 - [Phase 08.2-04]: useCategories exposes wrapper functions instead of raw mutate for cleaner consumer API
 - [Phase 08.2-04]: Articles query invalidated on category mutations that affect article display (weight change, delete, merge, hide)
+- [Phase 08.2-05]: Flat Category[] to tree via parent_id in useMemo (parents, childrenMap, ungrouped)
+- [Phase 08.2-05]: DnD uses category.id.toString() IDs, parent_id=-1 sentinel for ungroup
+- [Phase 08.2-05]: TagChip new weight names (max/boost/normal/reduce/block) with old aliases for backward compat
+- [Phase 08.2-05]: ArticleReader uses effective_weight from ArticleCategory embed (no more topic_weights lookup)
 
 ### Pending Todos
 
@@ -204,9 +209,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 08.2-04-PLAN.md
-Resume file: .planning/phases/08.2-category-data-model-refactor/08.2-04-SUMMARY.md
+Stopped at: Completed 08.2-05-PLAN.md (Phase 08.2 complete)
+Resume file: .planning/phases/08.2-category-data-model-refactor/08.2-05-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-17 after Phase 08.2 Plan 04 execution*
+*Last updated: 2026-02-17 after Phase 08.2 Plan 05 execution*
