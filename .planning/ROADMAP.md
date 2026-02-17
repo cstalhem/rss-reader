@@ -152,6 +152,7 @@ Plans:
 **Goal:** Migrate categories from JSON blobs to a proper Category table with ArticleCategoryLink junction table, enabling clean relational operations for grouping, renaming, splitting, and Phase 9 feedback aggregation
 **Depends on:** Phase 08.1
 **Deferred from:** 08.1-UAT-r2.md gap #10 (parent split vs delete — root cause: JSON blob surgery too fragile)
+**Requirements:** CATGRP-01, CATGRP-02, CATGRP-03, CATGRP-04, CATGRP-05
 **Success Criteria** (what must be TRUE):
   1. Category table exists with columns: id, name, parent_id, weight, is_hidden, is_manually_created, is_seen
   2. ArticleCategoryLink junction table replaces Article.categories JSON column
@@ -160,10 +161,14 @@ Plans:
   5. Frontend API contract unchanged or cleanly migrated (no regressions)
   6. Data migration preserves all existing categories, weights, groupings, and article associations
   7. Split group = `UPDATE SET parent_id = NULL` (one operation, no data loss)
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 08.2-01: TBD during planning
+- [ ] 08.2-01-PLAN.md -- Backend: Category and ArticleCategoryLink models, data migration with backup
+- [ ] 08.2-02-PLAN.md -- Backend: Scoring pipeline and prompts update for display names and relational writes
+- [ ] 08.2-03-PLAN.md -- Backend: Category API endpoints rewrite and article response enrichment
+- [ ] 08.2-04-PLAN.md -- Frontend: TypeScript types, API client, and hooks for new category model
+- [ ] 08.2-05-PLAN.md -- Frontend: Component updates for display names and rich category objects
 
 ### Phase 08.3: Category Group Management Redesign
 
@@ -212,10 +217,10 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 7. Ollama Configuration UI | v1.1 | 6/6 | Complete | 2026-02-15 |
 | 8. Category Grouping | v1.1 | 8/11 | In progress | - |
 | 08.1. Categories UI Redesign | v1.1 | Complete    | 2026-02-17 | 2026-02-17 |
-| 08.2. Category Data Model Refactor | v1.1 | 0/TBD | Not started (JSON → table migration) | - |
+| 08.2. Category Data Model Refactor | v1.1 | 0/5 | Not started (JSON -> table migration) | - |
 | 08.3. Group Management Redesign | v1.1 | 0/TBD | Not started (deferred from 08.1) | - |
 | 9. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-17 — 08.2 (data model refactor) inserted, DnD gaps moved to 08.3*
+*Last updated: 2026-02-17 -- Phase 08.2 planned (5 plans in 3 waves)*
