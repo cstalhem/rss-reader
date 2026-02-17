@@ -20,6 +20,7 @@ import {
   updateCategoryWeight as apiUpdateCategoryWeight,
   updatePreferences as apiUpdatePreferences,
 } from "@/lib/api";
+import { toaster } from "@/components/ui/toaster";
 import { CategoryTree } from "./CategoryTree";
 import { CreateCategoryPopover } from "./CreateCategoryPopover";
 import { DeleteCategoryDialog } from "./DeleteCategoryDialog";
@@ -68,7 +69,40 @@ export function CategoriesSection() {
   const categoryWeightMutation = useMutation({
     mutationFn: ({ category, weight }: { category: string; weight: string }) =>
       apiUpdateCategoryWeight(category, weight),
-    onSuccess: () => {
+    onMutate: async ({ category, weight }) => {
+      await queryClient.cancelQueries({ queryKey: ["preferences"] });
+      await queryClient.cancelQueries({ queryKey: ["categoryGroups"] });
+
+      const previousPreferences = queryClient.getQueryData(["preferences"]);
+      const previousCategoryGroups = queryClient.getQueryData(["categoryGroups"]);
+
+      queryClient.setQueryData(["preferences"], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          topic_weights: {
+            ...old.topic_weights,
+            [category]: weight,
+          },
+        };
+      });
+
+      return { previousPreferences, previousCategoryGroups };
+    },
+    onError: (err, _variables, context) => {
+      if (context?.previousPreferences) {
+        queryClient.setQueryData(["preferences"], context.previousPreferences);
+      }
+      if (context?.previousCategoryGroups) {
+        queryClient.setQueryData(["categoryGroups"], context.previousCategoryGroups);
+      }
+      toaster.create({
+        title: "Failed to update weight",
+        description: err instanceof Error ? err.message : "Unknown error",
+        type: "error",
+      });
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["preferences"] });
       queryClient.invalidateQueries({ queryKey: ["categoryGroups"] });
     },
@@ -80,7 +114,36 @@ export function CategoriesSection() {
       delete currentWeights[category];
       return apiUpdatePreferences({ topic_weights: currentWeights });
     },
-    onSuccess: () => {
+    onMutate: async (category) => {
+      await queryClient.cancelQueries({ queryKey: ["preferences"] });
+      await queryClient.cancelQueries({ queryKey: ["categoryGroups"] });
+
+      const previousPreferences = queryClient.getQueryData(["preferences"]);
+      const previousCategoryGroups = queryClient.getQueryData(["categoryGroups"]);
+
+      queryClient.setQueryData(["preferences"], (old: any) => {
+        if (!old) return old;
+        const newWeights = { ...old.topic_weights };
+        delete newWeights[category];
+        return { ...old, topic_weights: newWeights };
+      });
+
+      return { previousPreferences, previousCategoryGroups };
+    },
+    onError: (err, _variable, context) => {
+      if (context?.previousPreferences) {
+        queryClient.setQueryData(["preferences"], context.previousPreferences);
+      }
+      if (context?.previousCategoryGroups) {
+        queryClient.setQueryData(["categoryGroups"], context.previousCategoryGroups);
+      }
+      toaster.create({
+        title: "Failed to reset weight",
+        description: err instanceof Error ? err.message : "Unknown error",
+        type: "error",
+      });
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["preferences"] });
       queryClient.invalidateQueries({ queryKey: ["categoryGroups"] });
     },
