@@ -85,20 +85,7 @@ const CategoryTreeComponent = ({
 
             {/* Children with connector lines */}
             {childCategories.length > 0 && (
-              <Box
-                ml={6}
-                pl={3}
-                position="relative"
-                _before={{
-                  content: '""',
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  bottom: 0,
-                  width: "1px",
-                  bg: "border.subtle",
-                }}
-              >
+              <Box ml={6} pl={3} position="relative">
                 <Stack gap={1}>
                   {childCategories.map((child, idx) => {
                     const effectiveWeight = getEffectiveWeight(child, parent);
@@ -113,24 +100,20 @@ const CategoryTreeComponent = ({
                           content: '""',
                           position: "absolute",
                           left: "-12px",
+                          top: 0,
+                          width: "2px",
+                          height: isLast ? "50%" : "100%",
+                          bg: "border",
+                        }}
+                        _after={{
+                          content: '""',
+                          position: "absolute",
+                          left: "-12px",
                           top: "50%",
                           width: "12px",
-                          height: "1px",
-                          bg: "border.subtle",
+                          height: "2px",
+                          bg: "border",
                         }}
-                        _after={
-                          isLast
-                            ? {
-                                content: '""',
-                                position: "absolute",
-                                left: "-13px",
-                                top: "50%",
-                                bottom: 0,
-                                width: "1px",
-                                bg: "bg.subtle",
-                              }
-                            : undefined
-                        }
                       >
                         <CategoryChildRow
                           category={child}
