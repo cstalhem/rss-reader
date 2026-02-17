@@ -102,8 +102,8 @@ export function ArticleRow({
           {article.categories && article.categories.length > 0 && (
             <>
               <Box w="1px" h="14px" bg="border.subtle" flexShrink={0} />
-              {article.categories.slice(0, 3).map((category, index) => (
-                <TagChip key={index} label={category} size="sm" />
+              {article.categories.slice(0, 3).map((cat) => (
+                <TagChip key={cat.id} label={cat.display_name} size="sm" />
               ))}
               {article.categories.length > 3 && (
                 <Text fontSize="xs" color="fg.muted">

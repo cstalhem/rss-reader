@@ -10,7 +10,13 @@ interface TagChipProps {
   onWeightChange?: (weight: string) => void;
 }
 
-const weightColors = {
+const weightColors: Record<string, { bg: string; color: string; textDecoration?: string }> = {
+  block: { bg: "red.subtle", color: "red.fg", textDecoration: "line-through" },
+  reduce: { bg: "bg.emphasized", color: "fg.muted" },
+  normal: { bg: "bg.emphasized", color: "fg.default" },
+  boost: { bg: "accent.subtle", color: "accent.fg" },
+  max: { bg: "accent.emphasized", color: "accent.contrast" },
+  // Old names as aliases
   blocked: { bg: "red.subtle", color: "red.fg", textDecoration: "line-through" },
   low: { bg: "bg.emphasized", color: "fg.muted" },
   neutral: { bg: "bg.emphasized", color: "fg.default" },
@@ -19,23 +25,23 @@ const weightColors = {
 };
 
 const weightOptions = [
-  { value: "high", label: "High" },
-  { value: "medium", label: "Medium" },
-  { value: "neutral", label: "Neutral" },
-  { value: "low", label: "Low" },
-  { value: "blocked", label: "Blocked" },
+  { value: "max", label: "Max" },
+  { value: "boost", label: "Boost" },
+  { value: "normal", label: "Normal" },
+  { value: "reduce", label: "Reduce" },
+  { value: "block", label: "Block" },
 ];
 
 export function TagChip({
   label,
   size = "sm",
   interactive = false,
-  currentWeight = "neutral",
+  currentWeight = "normal",
   onWeightChange,
 }: TagChipProps) {
   const fontSize = size === "sm" ? "xs" : "sm";
-  const normalizedWeight = currentWeight?.toLowerCase() || "neutral";
-  const colorProps = weightColors[normalizedWeight as keyof typeof weightColors] || weightColors.neutral;
+  const normalizedWeight = currentWeight?.toLowerCase() || "normal";
+  const colorProps = weightColors[normalizedWeight] || weightColors.normal;
 
   const chip = (
     <Badge
@@ -44,7 +50,6 @@ export function TagChip({
       py={0.5}
       borderRadius="md"
       fontWeight="medium"
-      textTransform="lowercase"
       {...colorProps}
       cursor={interactive ? "pointer" : "default"}
       _hover={interactive ? { opacity: 0.8 } : undefined}

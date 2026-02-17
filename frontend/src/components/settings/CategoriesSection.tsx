@@ -199,7 +199,7 @@ export function CategoriesSection() {
       const parentIdValue = destParentId === null ? -1 : destParentId;
       updateCategory(draggedCat.id, { parent_id: parentIdValue });
     },
-    [categories, childrenMap, findCategory, updateCategory]
+    [childrenMap, findCategory, updateCategory]
   );
 
   const handleWeightChange = useCallback(

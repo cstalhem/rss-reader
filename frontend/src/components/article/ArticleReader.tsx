@@ -13,9 +13,8 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Article } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
-import { updateCategoryWeight as apiUpdateCategoryWeight } from "@/lib/api";
+import { updateCategory as apiUpdateCategory } from "@/lib/api";
 import { useAutoMarkAsRead } from "@/hooks/useAutoMarkAsRead";
-import { usePreferences } from "@/hooks/usePreferences";
 import { TagChip } from "./TagChip";
 import { ScoreBadge } from "./ScoreBadge";
 
@@ -37,15 +36,13 @@ export function ArticleReader({
   // Trigger auto-mark as read when article is displayed
   useAutoMarkAsRead(article?.id ?? 0, article?.is_read ?? true);
 
-  // Get preferences for tag weights
-  const { preferences } = usePreferences();
   const queryClient = useQueryClient();
   const updateCategoryWeightMutation = useMutation({
-    mutationFn: ({ category, weight }: { category: string; weight: string }) =>
-      apiUpdateCategoryWeight(category, weight),
+    mutationFn: ({ categoryId, weight }: { categoryId: number; weight: string }) =>
+      apiUpdateCategory(categoryId, { weight }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["preferences"] });
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["articles"] });
     },
   });
 
@@ -91,7 +88,7 @@ export function ArticleReader({
           }}
         >
           <Drawer.Body px={{ base: 6, md: 12 }} py={{ base: 6, md: 8 }}>
-            {/* Nav buttons — scroll with content */}
+            {/* Nav buttons -- scroll with content */}
             <Flex justifyContent="flex-end" gap={2} mb={6}>
               <IconButton
                 aria-label="Previous article"
@@ -148,22 +145,18 @@ export function ArticleReader({
               {/* Category Tags */}
               {article.categories && article.categories.length > 0 && (
                 <Flex gap={2} flexWrap="wrap" mt={2}>
-                  {article.categories.map((category, index) => {
-                    const currentWeight =
-                      preferences?.topic_weights?.[category.toLowerCase()] || "neutral";
-                    return (
-                      <TagChip
-                        key={index}
-                        label={category}
-                        size="md"
-                        interactive={true}
-                        currentWeight={currentWeight}
-                        onWeightChange={(weight) =>
-                          updateCategoryWeightMutation.mutate({ category: category.toLowerCase(), weight })
-                        }
-                      />
-                    );
-                  })}
+                  {article.categories.map((cat) => (
+                    <TagChip
+                      key={cat.id}
+                      label={cat.display_name}
+                      size="md"
+                      interactive={true}
+                      currentWeight={cat.effective_weight}
+                      onWeightChange={(weight) =>
+                        updateCategoryWeightMutation.mutate({ categoryId: cat.id, weight })
+                      }
+                    />
+                  ))}
                 </Flex>
               )}
 
