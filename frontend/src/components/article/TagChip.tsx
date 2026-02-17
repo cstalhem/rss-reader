@@ -63,11 +63,7 @@ export function TagChip({
   }
 
   return (
-    <Menu.Root
-      onSelect={(details) => {
-        onWeightChange?.(details.value);
-      }}
-    >
+    <Menu.Root>
       <Menu.Trigger
         asChild
         onClick={(e: React.MouseEvent) => {

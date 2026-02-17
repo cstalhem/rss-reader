@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Box,
   Flex,
@@ -36,12 +36,21 @@ export function ArticleReader({
   // Trigger auto-mark as read when article is displayed
   useAutoMarkAsRead(article?.id ?? 0, article?.is_read ?? true);
 
+  // Optimistic weight state for instant visual feedback
+  const [optimisticWeights, setOptimisticWeights] = useState<Record<number, string>>({});
+
+  // Reset optimistic state when article changes
+  useEffect(() => {
+    setOptimisticWeights({});
+  }, [article?.id]);
+
   const queryClient = useQueryClient();
   const updateCategoryWeightMutation = useMutation({
     mutationFn: ({ categoryId, weight }: { categoryId: number; weight: string }) =>
       apiUpdateCategory(categoryId, { weight }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["categories", "new-count"] });
       queryClient.invalidateQueries({ queryKey: ["articles"] });
     },
   });
@@ -151,10 +160,11 @@ export function ArticleReader({
                       label={cat.display_name}
                       size="md"
                       interactive={true}
-                      currentWeight={cat.effective_weight}
-                      onWeightChange={(weight) =>
-                        updateCategoryWeightMutation.mutate({ categoryId: cat.id, weight })
-                      }
+                      currentWeight={optimisticWeights[cat.id] ?? cat.effective_weight}
+                      onWeightChange={(weight) => {
+                        setOptimisticWeights(prev => ({ ...prev, [cat.id]: weight }));
+                        updateCategoryWeightMutation.mutate({ categoryId: cat.id, weight });
+                      }}
                     />
                   ))}
                 </Flex>
