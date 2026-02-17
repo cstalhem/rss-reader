@@ -145,7 +145,12 @@ class CategoryCreate(BaseModel):
     name: str
 
 
+class CategoryDelete(BaseModel):
+    name: str
+
+
 class CategoryRename(BaseModel):
+    old_name: str
     new_name: str
 
 
@@ -645,7 +650,7 @@ async def update_preferences(
 def get_categories(
     session: Session = Depends(get_session),
 ):
-    """Get list of unique categories, seeded with defaults."""
+    """Get list of unique categories, seeded with defaults and manually created."""
     from backend.prompts import DEFAULT_CATEGORIES
 
     # Start with default seed categories
@@ -659,6 +664,14 @@ def get_categories(
         if article.categories:
             for category in article.categories:
                 categories_seen[category.lower()] = category
+
+    # Include manually created categories from UserPreferences
+    preferences = session.exec(select(UserPreferences)).first()
+    if preferences:
+        cg = _get_category_groups(preferences)
+        for cat in cg.get("manually_created", []):
+            if cat.lower() not in categories_seen:
+                categories_seen[cat.lower()] = cat
 
     return sorted(categories_seen.values(), key=str.lower)
 
@@ -966,24 +979,45 @@ def create_category(
     return {"name": cat_name}
 
 
-@app.delete("/api/categories/{name}")
+@app.delete("/api/categories")
 def delete_category(
-    name: str,
+    body: CategoryDelete,
     session: Session = Depends(get_session),
 ):
-    """Delete a category. If parent, children become ungrouped."""
+    """Delete a category. If parent, split group: parent becomes ungrouped, children released."""
     preferences = _get_or_create_preferences(session)
     cg = _get_category_groups(preferences)
-    cat_lower = name.lower()
+    cat_lower = body.name.lower()
 
     children = dict(cg.get("children", {}))
 
     # If deleting a parent, release children (remove from children map)
-    children.pop(cat_lower, None)
+    released_children = children.pop(cat_lower, None)
+    if released_children:
+        logger.info(
+            "Category delete (parent split): '%s' released children %s",
+            cat_lower,
+            released_children,
+        )
+
+    # Verify parent key was actually removed
+    if cat_lower in children:
+        logger.warning(
+            "Category delete: parent key '%s' still present after pop, forcing removal",
+            cat_lower,
+        )
+        del children[cat_lower]
 
     # If deleting a child, remove from parent's children list
     for parent, child_list in children.items():
+        before = len(child_list)
         children[parent] = [c for c in child_list if c.lower() != cat_lower]
+        if len(children[parent]) < before:
+            logger.info(
+                "Category delete (child removal): '%s' removed from parent '%s'",
+                cat_lower,
+                parent,
+            )
 
     # Remove from manually_created if present
     manually_created = [m for m in cg.get("manually_created", []) if m.lower() != cat_lower]
@@ -1005,16 +1039,15 @@ def delete_category(
     return {"ok": True}
 
 
-@app.patch("/api/categories/{name}/rename")
+@app.patch("/api/categories/rename")
 def rename_category(
-    name: str,
     body: CategoryRename,
     session: Session = Depends(get_session),
 ):
-    """Rename a category. Updates children map, topic_weights, seen/hidden/returned lists."""
+    """Rename a category. Updates children map, topic_weights, seen/hidden/returned lists, and article categories."""
     preferences = _get_or_create_preferences(session)
     cg = _get_category_groups(preferences)
-    old_name = name.lower()
+    old_name = body.old_name.strip().lower().replace(" ", "-")
     new_name = body.new_name.strip().lower().replace(" ", "-")
 
     children = dict(cg.get("children", {}))
@@ -1048,6 +1081,29 @@ def rename_category(
     preferences.updated_at = datetime.now()
     session.add(preferences)
     session.commit()
+
+    # Update article.categories in database
+    articles_with_cat = session.exec(
+        select(Article).where(Article.categories.is_not(None))
+    ).all()
+    updated_count = 0
+    for article in articles_with_cat:
+        if article.categories and old_name in [c.lower() for c in article.categories]:
+            article.categories = [
+                new_name if c.lower() == old_name else c
+                for c in article.categories
+            ]
+            session.add(article)
+            updated_count += 1
+    if updated_count:
+        session.commit()
+        logger.info(
+            "Category rename: updated %d articles from '%s' to '%s'",
+            updated_count,
+            old_name,
+            new_name,
+        )
+
     session.refresh(preferences)
 
     return {"old_name": old_name, "new_name": new_name}
