@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8.1 of 9 (Categories Settings UI Redesign)
-Plan: 3 of TBD complete
+Plan: 4 of TBD complete
 Status: In Progress
-Last activity: 2026-02-17 - Completed Phase 08.1 Plan 03 (interactive category tree with DnD and CRUD)
+Last activity: 2026-02-17 - Completed Phase 08.1 Plan 04 (hover-expand weight strip and mobile swipe)
 
 Progress: [██████████] 100% (36/36 total plans estimated from v1.1)
 
@@ -66,6 +66,7 @@ Progress: [██████████] 100% (36/36 total plans estimated fro
 | Phase 08.1-categories-settings-ui-redesign P01 | 4.4 | 2 tasks | 5 files |
 | Phase 08.1-categories-settings-ui-redesign P02 | 3.8 | 2 tasks | 7 files |
 | Phase 08.1-categories-settings-ui-redesign P03 | 6.4 | 2 tasks | 6 files |
+| Phase 08.1-categories-settings-ui-redesign P04 | 4.3 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -128,6 +129,10 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08.1-03]: Prevent nesting parents with children under other parents (max 2-level hierarchy)
 - [Phase 08.1-03]: Drop placeholder shows inside parent row when hovering with active drag
 - [Phase 08.1-03]: Hover-reveal pencil/trash buttons replace double-click/long-press for rename/delete
+- [Phase 08.1-04]: Desktop hover-expand weight preset strip with CSS max-width transition (collapses to single active icon)
+- [Phase 08.1-04]: Mobile swipe-to-reveal edit gesture using react-swipeable with translateX animation
+- [Phase 08.1-04]: SwipeableRow uses display: contents on desktop to pass-through without wrapper element
+- [Phase 08.1-04]: Old WeightPresets preserved for ArticleReader usage (not deleted during categories UI redesign)
 
 ### Pending Todos
 
@@ -159,9 +164,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 08.1-03-PLAN.md
-Resume file: .planning/phases/08.1-categories-settings-ui-redesign/08.1-03-SUMMARY.md
+Stopped at: Completed 08.1-04-PLAN.md
+Resume file: .planning/phases/08.1-categories-settings-ui-redesign/08.1-04-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-17 after Phase 08.1 Plan 03 completion*
+*Last updated: 2026-02-17 after Phase 08.1 Plan 04 completion*
