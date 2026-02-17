@@ -50,6 +50,7 @@ async def categorize_article(
     existing_categories: list[str],
     settings,
     model: str,
+    category_hierarchy: dict[str, list[str]] | None = None,
 ) -> CategoryResponse:
     """Categorize an article using Ollama LLM.
 
@@ -59,6 +60,7 @@ async def categorize_article(
         existing_categories: List of existing categories to reuse
         settings: Application settings with Ollama config (host, thinking)
         model: Ollama model name to use for categorization
+        category_hierarchy: Optional parent-child hierarchy to guide categorization
 
     Returns:
         CategoryResponse with assigned categories and suggestions
@@ -67,7 +69,7 @@ async def categorize_article(
         Exception: On LLM call failure after retries
     """
     prompt = build_categorization_prompt(
-        article_title, article_text, existing_categories
+        article_title, article_text, existing_categories, category_hierarchy
     )
 
     client = AsyncClient(
@@ -213,12 +215,12 @@ def compute_composite_score(
     if not categories:
         category_multiplier = 1.0
     else:
-        # Build category -> group_weight lookup
-        group_weights: dict[str, str] = {}
-        if category_groups and "groups" in category_groups:
-            for group in category_groups["groups"]:
-                for cat in group.get("categories", []):
-                    group_weights[cat.lower()] = group.get("weight", "normal")
+        # Build category -> parent_weight lookup using children map
+        parent_weights: dict[str, str] = {}
+        if category_groups and "children" in category_groups:
+            for parent, children_list in category_groups["children"].items():
+                for child in children_list:
+                    parent_weights[child.lower()] = parent.lower()
 
         weights = []
         for category in categories:
@@ -226,9 +228,10 @@ def compute_composite_score(
             # Priority 1: explicit override in topic_weights
             if topic_weights and cat_lower in topic_weights:
                 weight_str = topic_weights[cat_lower]
-            # Priority 2: group weight
-            elif cat_lower in group_weights:
-                weight_str = group_weights[cat_lower]
+            # Priority 2: parent weight (if category is a child)
+            elif cat_lower in parent_weights:
+                parent_name = parent_weights[cat_lower]
+                weight_str = topic_weights.get(parent_name, "normal") if topic_weights else "normal"
             # Priority 3: default
             else:
                 weight_str = "normal"
@@ -281,8 +284,8 @@ def is_blocked(
     return False
 
 
-async def get_active_categories(session: Session) -> list[str]:
-    """Get list of active categories from recent articles and preferences.
+async def get_active_categories(session: Session) -> tuple[list[str], dict[str, list[str]] | None]:
+    """Get list of active categories and hierarchy from recent articles and preferences.
 
     Merges:
     - Unique categories from articles scored in last 30 days
@@ -293,7 +296,7 @@ async def get_active_categories(session: Session) -> list[str]:
         session: Database session
 
     Returns:
-        Sorted, deduplicated list of categories (case-insensitive)
+        Tuple of (sorted categories list, category hierarchy dict or None)
     """
     # Get categories from recent articles
     cutoff_date = datetime.now() - timedelta(days=30)
@@ -313,13 +316,19 @@ async def get_active_categories(session: Session) -> list[str]:
                 if lower_cat not in categories_seen:
                     categories_seen[lower_cat] = cat
 
-    # Add non-blocked categories from preferences
+    # Add non-blocked categories from preferences and extract hierarchy
+    category_hierarchy = None
     preferences = session.exec(select(UserPreferences)).first()
-    if preferences and preferences.topic_weights:
-        for category, weight in preferences.topic_weights.items():
-            lower_cat = category.lower()
-            if weight not in ("blocked", "block") and lower_cat not in categories_seen:
-                categories_seen[lower_cat] = category
+    if preferences:
+        if preferences.topic_weights:
+            for category, weight in preferences.topic_weights.items():
+                lower_cat = category.lower()
+                if weight not in ("blocked", "block") and lower_cat not in categories_seen:
+                    categories_seen[lower_cat] = category
+
+        # Extract hierarchy if available
+        if preferences.category_groups and "children" in preferences.category_groups:
+            category_hierarchy = preferences.category_groups["children"]
 
     # Add default categories
     for cat in DEFAULT_CATEGORIES:
@@ -327,5 +336,5 @@ async def get_active_categories(session: Session) -> list[str]:
         if lower_cat not in categories_seen:
             categories_seen[lower_cat] = cat
 
-    # Return sorted list
-    return sorted(categories_seen.values(), key=str.lower)
+    # Return sorted list and hierarchy
+    return sorted(categories_seen.values(), key=str.lower), category_hierarchy

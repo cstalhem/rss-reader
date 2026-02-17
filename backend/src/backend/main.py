@@ -122,21 +122,31 @@ class CategoryWeightUpdate(BaseModel):
 
 
 class CategoryGroupsResponse(BaseModel):
-    groups: list[dict] = []
+    children: dict[str, list[str]] = {}
     hidden_categories: list[str] = []
     seen_categories: list[str] = []
     returned_categories: list[str] = []
+    manually_created: list[str] = []
 
 
 class CategoryGroupsUpdate(BaseModel):
-    groups: list[dict] = []
+    children: dict[str, list[str]] = {}
     hidden_categories: list[str] = []
     seen_categories: list[str] = []
     returned_categories: list[str] = []
+    manually_created: list[str] = []
 
 
 class CategoryAcknowledge(BaseModel):
     categories: list[str]
+
+
+class CategoryCreate(BaseModel):
+    name: str
+
+
+class CategoryRename(BaseModel):
+    new_name: str
 
 
 class NewCategoryCountResponse(BaseModel):
@@ -721,10 +731,11 @@ def _get_category_groups(preferences: UserPreferences) -> dict:
     if preferences.category_groups:
         return preferences.category_groups
     return {
-        "groups": [],
+        "children": {},
         "hidden_categories": [],
         "seen_categories": [],
         "returned_categories": [],
+        "manually_created": [],
     }
 
 
@@ -768,7 +779,7 @@ def hide_category(
     name: str,
     session: Session = Depends(get_session),
 ):
-    """Hide a category: add to hidden_categories, remove from groups and topic_weights."""
+    """Hide a category: add to hidden_categories, remove from children map and topic_weights."""
     preferences = _get_or_create_preferences(session)
     cg = _get_category_groups(preferences)
     cat_lower = name.lower()
@@ -778,17 +789,19 @@ def hide_category(
     if cat_lower not in [h.lower() for h in hidden]:
         hidden.append(cat_lower)
 
-    # Remove from any group's categories list
-    groups = []
-    for group in cg.get("groups", []):
-        new_cats = [c for c in group.get("categories", []) if c.lower() != cat_lower]
-        groups.append({**group, "categories": new_cats})
+    # Remove from children map
+    children = dict(cg.get("children", {}))
+    # Remove if it's a parent
+    children.pop(cat_lower, None)
+    # Remove if it's a child
+    for parent, child_list in children.items():
+        children[parent] = [c for c in child_list if c.lower() != cat_lower]
 
     # Reassign category_groups
     preferences.category_groups = {
         **cg,
         "hidden_categories": hidden,
-        "groups": groups,
+        "children": children,
     }
 
     # Remove from topic_weights
@@ -861,10 +874,11 @@ def get_new_category_count(
         for cat in preferences.topic_weights:
             all_categories.add(cat.lower())
 
-    # From group categories
-    for group in cg.get("groups", []):
-        for cat in group.get("categories", []):
-            all_categories.add(cat.lower())
+    # From children map (parents and children)
+    for parent, child_list in cg.get("children", {}).items():
+        all_categories.add(parent.lower())
+        for child in child_list:
+            all_categories.add(child.lower())
 
     # From defaults
     for cat in DEFAULT_CATEGORIES:
@@ -916,6 +930,127 @@ def acknowledge_categories(
     session.commit()
 
     return {"ok": True}
+
+
+@app.post("/api/categories/create")
+def create_category(
+    body: CategoryCreate,
+    session: Session = Depends(get_session),
+):
+    """Create a manually-named category at root level."""
+    preferences = _get_or_create_preferences(session)
+    cg = _get_category_groups(preferences)
+
+    # Normalize to kebab-case
+    cat_name = body.name.strip().lower().replace(" ", "-")
+
+    # Add to seen_categories and manually_created
+    seen = list(cg.get("seen_categories", []))
+    if cat_name not in [s.lower() for s in seen]:
+        seen.append(cat_name)
+
+    manually_created = list(cg.get("manually_created", []))
+    if cat_name not in manually_created:
+        manually_created.append(cat_name)
+
+    preferences.category_groups = {
+        **cg,
+        "seen_categories": seen,
+        "manually_created": manually_created,
+    }
+    preferences.updated_at = datetime.now()
+    session.add(preferences)
+    session.commit()
+    session.refresh(preferences)
+
+    return {"name": cat_name}
+
+
+@app.delete("/api/categories/{name}")
+def delete_category(
+    name: str,
+    session: Session = Depends(get_session),
+):
+    """Delete a category. If parent, children become ungrouped."""
+    preferences = _get_or_create_preferences(session)
+    cg = _get_category_groups(preferences)
+    cat_lower = name.lower()
+
+    children = dict(cg.get("children", {}))
+
+    # If deleting a parent, release children (remove from children map)
+    children.pop(cat_lower, None)
+
+    # If deleting a child, remove from parent's children list
+    for parent, child_list in children.items():
+        children[parent] = [c for c in child_list if c.lower() != cat_lower]
+
+    # Remove from manually_created if present
+    manually_created = [m for m in cg.get("manually_created", []) if m.lower() != cat_lower]
+
+    # Remove from topic_weights
+    if preferences.topic_weights and cat_lower in preferences.topic_weights:
+        new_weights = {k: v for k, v in preferences.topic_weights.items() if k != cat_lower}
+        preferences.topic_weights = new_weights
+
+    preferences.category_groups = {
+        **cg,
+        "children": children,
+        "manually_created": manually_created,
+    }
+    preferences.updated_at = datetime.now()
+    session.add(preferences)
+    session.commit()
+
+    return {"ok": True}
+
+
+@app.patch("/api/categories/{name}/rename")
+def rename_category(
+    name: str,
+    body: CategoryRename,
+    session: Session = Depends(get_session),
+):
+    """Rename a category. Updates children map, topic_weights, seen/hidden/returned lists."""
+    preferences = _get_or_create_preferences(session)
+    cg = _get_category_groups(preferences)
+    old_name = name.lower()
+    new_name = body.new_name.strip().lower().replace(" ", "-")
+
+    children = dict(cg.get("children", {}))
+
+    # If renaming a parent, update the key
+    if old_name in children:
+        children[new_name] = children.pop(old_name)
+
+    # If renaming a child, update in parent's list
+    for parent, child_list in children.items():
+        children[parent] = [new_name if c.lower() == old_name else c for c in child_list]
+
+    # Update topic_weights key
+    if preferences.topic_weights and old_name in preferences.topic_weights:
+        new_weights = dict(preferences.topic_weights)
+        new_weights[new_name] = new_weights.pop(old_name)
+        preferences.topic_weights = new_weights
+
+    # Update in seen/hidden/returned/manually_created lists
+    def rename_in_list(lst):
+        return [new_name if item.lower() == old_name else item for item in lst]
+
+    preferences.category_groups = {
+        **cg,
+        "children": children,
+        "seen_categories": rename_in_list(cg.get("seen_categories", [])),
+        "hidden_categories": rename_in_list(cg.get("hidden_categories", [])),
+        "returned_categories": rename_in_list(cg.get("returned_categories", [])),
+        "manually_created": rename_in_list(cg.get("manually_created", [])),
+    }
+    preferences.updated_at = datetime.now()
+    session.add(preferences)
+    session.commit()
+    session.refresh(preferences)
+
+    return {"old_name": old_name, "new_name": new_name}
 
 
 @app.post("/api/scoring/rescore")

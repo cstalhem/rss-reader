@@ -226,7 +226,7 @@ def _migrate_groups_to_children():
         children_map = {}
         topic_weights = json.loads(row[1]) if row[1] else {}
         seen_categories = list(category_groups.get("seen_categories", []))
-        existing_categories = set(cat.lower() for cat in topic_weights.keys())
+        existing_categories = {cat.lower() for cat in topic_weights.keys()}
 
         for group in category_groups["groups"]:
             # Kebab-case the group name

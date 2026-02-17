@@ -136,8 +136,8 @@ class ScoringQueue:
         else:
             scoring_model = categorization_model
 
-        # Get active categories list
-        active_categories = await get_active_categories(session)
+        # Get active categories list and hierarchy
+        active_categories, category_hierarchy = await get_active_categories(session)
 
         processed = 0
         for article in articles:
@@ -164,6 +164,7 @@ class ScoringQueue:
                         active_categories,
                         settings,
                         model=categorization_model,
+                        category_hierarchy=category_hierarchy,
                     )
 
                     # Store categories (normalized to kebab-case)
