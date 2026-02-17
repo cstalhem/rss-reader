@@ -70,8 +70,10 @@ export function CategoriesSection() {
     mutationFn: ({ category, weight }: { category: string; weight: string }) =>
       apiUpdateCategoryWeight(category, weight),
     onMutate: async ({ category, weight }) => {
-      await queryClient.cancelQueries({ queryKey: ["preferences"] });
-      await queryClient.cancelQueries({ queryKey: ["categoryGroups"] });
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ["preferences"] }),
+        queryClient.cancelQueries({ queryKey: ["categoryGroups"] }),
+      ]);
 
       const previousPreferences = queryClient.getQueryData(["preferences"]);
       const previousCategoryGroups = queryClient.getQueryData(["categoryGroups"]);
@@ -115,8 +117,10 @@ export function CategoriesSection() {
       return apiUpdatePreferences({ topic_weights: currentWeights });
     },
     onMutate: async (category) => {
-      await queryClient.cancelQueries({ queryKey: ["preferences"] });
-      await queryClient.cancelQueries({ queryKey: ["categoryGroups"] });
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ["preferences"] }),
+        queryClient.cancelQueries({ queryKey: ["categoryGroups"] }),
+      ]);
 
       const previousPreferences = queryClient.getQueryData(["preferences"]);
       const previousCategoryGroups = queryClient.getQueryData(["categoryGroups"]);
@@ -321,12 +325,8 @@ export function CategoriesSection() {
   const handleCategoryWeightChange = useCallback(
     (category: string, weight: string) => {
       categoryWeightMutation.mutate({ category, weight });
-      // Dismiss new/returned badge when weight is explicitly set
-      if (newCategories.has(category) || returnedCategories.has(category)) {
-        acknowledge([category]);
-      }
     },
-    [categoryWeightMutation, newCategories, returnedCategories, acknowledge]
+    [categoryWeightMutation]
   );
 
   const handleResetCategoryWeight = useCallback(
