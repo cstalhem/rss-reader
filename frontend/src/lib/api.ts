@@ -357,10 +357,11 @@ export async function createCategory(name: string): Promise<{ name: string }> {
 }
 
 export async function deleteCategory(name: string): Promise<{ ok: boolean }> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/categories/${encodeURIComponent(name)}`,
-    { method: "DELETE" }
-  );
+  const response = await fetch(`${API_BASE_URL}/api/categories`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
   if (!response.ok) {
     throw new Error(`Failed to delete category: ${response.statusText}`);
   }
@@ -368,17 +369,14 @@ export async function deleteCategory(name: string): Promise<{ ok: boolean }> {
 }
 
 export async function renameCategory(
-  name: string,
+  oldName: string,
   newName: string
 ): Promise<{ old_name: string; new_name: string }> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/categories/${encodeURIComponent(name)}/rename`,
-    {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ new_name: newName }),
-    }
-  );
+  const response = await fetch(`${API_BASE_URL}/api/categories/rename`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ old_name: oldName, new_name: newName }),
+  });
   if (!response.ok) {
     throw new Error(`Failed to rename category: ${response.statusText}`);
   }
