@@ -344,6 +344,47 @@ export async function acknowledgeCategories(
   return response.json();
 }
 
+export async function createCategory(name: string): Promise<{ name: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/create`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to create category: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function deleteCategory(name: string): Promise<{ ok: boolean }> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/categories/${encodeURIComponent(name)}`,
+    { method: "DELETE" }
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to delete category: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function renameCategory(
+  name: string,
+  newName: string
+): Promise<{ old_name: string; new_name: string }> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/categories/${encodeURIComponent(name)}/rename`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ new_name: newName }),
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to rename category: ${response.statusText}`);
+  }
+  return response.json();
+}
+
 export interface ScoringStatus {
   unscored: number;
   queued: number;

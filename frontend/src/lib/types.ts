@@ -64,18 +64,12 @@ export interface OllamaConfigSaveResult extends OllamaConfig {
   rescore_queued: number;
 }
 
-export interface CategoryGroup {
-  id: string;
-  name: string;
-  weight: string; // "block" | "reduce" | "normal" | "boost" | "max"
-  categories: string[];
-}
-
 export interface CategoryGroups {
-  groups: CategoryGroup[];
+  children: Record<string, string[]>;  // parent -> child category names
   hidden_categories: string[];
   seen_categories: string[];
   returned_categories: string[];
+  manually_created: string[];
 }
 
 export type SortOption = "score_desc" | "score_asc" | "date_desc" | "date_asc";

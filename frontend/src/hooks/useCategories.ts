@@ -9,6 +9,9 @@ import {
   hideCategory as apiHideCategory,
   unhideCategory as apiUnhideCategory,
   acknowledgeCategories as apiAcknowledgeCategories,
+  createCategory as apiCreateCategory,
+  deleteCategory as apiDeleteCategory,
+  renameCategory as apiRenameCategory,
 } from "@/lib/api";
 
 export function useCategories() {
@@ -63,6 +66,35 @@ export function useCategories() {
     },
   });
 
+  const createCategoryMutation = useMutation({
+    mutationFn: apiCreateCategory,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categoryGroups"] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["categories", "new-count"] });
+    },
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: apiDeleteCategory,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categoryGroups"] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["categories", "new-count"] });
+      queryClient.invalidateQueries({ queryKey: ["preferences"] });
+    },
+  });
+
+  const renameCategoryMutation = useMutation({
+    mutationFn: ({ name, newName }: { name: string; newName: string }) =>
+      apiRenameCategory(name, newName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categoryGroups"] });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["preferences"] });
+    },
+  });
+
   return {
     categoryGroups: groupsQuery.data,
     allCategories: categoriesQuery.data || [],
@@ -73,6 +105,9 @@ export function useCategories() {
     hideCategory: hideMutation.mutate,
     unhideCategory: unhideMutation.mutate,
     acknowledge: acknowledgeMutation.mutate,
+    createCategory: createCategoryMutation.mutate,
+    deleteCategory: deleteCategoryMutation.mutate,
+    renameCategory: renameCategoryMutation.mutate,
     isSaving: saveGroupsMutation.isPending,
   };
 }
