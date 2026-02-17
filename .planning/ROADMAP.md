@@ -217,7 +217,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 7. Ollama Configuration UI | v1.1 | 6/6 | Complete | 2026-02-15 |
 | 8. Category Grouping | v1.1 | 8/11 | In progress | - |
 | 08.1. Categories UI Redesign | v1.1 | Complete    | 2026-02-17 | 2026-02-17 |
-| 08.2. Category Data Model Refactor | v1.1 | 0/5 | Not started (JSON -> table migration) | - |
+| 08.2. Category Data Model Refactor | v1.1 | Complete    | 2026-02-17 | - |
 | 08.3. Group Management Redesign | v1.1 | 0/TBD | Not started (deferred from 08.1) | - |
 | 9. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
