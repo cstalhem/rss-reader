@@ -64,6 +64,10 @@ Progress: [██████████] 100% (36/36 total plans estimated)
 
 ## Accumulated Context
 
+### Roadmap Evolution
+
+- Phase 08.1 inserted after Phase 8: Categories Settings UI Redesign (INSERTED) — accordion-based category grouping has fundamental DnD issues with collapsed drop targets; needs full UX rethink before feedback system
+
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
@@ -137,9 +141,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Reverted quick task 11 — adding new phase for categories settings UI redesign before Phase 9
-Resume file: N/A
+Stopped at: Phase 08.1 context gathered — categories-as-parents tree view, manual creation, seeded base categories, DnD with always-expanded tree
+Resume file: .planning/phases/08.1-categories-settings-ui-redesign/08.1-CONTEXT.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-16 after quick task 11 execution*
+*Last updated: 2026-02-17 after Phase 08.1 context gathering*
