@@ -12,6 +12,7 @@ import { CategoryActionBar } from "./CategoryActionBar";
 import { CreateCategoryPopover } from "./CreateCategoryPopover";
 import { DeleteCategoryDialog } from "./DeleteCategoryDialog";
 import { MoveToGroupDialog } from "./MoveToGroupDialog";
+import { HiddenCategoriesSection } from "./HiddenCategoriesSection";
 
 export function CategoriesSection() {
   const {
@@ -27,6 +28,7 @@ export function CategoriesSection() {
     batchHide,
     batchDelete,
     ungroupParent,
+    unhideCategory,
     createCategoryMutation,
   } = useCategories();
 
@@ -121,6 +123,15 @@ export function CategoriesSection() {
     );
   }, [categories]);
 
+  // Hidden categories
+  const hiddenCategories = useMemo(
+    () =>
+      categories
+        .filter((c) => c.is_hidden)
+        .sort((a, b) => a.display_name.localeCompare(b.display_name)),
+    [categories]
+  );
+
   // Search filtering
   const { filteredParents, filteredChildrenMap, filteredUngrouped } = useMemo(() => {
     if (!searchQuery) {
@@ -190,6 +201,14 @@ export function CategoriesSection() {
       acknowledge([categoryId]);
     },
     [acknowledge]
+  );
+
+  const handleUnhideCategory = useCallback(
+    (categoryId: number) => {
+      unhideCategory(categoryId);
+      toaster.create({ title: "Category unhidden", type: "info" });
+    },
+    [unhideCategory]
   );
 
   const handleDeleteCategory = useCallback(
@@ -339,7 +358,7 @@ export function CategoriesSection() {
   }
 
   return (
-    <Stack gap={6}>
+    <Stack gap={6} pb={{ base: selectedIds.size > 0 ? 16 : 0, sm: 0 }}>
       {/* Header with title and new badge */}
       <Flex alignItems="center" gap={2}>
         <Text fontSize="xl" fontWeight="semibold">
@@ -497,6 +516,12 @@ export function CategoriesSection() {
           </Dialog.Positioner>
         </Portal>
       </Dialog.Root>
+
+      {/* Hidden categories section */}
+      <HiddenCategoriesSection
+        hiddenCategories={hiddenCategories}
+        onUnhide={handleUnhideCategory}
+      />
     </Stack>
   );
 }
