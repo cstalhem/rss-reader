@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8.3 of 10 (Category Group Management Redesign)
-Plan: 4 of 5 complete
-Status: In Progress
-Last activity: 2026-02-18 - Completed Phase 08.3 Plan 04 (Action Dialogs and Confirmations)
+Plan: 5 of 5 complete
+Status: Complete
+Last activity: 2026-02-18 - Completed Phase 08.3 Plan 05 (Hidden Categories & Mobile Card Layout)
 
 Progress: [██████████] 100% (36/36 total plans estimated from v1.1) + 08.3 in progress
 
@@ -92,6 +92,7 @@ Progress: [██████████] 100% (36/36 total plans estimated fro
 | Phase 08.3-category-group-management-redesign P01 | 3.3 | 2 tasks | 4 files |
 | Phase 08.3-category-group-management-redesign P03 | 5.9 | 2 tasks | 9 files |
 | Phase 08.3-category-group-management-redesign P04 | 4.2 | 2 tasks | 4 files |
+| Phase 08.3-category-group-management-redesign P05 | 3.4 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -205,6 +206,9 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08.3-04]: Expose createCategoryMutation for mutateAsync in create-and-move flow
 - [Phase 08.3-04]: Unified deleteDialogState object for single/bulk delete instead of separate state variables
 - [Phase 08.3-04]: Separate confirmation dialogs for batch ungroup (action bar) vs parent ungroup (context menu)
+- [Phase 08.3-05]: Collapsible.Indicator for auto-rotating chevron in hidden section (follows SystemPrompts pattern)
+- [Phase 08.3-05]: Dual-render WeightPresetStrip at breakpoints for mobile card layout (display none/block)
+- [Phase 08.3-05]: Mobile card pattern: Box wrapper with responsive borderWidth/borderRadius, separate mobile-only weight strip row
 
 ### Pending Todos
 
@@ -242,9 +246,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 08.3-04-PLAN.md
-Resume file: .planning/phases/08.3-category-group-management-redesign/08.3-04-SUMMARY.md
+Stopped at: Completed 08.3-05-PLAN.md (Phase 08.3 complete)
+Resume file: .planning/phases/08.3-category-group-management-redesign/08.3-05-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-18 after Phase 08.3 Plan 02 execution*
+*Last updated: 2026-02-18 after Phase 08.3 Plan 05 execution*
