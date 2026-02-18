@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Badge, Box, Flex, Stack, Skeleton, Text, Input } from "@chakra-ui/react";
+import { Badge, Box, Button, Dialog, Flex, Portal, Stack, Skeleton, Text, Input } from "@chakra-ui/react";
 import { LuTag } from "react-icons/lu";
 import { useCategories } from "@/hooks/useCategories";
 import { Category } from "@/lib/types";
@@ -10,6 +10,7 @@ import { CategoryTree } from "./CategoryTree";
 import { CategoryActionBar } from "./CategoryActionBar";
 import { CreateCategoryPopover } from "./CreateCategoryPopover";
 import { DeleteCategoryDialog } from "./DeleteCategoryDialog";
+import { MoveToGroupDialog } from "./MoveToGroupDialog";
 
 export function CategoriesSection() {
   const {
@@ -25,6 +26,7 @@ export function CategoriesSection() {
     batchHide,
     batchDelete,
     ungroupParent,
+    createCategoryMutation,
   } = useCategories();
 
   // Selection state
@@ -54,6 +56,12 @@ export function CategoriesSection() {
   );
 
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Move to group dialog state
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
+
+  // Ungroup confirmation state (null = closed, number = count)
+  const [ungroupConfirmCount, setUngroupConfirmCount] = useState<number | null>(null);
 
   // Delete state
   const [deletingCategory, setDeletingCategory] = useState<{
@@ -212,13 +220,36 @@ export function CategoriesSection() {
   );
 
   const handleActionMoveToGroup = useCallback(() => {
-    // Placeholder — will be implemented in Plan 04
-    console.log("Move to group", Array.from(selectedIds));
-  }, [selectedIds]);
+    setMoveDialogOpen(true);
+  }, []);
+
+  const handleMoveToGroup = useCallback(
+    (targetParentId: number) => {
+      batchMove(Array.from(selectedIds), targetParentId);
+      clearSelection();
+      setMoveDialogOpen(false);
+    },
+    [selectedIds, batchMove, clearSelection]
+  );
+
+  const handleCreateAndMove = useCallback(
+    async (groupName: string) => {
+      const created = await createCategoryMutation.mutateAsync({ displayName: groupName });
+      batchMove(Array.from(selectedIds), created.id);
+      clearSelection();
+      setMoveDialogOpen(false);
+    },
+    [selectedIds, createCategoryMutation, batchMove, clearSelection]
+  );
 
   const handleActionUngroup = useCallback(() => {
+    setUngroupConfirmCount(selectedIds.size);
+  }, [selectedIds]);
+
+  const handleUngroupConfirm = useCallback(() => {
     batchMove(Array.from(selectedIds), -1);
     clearSelection();
+    setUngroupConfirmCount(null);
   }, [selectedIds, batchMove, clearSelection]);
 
   const handleActionHide = useCallback(() => {
@@ -330,6 +361,58 @@ export function CategoriesSection() {
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeletingCategory(null)}
       />
+
+      <MoveToGroupDialog
+        open={moveDialogOpen}
+        onOpenChange={setMoveDialogOpen}
+        parentCategories={parents}
+        selectedCount={selectedIds.size}
+        onMove={handleMoveToGroup}
+        onCreate={handleCreateAndMove}
+      />
+
+      {/* Ungroup confirmation dialog */}
+      <Dialog.Root
+        open={ungroupConfirmCount !== null}
+        onOpenChange={(e) => {
+          if (!e.open) setUngroupConfirmCount(null);
+        }}
+      >
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content>
+              <Dialog.Header>
+                <Dialog.Title>Ungroup categories</Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body>
+                <Text>
+                  Ungroup {ungroupConfirmCount}{" "}
+                  {ungroupConfirmCount === 1 ? "category" : "categories"}? They
+                  will be moved to the root level.
+                </Text>
+              </Dialog.Body>
+              <Dialog.Footer>
+                <Flex gap={3}>
+                  <Dialog.ActionTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setUngroupConfirmCount(null)}
+                    >
+                      Cancel
+                    </Button>
+                  </Dialog.ActionTrigger>
+                  <Button size="sm" colorPalette="accent" onClick={handleUngroupConfirm}>
+                    Confirm
+                  </Button>
+                </Flex>
+              </Dialog.Footer>
+              <Dialog.CloseTrigger />
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
     </Stack>
   );
 }

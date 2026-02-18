@@ -242,5 +242,6 @@ export function useCategories() {
     batchHide: (categoryIds: number[]) => batchHideMutation.mutate(categoryIds),
     batchDelete: (categoryIds: number[]) => batchDeleteMutation.mutate(categoryIds),
     ungroupParent: (categoryId: number) => ungroupParentMutation.mutate(categoryId),
+    createCategoryMutation,
   };
 }
