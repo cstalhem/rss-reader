@@ -59,95 +59,114 @@ const CategoryUngroupedRowComponent = ({
   };
 
   return (
-    <Flex
-      role="group"
-      alignItems="center"
-      gap={2}
-      py={2}
-      px={3}
+    <Box
+      borderWidth={{ base: "1px", sm: "0" }}
+      borderColor="border.subtle"
+      borderRadius={{ base: "md", sm: "sm" }}
       bg="bg.subtle"
-      borderRadius="sm"
       _hover={{ bg: "bg.muted" }}
       transition="background 0.15s"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Box onClick={(e) => e.stopPropagation()}>
-        <Checkbox.Root
-          size="sm"
-          checked={isSelected}
-          onCheckedChange={() => onToggleSelection()}
-        >
-          <Checkbox.HiddenInput />
-          <Checkbox.Control />
-        </Checkbox.Root>
+      <Flex
+        role="group"
+        alignItems="center"
+        gap={2}
+        py={2}
+        px={3}
+      >
+        <Box onClick={(e) => e.stopPropagation()} minH={{ base: "44px", sm: "auto" }} display="flex" alignItems="center">
+          <Checkbox.Root
+            size="sm"
+            checked={isSelected}
+            onCheckedChange={() => onToggleSelection()}
+          >
+            <Checkbox.HiddenInput />
+            <Checkbox.Control />
+          </Checkbox.Root>
+        </Box>
+
+        {isRenaming ? (
+          <Input
+            ref={inputRef}
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleRenameSubmit();
+              } else if (e.key === "Escape") {
+                handleRenameCancel();
+              }
+            }}
+            onBlur={handleRenameSubmit}
+            size="sm"
+            flex={1}
+          />
+        ) : (
+          <Text fontSize="sm" truncate>
+            {category.display_name}
+          </Text>
+        )}
+
+        {isNew && (
+          <Badge
+            colorPalette="accent"
+            size="sm"
+            cursor="pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              onBadgeDismiss?.();
+            }}
+          >
+            <Flex alignItems="center" gap={0}>
+              <Box
+                display="flex"
+                alignItems="center"
+                maxW={{ base: "20px", md: isHovered ? "20px" : "0" }}
+                overflow="hidden"
+                transition="max-width 0.15s, padding 0.15s"
+                pr={isHovered ? 1 : 0}
+              >
+                <LuX size={14} />
+              </Box>
+              New
+            </Flex>
+          </Badge>
+        )}
+
+        <Box flex={1} />
+
+        {/* Desktop weight strip */}
+        <Box display={{ base: "none", sm: "block" }}>
+          <WeightPresetStrip
+            value={weight}
+            onChange={onWeightChange}
+            isOverridden={false}
+          />
+        </Box>
+
+        {!isRenaming && (
+          <Box minH={{ base: "44px", sm: "auto" }} display="flex" alignItems="center">
+            <CategoryContextMenu
+              type="ungrouped"
+              onRename={() => setIsRenaming(true)}
+              onHide={onHide}
+              onDelete={onDelete}
+            />
+          </Box>
+        )}
+      </Flex>
+
+      {/* Mobile weight strip */}
+      <Box display={{ base: "block", sm: "none" }} px={3} pb={2}>
+        <WeightPresetStrip
+          value={weight}
+          onChange={onWeightChange}
+          isOverridden={false}
+        />
       </Box>
-
-      {isRenaming ? (
-        <Input
-          ref={inputRef}
-          value={renameValue}
-          onChange={(e) => setRenameValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              handleRenameSubmit();
-            } else if (e.key === "Escape") {
-              handleRenameCancel();
-            }
-          }}
-          onBlur={handleRenameSubmit}
-          size="sm"
-          flex={1}
-        />
-      ) : (
-        <Text fontSize="sm" truncate>
-          {category.display_name}
-        </Text>
-      )}
-
-      {isNew && (
-        <Badge
-          colorPalette="accent"
-          size="sm"
-          cursor="pointer"
-          onClick={(e) => {
-            e.stopPropagation();
-            onBadgeDismiss?.();
-          }}
-        >
-          <Flex alignItems="center" gap={0}>
-            <Box
-              display="flex"
-              alignItems="center"
-              maxW={{ base: "20px", md: isHovered ? "20px" : "0" }}
-              overflow="hidden"
-              transition="max-width 0.15s, padding 0.15s"
-              pr={isHovered ? 1 : 0}
-            >
-              <LuX size={14} />
-            </Box>
-            New
-          </Flex>
-        </Badge>
-      )}
-
-      <Box flex={1} />
-
-      <WeightPresetStrip
-        value={weight}
-        onChange={onWeightChange}
-        isOverridden={false}
-      />
-
-      {!isRenaming && (
-        <CategoryContextMenu
-          type="ungrouped"
-          onRename={() => setIsRenaming(true)}
-          onHide={onHide}
-          onDelete={onDelete}
-        />
-      )}
-    </Flex>
+    </Box>
   );
 };
 

@@ -62,92 +62,107 @@ const CategoryParentRowComponent = ({
   };
 
   return (
-    <Flex
-      role="group"
-      alignItems="center"
-      gap={2}
-      py={3}
-      px={3}
+    <Box
+      borderWidth={{ base: "1px", sm: "0" }}
+      borderColor="border.subtle"
+      borderRadius={{ base: "md", sm: "sm" }}
       bg="bg.subtle"
-      borderRadius="sm"
       _hover={{ bg: "bg.muted" }}
       transition="background 0.15s"
     >
-      <Box
-        as="span"
-        display="inline-flex"
+      <Flex
+        role="group"
         alignItems="center"
-        cursor="pointer"
-        onClick={onToggleExpand}
-        transition="transform 0.2s"
-        transform={isExpanded ? "rotate(90deg)" : "rotate(0deg)"}
-        color="fg.muted"
+        gap={2}
+        py={3}
+        px={3}
       >
-        <LuChevronRight size={14} />
-      </Box>
-
-      <LuFolder size={16} color="var(--chakra-colors-fg-muted)" />
-
-      {isRenaming ? (
-        <Input
-          ref={inputRef}
-          value={renameValue}
-          onChange={(e) => setRenameValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              handleRenameSubmit();
-            } else if (e.key === "Escape") {
-              handleRenameCancel();
-            }
-          }}
-          onBlur={handleRenameSubmit}
-          size="sm"
-          flex={1}
-        />
-      ) : (
-        <Text
-          fontSize="sm"
-          fontWeight="semibold"
-          truncate
+        <Box
+          as="span"
+          display="inline-flex"
+          alignItems="center"
           cursor="pointer"
           onClick={onToggleExpand}
+          transition="transform 0.2s"
+          transform={isExpanded ? "rotate(90deg)" : "rotate(0deg)"}
+          color="fg.muted"
         >
-          {category.display_name}
+          <LuChevronRight size={14} />
+        </Box>
+
+        <LuFolder size={16} color="var(--chakra-colors-fg-muted)" />
+
+        {isRenaming ? (
+          <Input
+            ref={inputRef}
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleRenameSubmit();
+              } else if (e.key === "Escape") {
+                handleRenameCancel();
+              }
+            }}
+            onBlur={handleRenameSubmit}
+            size="sm"
+            flex={1}
+          />
+        ) : (
+          <Text
+            fontSize="sm"
+            fontWeight="semibold"
+            truncate
+            cursor="pointer"
+            onClick={onToggleExpand}
+          >
+            {category.display_name}
+          </Text>
+        )}
+
+        <Text fontSize="xs" color="fg.muted">
+          ({childCount})
         </Text>
-      )}
 
-      <Text fontSize="xs" color="fg.muted">
-        ({childCount})
-      </Text>
+        {!isExpanded && newChildCount > 0 && (
+          <Badge
+            colorPalette="accent"
+            size="sm"
+            cursor="pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDismissNewChildren?.();
+            }}
+          >
+            {newChildCount} new
+          </Badge>
+        )}
 
-      {!isExpanded && newChildCount > 0 && (
-        <Badge
-          colorPalette="accent"
-          size="sm"
-          cursor="pointer"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDismissNewChildren?.();
-          }}
-        >
-          {newChildCount} new
-        </Badge>
-      )}
+        <Box flex={1} />
 
-      <Box flex={1} />
+        {/* Desktop weight strip */}
+        <Box display={{ base: "none", sm: "block" }}>
+          <WeightPresetStrip value={weight} onChange={onWeightChange} />
+        </Box>
 
-      <WeightPresetStrip value={weight} onChange={onWeightChange} />
+        {!isRenaming && (
+          <Box minH={{ base: "44px", sm: "auto" }} display="flex" alignItems="center">
+            <CategoryContextMenu
+              type="parent"
+              onUngroup={onUngroup}
+              onRename={() => setIsRenaming(true)}
+              onHide={onHide}
+              onDelete={onDelete}
+            />
+          </Box>
+        )}
+      </Flex>
 
-      {!isRenaming && (
-        <CategoryContextMenu
-          type="parent"
-          onUngroup={onUngroup}
-          onRename={() => setIsRenaming(true)}
-          onHide={onHide}
-          onDelete={onDelete}
-        />
-      )}
-    </Flex>
+      {/* Mobile weight strip */}
+      <Box display={{ base: "block", sm: "none" }} px={3} pb={2}>
+        <WeightPresetStrip value={weight} onChange={onWeightChange} />
+      </Box>
+    </Box>
   );
 };
 
