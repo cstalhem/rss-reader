@@ -174,7 +174,7 @@ Plans:
 
 ### Phase 08.3: Category Group Management Redesign
 
-**Goal:** Replace drag-and-drop category grouping with a more reliable UI paradigm (button-based or alternative interaction model)
+**Goal:** Replace drag-and-drop category grouping with checkbox multi-select + action bar paradigm, collapsible tree, context menus, and mobile card layout
 **Depends on:** Phase 08.2
 **Requirements:** CATGRP-02, CATGRP-03
 **Deferred from:** 08.1-UAT-r2.md gaps #5 (DnD performance) and #6 (ungroup via DnD)
@@ -182,10 +182,14 @@ Plans:
   1. User can group/ungroup categories with a smooth, reliable interaction (no DnD bugs)
   2. Grouping interaction works on both desktop and mobile
   3. Visual feedback is clear during group management actions
-**Plans**: TBD (requires design decision on interaction paradigm)
+**Plans**: 5 plans
 
 Plans:
-- [ ] 08.3-01: TBD during planning
+- [ ] 08.3-01-PLAN.md -- Backend: fix hide/unhide semantics, batch endpoints, ungroup parent, LLM prompt update
+- [ ] 08.3-02-PLAN.md -- Frontend: strip DnD, collapsible parent rows, checkbox multi-select
+- [ ] 08.3-03-PLAN.md -- Frontend: action bar, context menus, batch API client and hook integration
+- [ ] 08.3-04-PLAN.md -- Frontend: Move to Group dialog, delete/ungroup confirmation dialogs
+- [ ] 08.3-05-PLAN.md -- Frontend: hidden categories section, mobile card layout
 
 #### Phase 9: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
