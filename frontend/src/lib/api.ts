@@ -405,3 +405,52 @@ export async function fetchDownloadStatus(): Promise<DownloadStatus> {
 
   return response.json();
 }
+
+// --- Batch Category Operations ---
+
+export async function batchMoveCategories(
+  categoryIds: number[],
+  targetParentId: number
+): Promise<{ ok: boolean; updated: number }> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/batch-move`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ category_ids: categoryIds, target_parent_id: targetParentId }),
+  });
+  if (!response.ok) throw new Error(`Failed to move categories: ${response.statusText}`);
+  return response.json();
+}
+
+export async function batchHideCategories(
+  categoryIds: number[]
+): Promise<{ ok: boolean; updated: number }> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/batch-hide`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ category_ids: categoryIds }),
+  });
+  if (!response.ok) throw new Error(`Failed to hide categories: ${response.statusText}`);
+  return response.json();
+}
+
+export async function batchDeleteCategories(
+  categoryIds: number[]
+): Promise<{ ok: boolean; deleted: number }> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/batch-delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ category_ids: categoryIds }),
+  });
+  if (!response.ok) throw new Error(`Failed to delete categories: ${response.statusText}`);
+  return response.json();
+}
+
+export async function ungroupParent(
+  categoryId: number
+): Promise<{ ok: boolean; children_ungrouped: number }> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/${categoryId}/ungroup`, {
+    method: "POST",
+  });
+  if (!response.ok) throw new Error(`Failed to ungroup category: ${response.statusText}`);
+  return response.json();
+}

@@ -11,6 +11,10 @@ import {
   unhideCategory as apiUnhideCategory,
   acknowledgeCategories as apiAcknowledgeCategories,
   mergeCategories as apiMergeCategories,
+  batchMoveCategories as apiBatchMoveCategories,
+  batchHideCategories as apiBatchHideCategories,
+  batchDeleteCategories as apiBatchDeleteCategories,
+  ungroupParent as apiUngroupParent,
 } from "@/lib/api";
 import { Category } from "@/lib/types";
 import { toaster } from "@/components/ui/toaster";
@@ -153,6 +157,69 @@ export function useCategories() {
     },
   });
 
+  const batchMoveMutation = useMutation({
+    mutationFn: ({ categoryIds, targetParentId }: { categoryIds: number[]; targetParentId: number }) =>
+      apiBatchMoveCategories(categoryIds, targetParentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["categories", "new-count"] });
+      queryClient.invalidateQueries({ queryKey: ["articles"] });
+    },
+    onError: (err: Error) => {
+      toaster.create({
+        title: "Failed to move categories",
+        description: err.message,
+        type: "error",
+      });
+    },
+  });
+
+  const batchHideMutation = useMutation({
+    mutationFn: (categoryIds: number[]) => apiBatchHideCategories(categoryIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["categories", "new-count"] });
+      queryClient.invalidateQueries({ queryKey: ["articles"] });
+    },
+    onError: (err: Error) => {
+      toaster.create({
+        title: "Failed to hide categories",
+        description: err.message,
+        type: "error",
+      });
+    },
+  });
+
+  const batchDeleteMutation = useMutation({
+    mutationFn: (categoryIds: number[]) => apiBatchDeleteCategories(categoryIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["categories", "new-count"] });
+      queryClient.invalidateQueries({ queryKey: ["articles"] });
+    },
+    onError: (err: Error) => {
+      toaster.create({
+        title: "Failed to delete categories",
+        description: err.message,
+        type: "error",
+      });
+    },
+  });
+
+  const ungroupParentMutation = useMutation({
+    mutationFn: (categoryId: number) => apiUngroupParent(categoryId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+    },
+    onError: (err: Error) => {
+      toaster.create({
+        title: "Failed to ungroup category",
+        description: err.message,
+        type: "error",
+      });
+    },
+  });
+
   return {
     categories: categoriesQuery.data ?? [],
     newCount: newCountQuery.data?.count ?? 0,
@@ -170,5 +237,10 @@ export function useCategories() {
     acknowledge: (categoryIds: number[]) => acknowledgeMutation.mutate(categoryIds),
     mergeCategories: (sourceId: number, targetId: number) =>
       mergeMutation.mutate({ sourceId, targetId }),
+    batchMove: (categoryIds: number[], targetParentId: number) =>
+      batchMoveMutation.mutate({ categoryIds, targetParentId }),
+    batchHide: (categoryIds: number[]) => batchHideMutation.mutate(categoryIds),
+    batchDelete: (categoryIds: number[]) => batchDeleteMutation.mutate(categoryIds),
+    ungroupParent: (categoryId: number) => ungroupParentMutation.mutate(categoryId),
   };
 }
