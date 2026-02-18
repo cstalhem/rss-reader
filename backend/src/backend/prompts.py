@@ -81,6 +81,7 @@ def build_categorization_prompt(
     article_text: str,
     existing_categories: list[str],
     category_hierarchy: dict[str, list[str]] | None = None,
+    hidden_categories: list[str] | None = None,
 ) -> str:
     """Build prompt for LLM categorization of article.
 
@@ -89,6 +90,7 @@ def build_categorization_prompt(
         article_text: Article content (will be truncated to 2000 chars)
         existing_categories: List of known categories to reuse
         category_hierarchy: Optional parent->children hierarchy to inform category selection
+        hidden_categories: Optional list of hidden categories the LLM should avoid
 
     Returns:
         Prompt string for categorization
@@ -114,6 +116,11 @@ def build_categorization_prompt(
 {chr(10).join(hierarchy_lines)}
 """
 
+    # Format hidden categories section if provided
+    hidden_section = ""
+    if hidden_categories:
+        hidden_section = f"\n\n**NEVER assign these categories or similar topics (they are blocked):**\n{', '.join(hidden_categories)}"
+
     prompt = f"""Categorize this article into 1-4 topic categories.
 
 **Rules (follow strictly):**
@@ -126,7 +133,7 @@ def build_categorization_prompt(
 7. Maximum 4 categories per article. Fewer is better.
 8. When suggesting a new category, suggest which existing parent it should belong under in the suggested_parent field.
 
-**Existing categories:** {categories_list}{hierarchy_section}
+**Existing categories:** {categories_list}{hierarchy_section}{hidden_section}
 
 **Article:**
 Title: {article_title}

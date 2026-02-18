@@ -136,8 +136,8 @@ class ScoringQueue:
         else:
             scoring_model = categorization_model
 
-        # Get active categories list and hierarchy
-        active_categories, category_hierarchy = await get_active_categories(session)
+        # Get active categories list, hierarchy, and hidden categories
+        active_categories, category_hierarchy, hidden_categories = await get_active_categories(session)
 
         processed = 0
         for article in articles:
@@ -177,6 +177,7 @@ class ScoringQueue:
                         settings,
                         model=categorization_model,
                         category_hierarchy=category_hierarchy,
+                        hidden_categories=hidden_categories or None,
                     )
 
                     # Create/find categories and write junction table links

@@ -94,6 +94,7 @@ async def categorize_article(
     settings,
     model: str,
     category_hierarchy: dict[str, list[str]] | None = None,
+    hidden_categories: list[str] | None = None,
 ) -> CategoryResponse:
     """Categorize an article using Ollama LLM.
 
@@ -104,6 +105,7 @@ async def categorize_article(
         settings: Application settings with Ollama config (host, thinking)
         model: Ollama model name to use for categorization
         category_hierarchy: Optional parent-child hierarchy to guide categorization
+        hidden_categories: Optional list of hidden category names to avoid
 
     Returns:
         CategoryResponse with assigned categories and suggestions
@@ -112,7 +114,8 @@ async def categorize_article(
         Exception: On LLM call failure after retries
     """
     prompt = build_categorization_prompt(
-        article_title, article_text, existing_categories, category_hierarchy
+        article_title, article_text, existing_categories, category_hierarchy,
+        hidden_categories=hidden_categories,
     )
 
     client = AsyncClient(
@@ -302,14 +305,16 @@ def is_blocked(categories: list[Category]) -> bool:
     return False
 
 
-async def get_active_categories(session: Session) -> tuple[list[str], dict[str, list[str]] | None]:
-    """Get list of active (non-hidden) categories and hierarchy from Category table.
+async def get_active_categories(
+    session: Session,
+) -> tuple[list[str], dict[str, list[str]] | None, list[str]]:
+    """Get active (non-hidden) categories, hierarchy, and hidden category names.
 
     Args:
         session: Database session
 
     Returns:
-        Tuple of (sorted display name list, category hierarchy dict or None)
+        Tuple of (sorted display name list, category hierarchy dict or None, sorted hidden names)
     """
     # Query all non-hidden categories
     categories = session.exec(
@@ -335,4 +340,13 @@ async def get_active_categories(session: Session) -> tuple[list[str], dict[str, 
     for children in hierarchy.values():
         children.sort(key=str.lower)
 
-    return display_names, hierarchy if hierarchy else None
+    # Query hidden categories
+    hidden_categories = session.exec(
+        select(Category).where(Category.is_hidden == True)  # noqa: E712
+    ).all()
+    hidden_names = sorted(
+        [cat.display_name for cat in hidden_categories],
+        key=str.lower,
+    )
+
+    return display_names, hierarchy if hierarchy else None, hidden_names
