@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** - Phases 1-5 (shipped 2026-02-14)
-- 🚧 **v1.1 Configuration, Feedback & Polish** - Phases 6-9 (in progress)
+- 🚧 **v1.1 Configuration, Feedback & Polish** - Phases 6-10 (in progress)
 
 ## Phases
 
@@ -149,7 +149,7 @@ Plans:
 
 ### Phase 08.2: Category Data Model Refactor
 
-**Goal:** Migrate categories from JSON blobs to a proper Category table with ArticleCategoryLink junction table, enabling clean relational operations for grouping, renaming, splitting, and Phase 9 feedback aggregation
+**Goal:** Migrate categories from JSON blobs to a proper Category table with ArticleCategoryLink junction table, enabling clean relational operations for grouping, renaming, splitting, and Phase 10 feedback aggregation
 **Depends on:** Phase 08.1
 **Deferred from:** 08.1-UAT-r2.md gap #10 (parent split vs delete — root cause: JSON blob surgery too fragile)
 **Requirements:** CATGRP-01, CATGRP-02, CATGRP-03, CATGRP-04, CATGRP-05
@@ -191,9 +191,30 @@ Plans:
 - [ ] 08.3-04-PLAN.md -- Frontend: Move to Group dialog, delete/ungroup confirmation dialogs
 - [ ] 08.3-05-PLAN.md -- Frontend: hidden categories section, mobile card layout
 
-#### Phase 9: LLM Feedback Loop
+#### Phase 9: Codebase Evaluation & Simplification
+**Goal**: Thorough evaluation of codebase, architecture, and data models to surface simplifications and address technical debt while retaining all functionality
+**Depends on**: Phase 08.3 (all category management work complete)
+**Origin**: Pending todo #2 (codebase evaluation and simplification phase)
+**Success Criteria** (what must be TRUE):
+  1. Hard-coded values, duplicated logic, and inconsistencies identified and addressed
+  2. Hook return interfaces reviewed — remove unnecessary wrapper indirection (e.g., useCategories exposes thin `.mutate()` wrappers that hide useful mutation state like `.mutateAsync()`, `.isPending`)
+  3. Component boundaries validated — shared components with behavioral `type` props evaluated for splitting
+  4. Dead code from DnD removal and data model migration cleaned up
+  5. No functional regressions
+**Specific items to evaluate**:
+  - `useCategories.ts` wrapper functions: most are zero-value indirection over `.mutate()`. Evaluate exposing mutation objects directly for callers that need `.mutateAsync()`, `.isPending`, etc. (discovered during Phase 08.3 Plan 04 review)
+  - Repetitive mutation boilerplate in `useCategories.ts` (7 mutations with near-identical invalidation + toast patterns)
+  - Leftover `@dnd-kit` / `@hello-pangea/dnd` dependencies and imports after Phase 08.3 DnD removal
+  - Consistency of error handling and toast patterns across all hooks
+**Plans**: TBD
+
+Plans:
+- [ ] 09-01: TBD during planning
+- [ ] 09-02: TBD during planning
+
+#### Phase 10: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
-**Depends on**: Phase 8 (category weight resolution needed)
+**Depends on**: Phase 9 (clean codebase foundation)
 **Requirements**: FEEDBACK-01, FEEDBACK-02, FEEDBACK-03, FEEDBACK-04
 **Success Criteria** (what must be TRUE):
   1. User can give thumbs up/down feedback on any article from article list
@@ -203,14 +224,14 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 09-01: TBD during planning
-- [ ] 09-02: TBD during planning
-- [ ] 09-03: TBD during planning
+- [ ] 10-01: TBD during planning
+- [ ] 10-02: TBD during planning
+- [ ] 10-03: TBD during planning
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 6 -> 7 -> 8 -> 9
+Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -224,8 +245,9 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9
 | 8. Category Grouping | v1.1 | 8/11 | In progress | - |
 | 08.1. Categories UI Redesign | v1.1 | Complete    | 2026-02-17 | 2026-02-17 |
 | 08.2. Category Data Model Refactor | v1.1 | Complete    | 2026-02-17 | - |
-| 08.3. Group Management Redesign | v1.1 | 0/TBD | Not started (deferred from 08.1) | - |
-| 9. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
+| 08.3. Group Management Redesign | 1/5 | In Progress|  | - |
+| 9. Codebase Evaluation & Simplification | v1.1 | 0/TBD | Not started | - |
+| 10. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*

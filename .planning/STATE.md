@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** Surface interesting articles and hide noise automatically via local LLM curation
-**Current focus:** Phase 8.2 - Category Data Model Refactor
+**Current focus:** Phase 8.3 - Category Group Management Redesign
 
 ## Current Position
 
-Phase: 8.2 of 9 (Category Data Model Refactor)
-Plan: 7 of 7 complete
-Status: Complete
-Last activity: 2026-02-17 - Completed Phase 08.2 Plan 07 (DnD Ungroup and Article Reader Weight Fixes)
+Phase: 8.3 of 10 (Category Group Management Redesign)
+Plan: 1 of 5 complete
+Status: In Progress
+Last activity: 2026-02-18 - Completed Phase 08.3 Plan 01 (Backend Batch Endpoints and Hide/Unhide Fix)
 
-Progress: [██████████] 100% (36/36 total plans estimated from v1.1) + 08.2 in progress
+Progress: [██████████] 100% (36/36 total plans estimated from v1.1) + 08.3 in progress
 
 ## Performance Metrics
 
@@ -83,6 +83,9 @@ Progress: [██████████] 100% (36/36 total plans estimated fro
 | Phase 08.2-category-data-model-refactor P06 | 2.9 | 2 tasks | 4 files |
 | Phase 08.2-category-data-model-refactor P07 | 1.7 | 2 tasks | 3 files |
 | Phase 08.2-category-data-model-refactor PP07 | 1.7 | 2 tasks | 3 files |
+
+**Phase 08.3 Metrics:**
+| Phase 08.3-category-group-management-redesign P01 | 3.3 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -183,6 +186,10 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08.2-06]: Local optimistic state (localValue) in WeightPresetStrip with useEffect sync for instant visual feedback
 - [Phase 08.2-06]: Auto-acknowledge (is_seen: true) injected in useCategories.updateCategory wrapper when weight changes
 - [Phase 08.2-06]: React state-driven hover reveal (onMouseEnter/Leave + isHovered state) replaces broken _groupHover CSS patterns
+- [Phase 08.3-01]: Hide = is_hidden + clear parent_id (leave group on hide), no weight change -- visibility flag only
+- [Phase 08.3-01]: Batch endpoints use POST with category_ids array body, return {ok, count}
+- [Phase 08.3-01]: Weight preservation on ungroup: copy parent.weight to child when child.weight is null before clearing parent_id
+- [Phase 08.3-01]: Hidden categories in LLM prompt with "NEVER assign" avoidance instruction
 
 ### Pending Todos
 
@@ -210,14 +217,18 @@ Key architectural decisions carrying forward to v1.1:
 - Ollama model switching during active scoring creates race condition - needs investigation during planning (retry vs queue pause)
 
 **Phase 9 considerations:**
+- Scope driven by todo #2 (codebase evaluation) plus specific findings from Phase 08.3 review (useCategories hook bloat, wrapper indirection)
+- Should be a quick phase — evaluation + targeted fixes, not a rewrite
+
+**Phase 10 considerations:**
 - Feedback aggregation strategy is custom (no standard implementation) - flagged for deeper research during planning
 - Minimum sample size and weight delta parameters are heuristics not empirically validated - start conservative, monitor in production
 
 ## Session Continuity
 
-Last session: 2026-02-17
-Stopped at: Phase 08.3 context gathered
-Resume file: .planning/phases/08.3-category-group-management-redesign/08.3-CONTEXT.md
+Last session: 2026-02-18
+Stopped at: Completed 08.3-01-PLAN.md
+Resume file: .planning/phases/08.3-category-group-management-redesign/08.3-01-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
