@@ -3,18 +3,9 @@
 import { useCallback, useMemo, useState } from "react";
 import { Badge, Box, Flex, Stack, Skeleton, Text, Input } from "@chakra-ui/react";
 import { LuTag } from "react-icons/lu";
-import {
-  DndContext,
-  DragOverlay,
-  DragStartEvent,
-  DragEndEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  useDroppable,
-} from "@dnd-kit/core";
 import { useCategories } from "@/hooks/useCategories";
 import { Category } from "@/lib/types";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { CategoryTree } from "./CategoryTree";
 import { CreateCategoryPopover } from "./CreateCategoryPopover";
 import { DeleteCategoryDialog } from "./DeleteCategoryDialog";
@@ -31,15 +22,33 @@ export function CategoriesSection() {
     acknowledge,
   } = useCategories();
 
-  // DnD state
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const isDndDisabled = searchQuery.length > 0;
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const toggleSelection = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
-  // DnD sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  // Expand/collapse state persisted in localStorage
+  const [expandedParents, setExpandedParents] = useLocalStorage<
+    Record<number, boolean>
+  >("category-expanded-parents", {});
+  const toggleParent = useCallback(
+    (parentId: number) => {
+      setExpandedParents({
+        ...expandedParents,
+        [parentId]: !expandedParents[parentId],
+      });
+    },
+    [expandedParents, setExpandedParents]
   );
+
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Delete state
   const [deletingCategory, setDeletingCategory] = useState<{
@@ -131,77 +140,6 @@ export function CategoriesSection() {
     };
   }, [searchQuery, parents, childrenMap, ungroupedCategories]);
 
-  // Ungroup drop zone
-  const { setNodeRef: setUngroupDropRef, isOver: isOverUngroup } = useDroppable({
-    id: "ungroup-zone",
-    disabled: isDndDisabled,
-  });
-
-  // Helper to find a category by ID
-  const findCategory = useCallback(
-    (id: number): Category | undefined => categories.find((c) => c.id === id),
-    [categories]
-  );
-
-  // DnD handler
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      setActiveId(null);
-      if (!over) return;
-
-      const draggedIdStr = active.id as string;
-      const rawOverId = over.id as string;
-
-      if (draggedIdStr === rawOverId) return;
-
-      // Parse dragged category ID
-      const draggedCategoryId = Number(draggedIdStr);
-      const draggedCat = findCategory(draggedCategoryId);
-      if (!draggedCat) return;
-
-      // Strip drop: prefix from CategoryChildRow droppable IDs
-      const overId = rawOverId.startsWith("drop:") ? rawOverId.slice(5) : rawOverId;
-
-      if (draggedIdStr === overId) return;
-
-      // Determine destination parent
-      let destParentId: number | null = null;
-
-      if (overId === "ungroup-zone" || overId === "root") {
-        destParentId = null;
-      } else if (overId.startsWith("parent:")) {
-        destParentId = Number(overId.replace("parent:", ""));
-      } else {
-        // Dropped onto a category -- check if it's a parent or ungrouped
-        const overCategoryId = Number(overId);
-        const overCat = findCategory(overCategoryId);
-        if (!overCat) return;
-
-        // If it has children, it's a parent — drop into it
-        if (childrenMap[overCat.id]) {
-          destParentId = overCat.id;
-        } else if (overCat.parent_id === null) {
-          // It's an ungrouped root category — it becomes a parent
-          destParentId = overCat.id;
-        } else {
-          // Dropped onto a child — invalid
-          return;
-        }
-      }
-
-      // Prevent nesting a parent with children under another parent
-      if (destParentId !== null && childrenMap[draggedCat.id]?.length > 0) {
-        return;
-      }
-
-      // Use -1 sentinel for "move to root" (backend convention)
-      const parentIdValue = destParentId === null ? -1 : destParentId;
-      updateCategory(draggedCat.id, { parent_id: parentIdValue });
-    },
-    [childrenMap, findCategory, updateCategory]
-  );
-
   const handleWeightChange = useCallback(
     (categoryId: number, weight: string) => {
       updateCategory(categoryId, { weight });
@@ -233,7 +171,7 @@ export function CategoriesSection() {
 
   const handleDeleteCategory = useCallback(
     (categoryId: number) => {
-      const cat = findCategory(categoryId);
+      const cat = categories.find((c) => c.id === categoryId);
       if (!cat) return;
       const children = childrenMap[categoryId] ?? [];
       const isParent = children.length > 0;
@@ -244,7 +182,7 @@ export function CategoriesSection() {
         isParent,
       });
     },
-    [findCategory, childrenMap]
+    [categories, childrenMap]
   );
 
   const handleDeleteConfirm = useCallback(() => {
@@ -325,68 +263,23 @@ export function CategoriesSection() {
         onChange={(e) => setSearchQuery(e.target.value)}
       />
 
-      {/* Category tree with DnD */}
-      <DndContext
-        sensors={sensors}
-        onDragStart={(e: DragStartEvent) =>
-          !isDndDisabled && setActiveId(e.active.id as string)
-        }
-        onDragEnd={handleDragEnd}
-      >
-        <CategoryTree
-          parents={filteredParents}
-          childrenMap={filteredChildrenMap}
-          ungroupedCategories={filteredUngrouped}
-          newCategoryIds={newCategoryIds}
-          onWeightChange={handleWeightChange}
-          onResetWeight={handleResetWeight}
-          onHide={handleHideCategory}
-          onBadgeDismiss={handleBadgeDismiss}
-          isDndEnabled={!isDndDisabled}
-          activeId={activeId}
-          onRename={handleRenameCategory}
-          onDelete={handleDeleteCategory}
-        />
-
-        {/* Explicit ungroup drop zone */}
-        {activeId && (
-          <Box
-            ref={setUngroupDropRef}
-            py={3}
-            px={4}
-            mt={2}
-            borderWidth="2px"
-            borderStyle="dashed"
-            borderColor={isOverUngroup ? "accent.solid" : "border.subtle"}
-            borderRadius="md"
-            bg={isOverUngroup ? "accent.subtle" : "transparent"}
-            textAlign="center"
-            fontSize="sm"
-            color="fg.muted"
-            transition="all 0.2s"
-          >
-            Drop here to ungroup
-          </Box>
-        )}
-
-        <DragOverlay>
-          {activeId && (() => {
-            const cat = findCategory(Number(activeId));
-            return (
-              <Box
-                bg="bg.subtle"
-                borderWidth="1px"
-                borderColor="border.subtle"
-                borderRadius="sm"
-                p={2}
-                shadow="md"
-              >
-                <Text fontSize="sm">{cat?.display_name ?? activeId}</Text>
-              </Box>
-            );
-          })()}
-        </DragOverlay>
-      </DndContext>
+      {/* Category tree */}
+      <CategoryTree
+        parents={filteredParents}
+        childrenMap={filteredChildrenMap}
+        ungroupedCategories={filteredUngrouped}
+        newCategoryIds={newCategoryIds}
+        onWeightChange={handleWeightChange}
+        onResetWeight={handleResetWeight}
+        onHide={handleHideCategory}
+        onBadgeDismiss={handleBadgeDismiss}
+        onRename={handleRenameCategory}
+        onDelete={handleDeleteCategory}
+        selectedIds={selectedIds}
+        onToggleSelection={toggleSelection}
+        expandedParents={expandedParents}
+        onToggleParent={toggleParent}
+      />
 
       <DeleteCategoryDialog
         categoryName={deletingCategory?.displayName ?? null}
