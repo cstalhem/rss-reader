@@ -154,6 +154,15 @@ class CategoryAcknowledgeRequest(BaseModel):
     category_ids: list[int]
 
 
+class CategoryBatchMove(BaseModel):
+    category_ids: list[int]
+    target_parent_id: int
+
+
+class CategoryBatchAction(BaseModel):
+    category_ids: list[int]
+
+
 # --- Article category embedding ---
 
 
@@ -1009,13 +1018,13 @@ def hide_category(
     category_id: int,
     session: Session = Depends(get_session),
 ):
-    """Hide a category and set weight to block."""
+    """Hide a category. Sets is_hidden=True and clears parent_id (leaves group)."""
     category = session.get(Category, category_id)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
 
     category.is_hidden = True
-    category.weight = "block"
+    category.parent_id = None
     session.add(category)
     session.commit()
     session.refresh(category)
@@ -1041,6 +1050,141 @@ def unhide_category(
     session.refresh(category)
 
     return _category_to_response(session, category)
+
+
+@app.post("/api/categories/batch-move")
+def batch_move_categories(
+    body: CategoryBatchMove,
+    session: Session = Depends(get_session),
+):
+    """Move multiple categories to a new parent, or ungroup them (target_parent_id=-1)."""
+    updated = 0
+
+    if body.target_parent_id == -1:
+        # Ungroup: move to root, preserving inherited weights
+        for cat_id in body.category_ids:
+            category = session.get(Category, cat_id)
+            if not category:
+                continue
+            # Preserve inherited weight before clearing parent
+            if category.weight is None and category.parent_id is not None:
+                parent = session.get(Category, category.parent_id)
+                if parent and parent.weight is not None:
+                    category.weight = parent.weight
+            category.parent_id = None
+            session.add(category)
+            updated += 1
+    else:
+        # Move to target parent
+        target = session.get(Category, body.target_parent_id)
+        if not target:
+            raise HTTPException(status_code=404, detail="Target parent not found")
+        # Ensure target is a root category (no parent)
+        if target.parent_id is not None:
+            raise HTTPException(
+                status_code=400,
+                detail="Target must be a root category (no parent)",
+            )
+        for cat_id in body.category_ids:
+            category = session.get(Category, cat_id)
+            if not category:
+                continue
+            # Prevent nesting a parent with children under another parent
+            children = session.exec(
+                select(Category).where(Category.parent_id == cat_id)
+            ).all()
+            if children:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Category '{category.display_name}' has children and cannot be nested under another parent",
+                )
+            category.parent_id = body.target_parent_id
+            session.add(category)
+            updated += 1
+
+    session.commit()
+    return {"ok": True, "updated": updated}
+
+
+@app.post("/api/categories/batch-hide")
+def batch_hide_categories(
+    body: CategoryBatchAction,
+    session: Session = Depends(get_session),
+):
+    """Hide multiple categories. Sets is_hidden=True and clears parent_id."""
+    updated = 0
+    for cat_id in body.category_ids:
+        category = session.get(Category, cat_id)
+        if not category:
+            continue
+        category.is_hidden = True
+        category.parent_id = None
+        session.add(category)
+        updated += 1
+
+    session.commit()
+    return {"ok": True, "updated": updated}
+
+
+@app.post("/api/categories/batch-delete")
+def batch_delete_categories(
+    body: CategoryBatchAction,
+    session: Session = Depends(get_session),
+):
+    """Delete multiple categories. Releases children to root, deletes article links."""
+    from sqlalchemy import delete as sa_delete
+
+    deleted = 0
+    for cat_id in body.category_ids:
+        category = session.get(Category, cat_id)
+        if not category:
+            continue
+        # Release children to root, preserving weights
+        children = session.exec(
+            select(Category).where(Category.parent_id == cat_id)
+        ).all()
+        for child in children:
+            if child.weight is None and category.weight is not None:
+                child.weight = category.weight
+            child.parent_id = None
+            session.add(child)
+        # Delete article-category links
+        session.exec(
+            sa_delete(ArticleCategoryLink).where(
+                ArticleCategoryLink.category_id == cat_id
+            )
+        )
+        # Delete the category
+        session.delete(category)
+        deleted += 1
+
+    session.commit()
+    return {"ok": True, "deleted": deleted}
+
+
+@app.post("/api/categories/{category_id}/ungroup")
+def ungroup_parent(
+    category_id: int,
+    session: Session = Depends(get_session),
+):
+    """Ungroup a parent category: release all children to root, preserving inherited weights."""
+    parent = session.get(Category, category_id)
+    if not parent:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    children = session.exec(
+        select(Category).where(Category.parent_id == category_id)
+    ).all()
+
+    for child in children:
+        # Preserve inherited weight before clearing parent
+        if child.weight is None and parent.weight is not None:
+            child.weight = parent.weight
+        child.parent_id = None
+        session.add(child)
+
+    session.commit()
+    return {"ok": True, "children_ungrouped": len(children)}
 
 
 @app.post("/api/scoring/rescore")
