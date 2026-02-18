@@ -18,6 +18,7 @@ interface CategoryTreeProps {
   onBadgeDismiss: (categoryId: number) => void;
   onRename: (categoryId: number, newName: string) => void;
   onDelete: (categoryId: number) => void;
+  onUngroup: (categoryId: number) => void;
   selectedIds: Set<number>;
   onToggleSelection: (id: number) => void;
   expandedParents: Record<number, boolean>;
@@ -41,6 +42,7 @@ const CategoryTreeComponent = ({
   onBadgeDismiss,
   onRename,
   onDelete,
+  onUngroup,
   selectedIds,
   onToggleSelection,
   expandedParents,
@@ -68,6 +70,8 @@ const CategoryTreeComponent = ({
               onWeightChange={(weight) => onWeightChange(parent.id, weight)}
               onRename={(newName) => onRename(parent.id, newName)}
               onDelete={() => onDelete(parent.id)}
+              onUngroup={() => onUngroup(parent.id)}
+              onHide={() => onHide(parent.id)}
               isExpanded={isExpanded}
               onToggleExpand={() => onToggleParent(parent.id)}
               newChildCount={newChildCount}

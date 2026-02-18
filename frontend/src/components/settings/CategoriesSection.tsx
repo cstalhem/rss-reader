@@ -7,6 +7,7 @@ import { useCategories } from "@/hooks/useCategories";
 import { Category } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { CategoryTree } from "./CategoryTree";
+import { CategoryActionBar } from "./CategoryActionBar";
 import { CreateCategoryPopover } from "./CreateCategoryPopover";
 import { DeleteCategoryDialog } from "./DeleteCategoryDialog";
 
@@ -20,6 +21,10 @@ export function CategoriesSection() {
     deleteCategory,
     hideCategory,
     acknowledge,
+    batchMove,
+    batchHide,
+    batchDelete,
+    ungroupParent,
   } = useCategories();
 
   // Selection state
@@ -199,6 +204,33 @@ export function CategoriesSection() {
     [updateCategory]
   );
 
+  const handleUngroupParent = useCallback(
+    (categoryId: number) => {
+      ungroupParent(categoryId);
+    },
+    [ungroupParent]
+  );
+
+  const handleActionMoveToGroup = useCallback(() => {
+    // Placeholder — will be implemented in Plan 04
+    console.log("Move to group", Array.from(selectedIds));
+  }, [selectedIds]);
+
+  const handleActionUngroup = useCallback(() => {
+    batchMove(Array.from(selectedIds), -1);
+    clearSelection();
+  }, [selectedIds, batchMove, clearSelection]);
+
+  const handleActionHide = useCallback(() => {
+    batchHide(Array.from(selectedIds));
+    clearSelection();
+  }, [selectedIds, batchHide, clearSelection]);
+
+  const handleActionDelete = useCallback(() => {
+    batchDelete(Array.from(selectedIds));
+    clearSelection();
+  }, [selectedIds, batchDelete, clearSelection]);
+
   if (isLoading) {
     return (
       <Stack gap={4}>
@@ -255,6 +287,15 @@ export function CategoriesSection() {
         />
       </Flex>
 
+      {/* Action bar */}
+      <CategoryActionBar
+        selectedCount={selectedIds.size}
+        onMoveToGroup={handleActionMoveToGroup}
+        onUngroup={handleActionUngroup}
+        onHide={handleActionHide}
+        onDelete={handleActionDelete}
+      />
+
       {/* Search input */}
       <Input
         placeholder="Filter categories..."
@@ -275,6 +316,7 @@ export function CategoriesSection() {
         onBadgeDismiss={handleBadgeDismiss}
         onRename={handleRenameCategory}
         onDelete={handleDeleteCategory}
+        onUngroup={handleUngroupParent}
         selectedIds={selectedIds}
         onToggleSelection={toggleSelection}
         expandedParents={expandedParents}

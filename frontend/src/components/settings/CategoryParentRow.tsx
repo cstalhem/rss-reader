@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Badge, Flex, Text, Box, IconButton, Input } from "@chakra-ui/react";
-import { LuChevronRight, LuFolder, LuPencil, LuTrash2 } from "react-icons/lu";
-import { Tooltip } from "@/components/ui/tooltip";
+import { Badge, Flex, Text, Box, Input } from "@chakra-ui/react";
+import { LuChevronRight, LuFolder } from "react-icons/lu";
 import { Category } from "@/lib/types";
 import { WeightPresetStrip } from "./WeightPresetStrip";
+import { CategoryContextMenu } from "./CategoryContextMenu";
 
 interface CategoryParentRowProps {
   category: Category;
@@ -14,6 +14,8 @@ interface CategoryParentRowProps {
   onWeightChange: (weight: string) => void;
   onRename: (newName: string) => void;
   onDelete: () => void;
+  onUngroup: () => void;
+  onHide: () => void;
   isExpanded: boolean;
   onToggleExpand: () => void;
   newChildCount: number;
@@ -27,6 +29,8 @@ const CategoryParentRowComponent = ({
   onWeightChange,
   onRename,
   onDelete,
+  onUngroup,
+  onHide,
   isExpanded,
   onToggleExpand,
   newChildCount,
@@ -34,7 +38,6 @@ const CategoryParentRowComponent = ({
 }: CategoryParentRowProps) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(category.display_name);
-  const [isHovered, setIsHovered] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -69,8 +72,6 @@ const CategoryParentRowComponent = ({
       borderRadius="sm"
       _hover={{ bg: "bg.muted" }}
       transition="background 0.15s"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       <Box
         as="span"
@@ -138,39 +139,13 @@ const CategoryParentRowComponent = ({
       <WeightPresetStrip value={weight} onChange={onWeightChange} />
 
       {!isRenaming && (
-        <Flex
-          overflow="hidden"
-          maxW={{ base: "auto", md: isHovered ? "80px" : "0" }}
-          transition="max-width 0.2s ease-out"
-        >
-          <Tooltip content="Rename category" openDelay={300}>
-            <IconButton
-              aria-label="Rename category"
-              size="xs"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsRenaming(true);
-              }}
-            >
-              <LuPencil size={14} />
-            </IconButton>
-          </Tooltip>
-
-          <Tooltip content="Delete category" openDelay={300}>
-            <IconButton
-              aria-label="Delete category"
-              size="xs"
-              variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-            >
-              <LuTrash2 size={14} />
-            </IconButton>
-          </Tooltip>
-        </Flex>
+        <CategoryContextMenu
+          type="parent"
+          onUngroup={onUngroup}
+          onRename={() => setIsRenaming(true)}
+          onHide={onHide}
+          onDelete={onDelete}
+        />
       )}
     </Flex>
   );

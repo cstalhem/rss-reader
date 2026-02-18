@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Flex, Text, Badge, IconButton, Box, Input, Checkbox } from "@chakra-ui/react";
-import { LuX, LuPencil, LuTrash2 } from "react-icons/lu";
-import { Tooltip } from "@/components/ui/tooltip";
+import { Flex, Text, Badge, Box, Input, Checkbox } from "@chakra-ui/react";
+import { LuX } from "react-icons/lu";
 import { Category } from "@/lib/types";
 import { WeightPresetStrip } from "./WeightPresetStrip";
+import { CategoryContextMenu } from "./CategoryContextMenu";
 
 interface CategoryChildRowProps {
   category: Category;
@@ -145,57 +145,16 @@ const CategoryChildRowComponent = ({
         onReset={onResetWeight}
       />
 
-      <Flex
-        overflow="hidden"
-        maxW={{ base: "auto", md: isHovered ? "110px" : "0" }}
-        transition="max-width 0.2s ease-out"
-      >
-        {!isRenaming && (
-          <>
-            <Tooltip content="Rename category" openDelay={300}>
-              <IconButton
-                aria-label="Rename category"
-                size="xs"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsRenaming(true);
-                }}
-              >
-                <LuPencil size={14} />
-              </IconButton>
-            </Tooltip>
-
-            <Tooltip content="Delete category" openDelay={300}>
-              <IconButton
-                aria-label="Delete category"
-                size="xs"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-              >
-                <LuTrash2 size={14} />
-              </IconButton>
-            </Tooltip>
-          </>
-        )}
-
-        <Tooltip content="Hide category" openDelay={300}>
-          <IconButton
-            aria-label="Hide category"
-            size="xs"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              onHide();
-            }}
-          >
-            <LuX size={14} />
-          </IconButton>
-        </Tooltip>
-      </Flex>
+      {!isRenaming && (
+        <CategoryContextMenu
+          type="child"
+          isWeightOverridden={isOverridden}
+          onResetWeight={onResetWeight}
+          onRename={() => setIsRenaming(true)}
+          onHide={onHide}
+          onDelete={onDelete}
+        />
+      )}
     </Flex>
   );
 };
