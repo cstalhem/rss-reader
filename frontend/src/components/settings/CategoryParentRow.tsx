@@ -1,23 +1,23 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Flex, Text, Box, IconButton, Input } from "@chakra-ui/react";
-import { LuFolder, LuPencil, LuTrash2 } from "react-icons/lu";
+import { Badge, Flex, Text, Box, IconButton, Input } from "@chakra-ui/react";
+import { LuChevronRight, LuFolder, LuPencil, LuTrash2 } from "react-icons/lu";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useDroppable } from "@dnd-kit/core";
 import { Category } from "@/lib/types";
 import { WeightPresetStrip } from "./WeightPresetStrip";
-import { SwipeableRow } from "./SwipeableRow";
 
 interface CategoryParentRowProps {
   category: Category;
   weight: string;
   childCount: number;
   onWeightChange: (weight: string) => void;
-  isDndEnabled?: boolean;
-  activeId?: string | null;
   onRename: (newName: string) => void;
   onDelete: () => void;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  newChildCount: number;
+  onDismissNewChildren?: () => void;
 }
 
 const CategoryParentRowComponent = ({
@@ -25,20 +25,17 @@ const CategoryParentRowComponent = ({
   weight,
   childCount,
   onWeightChange,
-  isDndEnabled = false,
-  activeId,
   onRename,
   onDelete,
+  isExpanded,
+  onToggleExpand,
+  newChildCount,
+  onDismissNewChildren,
 }: CategoryParentRowProps) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(category.display_name);
   const [isHovered, setIsHovered] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const { setNodeRef, isOver } = useDroppable({
-    id: `parent:${category.id}`,
-    disabled: !isDndEnabled,
-  });
 
   useEffect(() => {
     if (isRenaming && inputRef.current) {
@@ -62,110 +59,120 @@ const CategoryParentRowComponent = ({
   };
 
   return (
-    <SwipeableRow onEditReveal={() => setIsRenaming(true)}>
-      <Flex
-        ref={setNodeRef}
-        role="group"
+    <Flex
+      role="group"
+      alignItems="center"
+      gap={2}
+      py={3}
+      px={3}
+      bg="bg.subtle"
+      borderRadius="sm"
+      _hover={{ bg: "bg.muted" }}
+      transition="background 0.15s"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <Box
+        as="span"
+        display="inline-flex"
         alignItems="center"
-        gap={2}
-        py={3}
-        px={3}
-        bg={isOver ? "bg.muted" : "bg.subtle"}
-        borderRadius="sm"
-        _hover={{ bg: "bg.muted" }}
-        transition="background 0.15s"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        cursor="pointer"
+        onClick={onToggleExpand}
+        transition="transform 0.2s"
+        transform={isExpanded ? "rotate(90deg)" : "rotate(0deg)"}
+        color="fg.muted"
       >
-        <LuFolder size={16} color="var(--chakra-colors-fg-muted)" />
+        <LuChevronRight size={14} />
+      </Box>
 
-        {isRenaming ? (
-          <Input
-            ref={inputRef}
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleRenameSubmit();
-              } else if (e.key === "Escape") {
-                handleRenameCancel();
-              }
-            }}
-            onBlur={handleRenameSubmit}
-            size="sm"
-            flex={1}
-          />
-        ) : (
-          <Text fontSize="sm" fontWeight="semibold" truncate>
-            {category.display_name}
-          </Text>
-        )}
+      <LuFolder size={16} color="var(--chakra-colors-fg-muted)" />
 
-        <Text fontSize="xs" color="fg.muted">
-          ({childCount})
+      {isRenaming ? (
+        <Input
+          ref={inputRef}
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleRenameSubmit();
+            } else if (e.key === "Escape") {
+              handleRenameCancel();
+            }
+          }}
+          onBlur={handleRenameSubmit}
+          size="sm"
+          flex={1}
+        />
+      ) : (
+        <Text
+          fontSize="sm"
+          fontWeight="semibold"
+          truncate
+          cursor="pointer"
+          onClick={onToggleExpand}
+        >
+          {category.display_name}
         </Text>
+      )}
 
-        <Box flex={1} />
+      <Text fontSize="xs" color="fg.muted">
+        ({childCount})
+      </Text>
 
-        <WeightPresetStrip value={weight} onChange={onWeightChange} />
+      {!isExpanded && newChildCount > 0 && (
+        <Badge
+          colorPalette="accent"
+          size="sm"
+          cursor="pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDismissNewChildren?.();
+          }}
+        >
+          {newChildCount} new
+        </Badge>
+      )}
 
-        {!isRenaming && (
-          <Flex
-            overflow="hidden"
-            maxW={{ base: "auto", md: isHovered ? "80px" : "0" }}
-            transition="max-width 0.2s ease-out"
-          >
-            <Tooltip content="Rename category" openDelay={300}>
-              <IconButton
-                aria-label="Rename category"
-                size="xs"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsRenaming(true);
-                }}
-              >
-                <LuPencil size={14} />
-              </IconButton>
-            </Tooltip>
+      <Box flex={1} />
 
-            <Tooltip content="Delete category" openDelay={300}>
-              <IconButton
-                aria-label="Delete category"
-                size="xs"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-              >
-                <LuTrash2 size={14} />
-              </IconButton>
-            </Tooltip>
-          </Flex>
-        )}
+      <WeightPresetStrip value={weight} onChange={onWeightChange} />
 
-        {isOver && activeId && activeId !== String(category.id) && (
-          <Box
-            position="absolute"
-            bottom="-8px"
-            left={3}
-            right={3}
-            p={2}
-            bg="bg.muted"
-            borderRadius="sm"
-            borderWidth="1px"
-            borderStyle="dashed"
-            borderColor="border.subtle"
-            opacity={0.5}
-          >
-            <Text fontSize="sm" color="fg.muted">
-              Drop here
-            </Text>
-          </Box>
-        )}
-      </Flex>
-    </SwipeableRow>
+      {!isRenaming && (
+        <Flex
+          overflow="hidden"
+          maxW={{ base: "auto", md: isHovered ? "80px" : "0" }}
+          transition="max-width 0.2s ease-out"
+        >
+          <Tooltip content="Rename category" openDelay={300}>
+            <IconButton
+              aria-label="Rename category"
+              size="xs"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsRenaming(true);
+              }}
+            >
+              <LuPencil size={14} />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip content="Delete category" openDelay={300}>
+            <IconButton
+              aria-label="Delete category"
+              size="xs"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+            >
+              <LuTrash2 size={14} />
+            </IconButton>
+          </Tooltip>
+        </Flex>
+      )}
+    </Flex>
   );
 };
 

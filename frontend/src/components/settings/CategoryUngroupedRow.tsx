@@ -7,36 +7,31 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { Category } from "@/lib/types";
 import { WeightPresetStrip } from "./WeightPresetStrip";
 
-interface CategoryChildRowProps {
+interface CategoryUngroupedRowProps {
   category: Category;
   weight: string;
-  isOverridden: boolean;
-  parentWeight: string;
   isNew?: boolean;
+  isSelected: boolean;
   onWeightChange: (weight: string) => void;
-  onResetWeight?: () => void;
   onHide: () => void;
   onBadgeDismiss?: () => void;
+  onToggleSelection: () => void;
   onRename: (newName: string) => void;
   onDelete: () => void;
-  isSelected: boolean;
-  onToggleSelection: () => void;
 }
 
-const CategoryChildRowComponent = ({
+const CategoryUngroupedRowComponent = ({
   category,
   weight,
-  isOverridden,
   isNew,
+  isSelected,
   onWeightChange,
-  onResetWeight,
   onHide,
   onBadgeDismiss,
+  onToggleSelection,
   onRename,
   onDelete,
-  isSelected,
-  onToggleSelection,
-}: CategoryChildRowProps) => {
+}: CategoryUngroupedRowProps) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(category.display_name);
   const [isHovered, setIsHovered] = useState(false);
@@ -141,8 +136,7 @@ const CategoryChildRowComponent = ({
       <WeightPresetStrip
         value={weight}
         onChange={onWeightChange}
-        isOverridden={isOverridden}
-        onReset={onResetWeight}
+        isOverridden={false}
       />
 
       <Flex
@@ -200,4 +194,4 @@ const CategoryChildRowComponent = ({
   );
 };
 
-export const CategoryChildRow = React.memo(CategoryChildRowComponent);
+export const CategoryUngroupedRow = React.memo(CategoryUngroupedRowComponent);
