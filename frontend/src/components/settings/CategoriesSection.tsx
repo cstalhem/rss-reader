@@ -6,6 +6,7 @@ import { LuTag } from "react-icons/lu";
 import { useCategories } from "@/hooks/useCategories";
 import { Category } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { toaster } from "@/components/ui/toaster";
 import { CategoryTree } from "./CategoryTree";
 import { CategoryActionBar } from "./CategoryActionBar";
 import { CreateCategoryPopover } from "./CreateCategoryPopover";
@@ -63,12 +64,20 @@ export function CategoriesSection() {
   // Ungroup confirmation state (null = closed, number = count)
   const [ungroupConfirmCount, setUngroupConfirmCount] = useState<number | null>(null);
 
-  // Delete state
-  const [deletingCategory, setDeletingCategory] = useState<{
-    id: number;
-    displayName: string;
-    childCount: number;
+  // Delete dialog state (supports single and bulk)
+  const [deleteDialogState, setDeleteDialogState] = useState<{
+    open: boolean;
+    count: number;
+    categoryName: string | null;
     isParent: boolean;
+    childCount: number;
+    ids: number[];
+  }>({ open: false, count: 0, categoryName: null, isParent: false, childCount: 0, ids: [] });
+
+  // Ungroup parent confirmation state (for context menu on parent rows)
+  const [ungroupParentConfirm, setUngroupParentConfirm] = useState<{
+    id: number;
+    name: string;
   } | null>(null);
 
   // Build tree from flat Category array
@@ -171,6 +180,7 @@ export function CategoriesSection() {
   const handleHideCategory = useCallback(
     (categoryId: number) => {
       hideCategory(categoryId);
+      toaster.create({ title: "Category hidden", type: "info" });
     },
     [hideCategory]
   );
@@ -188,22 +198,27 @@ export function CategoriesSection() {
       if (!cat) return;
       const children = childrenMap[categoryId] ?? [];
       const isParent = children.length > 0;
-      setDeletingCategory({
-        id: categoryId,
-        displayName: cat.display_name,
-        childCount: children.length,
+      setDeleteDialogState({
+        open: true,
+        count: 1,
+        categoryName: cat.display_name,
         isParent,
+        childCount: children.length,
+        ids: [categoryId],
       });
     },
     [categories, childrenMap]
   );
 
   const handleDeleteConfirm = useCallback(() => {
-    if (deletingCategory) {
-      deleteCategory(deletingCategory.id);
-      setDeletingCategory(null);
+    if (deleteDialogState.ids.length > 1) {
+      batchDelete(deleteDialogState.ids);
+    } else if (deleteDialogState.ids.length === 1) {
+      deleteCategory(deleteDialogState.ids[0]);
     }
-  }, [deletingCategory, deleteCategory]);
+    clearSelection();
+    setDeleteDialogState((prev) => ({ ...prev, open: false }));
+  }, [deleteDialogState, deleteCategory, batchDelete, clearSelection]);
 
   const handleRenameCategory = useCallback(
     (categoryId: number, newName: string) => {
@@ -214,10 +229,20 @@ export function CategoriesSection() {
 
   const handleUngroupParent = useCallback(
     (categoryId: number) => {
-      ungroupParent(categoryId);
+      const cat = categories.find((c) => c.id === categoryId);
+      if (!cat) return;
+      setUngroupParentConfirm({ id: categoryId, name: cat.display_name });
     },
-    [ungroupParent]
+    [categories]
   );
+
+  const handleUngroupParentConfirm = useCallback(() => {
+    if (ungroupParentConfirm) {
+      ungroupParent(ungroupParentConfirm.id);
+      toaster.create({ title: "Group ungrouped", type: "info" });
+      setUngroupParentConfirm(null);
+    }
+  }, [ungroupParentConfirm, ungroupParent]);
 
   const handleActionMoveToGroup = useCallback(() => {
     setMoveDialogOpen(true);
@@ -248,19 +273,33 @@ export function CategoriesSection() {
 
   const handleUngroupConfirm = useCallback(() => {
     batchMove(Array.from(selectedIds), -1);
+    toaster.create({
+      title: `${selectedIds.size} ${selectedIds.size === 1 ? "category" : "categories"} ungrouped`,
+      type: "info",
+    });
     clearSelection();
     setUngroupConfirmCount(null);
   }, [selectedIds, batchMove, clearSelection]);
 
   const handleActionHide = useCallback(() => {
     batchHide(Array.from(selectedIds));
+    toaster.create({
+      title: `${selectedIds.size} ${selectedIds.size === 1 ? "category" : "categories"} hidden`,
+      type: "info",
+    });
     clearSelection();
   }, [selectedIds, batchHide, clearSelection]);
 
   const handleActionDelete = useCallback(() => {
-    batchDelete(Array.from(selectedIds));
-    clearSelection();
-  }, [selectedIds, batchDelete, clearSelection]);
+    setDeleteDialogState({
+      open: true,
+      count: selectedIds.size,
+      categoryName: null,
+      isParent: false,
+      childCount: 0,
+      ids: Array.from(selectedIds),
+    });
+  }, [selectedIds]);
 
   if (isLoading) {
     return (
@@ -355,11 +394,13 @@ export function CategoriesSection() {
       />
 
       <DeleteCategoryDialog
-        categoryName={deletingCategory?.displayName ?? null}
-        childCount={deletingCategory?.childCount ?? 0}
-        isParent={deletingCategory?.isParent ?? false}
+        open={deleteDialogState.open}
+        onOpenChange={(open) => setDeleteDialogState((prev) => ({ ...prev, open }))}
+        count={deleteDialogState.count}
+        categoryName={deleteDialogState.categoryName}
+        isParent={deleteDialogState.isParent}
+        childCount={deleteDialogState.childCount}
         onConfirm={handleDeleteConfirm}
-        onCancel={() => setDeletingCategory(null)}
       />
 
       <MoveToGroupDialog
@@ -371,7 +412,7 @@ export function CategoriesSection() {
         onCreate={handleCreateAndMove}
       />
 
-      {/* Ungroup confirmation dialog */}
+      {/* Ungroup confirmation dialog (action bar batch ungroup) */}
       <Dialog.Root
         open={ungroupConfirmCount !== null}
         onOpenChange={(e) => {
@@ -404,6 +445,49 @@ export function CategoriesSection() {
                     </Button>
                   </Dialog.ActionTrigger>
                   <Button size="sm" colorPalette="accent" onClick={handleUngroupConfirm}>
+                    Confirm
+                  </Button>
+                </Flex>
+              </Dialog.Footer>
+              <Dialog.CloseTrigger />
+            </Dialog.Content>
+          </Dialog.Positioner>
+        </Portal>
+      </Dialog.Root>
+
+      {/* Ungroup parent confirmation dialog (context menu on parent row) */}
+      <Dialog.Root
+        open={ungroupParentConfirm !== null}
+        onOpenChange={(e) => {
+          if (!e.open) setUngroupParentConfirm(null);
+        }}
+      >
+        <Portal>
+          <Dialog.Backdrop />
+          <Dialog.Positioner>
+            <Dialog.Content>
+              <Dialog.Header>
+                <Dialog.Title>Ungroup parent category</Dialog.Title>
+              </Dialog.Header>
+              <Dialog.Body>
+                <Text>
+                  Ungroup <strong>{ungroupParentConfirm?.name}</strong>? All
+                  children will be moved to the root level and the parent will
+                  become an ungrouped category.
+                </Text>
+              </Dialog.Body>
+              <Dialog.Footer>
+                <Flex gap={3}>
+                  <Dialog.ActionTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setUngroupParentConfirm(null)}
+                    >
+                      Cancel
+                    </Button>
+                  </Dialog.ActionTrigger>
+                  <Button size="sm" colorPalette="accent" onClick={handleUngroupParentConfirm}>
                     Confirm
                   </Button>
                 </Flex>

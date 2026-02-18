@@ -3,56 +3,71 @@
 import { Button, Dialog, Portal, Text, Flex } from "@chakra-ui/react";
 
 interface DeleteCategoryDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  count: number;
   categoryName: string | null;
-  childCount: number;
   isParent: boolean;
+  childCount: number;
   onConfirm: () => void;
-  onCancel: () => void;
 }
 
 export function DeleteCategoryDialog({
+  open,
+  onOpenChange,
+  count,
   categoryName,
-  childCount,
   isParent,
+  childCount,
   onConfirm,
-  onCancel,
 }: DeleteCategoryDialogProps) {
   return (
-    <Dialog.Root open={categoryName !== null} onOpenChange={onCancel}>
+    <Dialog.Root open={open} onOpenChange={(e) => onOpenChange(e.open)}>
       <Portal>
         <Dialog.Backdrop />
         <Dialog.Positioner>
           <Dialog.Content>
             <Dialog.Header>
-              <Dialog.Title>Delete Category</Dialog.Title>
+              <Dialog.Title>
+                {count > 1 ? "Delete Categories" : "Delete Category"}
+              </Dialog.Title>
             </Dialog.Header>
             <Dialog.Body>
-              {isParent && childCount > 0 ? (
+              {count > 1 ? (
                 <Text>
-                  Delete parent category <strong>{categoryName ?? ""}</strong>?
-                  The {childCount} child {childCount === 1 ? "category" : "categories"} will be
-                  released to the root level. Their individual weight overrides will be preserved.
+                  Delete {count} categories? This cannot be undone. If the LLM
+                  discovers them again, they will reappear.
+                </Text>
+              ) : isParent && childCount > 0 ? (
+                <Text>
+                  Delete parent category{" "}
+                  <strong>{categoryName ?? ""}</strong>? The {childCount} child{" "}
+                  {childCount === 1 ? "category" : "categories"} will be
+                  released to the root level. Their individual weight overrides
+                  will be preserved.
                 </Text>
               ) : (
                 <Text>
-                  Delete category <strong>{categoryName ?? ""}</strong>?
-                  If the LLM discovers this category again, it will reappear.
+                  Delete category <strong>{categoryName ?? ""}</strong>? If the
+                  LLM discovers this category again, it will reappear.
                 </Text>
               )}
             </Dialog.Body>
             <Dialog.Footer>
               <Flex gap={3}>
                 <Dialog.ActionTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={onCancel}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onOpenChange(false)}
+                  >
                     Cancel
                   </Button>
                 </Dialog.ActionTrigger>
                 <Button
                   colorPalette="red"
                   size="sm"
-                  onClick={() => {
-                    onConfirm();
-                  }}
+                  onClick={onConfirm}
                 >
                   Delete
                 </Button>
