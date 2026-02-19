@@ -192,21 +192,54 @@ Plans:
 - [x] 08.3-05-PLAN.md -- Frontend: hidden categories section, mobile card layout
 - [ ] 08.3-06-PLAN.md -- Gap closure: sticky action bar, chevron rotation, weight strip labels, dialog child count
 
-#### Phase 9: Codebase Evaluation & Simplification
-**Goal**: Thorough evaluation of codebase, architecture, and data models to surface simplifications and address technical debt while retaining all functionality
+#### Phase 9: Frontend Codebase Evaluation & Simplification
+**Goal**: Evaluate and simplify the frontend codebase — hooks, components, state patterns, and theme usage — addressing technical debt from rapid feature development while retaining all functionality
+**Scope**: Frontend only (`frontend/src/`). Backend is out of scope.
 **Depends on**: Phase 08.3 (all category management work complete)
 **Origin**: Pending todo #2 (codebase evaluation and simplification phase)
 **Success Criteria** (what must be TRUE):
-  1. Hard-coded values, duplicated logic, and inconsistencies identified and addressed
-  2. Hook return interfaces reviewed — remove unnecessary wrapper indirection (e.g., useCategories exposes thin `.mutate()` wrappers that hide useful mutation state like `.mutateAsync()`, `.isPending`)
-  3. Component boundaries validated — shared components with behavioral `type` props evaluated for splitting
-  4. Dead code from DnD removal and data model migration cleaned up
-  5. No functional regressions
+  1. Mutation error handling is consistent — no mutations silently swallow errors; centralized via `MutationCache` callbacks where appropriate
+  2. Hook return interfaces expose useful mutation state (`.isPending`, `.mutateAsync()`) instead of hiding it behind thin wrapper functions
+  3. Query keys are centralized in a key factory — no inline string literals scattered across hooks
+  4. Dead code from DnD removal, data model migration, and abandoned components is cleaned up
+  5. Duplicated UI patterns (rename logic, confirmation dialogs) are extracted into shared hooks/components
+  6. `useEffect` usage follows React best practices — no effects that should be derived state, event handlers, or `key`-prop resets
+  7. Chakra UI semantic tokens used consistently — no hardcoded color values in components; consistent Tooltip/Portal patterns
+  8. Hard-coded magic numbers (polling intervals, layout dimensions, thresholds) are extracted into named constants
+  9. No functional regressions
 **Specific items to evaluate**:
-  - `useCategories.ts` wrapper functions: most are zero-value indirection over `.mutate()`. Evaluate exposing mutation objects directly for callers that need `.mutateAsync()`, `.isPending`, etc. (discovered during Phase 08.3 Plan 04 review)
-  - Repetitive mutation boilerplate in `useCategories.ts` (7 mutations with near-identical invalidation + toast patterns)
-  - Leftover `@dnd-kit` / `@hello-pangea/dnd` dependencies and imports after Phase 08.3 DnD removal
-  - Consistency of error handling and toast patterns across all hooks
+  _TanStack Query / Hooks:_
+  - `useCategories.ts`: 11 mutations with thin `.mutate()` wrappers that hide `isPending`/`mutateAsync`. Expose mutation objects for callers that need state
+  - `useCategories.ts`: near-identical `onSuccess`/`onError` boilerplate across mutations. Centralize via `MutationCache` + `meta` tags
+  - `useFeedMutations.ts`, `usePreferences.ts`: no error handling at all — mutations fail silently
+  - Inline query key strings repeated across all hooks (e.g., `["categories"]` appears ~12 times in `useCategories` alone). Extract to `queryKeys.ts` factory
+  - Redundant invalidation calls: `["categories"]` prefix already covers `["categories", "new-count"]`
+  _Dead code / stale files:_
+  - `CategoryRow.tsx`, `WeightPresets.tsx`, `SwipeableRow.tsx` — dead files from previous phases
+  - Leftover `@dnd-kit` / `@hello-pangea/dnd` dependencies and imports
+  - `savedConfig` alias in `useOllamaConfig.ts`; dead filter branch in `ArticleList.tsx` L168
+  _Duplicated patterns:_
+  - Rename state/UI logic copy-pasted across `CategoryParentRow`, `CategoryChildRow`, `CategoryUngroupedRow`, and `FeedRow` — extract `useRenameState` hook or `RenameInput` component
+  - Two inline ungroup confirmation dialogs in `CategoriesSection.tsx` — extract to shared `ConfirmDialog`
+  - Two near-identical model row render blocks in `ModelManagement.tsx`
+  _React patterns:_
+  - `WeightPresetStrip.tsx`: `useState` + `useEffect` sync from prop — evaluate if derived state or controlled pattern is cleaner
+  - `ArticleReader.tsx`: `useEffect` resetting `optimisticWeights` on `article?.id` change — could use `key` prop instead
+  - `InterestsSection.tsx`: `useEffect` syncing server state into local form state — risk of overwriting user edits on refetch
+  _Chakra UI / Theme:_
+  - Hardcoded `oklch` in `ArticleReader.tsx` code block styling — should be a semantic token
+  - Raw palette colors: `green.600` in `AddFeedDialog`, `orange.400` in `ModelSelector` — should use semantic tokens
+  - `var(--chakra-colors-*)` strings on react-icons in 8+ components — establish pattern (wrap in `Box` with `color` prop)
+  - Inconsistent Tooltip usage: `ScoreBadge` uses raw `Tooltip.Root` (no Portal), `WeightPresetStrip` uses `@/components/ui/tooltip` wrapper
+  - `FeedRow.tsx`: raw HTML `<input>` with inline `style={{}}` — only instance in codebase; should use Chakra `Input`
+  _Organization:_
+  - `ScoringStatus` and `DownloadStatus` types defined in `api.ts` instead of `types.ts`
+  - `parseSortOption` runtime function in `types.ts` — should be in `utils.ts`
+  - `API_BASE_URL` duplicated in `api.ts` and `useModelPull.ts`
+  _Magic numbers:_
+  - Polling intervals: 12000, 10000, 5000, 2500, 30000, 3000, 1000 scattered across hooks with no named constants
+  - Layout dimensions: `"64px"` header height, `"48px"`/`"240px"` sidebar widths repeated in `Sidebar.tsx` and `AppShell.tsx`
+  - Thresholds: `composite_score >= 15` (high-score accent), `.slice(0, 3)` (max tags), `50` (page size) — unnamed
 **Plans**: TBD
 
 Plans:
