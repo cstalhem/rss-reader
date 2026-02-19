@@ -17,6 +17,7 @@ interface MoveToGroupDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   parentCategories: Category[];
+  childrenMap: Record<number, Category[]>;
   selectedCount: number;
   onMove: (targetParentId: number) => void;
   onCreate: (groupName: string) => void;
@@ -26,6 +27,7 @@ export function MoveToGroupDialog({
   open,
   onOpenChange,
   parentCategories,
+  childrenMap,
   selectedCount,
   onMove,
   onCreate,
@@ -98,7 +100,7 @@ export function MoveToGroupDialog({
                         {parent.display_name}
                       </Text>
                       <Text fontSize="xs" color="fg.muted">
-                        {parent.article_count ?? 0}
+                        {childrenMap[parent.id]?.length ?? 0}
                       </Text>
                     </Flex>
                   ))}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Flex, Box, IconButton, Text } from "@chakra-ui/react";
+import { Flex, Box, Button, IconButton } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   LuBan,
@@ -54,64 +54,59 @@ const WeightPresetStripComponent = ({
           const isActive = localValue === option.value;
           const Icon = option.icon;
 
-          const button = (
-            <Tooltip
-              key={option.value}
-              content={option.label}
-              openDelay={300}
-              disabled={false}
-            >
-              <IconButton
-                aria-label={option.label}
+          const handleClick = (e: React.MouseEvent) => {
+            e.stopPropagation();
+            setLocalValue(option.value);
+            onChange(option.value);
+          };
+
+          return (
+            <React.Fragment key={option.value}>
+              {/* Mobile: Button with icon + text label */}
+              <Button
+                display={{ base: "inline-flex", md: "none" }}
                 size="xs"
                 variant={isActive ? "outline" : "ghost"}
                 colorPalette={isActive ? "accent" : undefined}
                 borderColor={isActive ? "accent.solid" : undefined}
                 color={isActive ? "accent.solid" : undefined}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setLocalValue(option.value); // instant visual update — same frame
-                  onChange(option.value); // triggers mutation chain
-                }}
-                minW="24px"
+                onClick={handleClick}
                 h="24px"
-                p="4px"
+                px="6px"
               >
                 <Icon size={12} />
-              </IconButton>
-            </Tooltip>
-          );
+                {option.label}
+              </Button>
 
-          // Active icon always visible; inactive icons animate on desktop
-          if (isActive) return button;
-
-          return (
-            <Box
-              key={option.value}
-              overflow="hidden"
-              display={{ base: "block", md: "block" }}
-              maxW={{ base: "24px", md: isExpanded ? "24px" : "0" }}
-              transition="max-width 0.2s ease-out"
-            >
-              {button}
-            </Box>
-          );
-        })}
-
-        {/* Mobile text labels - only show on mobile */}
-        {WEIGHT_OPTIONS.map((option) => {
-          const isActive = localValue === option.value;
-          return (
-            <Text
-              key={`label-${option.value}`}
-              display={{ base: "inline", md: "none" }}
-              fontSize="xs"
-              color={isActive ? "accent.fg" : "fg.muted"}
-              ml={1}
-              mr={2}
-            >
-              {option.label}
-            </Text>
+              {/* Desktop: IconButton with tooltip, animated expand/collapse */}
+              <Box
+                display={{ base: "none", md: "block" }}
+                overflow={isActive ? undefined : "hidden"}
+                maxW={isActive ? undefined : isExpanded ? "24px" : "0"}
+                transition={isActive ? undefined : "max-width 0.2s ease-out"}
+              >
+                <Tooltip
+                  content={option.label}
+                  openDelay={300}
+                  disabled={false}
+                >
+                  <IconButton
+                    aria-label={option.label}
+                    size="xs"
+                    variant={isActive ? "outline" : "ghost"}
+                    colorPalette={isActive ? "accent" : undefined}
+                    borderColor={isActive ? "accent.solid" : undefined}
+                    color={isActive ? "accent.solid" : undefined}
+                    onClick={handleClick}
+                    minW="24px"
+                    h="24px"
+                    p="4px"
+                  >
+                    <Icon size={12} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            </React.Fragment>
           );
         })}
       </Flex>

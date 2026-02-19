@@ -426,6 +426,7 @@ export function CategoriesSection() {
         open={moveDialogOpen}
         onOpenChange={setMoveDialogOpen}
         parentCategories={parents}
+        childrenMap={childrenMap}
         selectedCount={selectedIds.size}
         onMove={handleMoveToGroup}
         onCreate={handleCreateAndMove}
