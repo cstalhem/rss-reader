@@ -61,7 +61,7 @@ Plans:
 
 </details>
 
-### 🚧 v1.1 Configuration, Feedback & Polish (In Progress)
+### v1.1 Configuration, Feedback & Polish (In Progress)
 
 **Milestone Goal:** Make the LLM curation loop configurable and improvable from the UI, add hierarchical category management, and polish the overall experience.
 
@@ -151,7 +151,7 @@ Plans:
 
 **Goal:** Migrate categories from JSON blobs to a proper Category table with ArticleCategoryLink junction table, enabling clean relational operations for grouping, renaming, splitting, and Phase 10 feedback aggregation
 **Depends on:** Phase 08.1
-**Deferred from:** 08.1-UAT-r2.md gap #10 (parent split vs delete — root cause: JSON blob surgery too fragile)
+**Deferred from:** 08.1-UAT-r2.md gap #10 (parent split vs delete -- root cause: JSON blob surgery too fragile)
 **Requirements:** CATGRP-01, CATGRP-02, CATGRP-03, CATGRP-04, CATGRP-05
 **Success Criteria** (what must be TRUE):
   1. Category table exists with columns: id, name, parent_id, weight, is_hidden, is_manually_created, is_seen
@@ -182,14 +182,15 @@ Plans:
   1. User can group/ungroup categories with a smooth, reliable interaction (no DnD bugs)
   2. Grouping interaction works on both desktop and mobile
   3. Visual feedback is clear during group management actions
-**Plans**: 5 plans
+**Plans**: 6 plans
 
 Plans:
-- [ ] 08.3-01-PLAN.md -- Backend: fix hide/unhide semantics, batch endpoints, ungroup parent, LLM prompt update
-- [ ] 08.3-02-PLAN.md -- Frontend: strip DnD, collapsible parent rows, checkbox multi-select
-- [ ] 08.3-03-PLAN.md -- Frontend: action bar, context menus, batch API client and hook integration
-- [ ] 08.3-04-PLAN.md -- Frontend: Move to Group dialog, delete/ungroup confirmation dialogs
-- [ ] 08.3-05-PLAN.md -- Frontend: hidden categories section, mobile card layout
+- [x] 08.3-01-PLAN.md -- Backend: fix hide/unhide semantics, batch endpoints, ungroup parent, LLM prompt update
+- [x] 08.3-02-PLAN.md -- Frontend: strip DnD, collapsible parent rows, checkbox multi-select
+- [x] 08.3-03-PLAN.md -- Frontend: action bar, context menus, batch API client and hook integration
+- [x] 08.3-04-PLAN.md -- Frontend: Move to Group dialog, delete/ungroup confirmation dialogs
+- [x] 08.3-05-PLAN.md -- Frontend: hidden categories section, mobile card layout
+- [ ] 08.3-06-PLAN.md -- Gap closure: sticky action bar, chevron rotation, weight strip labels, dialog child count
 
 #### Phase 9: Codebase Evaluation & Simplification
 **Goal**: Thorough evaluation of codebase, architecture, and data models to surface simplifications and address technical debt while retaining all functionality
@@ -245,10 +246,10 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 10
 | 8. Category Grouping | v1.1 | 8/11 | In progress | - |
 | 08.1. Categories UI Redesign | v1.1 | Complete    | 2026-02-17 | 2026-02-17 |
 | 08.2. Category Data Model Refactor | v1.1 | Complete    | 2026-02-17 | - |
-| 08.3. Group Management Redesign | 5/5 | Complete   | 2026-02-18 | - |
+| 08.3. Group Management Redesign | 5/6 | In progress | 2026-02-18 | - |
 | 9. Codebase Evaluation & Simplification | v1.1 | 0/TBD | Not started | - |
 | 10. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-17 -- Phase 08.2 planned (5 plans in 3 waves)*
+*Last updated: 2026-02-19 -- Phase 08.3 gap closure plan added (1 plan)*
