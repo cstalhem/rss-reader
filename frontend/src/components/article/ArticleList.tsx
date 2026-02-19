@@ -165,11 +165,10 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
             Blocked{blockedCount > 0 ? ` (${blockedCount})` : ""}
           </Button>
 
-          {/* Mark all read button - only for unread/all tabs */}
-          {(filter === "unread" || filter === "all") &&
+          {/* Mark all read button - only for unread tab with a selected feed */}
+          {filter === "unread" &&
             selectedFeedId &&
-            articleCount > 0 &&
-            filter === "unread" && (
+            articleCount > 0 && (
               <Button
                 size="sm"
                 variant="ghost"
@@ -253,6 +252,7 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
 
       {/* Article reader drawer */}
       <ArticleReader
+        key={selectedArticle?.id}
         article={selectedArticle}
         articles={displayArticles ?? []}
         onClose={() => setSelectedArticle(null)}

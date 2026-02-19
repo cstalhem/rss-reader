@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import {
   Box,
   Flex,
@@ -38,12 +38,8 @@ export function ArticleReader({
   useAutoMarkAsRead(article?.id ?? 0, article?.is_read ?? true);
 
   // Optimistic weight state for instant visual feedback
+  // State resets automatically when parent uses key={article?.id}
   const [optimisticWeights, setOptimisticWeights] = useState<Record<number, string>>({});
-
-  // Reset optimistic state when article changes
-  useEffect(() => {
-    setOptimisticWeights({});
-  }, [article?.id]);
 
   const queryClient = useQueryClient();
   const updateCategoryWeightMutation = useMutation({

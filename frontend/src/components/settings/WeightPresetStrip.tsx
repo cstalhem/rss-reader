@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Flex, Box, Button, IconButton } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
@@ -33,13 +33,7 @@ const WeightPresetStripComponent = ({
   isOverridden,
   onReset,
 }: WeightPresetStripProps) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [localValue, setLocalValue] = useState(value);
-
-  // Sync with prop when server data arrives (or on revert)
-  useEffect(() => {
-    setLocalValue(value);
-  }, [value]);
+  const [isExpanded, setIsExpanded] = React.useState(false);
 
   return (
     <Flex
@@ -51,12 +45,11 @@ const WeightPresetStripComponent = ({
     >
       <Flex gap={0} alignItems="center">
         {WEIGHT_OPTIONS.map((option) => {
-          const isActive = localValue === option.value;
+          const isActive = value === option.value;
           const Icon = option.icon;
 
           const handleClick = (e: React.MouseEvent) => {
             e.stopPropagation();
-            setLocalValue(option.value);
             onChange(option.value);
           };
 

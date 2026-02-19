@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Box,
   Button,
@@ -22,32 +22,35 @@ export function InterestsSection() {
 
   const [interests, setInterests] = useState("");
   const [antiInterests, setAntiInterests] = useState("");
+  const initialized = useRef(false);
 
-  // Sync form state from fetched preferences after hydration
+  // Initialize form state once when preferences first load (not on every refetch)
   useEffect(() => {
-    if (preferences) {
+    if (preferences && !initialized.current) {
       setInterests(preferences.interests || "");
       setAntiInterests(preferences.anti_interests || "");
+      initialized.current = true;
     }
   }, [preferences]);
 
   const handleSave = () => {
-    updatePreferencesMutation.mutate(
-      {
-        interests,
-        anti_interests: antiInterests,
+    const payload = {
+      interests,
+      anti_interests: antiInterests,
+    };
+    updatePreferencesMutation.mutate(payload, {
+      onSuccess: () => {
+        // Reset form to saved values so subsequent refetches don't conflict
+        setInterests(payload.interests);
+        setAntiInterests(payload.anti_interests);
+        toaster.create({
+          title: "Preferences saved",
+          description:
+            "Your interest preferences have been updated. Articles will be re-scored shortly.",
+          type: "success",
+        });
       },
-      {
-        onSuccess: () => {
-          toaster.create({
-            title: "Preferences saved",
-            description:
-              "Your interest preferences have been updated. Articles will be re-scored shortly.",
-            type: "success",
-          });
-        },
-      }
-    );
+    });
   };
 
   if (isLoading) {
