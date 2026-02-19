@@ -104,7 +104,7 @@ export function useModelPull() {
 
       try {
         const response = await fetch(
-          `${API_BASE_URL}/api/ollama/models/pull`,
+          `${API_BASE_URL}/api/ollama/downloads`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -211,8 +211,8 @@ export function useModelPull() {
 
     // Safety net: also tell the backend to cancel
     try {
-      await fetch(`${API_BASE_URL}/api/ollama/models/pull/cancel`, {
-        method: "POST",
+      await fetch(`${API_BASE_URL}/api/ollama/downloads`, {
+        method: "DELETE",
       });
     } catch {
       // Best effort

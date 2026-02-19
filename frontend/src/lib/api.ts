@@ -146,8 +146,8 @@ export async function updateFeed(
 }
 
 export async function reorderFeeds(feedIds: number[]): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/feeds/reorder`, {
-    method: "PATCH",
+  const response = await fetch(`${API_BASE_URL}/api/feeds/order`, {
+    method: "PUT",
     headers: {
       "Content-Type": "application/json",
     },
@@ -161,7 +161,7 @@ export async function reorderFeeds(feedIds: number[]): Promise<void> {
 
 export async function markAllFeedRead(feedId: number): Promise<void> {
   const response = await fetch(
-    `${API_BASE_URL}/api/feeds/${feedId}/mark-all-read`,
+    `${API_BASE_URL}/api/feeds/${feedId}/mark-read`,
     {
       method: "POST",
     }
@@ -257,25 +257,21 @@ export async function mergeCategories(
 }
 
 export async function hideCategory(id: number): Promise<Category> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/${id}/hide`, { method: "PATCH" });
-  if (!response.ok) throw new Error(`Failed to hide category: ${response.statusText}`);
-  return response.json();
+  return updateCategory(id, { is_hidden: true });
 }
 
 export async function unhideCategory(id: number): Promise<Category> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/${id}/unhide`, { method: "PATCH" });
-  if (!response.ok) throw new Error(`Failed to unhide category: ${response.statusText}`);
-  return response.json();
+  return updateCategory(id, { is_hidden: false });
 }
 
 export async function fetchNewCategoryCount(): Promise<{ count: number }> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/new-count`);
+  const response = await fetch(`${API_BASE_URL}/api/categories/unseen-count`);
   if (!response.ok) throw new Error(`Failed to fetch new category count: ${response.statusText}`);
   return response.json();
 }
 
 export async function acknowledgeCategories(categoryIds: number[]): Promise<{ ok: boolean }> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/acknowledge`, {
+  const response = await fetch(`${API_BASE_URL}/api/categories/mark-seen`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ category_ids: categoryIds }),
@@ -368,7 +364,7 @@ export async function deleteOllamaModel(name: string): Promise<void> {
 }
 
 export async function fetchDownloadStatus(): Promise<DownloadStatus> {
-  const response = await fetch(`${API_BASE_URL}/api/ollama/download-status`);
+  const response = await fetch(`${API_BASE_URL}/api/ollama/downloads`);
 
   if (!response.ok) {
     throw new Error(

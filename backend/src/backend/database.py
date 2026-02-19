@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 
 from sqlalchemy import event, text
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import SQLModel, create_engine
 
 from backend.config import get_settings
 
@@ -191,13 +191,3 @@ def create_db_and_tables():
             _set_schema_version(conn, 1)
 
     logger.info(f"Database ready at schema version {CURRENT_SCHEMA_VERSION}")
-
-
-def get_session():
-    """FastAPI dependency for database sessions.
-
-    NOTE: Canonical version now lives in deps.py. This copy remains until
-    main.py imports are updated in Plan 02.
-    """
-    with Session(engine) as session:
-        yield session
