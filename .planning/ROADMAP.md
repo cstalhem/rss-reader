@@ -317,11 +317,13 @@ Plans:
   - Excluding `content` field from article list responses (changes API contract, requires frontend changes)
   - Feed deduplication by GUID (requires schema change)
   - `feedparser.parse()` blocking event loop (ties into broader async migration)
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 09.1-01: TBD during planning
-- [ ] 09.1-02: TBD during planning
+- [ ] 09.1-01-PLAN.md -- Foundation: schemas.py, deps.py, dead code removal, schema versioning, constants
+- [ ] 09.1-02-PLAN.md -- Router split: extract 6 APIRouter modules from main.py, slim main.py to entry point
+- [ ] 09.1-03-PLAN.md -- Scoring pipeline: resource leaks, retries, async correctness, magic numbers
+- [ ] 09.1-04-PLAN.md -- Router fixes: N+1 queries, type safety, SRP separation, unit tests, smoke tests
 
 #### Phase 10: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
@@ -358,9 +360,9 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 9.1 -> 10
 | 08.2. Category Data Model Refactor | v1.1 | 7/7 | Complete | 2026-02-18 |
 | 08.3. Group Management Redesign | v1.1 | 6/6 | Complete | 2026-02-19 |
 | 9. Frontend Codebase Evaluation & Simplification | v1.1 | Complete    | 2026-02-19 | - |
-| 9.1. Backend Codebase Evaluation & Simplification | v1.1 | 0/TBD | Not started | - |
+| 9.1. Backend Codebase Evaluation & Simplification | v1.1 | 0/4 | Not started | - |
 | 10. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-19 -- Phase 08.3 closed (all 6 plans complete)*
+*Last updated: 2026-02-19 -- Phase 09.1 plans created (4 plans in 3 waves)*
