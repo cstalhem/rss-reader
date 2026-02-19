@@ -23,6 +23,8 @@ from backend.prompts import (
 
 logger = logging.getLogger(__name__)
 
+MAX_COMPOSITE_SCORE = 20.0
+
 # Ephemeral in-memory state for real-time scoring phase tracking.
 # Safe in single-worker asyncio — no threading concerns.
 _scoring_activity: dict = {"article_id": None, "phase": "idle"}
@@ -248,19 +250,12 @@ def compute_composite_score(
     Returns:
         Composite score (0.0-20.0)
     """
-    # Weight mapping (new names + old names as fallback aliases)
     weight_map = {
         "block": 0.0,
         "reduce": 0.5,
         "normal": 1.0,
         "boost": 1.5,
         "max": 2.0,
-        # Old names for backward compatibility
-        "blocked": 0.0,
-        "low": 0.5,
-        "neutral": 1.0,
-        "medium": 1.5,
-        "high": 2.0,
     }
 
     # Calculate average category multiplier
@@ -279,8 +274,7 @@ def compute_composite_score(
     # Compute composite score
     composite = interest_score * category_multiplier * quality_multiplier
 
-    # Cap at 20.0
-    return min(composite, 20.0)
+    return min(composite, MAX_COMPOSITE_SCORE)
 
 
 def is_blocked(categories: list[Category]) -> bool:
@@ -299,7 +293,7 @@ def is_blocked(categories: list[Category]) -> bool:
         if category.is_hidden:
             return True
         weight = get_effective_weight(category)
-        if weight in ("blocked", "block"):
+        if weight == "block":
             return True
 
     return False

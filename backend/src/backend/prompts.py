@@ -2,35 +2,6 @@
 
 from pydantic import BaseModel, Field
 
-# Default seed categories to bootstrap the system (display names)
-DEFAULT_CATEGORIES = [
-    "Technology",
-    "Science",
-    "Politics",
-    "Business",
-    "Finance",
-    "Health",
-    "Sports",
-    "Entertainment",
-    "Culture",
-    "Gaming",
-    "Programming",
-    "AI",
-    "Cybersecurity",
-    "Climate",
-    "Space",
-    "Education",
-    "Food",
-    "Travel",
-    "Design",
-    "Music",
-    "Film",
-    "Philosophy",
-    "History",
-    "Law",
-    "Startups",
-]
-
 # Default category hierarchy for new installs (parent -> children)
 DEFAULT_CATEGORY_HIERARCHY: dict[str, list[str]] = {
     "Technology": ["Cybersecurity", "AI", "Programming"],

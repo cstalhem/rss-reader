@@ -68,8 +68,6 @@ class Article(SQLModel, table=True):
 
     __tablename__ = "articles"
 
-    model_config = {"arbitrary_types_allowed": True}
-
     id: int | None = Field(default=None, primary_key=True)
     feed_id: int = Field(foreign_key="feeds.id", index=True, ondelete="CASCADE")
     title: str

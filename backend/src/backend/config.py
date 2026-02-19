@@ -1,5 +1,6 @@
 """Configuration management for RSS Reader backend."""
 
+import logging
 import os
 from functools import lru_cache
 from typing import Any
@@ -120,8 +121,10 @@ class YamlConfigSettingsSource(PydanticBaseSettingsSource):
             with open(config_file) as f:
                 data = yaml.safe_load(f)
                 return data if data else {}
-        except Exception:
-            # Silently ignore config file errors - app should work without it
+        except Exception as e:
+            logging.getLogger(__name__).warning(
+                f"Failed to parse config file: path={config_file} error={e}"
+            )
             return {}
 
 
