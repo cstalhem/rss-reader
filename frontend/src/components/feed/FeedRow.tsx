@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Box, Flex, Text, Badge, IconButton } from "@chakra-ui/react";
+import { useState, useCallback } from "react";
+import { Box, Flex, Text, Badge, IconButton, Input } from "@chakra-ui/react";
 import { LuGripVertical, LuTrash2, LuCheckCheck } from "react-icons/lu";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useSwipeable } from "react-swipeable";
 import { Feed } from "@/lib/types";
+import { useRenameState } from "@/hooks/useRenameState";
 
 interface FeedRowProps {
   feed: Feed;
@@ -29,10 +30,14 @@ export function FeedRow({
 }: FeedRowProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isRevealed, setIsRevealed] = useState(false);
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState(feed.title);
   const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleRename = useCallback(
+    (newName: string) => onRename(feed.id, newName),
+    [feed.id, onRename]
+  );
+  const { isRenaming, renameValue, setRenameValue, startRename, handleSubmit, handleCancel, inputRef } =
+    useRenameState(feed.title, handleRename);
 
   const {
     attributes,
@@ -58,43 +63,15 @@ export function FeedRow({
     trackMouse: false,
   });
 
-  // Auto-focus input when entering rename mode
-  useEffect(() => {
-    if (isRenaming && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isRenaming]);
-
   const handleDoubleClick = () => {
     if (!isDraggable) return; // Only on desktop
-    setIsRenaming(true);
-  };
-
-  const handleRenameSubmit = () => {
-    if (renameValue.trim() && renameValue !== feed.title) {
-      onRename(feed.id, renameValue.trim());
-    }
-    setIsRenaming(false);
-  };
-
-  const handleRenameCancel = () => {
-    setRenameValue(feed.title);
-    setIsRenaming(false);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleRenameSubmit();
-    } else if (e.key === "Escape") {
-      handleRenameCancel();
-    }
+    startRename();
   };
 
   // Mobile long-press for rename
   const handleTouchStart = () => {
     const timer = setTimeout(() => {
-      setIsRenaming(true);
+      startRename();
     }, 500);
     setLongPressTimer(timer);
   };
@@ -165,24 +142,18 @@ export function FeedRow({
 
         {/* Feed title or rename input */}
         {isRenaming ? (
-          <input
+          <Input
             ref={inputRef}
-            type="text"
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
-            onBlur={handleRenameSubmit}
-            onKeyDown={handleKeyDown}
-            style={{
-              flex: 1,
-              fontSize: "0.875rem",
-              fontWeight: 500,
-              background: "transparent",
-              border: "1px solid var(--chakra-colors-border-subtle)",
-              borderRadius: "4px",
-              padding: "4px 8px",
-              marginRight: "8px",
-              color: "inherit",
+            onBlur={handleSubmit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSubmit();
+              else if (e.key === "Escape") handleCancel();
             }}
+            size="sm"
+            flex={1}
+            mr={2}
             onClick={(e) => e.stopPropagation()}
           />
         ) : (

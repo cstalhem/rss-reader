@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState } from "react";
 import { Flex, Text, Badge, Box, Input, Checkbox } from "@chakra-ui/react";
 import { LuX } from "react-icons/lu";
 import { Category } from "@/lib/types";
+import { useRenameState } from "@/hooks/useRenameState";
 import { WeightPresetStrip } from "./WeightPresetStrip";
 import { CategoryContextMenu } from "./CategoryContextMenu";
 
@@ -32,31 +33,9 @@ const CategoryUngroupedRowComponent = ({
   onRename,
   onDelete,
 }: CategoryUngroupedRowProps) => {
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState(category.display_name);
+  const { isRenaming, renameValue, setRenameValue, startRename, handleSubmit, handleCancel, inputRef } =
+    useRenameState(category.display_name, onRename);
   const [isHovered, setIsHovered] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (isRenaming && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isRenaming]);
-
-  const handleRenameSubmit = () => {
-    const trimmed = renameValue.trim();
-    if (trimmed && trimmed !== category.display_name) {
-      onRename(trimmed);
-    }
-    setIsRenaming(false);
-    setRenameValue(category.display_name);
-  };
-
-  const handleRenameCancel = () => {
-    setIsRenaming(false);
-    setRenameValue(category.display_name);
-  };
 
   return (
     <Box
@@ -94,12 +73,12 @@ const CategoryUngroupedRowComponent = ({
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                handleRenameSubmit();
+                handleSubmit();
               } else if (e.key === "Escape") {
-                handleRenameCancel();
+                handleCancel();
               }
             }}
-            onBlur={handleRenameSubmit}
+            onBlur={handleSubmit}
             size="sm"
             flex={1}
           />
@@ -150,7 +129,7 @@ const CategoryUngroupedRowComponent = ({
           <Box minH={{ base: "44px", sm: "auto" }} display="flex" alignItems="center">
             <CategoryContextMenu
               type="ungrouped"
-              onRename={() => setIsRenaming(true)}
+              onRename={startRename}
               onHide={onHide}
               onDelete={onDelete}
             />

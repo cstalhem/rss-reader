@@ -17,8 +17,7 @@ export function InterestsSection() {
   const {
     preferences,
     isLoading,
-    updatePreferences,
-    isUpdating,
+    updatePreferencesMutation,
   } = usePreferences();
 
   const [interests, setInterests] = useState("");
@@ -33,7 +32,7 @@ export function InterestsSection() {
   }, [preferences]);
 
   const handleSave = () => {
-    updatePreferences(
+    updatePreferencesMutation.mutate(
       {
         interests,
         anti_interests: antiInterests,
@@ -45,13 +44,6 @@ export function InterestsSection() {
             description:
               "Your interest preferences have been updated. Articles will be re-scored shortly.",
             type: "success",
-          });
-        },
-        onError: (error: Error) => {
-          toaster.create({
-            title: "Failed to save preferences",
-            description: error.message || "An error occurred",
-            type: "error",
           });
         },
       }
@@ -114,7 +106,7 @@ export function InterestsSection() {
           <Button
             colorPalette="accent"
             onClick={handleSave}
-            loading={isUpdating}
+            loading={updatePreferencesMutation.isPending}
             alignSelf="flex-start"
           >
             Save Preferences

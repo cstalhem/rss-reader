@@ -20,16 +20,15 @@ export function CategoriesSection() {
     newCount,
     isLoading,
     updateCategory,
-    createCategory,
-    deleteCategory,
-    hideCategory,
-    acknowledge,
-    batchMove,
-    batchHide,
-    batchDelete,
-    ungroupParent,
-    unhideCategory,
     createCategoryMutation,
+    deleteCategoryMutation,
+    hideMutation,
+    unhideMutation,
+    acknowledgeMutation,
+    batchMoveMutation,
+    batchHideMutation,
+    batchDeleteMutation,
+    ungroupParentMutation,
   } = useCategories();
 
   // Selection state
@@ -190,25 +189,25 @@ export function CategoriesSection() {
 
   const handleHideCategory = useCallback(
     (categoryId: number) => {
-      hideCategory(categoryId);
+      hideMutation.mutate(categoryId);
       toaster.create({ title: "Category hidden", type: "info" });
     },
-    [hideCategory]
+    [hideMutation]
   );
 
   const handleBadgeDismiss = useCallback(
     (categoryId: number) => {
-      acknowledge([categoryId]);
+      acknowledgeMutation.mutate([categoryId]);
     },
-    [acknowledge]
+    [acknowledgeMutation]
   );
 
   const handleUnhideCategory = useCallback(
     (categoryId: number) => {
-      unhideCategory(categoryId);
+      unhideMutation.mutate(categoryId);
       toaster.create({ title: "Category unhidden", type: "info" });
     },
-    [unhideCategory]
+    [unhideMutation]
   );
 
   const handleDeleteCategory = useCallback(
@@ -231,13 +230,13 @@ export function CategoriesSection() {
 
   const handleDeleteConfirm = useCallback(() => {
     if (deleteDialogState.ids.length > 1) {
-      batchDelete(deleteDialogState.ids);
+      batchDeleteMutation.mutate(deleteDialogState.ids);
     } else if (deleteDialogState.ids.length === 1) {
-      deleteCategory(deleteDialogState.ids[0]);
+      deleteCategoryMutation.mutate(deleteDialogState.ids[0]);
     }
     clearSelection();
     setDeleteDialogState((prev) => ({ ...prev, open: false }));
-  }, [deleteDialogState, deleteCategory, batchDelete, clearSelection]);
+  }, [deleteDialogState, deleteCategoryMutation, batchDeleteMutation, clearSelection]);
 
   const handleRenameCategory = useCallback(
     (categoryId: number, newName: string) => {
@@ -257,11 +256,11 @@ export function CategoriesSection() {
 
   const handleUngroupParentConfirm = useCallback(() => {
     if (ungroupParentConfirm) {
-      ungroupParent(ungroupParentConfirm.id);
+      ungroupParentMutation.mutate(ungroupParentConfirm.id);
       toaster.create({ title: "Group ungrouped", type: "info" });
       setUngroupParentConfirm(null);
     }
-  }, [ungroupParentConfirm, ungroupParent]);
+  }, [ungroupParentConfirm, ungroupParentMutation]);
 
   const handleActionMoveToGroup = useCallback(() => {
     setMoveDialogOpen(true);
@@ -269,21 +268,21 @@ export function CategoriesSection() {
 
   const handleMoveToGroup = useCallback(
     (targetParentId: number) => {
-      batchMove(Array.from(selectedIds), targetParentId);
+      batchMoveMutation.mutate({ categoryIds: Array.from(selectedIds), targetParentId });
       clearSelection();
       setMoveDialogOpen(false);
     },
-    [selectedIds, batchMove, clearSelection]
+    [selectedIds, batchMoveMutation, clearSelection]
   );
 
   const handleCreateAndMove = useCallback(
     async (groupName: string) => {
       const created = await createCategoryMutation.mutateAsync({ displayName: groupName });
-      batchMove(Array.from(selectedIds), created.id);
+      batchMoveMutation.mutate({ categoryIds: Array.from(selectedIds), targetParentId: created.id });
       clearSelection();
       setMoveDialogOpen(false);
     },
-    [selectedIds, createCategoryMutation, batchMove, clearSelection]
+    [selectedIds, createCategoryMutation, batchMoveMutation, clearSelection]
   );
 
   const handleActionUngroup = useCallback(() => {
@@ -291,23 +290,23 @@ export function CategoriesSection() {
   }, [selectedIds]);
 
   const handleUngroupConfirm = useCallback(() => {
-    batchMove(Array.from(selectedIds), -1);
+    batchMoveMutation.mutate({ categoryIds: Array.from(selectedIds), targetParentId: -1 });
     toaster.create({
       title: `${selectedIds.size} ${selectedIds.size === 1 ? "category" : "categories"} ungrouped`,
       type: "info",
     });
     clearSelection();
     setUngroupConfirmCount(null);
-  }, [selectedIds, batchMove, clearSelection]);
+  }, [selectedIds, batchMoveMutation, clearSelection]);
 
   const handleActionHide = useCallback(() => {
-    batchHide(Array.from(selectedIds));
+    batchHideMutation.mutate(Array.from(selectedIds));
     toaster.create({
       title: `${selectedIds.size} ${selectedIds.size === 1 ? "category" : "categories"} hidden`,
       type: "info",
     });
     clearSelection();
-  }, [selectedIds, batchHide, clearSelection]);
+  }, [selectedIds, batchHideMutation, clearSelection]);
 
   const handleActionDelete = useCallback(() => {
     setDeleteDialogState({
@@ -371,7 +370,7 @@ export function CategoriesSection() {
         )}
         <Box flex={1} />
         <CreateCategoryPopover
-          onCreateCategory={(displayName) => createCategory(displayName)}
+          onCreateCategory={(displayName) => createCategoryMutation.mutate({ displayName })}
           existingCategories={categories}
         />
       </Flex>

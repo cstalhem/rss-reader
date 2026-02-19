@@ -22,7 +22,7 @@ export function OllamaSection({ isVisible }: OllamaSectionProps) {
   const { data: health, isLoading: healthLoading } = useOllamaHealth(isVisible);
   const isConnected = health?.connected ?? false;
   const { data: models } = useOllamaModels(isConnected);
-  const { config: serverConfig, savedConfig, isLoading: configLoading, saveMutation } =
+  const { config: serverConfig, isLoading: configLoading, saveMutation } =
     useOllamaConfig();
   const pullHook = useModelPull();
 
@@ -112,11 +112,11 @@ export function OllamaSection({ isVisible }: OllamaSectionProps) {
             <Text fontSize="lg" fontWeight="semibold" mb={4}>
               Model Configuration
             </Text>
-            {!configLoading && effectiveConfig && savedConfig && (
+            {!configLoading && effectiveConfig && serverConfig && (
               <ModelSelector
                 models={models ?? []}
                 config={effectiveConfig}
-                savedConfig={savedConfig}
+                savedConfig={serverConfig}
                 onConfigChange={handleConfigChange}
                 onSave={handleSave}
                 isSaving={saveMutation.isPending}

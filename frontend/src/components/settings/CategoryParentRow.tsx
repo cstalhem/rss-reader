@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React from "react";
 import { Badge, Flex, Text, Box, Input } from "@chakra-ui/react";
 import { LuChevronRight, LuFolder } from "react-icons/lu";
 import { Category } from "@/lib/types";
+import { useRenameState } from "@/hooks/useRenameState";
 import { WeightPresetStrip } from "./WeightPresetStrip";
 import { CategoryContextMenu } from "./CategoryContextMenu";
 
@@ -36,30 +37,8 @@ const CategoryParentRowComponent = ({
   newChildCount,
   onDismissNewChildren,
 }: CategoryParentRowProps) => {
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [renameValue, setRenameValue] = useState(category.display_name);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (isRenaming && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-    }
-  }, [isRenaming]);
-
-  const handleRenameSubmit = () => {
-    const trimmed = renameValue.trim();
-    if (trimmed && trimmed !== category.display_name) {
-      onRename(trimmed);
-    }
-    setIsRenaming(false);
-    setRenameValue(category.display_name);
-  };
-
-  const handleRenameCancel = () => {
-    setIsRenaming(false);
-    setRenameValue(category.display_name);
-  };
+  const { isRenaming, renameValue, setRenameValue, startRename, handleSubmit, handleCancel, inputRef } =
+    useRenameState(category.display_name, onRename);
 
   return (
     <Box
@@ -99,12 +78,12 @@ const CategoryParentRowComponent = ({
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
-                handleRenameSubmit();
+                handleSubmit();
               } else if (e.key === "Escape") {
-                handleRenameCancel();
+                handleCancel();
               }
             }}
-            onBlur={handleRenameSubmit}
+            onBlur={handleSubmit}
             size="sm"
             flex={1}
           />
@@ -150,7 +129,7 @@ const CategoryParentRowComponent = ({
             <CategoryContextMenu
               type="parent"
               onUngroup={onUngroup}
-              onRename={() => setIsRenaming(true)}
+              onRename={startRename}
               onHide={onHide}
               onDelete={onDelete}
             />

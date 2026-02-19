@@ -14,6 +14,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Article } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
 import { updateCategory as apiUpdateCategory } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
 import { useAutoMarkAsRead } from "@/hooks/useAutoMarkAsRead";
 import { TagChip } from "./TagChip";
 import { ScoreBadge } from "./ScoreBadge";
@@ -48,10 +49,10 @@ export function ArticleReader({
   const updateCategoryWeightMutation = useMutation({
     mutationFn: ({ categoryId, weight }: { categoryId: number; weight: string }) =>
       apiUpdateCategory(categoryId, { weight }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
-      queryClient.invalidateQueries({ queryKey: ["categories", "new-count"] });
-      queryClient.invalidateQueries({ queryKey: ["articles"] });
+    meta: { errorTitle: "Failed to update category weight" },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
     },
   });
 
