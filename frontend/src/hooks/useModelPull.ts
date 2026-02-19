@@ -2,10 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchDownloadStatus, DownloadStatus } from "@/lib/api";
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8912";
+import { fetchDownloadStatus, API_BASE_URL } from "@/lib/api";
+import { DownloadStatus } from "@/lib/types";
 
 export interface PullProgress {
   status: string;

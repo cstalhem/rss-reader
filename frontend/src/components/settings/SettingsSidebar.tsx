@@ -4,7 +4,8 @@ import { Box, Stack, Flex, Text } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { useQuery } from "@tanstack/react-query";
 import { LuRss, LuHeart, LuTag, LuBot, LuMessageSquare, LuDownload } from "react-icons/lu";
-import { fetchDownloadStatus, DownloadStatus, fetchNewCategoryCount } from "@/lib/api";
+import { fetchDownloadStatus, fetchNewCategoryCount } from "@/lib/api";
+import { DownloadStatus } from "@/lib/types";
 
 export type SettingsSection = "feeds" | "interests" | "categories" | "ollama" | "feedback";
 

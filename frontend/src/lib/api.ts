@@ -8,21 +8,13 @@ import {
   OllamaConfig,
   OllamaConfigSaveResult,
   OllamaPrompts,
+  ScoringStatus,
+  DownloadStatus,
+  FetchArticlesParams,
 } from "./types";
 
-const API_BASE_URL =
+export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8912";
-
-interface FetchArticlesParams {
-  skip?: number;
-  limit?: number;
-  is_read?: boolean;
-  feed_id?: number;
-  sort_by?: string;
-  order?: string;
-  scoring_state?: string;
-  exclude_blocked?: boolean;
-}
 
 export async function fetchArticles(
   params: FetchArticlesParams = {}
@@ -292,17 +284,6 @@ export async function acknowledgeCategories(categoryIds: number[]): Promise<{ ok
   return response.json();
 }
 
-export interface ScoringStatus {
-  unscored: number;
-  queued: number;
-  scoring: number;
-  scored: number;
-  failed: number;
-  blocked: number;
-  current_article_id: number | null;
-  phase: string;
-}
-
 export async function fetchScoringStatus(): Promise<ScoringStatus> {
   const response = await fetch(`${API_BASE_URL}/api/scoring/status`);
 
@@ -384,14 +365,6 @@ export async function deleteOllamaModel(name: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`Failed to delete Ollama model: ${response.statusText}`);
   }
-}
-
-export interface DownloadStatus {
-  active: boolean;
-  model: string | null;
-  completed: number;
-  total: number;
-  status: string | null;
 }
 
 export async function fetchDownloadStatus(): Promise<DownloadStatus> {

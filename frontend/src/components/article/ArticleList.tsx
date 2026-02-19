@@ -13,7 +13,8 @@ import { ArticleRow } from "./ArticleRow";
 import { ArticleRowSkeleton } from "./ArticleRowSkeleton";
 import { ArticleReader } from "./ArticleReader";
 import { SortSelect } from "./SortSelect";
-import { Article, parseSortOption } from "@/lib/types";
+import { Article } from "@/lib/types";
+import { parseSortOption } from "@/lib/utils";
 
 interface ArticleListProps {
   selectedFeedId?: number | null;

@@ -84,11 +84,32 @@ export interface OllamaConfigSaveResult extends OllamaConfig {
 
 export type SortOption = "score_desc" | "score_asc" | "date_desc" | "date_asc";
 
-export function parseSortOption(option: SortOption): { sort_by: string; order: string } {
-  switch (option) {
-    case "score_desc": return { sort_by: "composite_score", order: "desc" };
-    case "score_asc": return { sort_by: "composite_score", order: "asc" };
-    case "date_desc": return { sort_by: "published_at", order: "desc" };
-    case "date_asc": return { sort_by: "published_at", order: "asc" };
-  }
+export interface ScoringStatus {
+  unscored: number;
+  queued: number;
+  scoring: number;
+  scored: number;
+  failed: number;
+  blocked: number;
+  current_article_id: number | null;
+  phase: string;
+}
+
+export interface DownloadStatus {
+  active: boolean;
+  model: string | null;
+  completed: number;
+  total: number;
+  status: string | null;
+}
+
+export interface FetchArticlesParams {
+  skip?: number;
+  limit?: number;
+  is_read?: boolean;
+  feed_id?: number;
+  sort_by?: string;
+  order?: string;
+  scoring_state?: string;
+  exclude_blocked?: boolean;
 }

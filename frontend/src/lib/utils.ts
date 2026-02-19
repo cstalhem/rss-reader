@@ -1,3 +1,14 @@
+import { SortOption } from "./types";
+
+export function parseSortOption(option: SortOption): { sort_by: string; order: string } {
+  switch (option) {
+    case "score_desc": return { sort_by: "composite_score", order: "desc" };
+    case "score_asc": return { sort_by: "composite_score", order: "asc" };
+    case "date_desc": return { sort_by: "published_at", order: "desc" };
+    case "date_asc": return { sort_by: "published_at", order: "asc" };
+  }
+}
+
 export function formatRelativeDate(dateString: string | null): string {
   if (!dateString) return "Unknown date";
 
