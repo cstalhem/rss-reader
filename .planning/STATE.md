@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8.3 of 10 (Category Group Management Redesign)
-Plan: 5 of 5 complete
+Plan: 6 of 6 complete
 Status: Complete
-Last activity: 2026-02-18 - Completed Phase 08.3 Plan 05 (Hidden Categories & Mobile Card Layout)
+Last activity: 2026-02-19 - Completed Phase 08.3 Plan 06 (UAT Gap Closure)
 
 Progress: [██████████] 100% (36/36 total plans estimated from v1.1) + 08.3 in progress
 
@@ -93,6 +93,7 @@ Progress: [██████████] 100% (36/36 total plans estimated fro
 | Phase 08.3-category-group-management-redesign P03 | 5.9 | 2 tasks | 9 files |
 | Phase 08.3-category-group-management-redesign P04 | 4.2 | 2 tasks | 4 files |
 | Phase 08.3-category-group-management-redesign P05 | 3.4 | 2 tasks | 5 files |
+| Phase 08.3-category-group-management-redesign P06 | 2.5 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -209,6 +210,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08.3-05]: Collapsible.Indicator for auto-rotating chevron in hidden section (follows SystemPrompts pattern)
 - [Phase 08.3-05]: Dual-render WeightPresetStrip at breakpoints for mobile card layout (display none/block)
 - [Phase 08.3-05]: Mobile card pattern: Box wrapper with responsive borderWidth/borderRadius, separate mobile-only weight strip row
+- [Phase 08.3-06]: Single map loop with React.Fragment rendering mobile Button (icon+text) and desktop IconButton per weight option
+- [Phase 08.3-06]: childrenMap prop for MoveToGroupDialog child count instead of article_count
 
 ### Pending Todos
 
@@ -245,9 +248,9 @@ Key architectural decisions carrying forward to v1.1:
 
 ## Session Continuity
 
-Last session: 2026-02-18
-Stopped at: Completed 08.3-05-PLAN.md (Phase 08.3 complete)
-Resume file: .planning/phases/08.3-category-group-management-redesign/08.3-05-SUMMARY.md
+Last session: 2026-02-19
+Stopped at: Completed 08.3-06-PLAN.md (Phase 08.3 UAT gaps closed)
+Resume file: .planning/phases/08.3-category-group-management-redesign/08.3-06-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
