@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 9.1 of 10 (Backend Codebase Evaluation & Simplification)
-Plan: 1 of 4 complete
+Plan: 3 of 4 complete
 Status: In Progress
-Last activity: 2026-02-19 - Completed Phase 09.1 Plan 01 (Shared Foundation Modules)
+Last activity: 2026-02-20 - Completed Phase 09.1 Plan 03 (Scoring Pipeline Fixes)
 
-Progress: [██░░░░░░░░] 25% (1/4 plans in Phase 09.1)
+Progress: [███████░░░] 75% (3/4 plans in Phase 09.1)
 
 ## Performance Metrics
 
@@ -101,6 +101,7 @@ Progress: [██░░░░░░░░] 25% (1/4 plans in Phase 09.1)
 | Phase 09-frontend-codebase-evaluation-simplification P03 | 11.7 | 2 tasks | 29 files |
 | Phase 09-frontend-codebase-evaluation-simplification P04 | 5.3 | 2 tasks | 9 files |
 | Phase 09.1 P01 | 3.0 | 2 tasks | 7 files |
+| Phase 09.1 P03 | 4.0 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -233,6 +234,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 09-04]: InterestsForm extracted as child component for clean useState initialization from async data
 - [Phase 09.1]: Schema versioning via schema_version table with CURRENT_SCHEMA_VERSION constant -- version-gated migrations replace run-every-startup approach
 - [Phase 09.1]: deps.py shared module for get_session, get_or_create_preferences, resolve_ollama_models -- breaks circular imports between routers and infrastructure
+- [Phase 09.1]: TRANSIENT_ERRORS tuple for retry logic -- ValidationError and JSON errors fail immediately
+- [Phase 09.1]: Background job sessions use Session(engine) directly, not next(get_session()) generator
 
 ### Pending Todos
 
@@ -269,10 +272,10 @@ Key architectural decisions carrying forward to v1.1:
 
 ## Session Continuity
 
-Last session: 2026-02-19
-Stopped at: Completed 09.1-01-PLAN.md
-Resume file: .planning/phases/09.1-backend-codebase-evaluation-simplification/09.1-02-PLAN.md
+Last session: 2026-02-20
+Stopped at: Completed 09.1-03-PLAN.md
+Resume file: .planning/phases/09.1-backend-codebase-evaluation-simplification/09.1-04-PLAN.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-19 after Phase 09.1 Plan 01 execution*
+*Last updated: 2026-02-20 after Phase 09.1 Plan 03 execution*
