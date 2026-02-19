@@ -2,6 +2,7 @@
 
 import logging
 
+import httpx
 from ollama import AsyncClient
 from slugify import slugify
 from sqlmodel import Session, select
@@ -12,6 +13,7 @@ from tenacity import (
     wait_exponential,
 )
 
+from backend.config import Settings
 from backend.database import smart_case
 from backend.models import Category
 from backend.prompts import (
@@ -25,8 +27,20 @@ logger = logging.getLogger(__name__)
 
 MAX_COMPOSITE_SCORE = 20.0
 
+OLLAMA_CONNECT_TIMEOUT = 10.0  # Fail fast if Ollama is down
+OLLAMA_READ_TIMEOUT = 120.0  # Per-chunk timeout in streaming mode
+
+TRANSIENT_ERRORS = (
+    ConnectionError,
+    TimeoutError,
+    httpx.ConnectError,
+    httpx.ReadTimeout,
+    httpx.ConnectTimeout,
+)
+
 # Ephemeral in-memory state for real-time scoring phase tracking.
 # Safe in single-worker asyncio — no threading concerns.
+# Shape: {"article_id": int | None, "phase": str}
 _scoring_activity: dict = {"article_id": None, "phase": "idle"}
 
 
@@ -85,7 +99,7 @@ def get_or_create_category(
 
 
 @retry(
-    retry=retry_if_exception_type(Exception),
+    retry=retry_if_exception_type(TRANSIENT_ERRORS),
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
 )
@@ -93,7 +107,7 @@ async def categorize_article(
     article_title: str,
     article_text: str,
     existing_categories: list[str],
-    settings,
+    settings: Settings,
     model: str,
     category_hierarchy: dict[str, list[str]] | None = None,
     hidden_categories: list[str] | None = None,
@@ -120,26 +134,27 @@ async def categorize_article(
         hidden_categories=hidden_categories,
     )
 
-    client = AsyncClient(
-        host=settings.ollama.host,
-        timeout=None,
+    timeout = httpx.Timeout(
+        connect=OLLAMA_CONNECT_TIMEOUT, read=OLLAMA_READ_TIMEOUT,
+        write=30.0, pool=10.0,
     )
 
-    # Use streaming to prevent httpx.ReadTimeout on slower models
-    content = ""
-    async for chunk in await client.chat(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        format=CategoryResponse.model_json_schema(),
-        options={"temperature": 0},
-        stream=True,
-        think=True if settings.ollama.thinking else None,
-    ):
-        if chunk["message"].get("thinking"):
-            _scoring_activity["phase"] = "thinking"
-        if chunk["message"].get("content"):
-            _scoring_activity["phase"] = "categorizing"
-        content += chunk["message"].get("content") or ""
+    async with AsyncClient(host=settings.ollama.host, timeout=timeout) as client:
+        # Use streaming to prevent httpx.ReadTimeout on slower models
+        content = ""
+        async for chunk in await client.chat(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            format=CategoryResponse.model_json_schema(),
+            options={"temperature": 0},
+            stream=True,
+            think=True if settings.ollama.thinking else None,
+        ):
+            if chunk["message"].get("thinking"):
+                _scoring_activity["phase"] = "thinking"
+            if chunk["message"].get("content"):
+                _scoring_activity["phase"] = "categorizing"
+            content += chunk["message"].get("content") or ""
 
     # Parse accumulated structured response
     result = CategoryResponse.model_validate_json(content)
@@ -153,7 +168,7 @@ async def categorize_article(
 
 
 @retry(
-    retry=retry_if_exception_type(Exception),
+    retry=retry_if_exception_type(TRANSIENT_ERRORS),
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
 )
@@ -162,7 +177,7 @@ async def score_article(
     article_text: str,
     interests: str,
     anti_interests: str,
-    settings,
+    settings: Settings,
     model: str,
 ) -> ScoringResponse:
     """Score an article's interest and quality using Ollama LLM.
@@ -185,26 +200,27 @@ async def score_article(
         article_title, article_text, interests, anti_interests
     )
 
-    client = AsyncClient(
-        host=settings.ollama.host,
-        timeout=None,
+    timeout = httpx.Timeout(
+        connect=OLLAMA_CONNECT_TIMEOUT, read=OLLAMA_READ_TIMEOUT,
+        write=30.0, pool=10.0,
     )
 
-    # Use streaming to prevent httpx.ReadTimeout on slower models
-    content = ""
-    async for chunk in await client.chat(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        format=ScoringResponse.model_json_schema(),
-        options={"temperature": 0},
-        stream=True,
-        think=True if settings.ollama.thinking else None,
-    ):
-        if chunk["message"].get("thinking"):
-            _scoring_activity["phase"] = "thinking"
-        if chunk["message"].get("content"):
-            _scoring_activity["phase"] = "scoring"
-        content += chunk["message"].get("content") or ""
+    async with AsyncClient(host=settings.ollama.host, timeout=timeout) as client:
+        # Use streaming to prevent httpx.ReadTimeout on slower models
+        content = ""
+        async for chunk in await client.chat(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            format=ScoringResponse.model_json_schema(),
+            options={"temperature": 0},
+            stream=True,
+            think=True if settings.ollama.thinking else None,
+        ):
+            if chunk["message"].get("thinking"):
+                _scoring_activity["phase"] = "thinking"
+            if chunk["message"].get("content"):
+                _scoring_activity["phase"] = "scoring"
+            content += chunk["message"].get("content") or ""
 
     # Parse accumulated structured response
     result = ScoringResponse.model_validate_json(content)
@@ -299,7 +315,7 @@ def is_blocked(categories: list[Category]) -> bool:
     return False
 
 
-async def get_active_categories(
+def get_active_categories(
     session: Session,
 ) -> tuple[list[str], dict[str, list[str]] | None, list[str]]:
     """Get active (non-hidden) categories, hierarchy, and hidden category names.
