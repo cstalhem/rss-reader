@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 9 of 10 (Frontend Codebase Evaluation & Simplification)
-Plan: 3 of 4 complete
-Status: In Progress
-Last activity: 2026-02-19 - Completed Phase 09 Plan 03 (Component Consumer Updates)
+Plan: 4 of 4 complete
+Status: Phase Complete
+Last activity: 2026-02-19 - Completed Phase 09 Plan 04 (Dead Code Cleanup & useEffect Fixes)
 
-Progress: [███████░░░] 75% (3/4 plans in Phase 09)
+Progress: [██████████] 100% (4/4 plans in Phase 09)
 
 ## Performance Metrics
 
@@ -99,6 +99,7 @@ Progress: [███████░░░] 75% (3/4 plans in Phase 09)
 | Phase 09-frontend-codebase-evaluation-simplification P01 | 3.2 | 2 tasks | 9 files |
 | Phase 09-frontend-codebase-evaluation-simplification P02 | 4.5 | 3 tasks | 13 files |
 | Phase 09-frontend-codebase-evaluation-simplification P03 | 11.7 | 2 tasks | 29 files |
+| Phase 09-frontend-codebase-evaluation-simplification P04 | 5.3 | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -226,6 +227,9 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 09-03]: ConfirmDialog reusable component replaces inline Dialog.Root blocks for confirmation flows
 - [Phase 09-03]: Semantic tokens (fg.success/fg.warning/fg.error) for status colors, fg.* used as bg for small indicator dots
 - [Phase 09-03]: InstalledModelRow extracted as co-located component in ModelManagement.tsx (single consumer)
+- [Phase 09-04]: key prop on parent for component state reset instead of useEffect watching prop changes
+- [Phase 09-04]: WeightPresetStrip fully controlled (no local state) since optimistic cache updates make value prop instant
+- [Phase 09-04]: InterestsForm extracted as child component for clean useState initialization from async data
 
 ### Pending Todos
 
@@ -263,8 +267,8 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 09-03-PLAN.md
-Resume file: .planning/phases/09-frontend-codebase-evaluation-simplification/09-03-SUMMARY.md
+Stopped at: Completed 09-04-PLAN.md (Phase 09 complete)
+Resume file: .planning/phases/09-frontend-codebase-evaluation-simplification/09-04-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
