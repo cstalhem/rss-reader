@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** Surface interesting articles and hide noise automatically via local LLM curation
-**Current focus:** Phase 9 - Frontend Codebase Evaluation & Simplification
+**Current focus:** Phase 9.1 - Backend Codebase Evaluation & Simplification
 
 ## Current Position
 
-Phase: 9 of 10 (Frontend Codebase Evaluation & Simplification)
-Plan: 4 of 4 complete
-Status: Phase Complete
-Last activity: 2026-02-19 - Completed Phase 09 Plan 04 (Dead Code Cleanup & useEffect Fixes)
+Phase: 9.1 of 10 (Backend Codebase Evaluation & Simplification)
+Plan: 1 of 4 complete
+Status: In Progress
+Last activity: 2026-02-19 - Completed Phase 09.1 Plan 01 (Shared Foundation Modules)
 
-Progress: [██████████] 100% (4/4 plans in Phase 09)
+Progress: [██░░░░░░░░] 25% (1/4 plans in Phase 09.1)
 
 ## Performance Metrics
 
@@ -100,6 +100,7 @@ Progress: [██████████] 100% (4/4 plans in Phase 09)
 | Phase 09-frontend-codebase-evaluation-simplification P02 | 4.5 | 3 tasks | 13 files |
 | Phase 09-frontend-codebase-evaluation-simplification P03 | 11.7 | 2 tasks | 29 files |
 | Phase 09-frontend-codebase-evaluation-simplification P04 | 5.3 | 2 tasks | 9 files |
+| Phase 09.1 P01 | 3.0 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -230,6 +231,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 09-04]: key prop on parent for component state reset instead of useEffect watching prop changes
 - [Phase 09-04]: WeightPresetStrip fully controlled (no local state) since optimistic cache updates make value prop instant
 - [Phase 09-04]: InterestsForm extracted as child component for clean useState initialization from async data
+- [Phase 09.1]: Schema versioning via schema_version table with CURRENT_SCHEMA_VERSION constant -- version-gated migrations replace run-every-startup approach
+- [Phase 09.1]: deps.py shared module for get_session, get_or_create_preferences, resolve_ollama_models -- breaks circular imports between routers and infrastructure
 
 ### Pending Todos
 
@@ -267,9 +270,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Phase 9.1 context gathered
-Resume file: .planning/phases/09.1-backend-codebase-evaluation-simplification/09.1-CONTEXT.md
+Stopped at: Completed 09.1-01-PLAN.md
+Resume file: .planning/phases/09.1-backend-codebase-evaluation-simplification/09.1-02-PLAN.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-19 after Phase 9.1 context session*
+*Last updated: 2026-02-19 after Phase 09.1 Plan 01 execution*
