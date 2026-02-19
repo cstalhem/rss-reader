@@ -1,0 +1,248 @@
+"""Feed CRUD and refresh endpoints."""
+
+import logging
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, func, select
+
+from backend.deps import get_session
+from backend.feeds import fetch_feed, refresh_feed, save_articles
+from backend.models import Article, Feed
+from backend.schemas import (
+    FeedCreate,
+    FeedReorder,
+    FeedResponse,
+    FeedUpdate,
+    RefreshResponse,
+)
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/feeds", tags=["feeds"])
+
+
+@router.get("", response_model=list[FeedResponse])
+def list_feeds(
+    session: Session = Depends(get_session),
+):
+    """List all feeds with unread count, ordered by display_order."""
+    feeds = session.exec(select(Feed).order_by(Feed.display_order, Feed.id)).all()
+
+    feed_responses = []
+    for feed in feeds:
+        unread_count = session.exec(
+            select(func.count(Article.id))
+            .where(Article.feed_id == feed.id)
+            .where(Article.is_read.is_(False))
+        ).one()
+
+        feed_responses.append(
+            FeedResponse(
+                id=feed.id,
+                url=feed.url,
+                title=feed.title,
+                display_order=feed.display_order,
+                last_fetched_at=feed.last_fetched_at,
+                unread_count=unread_count,
+            )
+        )
+
+    return feed_responses
+
+
+@router.post("", response_model=FeedResponse, status_code=201)
+async def create_feed(
+    feed_create: FeedCreate,
+    session: Session = Depends(get_session),
+):
+    """Create a new feed by URL, validate it, and fetch initial articles."""
+    url = feed_create.url.strip()
+
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid URL format. Must start with http:// or https://",
+        )
+
+    existing_feed = session.exec(select(Feed).where(Feed.url == url)).first()
+
+    if existing_feed:
+        raise HTTPException(
+            status_code=400,
+            detail="Feed with this URL already exists",
+        )
+
+    try:
+        parsed_feed = await fetch_feed(url)
+
+        if parsed_feed.bozo and not parsed_feed.entries:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid RSS feed or feed has no entries: {parsed_feed.get('bozo_exception', 'Unknown error')}",
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to fetch feed {url}: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to fetch feed: {str(e)}",
+        ) from e
+
+    max_order_result = session.exec(select(func.max(Feed.display_order))).one()
+    next_order = (max_order_result or 0) + 1
+
+    feed_title = parsed_feed.feed.get("title", "Untitled Feed")
+    feed = Feed(
+        url=url,
+        title=feed_title,
+        display_order=next_order,
+        last_fetched_at=datetime.now(),
+    )
+    session.add(feed)
+    session.commit()
+    session.refresh(feed)
+
+    article_count, new_article_ids = save_articles(
+        session, feed.id, parsed_feed.entries
+    )
+    logger.info(f"Created feed {feed.title} with {article_count} articles")
+
+    if new_article_ids:
+        from backend.scheduler import scoring_queue
+
+        await scoring_queue.enqueue_articles(session, new_article_ids)
+
+    return FeedResponse(
+        id=feed.id,
+        url=feed.url,
+        title=feed.title,
+        display_order=feed.display_order,
+        last_fetched_at=feed.last_fetched_at,
+        unread_count=article_count,
+    )
+
+
+@router.put("/order")
+def reorder_feeds(
+    feed_reorder: FeedReorder,
+    session: Session = Depends(get_session),
+):
+    """Reorder feeds by updating display_order based on provided feed_ids order."""
+    for index, feed_id in enumerate(feed_reorder.feed_ids):
+        feed = session.get(Feed, feed_id)
+        if feed:
+            feed.display_order = index
+            session.add(feed)
+
+    session.commit()
+    return {"ok": True}
+
+
+@router.post("/refresh", response_model=RefreshResponse)
+async def manual_refresh(
+    session: Session = Depends(get_session),
+):
+    """Manually trigger feed refresh for all feeds."""
+    feeds = session.exec(select(Feed)).all()
+
+    if not feeds:
+        return RefreshResponse(
+            message="No feeds configured",
+            new_articles=0,
+        )
+
+    total_new = 0
+    for feed in feeds:
+        try:
+            new_count = await refresh_feed(session, feed)
+            total_new += new_count
+        except Exception as e:
+            logger.error(f"Failed to refresh feed {feed.url}: {e}")
+
+    return RefreshResponse(
+        message=f"Refreshed {len(feeds)} feed(s)",
+        new_articles=total_new,
+    )
+
+
+@router.delete("/{feed_id}")
+def delete_feed(
+    feed_id: int,
+    session: Session = Depends(get_session),
+):
+    """Delete a feed and all its articles (CASCADE)."""
+    feed = session.get(Feed, feed_id)
+
+    if not feed:
+        raise HTTPException(status_code=404, detail="Feed not found")
+
+    session.delete(feed)
+    session.commit()
+
+    return {"ok": True}
+
+
+@router.patch("/{feed_id}", response_model=FeedResponse)
+def update_feed(
+    feed_id: int,
+    feed_update: FeedUpdate,
+    session: Session = Depends(get_session),
+):
+    """Update feed title and/or display_order."""
+    feed = session.get(Feed, feed_id)
+
+    if not feed:
+        raise HTTPException(status_code=404, detail="Feed not found")
+
+    if feed_update.title is not None:
+        feed.title = feed_update.title
+
+    if feed_update.display_order is not None:
+        feed.display_order = feed_update.display_order
+
+    session.add(feed)
+    session.commit()
+    session.refresh(feed)
+
+    unread_count = session.exec(
+        select(func.count(Article.id))
+        .where(Article.feed_id == feed.id)
+        .where(Article.is_read.is_(False))
+    ).one()
+
+    return FeedResponse(
+        id=feed.id,
+        url=feed.url,
+        title=feed.title,
+        display_order=feed.display_order,
+        last_fetched_at=feed.last_fetched_at,
+        unread_count=unread_count,
+    )
+
+
+@router.post("/{feed_id}/mark-read")
+def mark_feed_read(
+    feed_id: int,
+    session: Session = Depends(get_session),
+):
+    """Mark all articles in a feed as read."""
+    feed = session.get(Feed, feed_id)
+
+    if not feed:
+        raise HTTPException(status_code=404, detail="Feed not found")
+
+    articles = session.exec(
+        select(Article)
+        .where(Article.feed_id == feed_id)
+        .where(Article.is_read.is_(False))
+    ).all()
+
+    count = len(articles)
+    for article in articles:
+        article.is_read = True
+        session.add(article)
+
+    session.commit()
+
+    return {"ok": True, "count": count}
