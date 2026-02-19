@@ -102,6 +102,7 @@ Progress: [███████░░░] 75% (3/4 plans in Phase 09.1)
 | Phase 09-frontend-codebase-evaluation-simplification P04 | 5.3 | 2 tasks | 9 files |
 | Phase 09.1 P01 | 3.0 | 2 tasks | 7 files |
 | Phase 09.1 P03 | 4.0 | 2 tasks | 9 files |
+| Phase 09.1 P02 | 7.3 | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -236,6 +237,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 09.1]: deps.py shared module for get_session, get_or_create_preferences, resolve_ollama_models -- breaks circular imports between routers and infrastructure
 - [Phase 09.1]: TRANSIENT_ERRORS tuple for retry logic -- ValidationError and JSON errors fail immediately
 - [Phase 09.1]: Background job sessions use Session(engine) directly, not next(get_session()) generator
+- [Phase 09.1]: conftest.py imports get_session from deps.py (not database.py) so dependency_overrides match routers
+- [Phase 09.1]: APIRouter per domain with prefix/tags; static routes registered before parameterized to avoid path conflicts
 
 ### Pending Todos
 
