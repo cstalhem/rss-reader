@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 9 of 10 (Frontend Codebase Evaluation & Simplification)
-Plan: 2 of 4 complete
+Plan: 3 of 4 complete
 Status: In Progress
-Last activity: 2026-02-19 - Completed Phase 09 Plan 02 (Hook Layer Refactoring)
+Last activity: 2026-02-19 - Completed Phase 09 Plan 03 (Component Consumer Updates)
 
-Progress: [█████░░░░░] 50% (2/4 plans in Phase 09)
+Progress: [███████░░░] 75% (3/4 plans in Phase 09)
 
 ## Performance Metrics
 
@@ -98,6 +98,7 @@ Progress: [█████░░░░░] 50% (2/4 plans in Phase 09)
 **Phase 09 Metrics:**
 | Phase 09-frontend-codebase-evaluation-simplification P01 | 3.2 | 2 tasks | 9 files |
 | Phase 09-frontend-codebase-evaluation-simplification P02 | 4.5 | 3 tasks | 13 files |
+| Phase 09-frontend-codebase-evaluation-simplification P03 | 11.7 | 2 tasks | 29 files |
 
 ## Accumulated Context
 
@@ -222,6 +223,9 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 09-02]: Direct mutation object exposure from useCategories (updateCategory helper kept for auto-acknowledge behavior)
 - [Phase 09-02]: Mutation onSuccess converted to onSettled for cache freshness on both success and error
 - [Phase 09-02]: Optimistic rollback mutations use meta.handlesOwnErrors flag (updateCategory, reorderFeeds)
+- [Phase 09-03]: ConfirmDialog reusable component replaces inline Dialog.Root blocks for confirmation flows
+- [Phase 09-03]: Semantic tokens (fg.success/fg.warning/fg.error) for status colors, fg.* used as bg for small indicator dots
+- [Phase 09-03]: InstalledModelRow extracted as co-located component in ModelManagement.tsx (single consumer)
 
 ### Pending Todos
 
@@ -259,9 +263,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 09-02-PLAN.md
-Resume file: .planning/phases/09-frontend-codebase-evaluation-simplification/09-02-SUMMARY.md
+Stopped at: Completed 09-03-PLAN.md
+Resume file: .planning/phases/09-frontend-codebase-evaluation-simplification/09-03-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-19 after Phase 09 Plan 02 execution*
+*Last updated: 2026-02-19 after Phase 09 Plan 03 execution*
