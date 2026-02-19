@@ -131,7 +131,7 @@ async def refresh_feed(session: Session, feed: Feed) -> int:
         if new_article_ids:
             # Import here to avoid circular dependency
             from backend.scheduler import scoring_queue
-            await scoring_queue.enqueue_articles(session, new_article_ids)
+            scoring_queue.enqueue_articles(session, new_article_ids)
 
         return new_count
 

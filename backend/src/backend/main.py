@@ -473,7 +473,7 @@ async def create_feed(
     if new_article_ids:
         from backend.scheduler import scoring_queue
 
-        await scoring_queue.enqueue_articles(session, new_article_ids)
+        scoring_queue.enqueue_articles(session, new_article_ids)
 
     # Return feed with unread count
     return FeedResponse(
@@ -653,7 +653,7 @@ async def update_preferences(
     # Trigger re-scoring of recent articles
     from backend.scheduler import scoring_queue
 
-    await scoring_queue.enqueue_recent_for_rescoring(session)
+    scoring_queue.enqueue_recent_for_rescoring(session)
 
     return PreferencesResponse(
         interests=preferences.interests,
@@ -1194,7 +1194,7 @@ async def rescore_articles(
     """Manually trigger re-scoring of recent unread articles."""
     from backend.scheduler import scoring_queue
 
-    queued = await scoring_queue.enqueue_recent_for_rescoring(session)
+    queued = scoring_queue.enqueue_recent_for_rescoring(session)
     return {"queued": queued}
 
 

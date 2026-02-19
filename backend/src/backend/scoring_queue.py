@@ -20,11 +20,14 @@ from backend.scoring import (
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+RESCORE_LOOKBACK_DAYS = 7
+RESCORE_MAX_ARTICLES = 100
+
 
 class ScoringQueue:
     """Manages the article scoring queue and processing pipeline."""
 
-    async def enqueue_articles(self, session: Session, article_ids: list[int]) -> int:
+    def enqueue_articles(self, session: Session, article_ids: list[int]) -> int:
         """Enqueue articles for scoring.
 
         Args:
@@ -46,11 +49,11 @@ class ScoringQueue:
         logger.info(f"Enqueued {count} articles for scoring")
         return count
 
-    async def enqueue_recent_for_rescoring(
+    def enqueue_recent_for_rescoring(
         self,
         session: Session,
-        days: int = 7,
-        max_articles: int = 100,
+        days: int = RESCORE_LOOKBACK_DAYS,
+        max_articles: int = RESCORE_MAX_ARTICLES,
     ) -> int:
         """Enqueue recent unread articles for re-scoring.
 
@@ -137,7 +140,7 @@ class ScoringQueue:
             scoring_model = categorization_model
 
         # Get active categories list, hierarchy, and hidden categories
-        active_categories, category_hierarchy, hidden_categories = await get_active_categories(session)
+        active_categories, category_hierarchy, hidden_categories = get_active_categories(session)
 
         processed = 0
         for article in articles:

@@ -1,16 +1,19 @@
 import logging
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlmodel import select
+from sqlmodel import Session, select
 
 from backend.config import get_settings
-from backend.database import get_session
+from backend.database import engine
 from backend.feeds import refresh_feed
 from backend.models import Feed
 from backend.scoring_queue import ScoringQueue
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
+
+SCORING_BATCH_SIZE = 5
+SCORING_INTERVAL_SECONDS = 30
 
 scheduler = AsyncIOScheduler()
 scoring_queue = ScoringQueue()
@@ -21,7 +24,7 @@ async def refresh_all_feeds():
     if settings.scheduler.log_job_execution:
         logger.info("Running scheduled feed refresh...")
 
-    with next(get_session()) as session:
+    with Session(engine) as session:
         feeds = session.exec(select(Feed)).all()
 
         if not feeds:
@@ -44,10 +47,14 @@ async def process_scoring_queue():
     if settings.scheduler.log_job_execution:
         logger.info("Running scoring queue processor...")
 
-    with next(get_session()) as session:
+    with Session(engine) as session:
+        # Prevent lazy-load after commit -- scoring reads article attributes
+        # post-commit outside request cycle
         session.expire_on_commit = False
         try:
-            processed = await scoring_queue.process_next_batch(session, batch_size=5)
+            processed = await scoring_queue.process_next_batch(
+                session, batch_size=SCORING_BATCH_SIZE,
+            )
             if settings.scheduler.log_job_execution and processed > 0:
                 logger.info(f"Processed {processed} articles from scoring queue")
         except Exception as e:
@@ -66,11 +73,11 @@ def start_scheduler():
         replace_existing=True,
     )
 
-    # Add job to process scoring queue every 30 seconds
+    # Add job to process scoring queue
     scheduler.add_job(
         process_scoring_queue,
         "interval",
-        seconds=30,
+        seconds=SCORING_INTERVAL_SECONDS,
         id="process_scoring",
         replace_existing=True,
     )
@@ -78,7 +85,7 @@ def start_scheduler():
     scheduler.start()
     logger.info(
         f"Scheduler started - feeds will refresh every {interval_seconds} seconds, "
-        f"scoring queue will process every 30 seconds"
+        f"scoring queue will process every {SCORING_INTERVAL_SECONDS} seconds"
     )
 
 
