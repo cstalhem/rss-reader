@@ -27,6 +27,9 @@ export function CategoryActionBar({
         px={3}
         bg="bg.subtle"
         borderRadius="sm"
+        position="sticky"
+        top={0}
+        zIndex={1}
       >
         <Text fontSize="sm" color="fg.muted">
           {selectedCount > 0 ? `${selectedCount} selected` : "Select categories to act on them"}

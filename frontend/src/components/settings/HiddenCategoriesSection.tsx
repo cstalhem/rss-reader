@@ -28,7 +28,10 @@ export function HiddenCategoriesSection({
           _hover={{ bg: "bg.muted" }}
           transition="background 0.15s"
         >
-          <Collapsible.Indicator>
+          <Collapsible.Indicator
+            transition="transform 0.2s"
+            _open={{ transform: "rotate(90deg)" }}
+          >
             <LuChevronRight size={14} />
           </Collapsible.Indicator>
           <Text fontSize="sm" fontWeight="semibold" color="fg.muted">
