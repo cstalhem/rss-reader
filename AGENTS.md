@@ -10,15 +10,16 @@ A personal RSS reader with LLM-powered relevance scoring. Local-first, simple, m
 
 ## Directory Structure
 
-| Directory | Contents |
-|-----------|----------|
-| `backend/` | Python/FastAPI API server with SQLModel models |
-| `frontend/` | Next.js App Router with Chakra UI v3 components |
-| `config/` | Production YAML configuration (`app.yaml`) |
-| `spec/` | PRD and milestone implementation plans |
-| `.planning/` | GSD workflow: roadmap, phase plans, research, state tracking |
-| `.github/workflows/` | CI/CD: Docker image builds pushed to GHCR |
-| `data/` | SQLite database (gitignored) |
+| Directory            | Contents                                                           |
+| -------------------- | ------------------------------------------------------------------ |
+| `backend/`           | Python/FastAPI API server with SQLModel models                     |
+| `frontend/`          | Next.js App Router with Chakra UI v3 components                    |
+| `config/`            | Production YAML configuration (`app.yaml`)                         |
+| `spec/`              | PRD and milestone implementation plans                             |
+| `.planning/`         | GSD workflow: roadmap, phase plans, research, state tracking       |
+| `.learning/`         | Living knowledge base: best practices, patterns, agent mistake log |
+| `.github/workflows/` | CI/CD: Docker image builds pushed to GHCR                          |
+| `data/`              | SQLite database (gitignored)                                       |
 
 ---
 
@@ -45,28 +46,25 @@ bun run build         # Production build
 
 ## Critical Patterns and Gotchas
 
+> Rationale, code examples, and edge cases for these rules live in `.learning/`. See `.learning/INDEX.md`.
+
 ### Frontend
 
-**Chakra UI v3 — Portal/Positioner pattern (REQUIRED for overlays):**
-Select, Menu, Tooltip, and Popover components MUST use `Portal > Component.Positioner > Component.Content`. Without this, dropdowns render inline and cause layout shift. See `SortSelect.tsx` and `TagChip.tsx` for correct examples. Chakra v3 uses dot notation (`Select.Root`, `Menu.Item`) not flat imports.
+**Chakra UI v3 — Overlays:** Select, Menu, Tooltip, Popover MUST use `Portal > Positioner > Content`. **Exception:** Dialog handles portalling internally — do NOT wrap in Portal. Always use the `@/components/ui/tooltip` wrapper — never raw `Tooltip.Root`. *(details: `.learning/chakra-ui-v3.md`)*
 
-**Chakra UI v3 — Theme system:**
-Theme is built with `createSystem(defaultConfig, {...})` in `frontend/src/theme/index.ts`. Color palette uses `accent` (orange) as the primary colorPalette. Semantic tokens must include `solid`, `contrast`, and `focusRing` for colorPalette resolution to work. The full token set is in `theme/colors.ts`.
+**Chakra UI v3 — React-icons:** Set `color` on the nearest Chakra parent element; CSS inheritance flows to SVG `currentColor`. Do NOT use `var(--chakra-colors-*)` strings on icon props. *(details: `.learning/chakra-ui-v3.md`)*
 
-**Turbopack breaks Emotion SSR:**
-Turbopack mishandles Emotion CSS server-side rendering, causing hydration errors (`<script>` vs `<style data-emotion>` mismatch). The dev and build scripts in `package.json` use `--webpack` flag as a workaround. Do NOT remove this flag. `suppressHydrationWarning` on `<html>` in `layout.tsx` is also required.
+**Chakra UI v3 — Theme:** Built with `createSystem(defaultConfig, {...})` in `frontend/src/theme/index.ts`. Semantic tokens in `theme/colors.ts`. `colorPalette` requires `solid`, `contrast`, and `focusRing` tokens to resolve.
 
-**localStorage and hydration:**
-Never read localStorage in `useState` initializer — the server renders `initialValue` but the client would read the stored value, causing a hydration mismatch. Pattern: initialize with default, sync from localStorage in `useEffect` after hydration. See `useLocalStorage.ts`.
+**Turbopack breaks Emotion SSR:** Dev and build scripts use `--webpack` flag. Do NOT remove. `suppressHydrationWarning` on `<html>` in `layout.tsx` is also required.
 
-**Server/Client component boundary:**
-Server Components cannot pass functions (callbacks, render props) to Client Components. Only serializable data crosses the boundary. Prefer direct composition inside Client Components.
+**localStorage and hydration:** Never read localStorage in `useState` initializer — causes hydration mismatch. See `useLocalStorage.ts`. *(details: `.learning/nextjs-app-router.md`)*
 
-**`NEXT_PUBLIC_*` env vars are baked at build time:**
-These are replaced with literal values during the webpack build. Setting them in docker-compose `environment` has NO effect on client-side code. The production Dockerfile sets `NEXT_PUBLIC_API_URL=""` as a build arg so API calls use relative URLs routed by Traefik.
+**Server/Client boundary:** Server Components cannot pass functions to Client Components. Only serializable data crosses the boundary. *(details: `.learning/nextjs-app-router.md`)*
 
-**Emotion `keyframes` helper:**
-Cannot define `@keyframes` inline in the `css` prop. Must use the `keyframes` tagged template from `@emotion/react` and reference the result.
+**`NEXT_PUBLIC_*` env vars:** Baked at build time via string replacement. Runtime `environment` in docker-compose has NO effect on client code.
+
+**Emotion `keyframes`:** Cannot define inline in `css` prop. Use `keyframes` tagged template from `@emotion/react`.
 
 ### Backend
 
@@ -102,13 +100,27 @@ SQLAlchemy does NOT detect in-place mutations to JSON columns (dicts/lists). You
 
 ### Frontend Conventions
 
-- **Semantic tokens over raw colors** — Use `bg.subtle`, `fg.muted`, `fg.default`, `border.subtle`, `accent.solid`, etc. Never hardcode hex/oklch values in components.
-- **`colorPalette="accent"`** for all primary actions and CTAs (buttons, links, badges).
-- **Inter** for UI text, **Lora** for article reader content. Defined in `theme/typography.ts`.
-- **TanStack Query** for all server state. No `useEffect` + `useState` fetch patterns. Client preferences (sort order, sidebar collapse) use `useLocalStorage`.
-- **Adaptive polling** — Poll intervals adjust based on application state (e.g., faster during active scoring, slower when idle). Don't use fixed intervals.
-- **Custom hooks in `src/hooks/`**, prefixed with `use`. API client functions in `src/lib/api.ts`, shared types in `src/lib/types.ts`.
-- **`"use client"` directive** on all interactive components. Only `layout.tsx` and `page.tsx` are Server Components.
+- **Semantic tokens only** — Never hardcode color values or raw palette refs in components. Missing token? Create one in `theme/colors.ts`. *(details: `.learning/chakra-ui-v3.md`)*
+- **`colorPalette="accent"`** per-component on CTAs. Do NOT set as global default.
+- **Inter** for UI text, **Lora** for reader content. Defined in `theme/typography.ts`.
+- **TanStack Query** for all server state. No `useEffect` + `useState` fetch patterns. *(details: `.learning/tanstack-query.md`)*
+- **Mutation error handling** — Centralized via `MutationCache.onError`. Per-mutation `onError` only for overrides. No silent failures. *(details: `.learning/tanstack-query.md`)*
+- **Hook return contracts** — Return mutation objects directly. Do NOT wrap in thin functions that hide `isPending`/`mutateAsync`. *(details: `.learning/tanstack-query.md`)*
+- **Query keys** — Centralized in `lib/queryKeys.ts`. No inline string literals.
+- **Adaptive polling** — Intervals adjust based on app state. No fixed intervals.
+- **No unnecessary `useEffect`** — Not for derived state, event responses, or prop-change resets. *(details: `.learning/react-hooks.md`)*
+- **`"use client"`** on interactive components only. `layout.tsx` and `page.tsx` are Server Components.
+- **Named constants** — Shared: `lib/constants.ts`. Single-use: named `const` at top of file. No magic numbers.
+
+### Frontend File Organization
+
+- **Types** (`interface`, `type`) — `src/lib/types.ts`
+- **Runtime utilities** (pure functions) — `src/lib/utils.ts`
+- **API client** (fetch functions) — `src/lib/api.ts`
+- **Shared constants** (cross-file) — `src/lib/constants.ts`
+- **Query keys** — `src/lib/queryKeys.ts`
+- **Custom hooks** — `src/hooks/`, prefixed with `use`
+- **Shared UI components** — `src/components/ui/`
 
 ### Backend Conventions
 
@@ -148,6 +160,29 @@ Development compose (`docker-compose.yml`) builds locally and exposes ports dire
 3. **Async-first** — Use `pytest-asyncio` for FastAPI endpoints
 4. **Test important paths** — Feed fetching, article display, read/unread state
 5. **Don't over-invest** — Skip exhaustive CRUD unit tests and UI snapshots
+6. **Use the Rodney-cli** — Always verify UI implementations with `uvx rodney --help` interactively
+
+---
+
+## Learning System
+
+The `.learning/` directory contains rationale, examples, trade-offs, and decision aids behind the rules in this file. See `.learning/INDEX.md` for the full listing.
+
+**Boundary:** AGENTS.md has short, actionable rules. `.learning/` has the WHY — rationale, code examples, edge cases, decision aids, and mistake logs. Do not duplicate explanations between them.
+
+**Before implementing:** Check `.learning/INDEX.md` for relevant topic files. Read only what applies to the work at hand.
+
+**When to amend an existing file:**
+- The learning relates to a topic that already has a file (e.g., a new React hook pattern → `react-hooks.md`)
+- A mistake was made in an area already covered — add it under the relevant topic's Anti-Patterns section
+- An existing entry needs correction or a new edge case was discovered
+
+**When to create a new file:**
+- The learning covers a distinct topic not represented by any existing file
+- An existing file would become unfocused if the content were added to it
+- Name the file descriptively (`component-patterns.md`, not `misc.md`). Update `INDEX.md` with a one-line description.
+
+**Mistake logging:** When an agent makes a mistake that required fixing, document the mistake and fix in the relevant topic file (preferred) or `common-mistakes.md` (if cross-cutting). Include: what went wrong, why, and the fix.
 
 ---
 

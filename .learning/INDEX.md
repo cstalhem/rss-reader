@@ -1,12 +1,15 @@
 # Project Learning Index
 
-A living knowledge base of patterns, best practices, and lessons learned. Each file covers a specific topic with targeted, actionable content.
+Rationale, examples, trade-offs, and decision aids behind the rules in `AGENTS.md`. Each file covers a specific topic with targeted, actionable content.
+
+**Boundary with AGENTS.md:** `AGENTS.md` has short, actionable rules. Files here have the WHY -- rationale, code examples, edge cases, decision aids, and mistake logs. Do not duplicate rules here; reference them and explain them.
 
 ## How to Use
 
-- **Agents**: Read relevant files before implementing. Check INDEX.md to find applicable topics.
-- **Adding learnings**: Create a new atomic file for each distinct topic. Update INDEX.md with a one-line description.
-- **Mistake log**: When an agent makes a mistake that required fixing, document it in the relevant topic file or create a new one.
+- **Before implementing:** Find relevant topic files below. Read only what applies.
+- **Amend an existing file** when the learning fits an existing topic, a mistake was made in a covered area, or an entry needs correction.
+- **Create a new file** when the topic is distinct from all existing files. Name it descriptively. Add a row to the table below.
+- **Mistakes:** Document in the relevant topic file (preferred) or `common-mistakes.md` (cross-cutting). Include: what went wrong, why, and the fix.
 
 ## Files
 
