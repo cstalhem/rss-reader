@@ -97,7 +97,8 @@ def update_ollama_config(
     session.refresh(preferences)
 
     return OllamaConfigResponse(
-        categorization_model=preferences.ollama_categorization_model or settings.ollama.categorization_model,
+        categorization_model=preferences.ollama_categorization_model
+        or settings.ollama.categorization_model,
         scoring_model=preferences.ollama_scoring_model or settings.ollama.scoring_model,
         use_separate_models=preferences.ollama_use_separate_models,
     )

@@ -29,8 +29,9 @@ def get_scoring_status(
 
     # Single GROUP BY query replaces 5 separate COUNT queries
     state_rows = session.exec(
-        select(Article.scoring_state, func.count(Article.id))
-        .group_by(Article.scoring_state)
+        select(Article.scoring_state, func.count(Article.id)).group_by(
+            Article.scoring_state
+        )
     ).all()
 
     counts: dict = {

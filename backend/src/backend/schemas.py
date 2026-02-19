@@ -25,6 +25,7 @@ class ArticleUpdate(BaseModel):
 
 class ArticleCategoryEmbed(BaseModel):
     """Category embedded in article response."""
+
     id: int
     display_name: str
     slug: str
@@ -95,6 +96,7 @@ class PreferencesUpdate(BaseModel):
 
 class CategoryResponse(BaseModel):
     """Category object returned by API."""
+
     id: int
     display_name: str
     slug: str

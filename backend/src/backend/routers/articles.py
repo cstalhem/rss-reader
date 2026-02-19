@@ -124,9 +124,7 @@ def get_article(
     article = session.exec(
         select(Article)
         .where(Article.id == article_id)
-        .options(
-            selectinload(Article.categories_rel).joinedload(Category.parent)
-        )
+        .options(selectinload(Article.categories_rel).joinedload(Category.parent))
     ).first()
 
     if not article:
@@ -145,9 +143,7 @@ def update_article(
     article = session.exec(
         select(Article)
         .where(Article.id == article_id)
-        .options(
-            selectinload(Article.categories_rel).joinedload(Category.parent)
-        )
+        .options(selectinload(Article.categories_rel).joinedload(Category.parent))
     ).first()
 
     if not article:
