@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { Box, Flex, Text, Spinner } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { LuClock } from "react-icons/lu";
@@ -32,7 +33,7 @@ interface ArticleRowProps {
   scoringPhase?: string;
 }
 
-export function ArticleRow({
+export const ArticleRow = React.memo(function ArticleRow({
   article,
   feedName,
   onSelect,
@@ -173,4 +174,4 @@ export function ArticleRow({
       </Flex>
     </Flex>
   );
-}
+});

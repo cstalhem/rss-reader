@@ -4,6 +4,7 @@ import { Box, Collapsible, Flex, Spinner, Stack, Text } from "@chakra-ui/react";
 import { LuChevronRight } from "react-icons/lu";
 import { useQuery } from "@tanstack/react-query";
 import { fetchOllamaPrompts } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
 
 function PromptSection({ title, content }: { title: string; content: string }) {
   return (
@@ -46,7 +47,7 @@ function PromptSection({ title, content }: { title: string; content: string }) {
 
 export function SystemPrompts() {
   const { data: prompts, isLoading } = useQuery({
-    queryKey: ["ollama-prompts"],
+    queryKey: queryKeys.ollama.prompts,
     queryFn: fetchOllamaPrompts,
     staleTime: 60_000,
   });
