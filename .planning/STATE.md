@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** Surface interesting articles and hide noise automatically via local LLM curation
-**Current focus:** Phase 8.3 - Category Group Management Redesign
+**Current focus:** Phase 9 - Frontend Codebase Evaluation & Simplification
 
 ## Current Position
 
-Phase: 8.3 of 10 (Category Group Management Redesign)
-Plan: 6 of 6 complete
-Status: Complete
-Last activity: 2026-02-19 - Completed Phase 08.3 Plan 06 (UAT Gap Closure)
+Phase: 9 of 10 (Frontend Codebase Evaluation & Simplification)
+Plan: 1 of 4 complete
+Status: In Progress
+Last activity: 2026-02-19 - Completed Phase 09 Plan 01 (Infrastructure Foundations)
 
-Progress: [██████████] 100% (36/36 total plans estimated from v1.1) + 08.3 in progress
+Progress: [██░░░░░░░░] 25% (1/4 plans in Phase 09)
 
 ## Performance Metrics
 
@@ -95,11 +95,15 @@ Progress: [██████████] 100% (36/36 total plans estimated fro
 | Phase 08.3-category-group-management-redesign P05 | 3.4 | 2 tasks | 5 files |
 | Phase 08.3-category-group-management-redesign P06 | 2.5 | 2 tasks | 5 files |
 
+**Phase 09 Metrics:**
+| Phase 09-frontend-codebase-evaluation-simplification P01 | 3.2 | 2 tasks | 9 files |
+
 ## Accumulated Context
 
 ### Roadmap Evolution
 
 - Phase 08.1 inserted after Phase 8: Categories Settings UI Redesign (INSERTED) — accordion-based category grouping has fundamental DnD issues with collapsed drop targets; needs full UX rethink before feedback system
+- Phase 09.1 inserted after Phase 9: Backend Codebase Evaluation & Simplification (INSERTED) — companion to Phase 9 frontend evaluation; same purpose applied to backend codebase
 
 ### Decisions
 
@@ -212,6 +216,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08.3-05]: Mobile card pattern: Box wrapper with responsive borderWidth/borderRadius, separate mobile-only weight strip row
 - [Phase 08.3-06]: Single map loop with React.Fragment rendering mobile Button (icon+text) and desktop IconButton per weight option
 - [Phase 08.3-06]: childrenMap prop for MoveToGroupDialog child count instead of article_count
+- [Phase 09-01]: Query key factory uses plain as const object (no class/function wrappers)
+- [Phase 09-01]: MutationCache meta uses Register interface augmentation for type-safe meta access
 
 ### Pending Todos
 
@@ -249,9 +255,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Phase 9 context gathered
-Resume file: .planning/phases/09-frontend-codebase-evaluation-simplification/09-CONTEXT.md
+Stopped at: Completed 09-01-PLAN.md
+Resume file: .planning/phases/09-frontend-codebase-evaluation-simplification/09-01-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-19 after Phase 9 context gathering*
+*Last updated: 2026-02-19 after Phase 09 Plan 01 execution*
