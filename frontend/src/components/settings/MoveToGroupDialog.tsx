@@ -6,7 +6,6 @@ import {
   Dialog,
   Flex,
   Input,
-  Portal,
   Stack,
   Text,
 } from "@chakra-ui/react";
@@ -66,10 +65,9 @@ export function MoveToGroupDialog({
         if (!e.open) handleClose();
       }}
     >
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content>
             <Dialog.Header>
               <Dialog.Title>Move to group</Dialog.Title>
             </Dialog.Header>
@@ -171,7 +169,6 @@ export function MoveToGroupDialog({
             <Dialog.CloseTrigger />
           </Dialog.Content>
         </Dialog.Positioner>
-      </Portal>
     </Dialog.Root>
   );
 }

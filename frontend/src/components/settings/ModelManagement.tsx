@@ -15,6 +15,7 @@ import {
 import { LuDownload, LuTrash2 } from "react-icons/lu";
 import { useQueryClient } from "@tanstack/react-query";
 import { deleteOllamaModel } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
 import { toaster } from "@/components/ui/toaster";
 import { ModelPullProgress } from "./ModelPullProgress";
 import type { OllamaModel, OllamaConfig } from "@/lib/types";
@@ -24,6 +25,77 @@ interface ModelManagementProps {
   models: OllamaModel[];
   config: OllamaConfig | undefined;
   pullHook: ReturnType<typeof useModelPull>;
+}
+
+interface InstalledModelRowProps {
+  name: string;
+  sizeLabel?: string;
+  canDelete: boolean;
+  onDelete: () => void;
+  isPulling: boolean;
+  progress: ReturnType<typeof useModelPull>["progress"];
+  onCancelPull: () => void;
+}
+
+function InstalledModelRow({
+  name,
+  sizeLabel,
+  canDelete,
+  onDelete,
+  isPulling,
+  progress,
+  onCancelPull,
+}: InstalledModelRowProps) {
+  return (
+    <Box
+      borderBottomWidth="1px"
+      borderColor="border.subtle"
+      _last={{ borderBottomWidth: 0 }}
+    >
+      <Flex
+        alignItems="center"
+        justifyContent="space-between"
+        py={2.5}
+        px={3}
+      >
+        <Flex alignItems="center" gap={2}>
+          <Text fontSize="sm" fontWeight="medium">
+            {name}
+          </Text>
+          {sizeLabel && (
+            <Text fontSize="xs" color="fg.muted">
+              {sizeLabel}
+            </Text>
+          )}
+          <Badge size="sm" colorPalette="green" variant="subtle">
+            Installed
+          </Badge>
+        </Flex>
+        <Flex alignItems="center" gap={1} ml={2} flexShrink={0}>
+          {canDelete && (
+            <IconButton
+              aria-label={`Delete ${name}`}
+              size="xs"
+              variant="ghost"
+              color="fg.muted"
+              onClick={onDelete}
+            >
+              <LuTrash2 size={14} />
+            </IconButton>
+          )}
+        </Flex>
+      </Flex>
+
+      {isPulling && progress && (
+        <Box px={3} pb={2.5}>
+          <ModelPullProgress
+            progress={progress}
+            onCancel={onCancelPull}
+          />
+        </Box>
+      )}
+    </Box>
+  );
 }
 
 const CURATED_MODELS = [
@@ -72,7 +144,7 @@ export function ModelManagement({
     async (name: string) => {
       try {
         await deleteOllamaModel(name);
-        queryClient.invalidateQueries({ queryKey: ["ollama-models"] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
         toaster.create({ title: `Deleted ${name}`, type: "success" });
       } catch {
         toaster.create({
@@ -111,114 +183,30 @@ export function ModelManagement({
           </Text>
         ) : (
           <Stack gap={0}>
-            {installedCurated.map((curated) => {
-              const canDelete = !activeModels.has(curated.name);
-              const isPulling =
-                pullHook.isDownloading && pullingModel === curated.name;
+            {installedCurated.map((curated) => (
+              <InstalledModelRow
+                key={curated.name}
+                name={curated.name}
+                sizeLabel={curated.size}
+                canDelete={!activeModels.has(curated.name)}
+                onDelete={() => setDeleteTarget(curated.name)}
+                isPulling={pullHook.isDownloading && pullingModel === curated.name}
+                progress={pullHook.progress}
+                onCancelPull={pullHook.cancelPull}
+              />
+            ))}
 
-              return (
-                <Box
-                  key={curated.name}
-                  borderBottomWidth="1px"
-                  borderColor="border.subtle"
-                  _last={{ borderBottomWidth: 0 }}
-                >
-                  <Flex
-                    alignItems="center"
-                    justifyContent="space-between"
-                    py={2.5}
-                    px={3}
-                  >
-                    <Flex alignItems="center" gap={2}>
-                      <Text fontSize="sm" fontWeight="medium">
-                        {curated.name}
-                      </Text>
-                      <Text fontSize="xs" color="fg.muted">
-                        {curated.size}
-                      </Text>
-                      <Badge size="sm" colorPalette="green" variant="subtle">
-                        Installed
-                      </Badge>
-                    </Flex>
-                    <Flex alignItems="center" gap={1} ml={2} flexShrink={0}>
-                      {canDelete && (
-                        <IconButton
-                          aria-label={`Delete ${curated.name}`}
-                          size="xs"
-                          variant="ghost"
-                          color="fg.muted"
-                          onClick={() => setDeleteTarget(curated.name)}
-                        >
-                          <LuTrash2 size={14} />
-                        </IconButton>
-                      )}
-                    </Flex>
-                  </Flex>
-
-                  {isPulling && pullHook.progress && (
-                    <Box px={3} pb={2.5}>
-                      <ModelPullProgress
-                        progress={pullHook.progress}
-                        onCancel={pullHook.cancelPull}
-                      />
-                    </Box>
-                  )}
-                </Box>
-              );
-            })}
-
-            {nonCuratedInstalled.map((m) => {
-              const canDelete = !activeModels.has(m.name);
-              const isPulling =
-                pullHook.isDownloading && pullingModel === m.name;
-
-              return (
-                <Box
-                  key={m.name}
-                  borderBottomWidth="1px"
-                  borderColor="border.subtle"
-                  _last={{ borderBottomWidth: 0 }}
-                >
-                  <Flex
-                    alignItems="center"
-                    justifyContent="space-between"
-                    py={2.5}
-                    px={3}
-                  >
-                    <Flex alignItems="center" gap={2}>
-                      <Text fontSize="sm" fontWeight="medium">
-                        {m.name}
-                      </Text>
-                      <Badge size="sm" colorPalette="green" variant="subtle">
-                        Installed
-                      </Badge>
-                    </Flex>
-                    <Flex alignItems="center" gap={1} ml={2} flexShrink={0}>
-                      {canDelete && (
-                        <IconButton
-                          aria-label={`Delete ${m.name}`}
-                          size="xs"
-                          variant="ghost"
-                          color="fg.muted"
-                          onClick={() => setDeleteTarget(m.name)}
-                        >
-                          <LuTrash2 size={14} />
-                        </IconButton>
-                      )}
-                    </Flex>
-                  </Flex>
-
-                  {isPulling && pullHook.progress && (
-                    <Box px={3} pb={2.5}>
-                      <ModelPullProgress
-                        progress={pullHook.progress}
-                        onCancel={pullHook.cancelPull}
-                      />
-                    </Box>
-                  )}
-                </Box>
-              );
-            })}
+            {nonCuratedInstalled.map((m) => (
+              <InstalledModelRow
+                key={m.name}
+                name={m.name}
+                canDelete={!activeModels.has(m.name)}
+                onDelete={() => setDeleteTarget(m.name)}
+                isPulling={pullHook.isDownloading && pullingModel === m.name}
+                progress={pullHook.progress}
+                onCancelPull={pullHook.cancelPull}
+              />
+            ))}
           </Stack>
         )}
       </Box>
@@ -337,7 +325,7 @@ export function ModelManagement({
 
       {/* Error display */}
       {pullHook.error && (
-        <Text fontSize="xs" color="red.400">
+        <Text fontSize="xs" color="fg.error">
           {pullHook.error}
         </Text>
       )}

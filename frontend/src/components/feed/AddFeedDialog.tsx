@@ -174,7 +174,7 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
                 )}
 
                 {titleSaved && (
-                  <Text fontSize="sm" color="green.600">
+                  <Text fontSize="sm" color="fg.success">
                     Name saved!
                   </Text>
                 )}

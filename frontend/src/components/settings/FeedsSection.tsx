@@ -224,7 +224,7 @@ export function FeedsSection() {
           borderWidth="1px"
           borderColor="border.subtle"
         >
-          <LuRss size={40} color="var(--chakra-colors-fg-subtle)" />
+          <Box color="fg.subtle"><LuRss size={40} /></Box>
           <Text fontSize="lg" color="fg.muted" textAlign="center">
             No feeds added yet
           </Text>

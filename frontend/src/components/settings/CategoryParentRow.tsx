@@ -69,7 +69,7 @@ const CategoryParentRowComponent = ({
           <LuChevronRight size={14} />
         </Box>
 
-        <LuFolder size={16} color="var(--chakra-colors-fg-muted)" />
+        <Box color="fg.muted" display="inline-flex"><LuFolder size={16} /></Box>
 
         {isRenaming ? (
           <Input

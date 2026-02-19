@@ -1,6 +1,8 @@
 "use client";
 
-import { Badge, Tooltip } from "@chakra-ui/react";
+import { Badge } from "@chakra-ui/react";
+import { Tooltip } from "@/components/ui/tooltip";
+import { HIGH_SCORE_THRESHOLD } from "@/lib/constants";
 
 interface ScoreBadgeProps {
   score: number | null;
@@ -20,7 +22,7 @@ export function ScoreBadge({ score, scoringState, size = "sm" }: ScoreBadgeProps
   let colorPalette: string;
   let variant: "solid" | "subtle" | "outline";
 
-  if (score >= 15) {
+  if (score >= HIGH_SCORE_THRESHOLD) {
     colorPalette = "accent";
     variant = "solid";
   } else if (score >= 8) {
@@ -34,23 +36,18 @@ export function ScoreBadge({ score, scoringState, size = "sm" }: ScoreBadgeProps
   const fontSize = size === "sm" ? "xs" : "sm";
 
   return (
-    <Tooltip.Root>
-      <Tooltip.Trigger asChild>
-        <Badge
-          colorPalette={colorPalette}
-          variant={variant}
-          fontSize={fontSize}
-          px={2}
-          py={0.5}
-          borderRadius="md"
-          fontWeight="semibold"
-        >
-          {scoreDisplay}
-        </Badge>
-      </Tooltip.Trigger>
-      <Tooltip.Positioner>
-        <Tooltip.Content>Score: {scoreDisplay}</Tooltip.Content>
-      </Tooltip.Positioner>
-    </Tooltip.Root>
+    <Tooltip content={`Score: ${scoreDisplay}`}>
+      <Badge
+        colorPalette={colorPalette}
+        variant={variant}
+        fontSize={fontSize}
+        px={2}
+        py={0.5}
+        borderRadius="md"
+        fontWeight="semibold"
+      >
+        {scoreDisplay}
+      </Badge>
+    </Tooltip>
   );
 }

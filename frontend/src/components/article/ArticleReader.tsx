@@ -280,7 +280,7 @@ export function ArticleReader({
                   color: "fg.muted",
                 },
                 "& pre": {
-                  bg: "oklch(13% 0.008 55)",
+                  bg: "bg.code",
                   p: 5,
                   borderRadius: "lg",
                   overflowX: "auto",

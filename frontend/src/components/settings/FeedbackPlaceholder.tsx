@@ -1,6 +1,6 @@
 "use client";
 
-import { Flex, Text } from "@chakra-ui/react";
+import { Box, Flex, Text } from "@chakra-ui/react";
 import { LuMessageSquare } from "react-icons/lu";
 
 export function FeedbackPlaceholder() {
@@ -12,7 +12,7 @@ export function FeedbackPlaceholder() {
       gap={4}
       py={16}
     >
-      <LuMessageSquare size={40} color="var(--chakra-colors-fg-subtle)" />
+      <Box color="fg.subtle"><LuMessageSquare size={40} /></Box>
       <Text fontSize="lg" fontWeight="semibold">
         Feedback Loop
       </Text>

@@ -59,6 +59,9 @@ export const semanticTokens = defineSemanticTokens.colors({
     panel: {
       value: { _light: "{colors.gray.50}", _dark: "oklch(16% 0.011 55)" },
     },
+    code: {
+      value: { _light: "{colors.gray.100}", _dark: "oklch(13% 0.008 55)" },
+    },
   },
   fg: {
     DEFAULT: {
@@ -69,6 +72,15 @@ export const semanticTokens = defineSemanticTokens.colors({
     },
     subtle: {
       value: { _light: "{colors.gray.400}", _dark: "oklch(50% 0.006 55)" },
+    },
+    success: {
+      value: { _light: "{colors.green.600}", _dark: "{colors.green.400}" },
+    },
+    warning: {
+      value: { _light: "{colors.orange.500}", _dark: "{colors.orange.400}" },
+    },
+    error: {
+      value: { _light: "{colors.red.600}", _dark: "{colors.red.400}" },
     },
   },
   border: {

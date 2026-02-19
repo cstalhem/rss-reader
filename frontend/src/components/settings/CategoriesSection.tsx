@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Badge, Box, Button, Dialog, Flex, Portal, Stack, Skeleton, Text, Input } from "@chakra-ui/react";
+import { Badge, Box, Flex, Stack, Skeleton, Text, Input } from "@chakra-ui/react";
 import { LuTag } from "react-icons/lu";
 import { useCategories } from "@/hooks/useCategories";
 import { Category } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { toaster } from "@/components/ui/toaster";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CategoryTree } from "./CategoryTree";
 import { CategoryActionBar } from "./CategoryActionBar";
 import { CreateCategoryPopover } from "./CreateCategoryPopover";
@@ -346,7 +347,7 @@ export function CategoriesSection() {
             borderWidth="1px"
             borderColor="border.subtle"
           >
-            <LuTag size={40} color="var(--chakra-colors-fg-subtle)" />
+            <Box color="fg.subtle"><LuTag size={40} /></Box>
             <Text color="fg.muted" textAlign="center">
               Categories will appear here once articles are scored by the LLM
             </Text>
@@ -432,90 +433,42 @@ export function CategoriesSection() {
       />
 
       {/* Ungroup confirmation dialog (action bar batch ungroup) */}
-      <Dialog.Root
+      <ConfirmDialog
         open={ungroupConfirmCount !== null}
         onOpenChange={(e) => {
           if (!e.open) setUngroupConfirmCount(null);
         }}
-      >
-        <Portal>
-          <Dialog.Backdrop />
-          <Dialog.Positioner>
-            <Dialog.Content>
-              <Dialog.Header>
-                <Dialog.Title>Ungroup categories</Dialog.Title>
-              </Dialog.Header>
-              <Dialog.Body>
-                <Text>
-                  Ungroup {ungroupConfirmCount}{" "}
-                  {ungroupConfirmCount === 1 ? "category" : "categories"}? They
-                  will be moved to the root level.
-                </Text>
-              </Dialog.Body>
-              <Dialog.Footer>
-                <Flex gap={3}>
-                  <Dialog.ActionTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setUngroupConfirmCount(null)}
-                    >
-                      Cancel
-                    </Button>
-                  </Dialog.ActionTrigger>
-                  <Button size="sm" colorPalette="accent" onClick={handleUngroupConfirm}>
-                    Confirm
-                  </Button>
-                </Flex>
-              </Dialog.Footer>
-              <Dialog.CloseTrigger />
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
+        title="Ungroup categories"
+        body={
+          <Text>
+            Ungroup {ungroupConfirmCount}{" "}
+            {ungroupConfirmCount === 1 ? "category" : "categories"}? They
+            will be moved to the root level.
+          </Text>
+        }
+        confirmLabel="Confirm"
+        confirmColorPalette="accent"
+        onConfirm={handleUngroupConfirm}
+      />
 
       {/* Ungroup parent confirmation dialog (context menu on parent row) */}
-      <Dialog.Root
+      <ConfirmDialog
         open={ungroupParentConfirm !== null}
         onOpenChange={(e) => {
           if (!e.open) setUngroupParentConfirm(null);
         }}
-      >
-        <Portal>
-          <Dialog.Backdrop />
-          <Dialog.Positioner>
-            <Dialog.Content>
-              <Dialog.Header>
-                <Dialog.Title>Ungroup parent category</Dialog.Title>
-              </Dialog.Header>
-              <Dialog.Body>
-                <Text>
-                  Ungroup <strong>{ungroupParentConfirm?.name}</strong>? All
-                  children will be moved to the root level and the parent will
-                  become an ungrouped category.
-                </Text>
-              </Dialog.Body>
-              <Dialog.Footer>
-                <Flex gap={3}>
-                  <Dialog.ActionTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setUngroupParentConfirm(null)}
-                    >
-                      Cancel
-                    </Button>
-                  </Dialog.ActionTrigger>
-                  <Button size="sm" colorPalette="accent" onClick={handleUngroupParentConfirm}>
-                    Confirm
-                  </Button>
-                </Flex>
-              </Dialog.Footer>
-              <Dialog.CloseTrigger />
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
+        title="Ungroup parent category"
+        body={
+          <Text>
+            Ungroup <strong>{ungroupParentConfirm?.name}</strong>? All
+            children will be moved to the root level and the parent will
+            become an ungrouped category.
+          </Text>
+        }
+        confirmLabel="Confirm"
+        confirmColorPalette="accent"
+        onConfirm={handleUngroupParentConfirm}
+      />
 
       {/* Hidden categories section */}
       <HiddenCategoriesSection

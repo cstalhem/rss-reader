@@ -5,8 +5,11 @@ import { keyframes } from "@emotion/react";
 import { LuClock } from "react-icons/lu";
 import { Article } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
+import { HIGH_SCORE_THRESHOLD } from "@/lib/constants";
 import { TagChip } from "./TagChip";
 import { ScoreBadge } from "./ScoreBadge";
+
+const MAX_VISIBLE_TAGS = 3;
 
 const pulsingIcon = keyframes`
   0%, 100% { opacity: 0.3; }
@@ -40,7 +43,7 @@ export function ArticleRow({
   // Add subtle accent background tint for high-scored rows
   const isHighScored = article.scoring_state === "scored" &&
     article.composite_score !== null &&
-    article.composite_score >= 15;
+    article.composite_score >= HIGH_SCORE_THRESHOLD;
 
   return (
     <Flex
@@ -102,12 +105,12 @@ export function ArticleRow({
           {article.categories && article.categories.length > 0 && (
             <>
               <Box w="1px" h="14px" bg="border.subtle" flexShrink={0} />
-              {article.categories.slice(0, 3).map((cat) => (
+              {article.categories.slice(0, MAX_VISIBLE_TAGS).map((cat) => (
                 <TagChip key={cat.id} label={cat.display_name} size="sm" />
               ))}
-              {article.categories.length > 3 && (
+              {article.categories.length > MAX_VISIBLE_TAGS && (
                 <Text fontSize="xs" color="fg.muted">
-                  +{article.categories.length - 3}
+                  +{article.categories.length - MAX_VISIBLE_TAGS}
                 </Text>
               )}
             </>

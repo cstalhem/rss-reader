@@ -23,7 +23,7 @@ export function OllamaHealthBadge({ health, isLoading }: OllamaHealthBadgeProps)
   if (!health.connected) {
     return (
       <Flex alignItems="center" gap={2}>
-        <Box w={2} h={2} borderRadius="full" bg="red.500" />
+        <Box w={2} h={2} borderRadius="full" bg="fg.error" />
         <Text fontSize="sm" color="fg.muted">
           Disconnected
         </Text>
@@ -33,7 +33,7 @@ export function OllamaHealthBadge({ health, isLoading }: OllamaHealthBadgeProps)
 
   return (
     <Flex alignItems="center" gap={2}>
-      <Box w={2} h={2} borderRadius="full" bg="green.500" />
+      <Box w={2} h={2} borderRadius="full" bg="fg.success" />
       <Text fontSize="sm" color="fg.muted">
         Connected
         {health.latency_ms != null && ` \u00B7 ${health.latency_ms}ms`}

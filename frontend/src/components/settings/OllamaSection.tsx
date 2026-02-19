@@ -97,7 +97,7 @@ export function OllamaSection({ isVisible }: OllamaSectionProps) {
           borderWidth="1px"
           borderColor="border.subtle"
         >
-          <LuServerOff size={40} color="var(--chakra-colors-fg-subtle)" />
+          <Box color="fg.subtle"><LuServerOff size={40} /></Box>
           <Text fontSize="lg" color="fg.muted" textAlign="center">
             Ollama is not connected
           </Text>

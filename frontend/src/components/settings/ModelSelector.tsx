@@ -182,9 +182,9 @@ export function ModelSelector({
               />
             </Box>
           </Grid>
-          <Flex alignItems="center" gap={2}>
-            <LuTriangleAlert size={14} color="var(--chakra-colors-orange-400)" />
-            <Text fontSize="xs" color="orange.400">
+          <Flex alignItems="center" gap={2} color="fg.warning">
+            <LuTriangleAlert size={14} />
+            <Text fontSize="xs">
               Both models need to fit in available memory when loaded simultaneously.
             </Text>
           </Flex>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Dialog, Portal, Text, Flex } from "@chakra-ui/react";
+import { Button, Dialog, Text, Flex } from "@chakra-ui/react";
 
 interface DeleteCategoryDialogProps {
   open: boolean;
@@ -23,10 +23,9 @@ export function DeleteCategoryDialog({
 }: DeleteCategoryDialogProps) {
   return (
     <Dialog.Root open={open} onOpenChange={(e) => onOpenChange(e.open)}>
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content>
             <Dialog.Header>
               <Dialog.Title>
                 {count > 1 ? "Delete Categories" : "Delete Category"}
@@ -76,7 +75,6 @@ export function DeleteCategoryDialog({
             <Dialog.CloseTrigger />
           </Dialog.Content>
         </Dialog.Positioner>
-      </Portal>
     </Dialog.Root>
   );
 }

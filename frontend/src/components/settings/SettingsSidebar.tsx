@@ -5,7 +5,11 @@ import { keyframes } from "@emotion/react";
 import { useQuery } from "@tanstack/react-query";
 import { LuRss, LuHeart, LuTag, LuBot, LuMessageSquare, LuDownload } from "react-icons/lu";
 import { fetchDownloadStatus, fetchNewCategoryCount } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
+import { NEW_COUNT_POLL_INTERVAL } from "@/lib/constants";
 import { DownloadStatus } from "@/lib/types";
+
+const SIDEBAR_DOWNLOAD_POLL_INTERVAL = 3_000;
 
 export type SettingsSection = "feeds" | "interests" | "categories" | "ollama" | "feedback";
 
@@ -38,15 +42,15 @@ export function SettingsSidebar({
   onSectionChange,
 }: SettingsSidebarProps) {
   const { data: downloadStatus } = useQuery<DownloadStatus>({
-    queryKey: ["sidebar-download-status"],
+    queryKey: queryKeys.ollama.sidebarDownloadStatus,
     queryFn: fetchDownloadStatus,
-    refetchInterval: 3000,
+    refetchInterval: SIDEBAR_DOWNLOAD_POLL_INTERVAL,
   });
 
   const { data: newCategoryCount } = useQuery({
-    queryKey: ["categories", "new-count"],
+    queryKey: queryKeys.categories.newCount,
     queryFn: fetchNewCategoryCount,
-    refetchInterval: 30000,
+    refetchInterval: NEW_COUNT_POLL_INTERVAL,
   });
 
   const isDownloadActive = downloadStatus?.active ?? false;
@@ -102,7 +106,7 @@ export function SettingsSidebar({
                 ml="auto"
                 css={{ animation: `${pulse} 2s ease-in-out infinite` }}
               >
-                <LuDownload size={16} color="var(--chakra-colors-accent-solid)" />
+                <Box color="accent.solid" display="inline-flex"><LuDownload size={16} /></Box>
               </Box>
             )}
           </Flex>

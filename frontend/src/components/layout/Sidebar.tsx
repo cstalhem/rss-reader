@@ -29,6 +29,7 @@ import { EmptyFeedState } from "@/components/feed/EmptyFeedState";
 import { FeedRow } from "@/components/feed/FeedRow";
 import { DeleteFeedDialog } from "@/components/feed/DeleteFeedDialog";
 import { Feed } from "@/lib/types";
+import { HEADER_HEIGHT, SIDEBAR_WIDTH_COLLAPSED, SIDEBAR_WIDTH_EXPANDED } from "@/lib/constants";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -106,10 +107,10 @@ export function Sidebar({
     <Box
       as="aside"
       position="fixed"
-      top="64px"
+      top={HEADER_HEIGHT}
       left={0}
       bottom={0}
-      width={isCollapsed ? "48px" : "240px"}
+      width={isCollapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED}
       bg="bg.subtle"
       borderRightWidth="1px"
       borderRightColor="border.subtle"
@@ -172,6 +173,7 @@ export function Sidebar({
               <Box overflowY="auto" flex={1}>
                 {/* "All Articles" row */}
                 <Flex
+                  colorPalette="accent"
                   alignItems="center"
                   justifyContent="space-between"
                   px={4}

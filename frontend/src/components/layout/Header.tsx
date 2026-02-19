@@ -6,6 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ui/color-mode";
 import { fetchNewCategoryCount } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
+import { HEADER_HEIGHT, NEW_COUNT_POLL_INTERVAL } from "@/lib/constants";
 
 interface HeaderProps {
   onMenuToggle?: () => void;
@@ -13,9 +15,9 @@ interface HeaderProps {
 
 export function Header({ onMenuToggle }: HeaderProps) {
   const { data: newCatCount } = useQuery({
-    queryKey: ["categories", "new-count"],
+    queryKey: queryKeys.categories.newCount,
     queryFn: fetchNewCategoryCount,
-    refetchInterval: 30000,
+    refetchInterval: NEW_COUNT_POLL_INTERVAL,
   });
   const hasNewCategories = (newCatCount?.count ?? 0) > 0;
 
@@ -26,7 +28,7 @@ export function Header({ onMenuToggle }: HeaderProps) {
       top={0}
       left={0}
       right={0}
-      height="64px"
+      height={HEADER_HEIGHT}
       bg="bg.panel"
       borderBottomWidth="1px"
       borderBottomColor="border.subtle"
