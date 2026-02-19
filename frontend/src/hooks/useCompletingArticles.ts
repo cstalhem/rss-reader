@@ -4,6 +4,8 @@ import { useRef, useState, useLayoutEffect } from "react";
 import { fetchArticle } from "@/lib/api";
 import { Article } from "@/lib/types";
 
+const COMPLETING_ARTICLE_DURATION = 3_000;
+
 /**
  * Tracks articles that just finished scoring while viewing the Scoring tab.
  *
@@ -60,7 +62,7 @@ export function useCompletingArticles(
           }
         });
 
-        // Remove after 3 seconds (matches CSS animation duration)
+        // Remove after animation completes (matches CSS animation duration)
         setTimeout(() => {
           detectedRef.current.delete(id);
           setCompleting((prev) => {
@@ -68,7 +70,7 @@ export function useCompletingArticles(
             next.delete(id);
             return next;
           });
-        }, 3000);
+        }, COMPLETING_ARTICLE_DURATION);
       }
     }
 

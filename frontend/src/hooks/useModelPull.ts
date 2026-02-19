@@ -4,6 +4,10 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchDownloadStatus, API_BASE_URL } from "@/lib/api";
 import { DownloadStatus } from "@/lib/types";
+import { queryKeys } from "@/lib/queryKeys";
+
+const DOWNLOAD_STATUS_POLL_INTERVAL = 1_000;
+const SCORE_100_PERCENT_DELAY = 500;
 
 export interface PullProgress {
   status: string;
@@ -46,7 +50,7 @@ export function useModelPull() {
 
   // Navigate-away resilience: poll download status on mount
   const { data: downloadStatus } = useQuery<DownloadStatus>({
-    queryKey: ["download-status"],
+    queryKey: queryKeys.ollama.downloadStatus,
     queryFn: fetchDownloadStatus,
     refetchInterval: intervalMs,
     // Only poll when we think a download is active but we lost the SSE stream
@@ -60,7 +64,7 @@ export function useModelPull() {
     if (downloadStatus.active && !abortRef.current) {
       // There's an active download but we don't have an SSE stream — poll mode
       setIsDownloading(true);
-      setIntervalMs(1000); // Start polling
+      setIntervalMs(DOWNLOAD_STATUS_POLL_INTERVAL); // Start polling
       const pct =
         downloadStatus.total > 0
           ? Math.round((downloadStatus.completed / downloadStatus.total) * 100)
@@ -77,7 +81,7 @@ export function useModelPull() {
       setIsDownloading(false);
       setIntervalMs(false); // Stop polling
       setProgress(null);
-      queryClient.invalidateQueries({ queryKey: ["ollama-models"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
     }
   }, [downloadStatus, isDownloading, queryClient]);
 
@@ -85,7 +89,7 @@ export function useModelPull() {
     async (model: string) => {
       setError(null);
       setIsDownloading(true);
-      setIntervalMs(1000); // Start polling in case of SSE interruption
+      setIntervalMs(DOWNLOAD_STATUS_POLL_INTERVAL);
       setProgress({
         status: "starting",
         completed: 0,
@@ -174,10 +178,10 @@ export function useModelPull() {
         );
         setTimeout(() => {
           setIsDownloading(false);
-          setIntervalMs(false); // Stop polling
+          setIntervalMs(false);
           setProgress(null);
-          queryClient.invalidateQueries({ queryKey: ["ollama-models"] });
-        }, 500);
+          queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
+        }, SCORE_100_PERCENT_DELAY);
       } catch (err: unknown) {
         abortRef.current = null;
         if (err instanceof DOMException && err.name === "AbortError") {

@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchArticles, updateArticleReadStatus } from "@/lib/api";
-import { Article } from "@/lib/types";
+import { queryKeys } from "@/lib/queryKeys";
+
+const PAGE_SIZE = 50;
+const SCORING_ACTIVE_POLL_INTERVAL = 10_000;
+const SCORING_TAB_POLL_INTERVAL = 5_000;
 
 interface UseArticlesOptions {
   showAll?: boolean;
@@ -17,35 +21,24 @@ interface UseArticlesOptions {
 
 export function useArticles(options: UseArticlesOptions = {}) {
   const { showAll = false, feedId, sortBy, order, scoringState, excludeBlocked = true, scoringActive = false } = options;
-  const [limit, setLimit] = useState(50);
+  const [limit, setLimit] = useState(PAGE_SIZE);
+
+  const filters = {
+    is_read: showAll ? undefined : false,
+    limit,
+    feed_id: feedId,
+    sort_by: sortBy,
+    order: order,
+    scoring_state: scoringState,
+    exclude_blocked: excludeBlocked,
+  };
 
   const query = useQuery({
-    queryKey: [
-      "articles",
-      {
-        is_read: showAll ? undefined : false,
-        limit,
-        feed_id: feedId,
-        sort_by: sortBy,
-        order: order,
-        scoring_state: scoringState,
-        exclude_blocked: excludeBlocked,
-      },
-    ],
-    queryFn: () =>
-      fetchArticles({
-        is_read: showAll ? undefined : false,
-        limit,
-        feed_id: feedId,
-        sort_by: sortBy,
-        order: order,
-        scoring_state: scoringState,
-        exclude_blocked: excludeBlocked,
-      }),
+    queryKey: queryKeys.articles.list(filters),
+    queryFn: () => fetchArticles(filters),
     refetchInterval: (query) => {
       // When scoring is active globally, poll for newly scored articles
-      // (main views filter to scored-only, so they need external polling)
-      if (scoringActive) return 10000;
+      if (scoringActive) return SCORING_ACTIVE_POLL_INTERVAL;
 
       // For Scoring tab: poll while articles are actively being processed
       const articles = query.state.data;
@@ -53,12 +46,12 @@ export function useArticles(options: UseArticlesOptions = {}) {
       const hasActiveScoring = articles.some(
         (a) => a.scoring_state === "queued" || a.scoring_state === "scoring"
       );
-      return hasActiveScoring ? 5000 : false;
+      return hasActiveScoring ? SCORING_TAB_POLL_INTERVAL : false;
     },
   });
 
   const loadMore = () => {
-    setLimit((prev) => prev + 50);
+    setLimit((prev) => prev + PAGE_SIZE);
   };
 
   const hasMore = query.data ? query.data.length === limit : false;
@@ -81,8 +74,9 @@ export function useMarkAsRead() {
       articleId: number;
       isRead: boolean;
     }) => updateArticleReadStatus(articleId, isRead),
+    meta: { errorTitle: "Failed to update article" },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["articles"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
     },
   });
 }

@@ -6,27 +6,28 @@ import {
   updatePreferences as apiUpdatePreferences,
 } from "@/lib/api";
 import { UserPreferences } from "@/lib/types";
+import { queryKeys } from "@/lib/queryKeys";
 
 export function usePreferences() {
   const queryClient = useQueryClient();
 
   const preferencesQuery = useQuery({
-    queryKey: ["preferences"],
+    queryKey: queryKeys.preferences.all,
     queryFn: fetchPreferences,
   });
 
   const updatePreferencesMutation = useMutation({
     mutationFn: (data: Partial<UserPreferences>) =>
       apiUpdatePreferences(data),
+    meta: { errorTitle: "Failed to save preferences" },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["preferences"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.preferences.all });
     },
   });
 
   return {
     preferences: preferencesQuery.data,
     isLoading: preferencesQuery.isLoading,
-    updatePreferences: updatePreferencesMutation.mutate,
-    isUpdating: updatePreferencesMutation.isPending,
+    updatePreferencesMutation,
   };
 }

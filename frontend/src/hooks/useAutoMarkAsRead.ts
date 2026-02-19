@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { useMarkAsRead } from "./useArticles";
 
+const AUTO_MARK_READ_DELAY = 12_000;
+
 /**
  * Auto-marks an article as read after ~12 seconds of viewing.
  * Timer cleans up on unmount or when articleId changes.
@@ -23,10 +25,10 @@ export function useAutoMarkAsRead(articleId: number, isRead: boolean) {
       return;
     }
 
-    // Start 12-second timer to mark as read
+    // Start timer to mark as read
     timerRef.current = setTimeout(() => {
       markAsRead({ articleId, isRead: true });
-    }, 12000);
+    }, AUTO_MARK_READ_DELAY);
 
     // Cleanup on unmount or when articleId/isRead changes
     return () => {

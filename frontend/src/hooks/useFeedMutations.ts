@@ -9,15 +9,17 @@ import {
   markAllFeedRead,
 } from "@/lib/api";
 import { Feed } from "@/lib/types";
+import { queryKeys } from "@/lib/queryKeys";
 
 export function useAddFeed() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (url: string) => createFeed(url),
+    meta: { errorTitle: "Failed to add feed" },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["feeds"] });
-      queryClient.invalidateQueries({ queryKey: ["articles"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
     },
   });
 }
@@ -27,9 +29,10 @@ export function useDeleteFeed() {
 
   return useMutation({
     mutationFn: (id: number) => deleteFeed(id),
+    meta: { errorTitle: "Failed to delete feed" },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["feeds"] });
-      queryClient.invalidateQueries({ queryKey: ["articles"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
     },
   });
 }
@@ -45,8 +48,9 @@ export function useUpdateFeed() {
       id: number;
       data: { title?: string; display_order?: number };
     }) => updateFeed(id, data),
+    meta: { errorTitle: "Failed to update feed" },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["feeds"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
     },
   });
 }
@@ -56,32 +60,28 @@ export function useReorderFeeds() {
 
   return useMutation({
     mutationFn: (feedIds: number[]) => reorderFeeds(feedIds),
+    meta: { handlesOwnErrors: true },
     onMutate: async (feedIds) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["feeds"] });
+      await queryClient.cancelQueries({ queryKey: queryKeys.feeds.all });
 
-      // Snapshot the previous value
-      const previousFeeds = queryClient.getQueryData<Feed[]>(["feeds"]);
+      const previousFeeds = queryClient.getQueryData<Feed[]>(queryKeys.feeds.all);
 
-      // Optimistically update to the new value
       if (previousFeeds) {
         const reordered = feedIds
           .map((id) => previousFeeds.find((f) => f.id === id))
           .filter((f): f is Feed => f !== undefined);
-        queryClient.setQueryData(["feeds"], reordered);
+        queryClient.setQueryData(queryKeys.feeds.all, reordered);
       }
 
-      // Return a context object with the snapshotted value
       return { previousFeeds };
     },
     onError: (_err, _feedIds, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousFeeds) {
-        queryClient.setQueryData(["feeds"], context.previousFeeds);
+        queryClient.setQueryData(queryKeys.feeds.all, context.previousFeeds);
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["feeds"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
     },
   });
 }
@@ -91,9 +91,10 @@ export function useMarkAllRead() {
 
   return useMutation({
     mutationFn: (feedId: number) => markAllFeedRead(feedId),
+    meta: { errorTitle: "Failed to mark feed as read" },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["feeds"] });
-      queryClient.invalidateQueries({ queryKey: ["articles"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
     },
   });
 }

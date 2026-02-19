@@ -2,13 +2,16 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { fetchOllamaHealth } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
+
+const HEALTH_POLL_INTERVAL = 20_000;
 
 export function useOllamaHealth(enabled: boolean = true) {
   return useQuery({
-    queryKey: ["ollama-health"],
+    queryKey: queryKeys.ollama.health,
     queryFn: fetchOllamaHealth,
     enabled,
     staleTime: 10_000,
-    refetchInterval: enabled ? 20_000 : false,
+    refetchInterval: enabled ? HEALTH_POLL_INTERVAL : false,
   });
 }
