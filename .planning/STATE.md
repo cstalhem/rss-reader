@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 9.1 of 10 (Backend Codebase Evaluation & Simplification)
-Plan: 3 of 4 complete
-Status: In Progress
-Last activity: 2026-02-20 - Completed Phase 09.1 Plan 03 (Scoring Pipeline Fixes)
+Plan: 4 of 4 complete
+Status: Phase Complete
+Last activity: 2026-02-20 - Completed Phase 09.1 Plan 04 (Query Optimization, SRP, Tests)
 
-Progress: [███████░░░] 75% (3/4 plans in Phase 09.1)
+Progress: [██████████] 100% (4/4 plans in Phase 09.1)
 
 ## Performance Metrics
 
@@ -103,6 +103,7 @@ Progress: [███████░░░] 75% (3/4 plans in Phase 09.1)
 | Phase 09.1 P01 | 3.0 | 2 tasks | 7 files |
 | Phase 09.1 P03 | 4.0 | 2 tasks | 9 files |
 | Phase 09.1 P02 | 7.3 | 2 tasks | 13 files |
+| Phase 09.1 P04 | 7.0 | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -239,6 +240,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 09.1]: Background job sessions use Session(engine) directly, not next(get_session()) generator
 - [Phase 09.1]: conftest.py imports get_session from deps.py (not database.py) so dependency_overrides match routers
 - [Phase 09.1]: APIRouter per domain with prefix/tags; static routes registered before parameterized to avoid path conflicts
+- [Phase 09.1]: unread_count only counts scored, non-blocked, unread articles (matches frontend display)
+- [Phase 09.1]: SRP: PUT /api/ollama/config saves only, POST /api/scoring triggers rescore; frontend orchestrates two-step flow
 
 ### Pending Todos
 
@@ -276,8 +279,8 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 09.1-03-PLAN.md
-Resume file: .planning/phases/09.1-backend-codebase-evaluation-simplification/09.1-04-PLAN.md
+Stopped at: Completed 09.1-04-PLAN.md (Phase 09.1 complete)
+Resume file: N/A (phase complete)
 
 ---
 *State initialized: 2026-02-14*

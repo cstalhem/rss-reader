@@ -320,10 +320,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 09.1-01-PLAN.md -- Foundation: schemas.py, deps.py, dead code removal, schema versioning, constants
-- [ ] 09.1-02-PLAN.md -- Router split: extract 6 APIRouter modules from main.py, slim main.py to entry point
-- [ ] 09.1-03-PLAN.md -- Scoring pipeline: resource leaks, retries, async correctness, magic numbers
-- [ ] 09.1-04-PLAN.md -- Router fixes: N+1 queries, type safety, SRP separation, unit tests, smoke tests
+- [x] 09.1-01-PLAN.md -- Foundation: schemas.py, deps.py, dead code removal, schema versioning, constants
+- [x] 09.1-02-PLAN.md -- Router split: extract 6 APIRouter modules from main.py, slim main.py to entry point
+- [x] 09.1-03-PLAN.md -- Scoring pipeline: resource leaks, retries, async correctness, magic numbers
+- [x] 09.1-04-PLAN.md -- Router fixes: N+1 queries, type safety, SRP separation, unit tests, smoke tests
 
 #### Phase 10: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
@@ -365,4 +365,4 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 9.1 -> 10
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-19 -- Phase 09.1 plans created (4 plans in 3 waves)*
+*Last updated: 2026-02-20 -- Phase 09.1 complete (4/4 plans)*
