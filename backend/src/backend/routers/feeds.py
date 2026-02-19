@@ -111,7 +111,7 @@ async def create_feed(
     if new_article_ids:
         from backend.scheduler import scoring_queue
 
-        await scoring_queue.enqueue_articles(session, new_article_ids)
+        scoring_queue.enqueue_articles(session, new_article_ids)
 
     return FeedResponse(
         id=feed.id,

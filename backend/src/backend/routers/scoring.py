@@ -16,7 +16,7 @@ async def trigger_rescore(
     """Manually trigger re-scoring of recent unread articles."""
     from backend.scheduler import scoring_queue
 
-    queued = await scoring_queue.enqueue_recent_for_rescoring(session)
+    queued = scoring_queue.enqueue_recent_for_rescoring(session)
     return {"queued": queued}
 
 

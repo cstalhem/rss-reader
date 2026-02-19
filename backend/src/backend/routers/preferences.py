@@ -47,7 +47,7 @@ async def update_preferences(
 
     from backend.scheduler import scoring_queue
 
-    await scoring_queue.enqueue_recent_for_rescoring(session)
+    scoring_queue.enqueue_recent_for_rescoring(session)
 
     return PreferencesResponse(
         interests=preferences.interests,
