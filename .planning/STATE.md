@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 9 of 10 (Frontend Codebase Evaluation & Simplification)
-Plan: 1 of 4 complete
+Plan: 2 of 4 complete
 Status: In Progress
-Last activity: 2026-02-19 - Completed Phase 09 Plan 01 (Infrastructure Foundations)
+Last activity: 2026-02-19 - Completed Phase 09 Plan 02 (Hook Layer Refactoring)
 
-Progress: [██░░░░░░░░] 25% (1/4 plans in Phase 09)
+Progress: [█████░░░░░] 50% (2/4 plans in Phase 09)
 
 ## Performance Metrics
 
@@ -97,6 +97,7 @@ Progress: [██░░░░░░░░] 25% (1/4 plans in Phase 09)
 
 **Phase 09 Metrics:**
 | Phase 09-frontend-codebase-evaluation-simplification P01 | 3.2 | 2 tasks | 9 files |
+| Phase 09-frontend-codebase-evaluation-simplification P02 | 4.5 | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -218,6 +219,9 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 08.3-06]: childrenMap prop for MoveToGroupDialog child count instead of article_count
 - [Phase 09-01]: Query key factory uses plain as const object (no class/function wrappers)
 - [Phase 09-01]: MutationCache meta uses Register interface augmentation for type-safe meta access
+- [Phase 09-02]: Direct mutation object exposure from useCategories (updateCategory helper kept for auto-acknowledge behavior)
+- [Phase 09-02]: Mutation onSuccess converted to onSettled for cache freshness on both success and error
+- [Phase 09-02]: Optimistic rollback mutations use meta.handlesOwnErrors flag (updateCategory, reorderFeeds)
 
 ### Pending Todos
 
@@ -255,9 +259,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 09-01-PLAN.md
-Resume file: .planning/phases/09-frontend-codebase-evaluation-simplification/09-01-SUMMARY.md
+Stopped at: Completed 09-02-PLAN.md
+Resume file: .planning/phases/09-frontend-codebase-evaluation-simplification/09-02-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-19 after Phase 09 Plan 01 execution*
+*Last updated: 2026-02-19 after Phase 09 Plan 02 execution*
