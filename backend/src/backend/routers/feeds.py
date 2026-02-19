@@ -3,7 +3,9 @@
 import logging
 from datetime import datetime
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import update
 from sqlmodel import Session, func, select
 
 from backend.deps import get_session
@@ -27,28 +29,37 @@ def list_feeds(
     session: Session = Depends(get_session),
 ):
     """List all feeds with unread count, ordered by display_order."""
-    feeds = session.exec(select(Feed).order_by(Feed.display_order, Feed.id)).all()
-
-    feed_responses = []
-    for feed in feeds:
-        unread_count = session.exec(
-            select(func.count(Article.id))
-            .where(Article.feed_id == feed.id)
-            .where(Article.is_read.is_(False))
-        ).one()
-
-        feed_responses.append(
-            FeedResponse(
-                id=feed.id,
-                url=feed.url,
-                title=feed.title,
-                display_order=feed.display_order,
-                last_fetched_at=feed.last_fetched_at,
-                unread_count=unread_count,
-            )
+    # Single query: LEFT JOIN + GROUP BY to get unread counts per feed.
+    # unread_count only includes scored, non-blocked, unread articles
+    # (matches what the frontend displays).
+    statement = (
+        select(
+            Feed,
+            func.count(Article.id).label("unread_count"),
         )
+        .outerjoin(
+            Article,
+            (Article.feed_id == Feed.id)
+            & (Article.is_read.is_(False))
+            & (Article.scoring_state == "scored")
+            & (Article.composite_score > 0),
+        )
+        .group_by(Feed.id)
+        .order_by(Feed.display_order, Feed.id)
+    )
+    results = session.exec(statement).all()
 
-    return feed_responses
+    return [
+        FeedResponse(
+            id=feed.id,
+            url=feed.url,
+            title=feed.title,
+            display_order=feed.display_order,
+            last_fetched_at=feed.last_fetched_at,
+            unread_count=unread_count,
+        )
+        for feed, unread_count in results
+    ]
 
 
 @router.post("", response_model=FeedResponse, status_code=201)
@@ -82,7 +93,9 @@ async def create_feed(
                 detail=f"Invalid RSS feed or feed has no entries: {parsed_feed.get('bozo_exception', 'Unknown error')}",
             )
 
-    except Exception as e:
+    except HTTPException:
+        raise
+    except (httpx.HTTPError, ValueError, OSError) as e:
         logger.error(f"Failed to fetch feed {url}: {e}")
         raise HTTPException(
             status_code=400,
@@ -232,17 +245,12 @@ def mark_feed_read(
     if not feed:
         raise HTTPException(status_code=404, detail="Feed not found")
 
-    articles = session.exec(
-        select(Article)
+    result = session.exec(
+        update(Article)
         .where(Article.feed_id == feed_id)
         .where(Article.is_read.is_(False))
-    ).all()
-
-    count = len(articles)
-    for article in articles:
-        article.is_read = True
-        session.add(article)
-
+        .values(is_read=True)
+    )
     session.commit()
 
-    return {"ok": True, "count": count}
+    return {"ok": True, "count": result.rowcount}

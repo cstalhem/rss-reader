@@ -22,7 +22,7 @@ export function OllamaSection({ isVisible }: OllamaSectionProps) {
   const { data: health, isLoading: healthLoading } = useOllamaHealth(isVisible);
   const isConnected = health?.connected ?? false;
   const { data: models } = useOllamaModels(isConnected);
-  const { config: serverConfig, isLoading: configLoading, saveMutation } =
+  const { config: serverConfig, isLoading: configLoading, saveMutation, rescoreMutation } =
     useOllamaConfig();
   const pullHook = useModelPull();
 
@@ -44,34 +44,44 @@ export function OllamaSection({ isVisible }: OllamaSectionProps) {
   const handleSave = useCallback(
     (rescore: boolean) => {
       if (!effectiveConfig) return;
-      saveMutation.mutate(
-        { ...effectiveConfig, rescore },
-        {
-          onSuccess: (result) => {
-            // Clear local edits so we fall back to the fresh server config
-            setLocalEdits(null);
-            if (rescore && result.rescore_queued > 0) {
-              toaster.create({
-                title: `${result.rescore_queued} articles queued for re-evaluation`,
-                type: "success",
-              });
-            } else if (!rescore) {
-              toaster.create({
-                title: "Model configuration saved",
-                type: "success",
-              });
-            }
-          },
-          onError: () => {
-            toaster.create({
-              title: "Failed to save configuration",
-              type: "error",
+      saveMutation.mutate(effectiveConfig, {
+        onSuccess: () => {
+          // Clear local edits so we fall back to the fresh server config
+          setLocalEdits(null);
+          if (rescore) {
+            // Step 2: trigger rescore as separate call
+            rescoreMutation.mutate(undefined, {
+              onSuccess: (result) => {
+                if (result.rescore_queued > 0) {
+                  toaster.create({
+                    title: `${result.rescore_queued} articles queued for re-evaluation`,
+                    type: "success",
+                  });
+                }
+              },
+              onError: () => {
+                toaster.create({
+                  title: "Config saved but failed to trigger rescore",
+                  type: "error",
+                });
+              },
             });
-          },
-        }
-      );
+          } else {
+            toaster.create({
+              title: "Model configuration saved",
+              type: "success",
+            });
+          }
+        },
+        onError: () => {
+          toaster.create({
+            title: "Failed to save configuration",
+            type: "error",
+          });
+        },
+      });
     },
-    [effectiveConfig, saveMutation]
+    [effectiveConfig, saveMutation, rescoreMutation]
   );
 
   return (
@@ -119,7 +129,7 @@ export function OllamaSection({ isVisible }: OllamaSectionProps) {
                 savedConfig={serverConfig}
                 onConfigChange={handleConfigChange}
                 onSave={handleSave}
-                isSaving={saveMutation.isPending}
+                isSaving={saveMutation.isPending || rescoreMutation.isPending}
               />
             )}
           </Box>

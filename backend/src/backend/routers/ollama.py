@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 from backend import ollama_service
 from backend.config import get_settings
 from backend.deps import get_session
-from backend.models import Article, UserPreferences
+from backend.models import UserPreferences
 from backend.schemas import (
     OllamaConfigResponse,
     OllamaConfigUpdate,
@@ -69,12 +69,12 @@ def get_ollama_config(
     )
 
 
-@router.put("/config")
-async def update_ollama_config(
+@router.put("/config", response_model=OllamaConfigResponse)
+def update_ollama_config(
     update: OllamaConfigUpdate,
     session: Session = Depends(get_session),
 ):
-    """Save model choices to UserPreferences and optionally enqueue re-scoring."""
+    """Save model choices to UserPreferences. Rescoring is a separate POST /api/scoring."""
     preferences = session.exec(select(UserPreferences)).first()
 
     if not preferences:
@@ -87,16 +87,6 @@ async def update_ollama_config(
         session.commit()
         session.refresh(preferences)
 
-    old_cat_model = (
-        preferences.ollama_categorization_model or settings.ollama.categorization_model
-    )
-    old_use_separate = preferences.ollama_use_separate_models
-    old_scoring_model = (
-        (preferences.ollama_scoring_model or settings.ollama.scoring_model)
-        if old_use_separate
-        else old_cat_model
-    )
-
     preferences.ollama_categorization_model = update.categorization_model
     preferences.ollama_scoring_model = update.scoring_model
     preferences.ollama_use_separate_models = update.use_separate_models
@@ -106,50 +96,11 @@ async def update_ollama_config(
     session.commit()
     session.refresh(preferences)
 
-    rescore_queued = 0
-    if update.rescore:
-        new_scoring_model = (
-            update.scoring_model
-            if update.use_separate_models
-            else update.categorization_model
-        )
-        cat_changed = update.categorization_model != old_cat_model
-        score_changed = new_scoring_model != old_scoring_model
-
-        rescore_mode = None
-        if cat_changed:
-            rescore_mode = "full"
-        elif score_changed:
-            rescore_mode = "score_only"
-
-        if rescore_mode is None:
-            rescore_mode = "full"
-
-        if rescore_mode:
-            articles = session.exec(
-                select(Article)
-                .where(~Article.is_read)
-                .where(Article.scoring_state == "scored")
-            ).all()
-
-            for article in articles:
-                article.scoring_state = "queued"
-                article.scoring_priority = 1
-                article.rescore_mode = rescore_mode
-                session.add(article)
-
-            session.commit()
-            rescore_queued = len(articles)
-            logger.info(
-                f"Enqueued {rescore_queued} articles for re-scoring (mode={rescore_mode})"
-            )
-
-    return {
-        "categorization_model": preferences.ollama_categorization_model,
-        "scoring_model": preferences.ollama_scoring_model,
-        "use_separate_models": preferences.ollama_use_separate_models,
-        "rescore_queued": rescore_queued,
-    }
+    return OllamaConfigResponse(
+        categorization_model=preferences.ollama_categorization_model or settings.ollama.categorization_model,
+        scoring_model=preferences.ollama_scoring_model or settings.ollama.scoring_model,
+        use_separate_models=preferences.ollama_use_separate_models,
+    )
 
 
 @router.get("/prompts", response_model=OllamaPromptsResponse)

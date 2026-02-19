@@ -78,7 +78,8 @@ export interface OllamaPrompts {
   scoring_prompt: string;
 }
 
-export interface OllamaConfigSaveResult extends OllamaConfig {
+export interface RescoreResult {
+  ok: boolean;
   rescore_queued: number;
 }
 

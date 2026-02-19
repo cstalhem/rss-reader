@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchOllamaConfig, saveOllamaConfig } from "@/lib/api";
+import { fetchOllamaConfig, saveOllamaConfig, triggerRescore } from "@/lib/api";
 import type { OllamaConfig } from "@/lib/types";
 import { queryKeys } from "@/lib/queryKeys";
 
@@ -15,12 +15,18 @@ export function useOllamaConfig() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: (data: OllamaConfig & { rescore: boolean }) =>
-      saveOllamaConfig(data),
+    mutationFn: (data: OllamaConfig) => saveOllamaConfig(data),
     meta: { errorTitle: "Failed to save Ollama config" },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.ollama.config });
       queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
+    },
+  });
+
+  const rescoreMutation = useMutation({
+    mutationFn: triggerRescore,
+    meta: { errorTitle: "Failed to trigger rescore" },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.scoringStatus.all });
     },
   });
@@ -29,5 +35,6 @@ export function useOllamaConfig() {
     config: query.data,
     isLoading: query.isLoading,
     saveMutation,
+    rescoreMutation,
   };
 }

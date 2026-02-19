@@ -6,7 +6,7 @@ import {
   OllamaHealth,
   OllamaModel,
   OllamaConfig,
-  OllamaConfigSaveResult,
+  RescoreResult,
   OllamaPrompts,
   ScoringStatus,
   DownloadStatus,
@@ -323,8 +323,8 @@ export async function fetchOllamaConfig(): Promise<OllamaConfig> {
 }
 
 export async function saveOllamaConfig(
-  data: OllamaConfig & { rescore: boolean }
-): Promise<OllamaConfigSaveResult> {
+  data: OllamaConfig
+): Promise<OllamaConfig> {
   const response = await fetch(`${API_BASE_URL}/api/ollama/config`, {
     method: "PUT",
     headers: {
@@ -335,6 +335,21 @@ export async function saveOllamaConfig(
 
   if (!response.ok) {
     throw new Error(`Failed to save Ollama config: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function triggerRescore(): Promise<RescoreResult> {
+  const response = await fetch(`${API_BASE_URL}/api/scoring`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to trigger rescore: ${response.statusText}`);
   }
 
   return response.json();

@@ -168,7 +168,6 @@ class OllamaConfigUpdate(BaseModel):
     categorization_model: str
     scoring_model: str
     use_separate_models: bool
-    rescore: bool = False
 
 
 class OllamaPromptsResponse(BaseModel):

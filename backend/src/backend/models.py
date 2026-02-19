@@ -81,9 +81,9 @@ class Article(SQLModel, table=True):
     # LLM scoring fields
     interest_score: int | None = Field(default=None)
     quality_score: int | None = Field(default=None)
-    composite_score: float | None = Field(default=None)
+    composite_score: float | None = Field(default=None, index=True)
     score_reasoning: str | None = Field(default=None)
-    scoring_state: str = Field(default="unscored")
+    scoring_state: str = Field(default="unscored", index=True)
     scored_at: datetime | None = Field(default=None)
 
     # Re-scoring support

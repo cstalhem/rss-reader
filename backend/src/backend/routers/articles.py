@@ -1,5 +1,7 @@
 """Article CRUD endpoints."""
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import desc, nulls_last
 from sqlalchemy.orm import selectinload
@@ -49,14 +51,14 @@ def _article_to_response(article: Article) -> ArticleResponse:
     )
 
 
-@router.get("")
+@router.get("", response_model=list[ArticleResponse])
 def list_articles(
     skip: int = 0,
     limit: int = 50,
     is_read: bool | None = None,
     feed_id: int | None = None,
-    sort_by: str = "composite_score",
-    order: str = "desc",
+    sort_by: Literal["composite_score", "published_at"] = "composite_score",
+    order: Literal["asc", "desc"] = "desc",
     scoring_state: str | None = None,
     exclude_blocked: bool = True,
     session: Session = Depends(get_session),

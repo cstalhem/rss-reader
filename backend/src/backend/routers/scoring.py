@@ -10,14 +10,14 @@ router = APIRouter(prefix="/api/scoring", tags=["scoring"])
 
 
 @router.post("")
-async def trigger_rescore(
+def trigger_rescore(
     session: Session = Depends(get_session),
 ):
-    """Manually trigger re-scoring of recent unread articles."""
+    """Trigger re-scoring of recent unread articles."""
     from backend.scheduler import scoring_queue
 
     queued = scoring_queue.enqueue_recent_for_rescoring(session)
-    return {"queued": queued}
+    return {"ok": True, "rescore_queued": queued}
 
 
 @router.get("/status")
@@ -27,15 +27,24 @@ def get_scoring_status(
     """Get counts of articles by scoring state, plus live activity phase."""
     from backend.scoring import get_scoring_activity
 
-    states = ["unscored", "queued", "scoring", "scored", "failed"]
-    counts = {}
+    # Single GROUP BY query replaces 5 separate COUNT queries
+    state_rows = session.exec(
+        select(Article.scoring_state, func.count(Article.id))
+        .group_by(Article.scoring_state)
+    ).all()
 
-    for state in states:
-        count = session.exec(
-            select(func.count(Article.id)).where(Article.scoring_state == state)
-        ).one()
-        counts[state] = count
+    counts: dict = {
+        "unscored": 0,
+        "queued": 0,
+        "scoring": 0,
+        "scored": 0,
+        "failed": 0,
+    }
+    for state, count in state_rows:
+        if state in counts:
+            counts[state] = count
 
+    # Separate query for blocked (scored articles with composite_score == 0)
     blocked_count = session.exec(
         select(func.count(Article.id))
         .where(Article.scoring_state == "scored")
