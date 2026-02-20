@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 Milestone: v1.1 Configuration, Feedback & Polish
 Phase: 09.2 complete, Phase 10 not started
 Status: Phase 09.2 verified and complete — Phase 10 (LLM Feedback Loop) remaining
-Last activity: 2026-02-20 - Completed quick task 18: Next.js memory optimization config flags
+Last activity: 2026-02-20 - Completed quick task 19: Remove Tooltip/useBreakpointValue from WeightPresetStrip
 
 Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase 10 remaining)
 
@@ -282,6 +282,7 @@ Key architectural decisions carrying forward to v1.1:
 | 16 | Optimize category tree render: single responsive weight button, conditional child rendering (-26.7% DOM, -50% buttons) | 2026-02-20 | 083d1bc | [16-research-and-optimize-category-tree-comp](./quick/16-research-and-optimize-category-tree-comp/) |
 | 17 | Reduce frontend RAM: lightweight ArticleListItem list endpoint, on-demand content fetch in reader, 2-min gcTime | 2026-02-20 | 77f837c | [17-investigate-and-reduce-frontend-ram-usag](./quick/17-investigate-and-reduce-frontend-ram-usag/) |
 | 18 | Add preloadEntriesOnStart: false and webpackMemoryOptimizations: true to next.config.ts experimental block | 2026-02-20 | 97926d8 | [18-investigate-next-js-frontend-server-exce](./quick/18-investigate-next-js-frontend-server-exce/) |
+| 19 | Replace Tooltip wrappers with native title attributes in WeightPresetStrip, remove useBreakpointValue (-350 Zag machines, -70 listeners) | 2026-02-20 | 7b9432a | [19-shared-tooltip-and-hoisted-breakpoint-fo](./quick/19-shared-tooltip-and-hoisted-breakpoint-fo/) |
 
 **Phase 7 considerations:**
 - Pydantic Settings `@lru_cache` prevents runtime updates - requires two-tier config pattern (Settings for infrastructure, UserPreferences for runtime choices)
@@ -298,8 +299,8 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed quick task 18 (next.config.ts memory optimization flags)
+Stopped at: Completed quick task 19 (remove Tooltip/useBreakpointValue from WeightPresetStrip)
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-20 after quick task 18*
+*Last updated: 2026-02-20 after quick task 19*
