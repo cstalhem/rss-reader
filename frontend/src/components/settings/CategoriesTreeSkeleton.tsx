@@ -43,15 +43,7 @@ function ParentGroupSkeleton({
 
 export function CategoriesTreeSkeleton() {
   return (
-    <Stack gap={4}>
-      {/* Title skeleton */}
-      <Skeleton variant="shine" height="24px" width="180px" />
-
-      {/* Search input skeleton */}
-      <Skeleton variant="shine" height="32px" width="100%" borderRadius="md" />
-
-      {/* Tree skeleton */}
-      <Stack gap={1}>
+    <Stack gap={1}>
         <ParentGroupSkeleton nameWidth="140px" childWidths={["120px", "90px"]} />
         <ParentGroupSkeleton nameWidth="170px" childWidths={["100px", "130px"]} />
         <ParentGroupSkeleton nameWidth="120px" childWidths={["140px", "80px"]} />
@@ -65,7 +57,6 @@ export function CategoriesTreeSkeleton() {
           <Skeleton variant="shine" boxSize="16px" borderRadius="sm" />
           <Skeleton variant="shine" height="14px" width="95px" />
         </Flex>
-      </Stack>
     </Stack>
   );
 }

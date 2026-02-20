@@ -321,11 +321,7 @@ export function CategoriesSection() {
     });
   }, [selectedIds]);
 
-  if (isLoading) {
-    return <CategoriesTreeSkeleton />;
-  }
-
-  if (categories.length === 0) {
+  if (!isLoading && categories.length === 0) {
     return (
       <Stack gap={8}>
         <Box>
@@ -391,23 +387,27 @@ export function CategoriesSection() {
       />
 
       {/* Category tree */}
-      <CategoryTree
-        parents={filteredParents}
-        childrenMap={filteredChildrenMap}
-        ungroupedCategories={filteredUngrouped}
-        newCategoryIds={newCategoryIds}
-        onWeightChange={handleWeightChange}
-        onResetWeight={handleResetWeight}
-        onHide={handleHideCategory}
-        onBadgeDismiss={handleBadgeDismiss}
-        onRename={handleRenameCategory}
-        onDelete={handleDeleteCategory}
-        onUngroup={handleUngroupParent}
-        selectedIds={selectedIds}
-        onToggleSelection={toggleSelection}
-        expandedParents={expandedParents}
-        onToggleParent={toggleParent}
-      />
+      {isLoading ? (
+        <CategoriesTreeSkeleton />
+      ) : (
+        <CategoryTree
+          parents={filteredParents}
+          childrenMap={filteredChildrenMap}
+          ungroupedCategories={filteredUngrouped}
+          newCategoryIds={newCategoryIds}
+          onWeightChange={handleWeightChange}
+          onResetWeight={handleResetWeight}
+          onHide={handleHideCategory}
+          onBadgeDismiss={handleBadgeDismiss}
+          onRename={handleRenameCategory}
+          onDelete={handleDeleteCategory}
+          onUngroup={handleUngroupParent}
+          selectedIds={selectedIds}
+          onToggleSelection={toggleSelection}
+          expandedParents={expandedParents}
+          onToggleParent={toggleParent}
+        />
+      )}
 
       <DeleteCategoryDialog
         open={deleteDialogState.open}
@@ -468,10 +468,12 @@ export function CategoriesSection() {
       />
 
       {/* Hidden categories section */}
-      <HiddenCategoriesSection
-        hiddenCategories={hiddenCategories}
-        onUnhide={handleUnhideCategory}
-      />
+      {!isLoading && (
+        <HiddenCategoriesSection
+          hiddenCategories={hiddenCategories}
+          onUnhide={handleUnhideCategory}
+        />
+      )}
     </Stack>
   );
 }
