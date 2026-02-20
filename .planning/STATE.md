@@ -260,6 +260,7 @@ Key architectural decisions carrying forward to v1.1:
 
 1. **Add category search tool for categorisation LLM** (area: backend) — Replace embedded category list in the categorisation prompt with an Ollama tool-use approach, letting the LLM search for existing categories/parents by keyword for accurate matching
 2. **Add linked content and discussion fetching for scoring** (area: backend) — Opt-in setting to fetch actual content behind link aggregator URLs (HN, Reddit, etc.) and detect discussion threads, feeding both into the scoring/categorization pipeline
+3. **Refine article reader view UX and typography** (area: ui) — Polish the reader view across typography, layout, reading experience, button placement, and visual cohesion with settings pages
 
 
 ### Blockers/Concerns
