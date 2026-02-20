@@ -193,14 +193,14 @@ export function CategoriesSection() {
       hideMutation.mutate(categoryId);
       toaster.create({ title: "Category hidden", type: "info" });
     },
-    [hideMutation]
+    [hideMutation.mutate]
   );
 
   const handleBadgeDismiss = useCallback(
     (categoryId: number) => {
       acknowledgeMutation.mutate([categoryId]);
     },
-    [acknowledgeMutation]
+    [acknowledgeMutation.mutate]
   );
 
   const handleUnhideCategory = useCallback(
@@ -208,7 +208,7 @@ export function CategoriesSection() {
       unhideMutation.mutate(categoryId);
       toaster.create({ title: "Category unhidden", type: "info" });
     },
-    [unhideMutation]
+    [unhideMutation.mutate]
   );
 
   const handleDeleteCategory = useCallback(
