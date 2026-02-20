@@ -96,6 +96,30 @@ useMutation({
 
 ## Anti-Patterns
 
+### Over-Fetching in List Queries (Cache Memory Explosion)
+
+**What went wrong:** The `GET /api/articles` list endpoint returned full HTML `content`, `summary`, and `score_reasoning` for all 50 articles (~10-50KB each). The list view only displays titles, scores, and categories — it never reads `content`. With TanStack Query's default 5-minute `gcTime`, switching between feeds/filters/sort combinations accumulated multiple full-payload cache entries simultaneously, pushing the frontend to ~1.5GB RAM.
+
+**Why it's insidious:** Each individual query looks reasonable (50 articles). But TanStack Query caches by exact query key — `["articles", {feed: 1, sort: "score"}]` and `["articles", {feed: 2, sort: "date"}]` are separate entries. Browse 5 different filter combos and you have 5× the payload sitting in memory until GC runs.
+
+**Fix — dual-type pattern:**
+
+```typescript
+// types.ts — list view gets lightweight type
+export type ArticleListItem = Omit<Article, "content" | "summary" | "score_reasoning">;
+
+// queryKeys.ts — separate keys for list vs detail
+articles: {
+  all: ["articles"] as const,
+  list: (filters) => ["articles", filters] as const,
+  detail: (id: number) => ["articles", "detail", id] as const,
+},
+```
+
+The backend returns `ArticleListItem` from the list endpoint. The detail endpoint returns the full `Article`. The reader component fetches full content on demand via `useQuery({ queryKey: queryKeys.articles.detail(id) })`.
+
+**Secondary lever — reduce `gcTime`:** When payloads are large, the default 5-minute gcTime is too generous. This project uses 2 minutes (`gcTime: 120_000` in default query options) to evict stale entries faster.
+
 ### Redundant Invalidation (Prefix Matching)
 
 ```typescript

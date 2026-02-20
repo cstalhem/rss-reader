@@ -7,6 +7,7 @@ paths: ["backend/**"]
 ## API & Models
 
 - All API routes prefixed with `/api/`.
+- List endpoints must use lightweight schemas — omit large fields (HTML content, summaries) only needed in detail views.
 - SQLModel for models — not raw SQLAlchemy ORM classes. Models live in `models.py`.
 - Categories are kebab-case, lowercase, English-only — normalized on storage.
 - REST naming: nouns in URLs, HTTP methods as verbs. Action endpoints use POST with a noun (`POST /downloads` not `POST /pull`). Singleton resources skip IDs (`/api/preferences`, `/api/ollama/downloads`).

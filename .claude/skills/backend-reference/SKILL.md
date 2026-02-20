@@ -14,7 +14,7 @@ Architecture and implementation reference for the backend. For concise rules, se
 | `main.py` | App entry point: FastAPI creation, CORS, lifespan, router registration, health endpoint |
 | `routers/` | 6 APIRouter modules: articles, feeds, categories, preferences, ollama, scoring |
 | `models.py` | SQLModel table definitions (Feed, Article, Category, ArticleCategoryLink, UserPreferences) |
-| `schemas.py` | Pydantic request/response models for all endpoints |
+| `schemas.py` | Pydantic request/response models — dual schemas: `ArticleListItem` (lightweight, no content) for list endpoints, `ArticleResponse` (full) for detail |
 | `deps.py` | Shared FastAPI dependencies: get_session, get_or_create_preferences, resolve_ollama_models |
 | `database.py` | Engine, schema versioning (schema_version table), startup migrations |
 | `scoring.py` | LLM scoring functions, pure scoring helpers (compute_composite_score, is_blocked, get_effective_weight) |
