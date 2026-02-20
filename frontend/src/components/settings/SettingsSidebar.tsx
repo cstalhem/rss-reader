@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Box, Stack, Flex, Text } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { useQuery } from "@tanstack/react-query";
@@ -13,23 +15,19 @@ const SIDEBAR_DOWNLOAD_POLL_INTERVAL = 3_000;
 
 export type SettingsSection = "feeds" | "interests" | "categories" | "ollama" | "feedback";
 
-interface SettingsSidebarProps {
-  activeSection: SettingsSection;
-  onSectionChange: (section: SettingsSection) => void;
-}
-
 interface SidebarItem {
   id: SettingsSection;
+  href: string;
   icon: React.ElementType;
   label: string;
 }
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
-  { id: "feeds", icon: LuRss, label: "Feeds" },
-  { id: "interests", icon: LuHeart, label: "Interests" },
-  { id: "categories", icon: LuTag, label: "Categories" },
-  { id: "ollama", icon: LuBot, label: "Ollama" },
-  { id: "feedback", icon: LuMessageSquare, label: "Feedback" },
+  { id: "feeds", href: "/settings/feeds", icon: LuRss, label: "Feeds" },
+  { id: "interests", href: "/settings/interests", icon: LuHeart, label: "Interests" },
+  { id: "categories", href: "/settings/categories", icon: LuTag, label: "Categories" },
+  { id: "ollama", href: "/settings/ollama", icon: LuBot, label: "Ollama" },
+  { id: "feedback", href: "/settings/feedback", icon: LuMessageSquare, label: "Feedback" },
 ];
 
 const pulse = keyframes`
@@ -37,10 +35,9 @@ const pulse = keyframes`
   50% { opacity: 1; }
 `;
 
-export function SettingsSidebar({
-  activeSection,
-  onSectionChange,
-}: SettingsSidebarProps) {
+export function SettingsSidebar() {
+  const pathname = usePathname();
+
   const { data: downloadStatus } = useQuery<DownloadStatus>({
     queryKey: queryKeys.ollama.sidebarDownloadStatus,
     queryFn: fetchDownloadStatus,
@@ -57,59 +54,59 @@ export function SettingsSidebar({
   const categoryBadgeCount = newCategoryCount?.count ?? 0;
 
   return (
-    <Stack gap={1}>
+    <Stack as="nav" gap={1}>
       {SIDEBAR_ITEMS.map((item) => {
-        const isActive = activeSection === item.id;
+        const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
         const Icon = item.icon;
         const showDownloadIndicator = item.id === "ollama" && isDownloadActive;
         const showCategoryBadge = item.id === "categories" && categoryBadgeCount > 0;
 
         return (
-          <Flex
-            key={item.id}
-            alignItems="center"
-            gap={3}
-            px={4}
-            py={2.5}
-            borderRadius="md"
-            cursor="pointer"
-            bg={isActive ? "bg.muted" : "transparent"}
-            color={isActive ? "fg.default" : "fg.muted"}
-            borderLeftWidth="3px"
-            borderLeftColor={isActive ? "accent.solid" : "transparent"}
-            _hover={{ bg: isActive ? "bg.muted" : "bg.subtle" }}
-            onClick={() => onSectionChange(item.id)}
-          >
-            <Icon size={18} />
-            <Text fontSize="sm" fontWeight="medium">
-              {item.label}
-            </Text>
-            {showCategoryBadge && (
-              <Box
-                ml="auto"
-                bg="accent.solid"
-                color="accent.contrast"
-                fontSize="xs"
-                fontWeight="bold"
-                px={1.5}
-                py={0}
-                borderRadius="full"
-                lineHeight="1.5"
-                minW="20px"
-                textAlign="center"
-              >
-                {categoryBadgeCount}
-              </Box>
-            )}
-            {showDownloadIndicator && (
-              <Box
-                ml="auto"
-                css={{ animation: `${pulse} 2s ease-in-out infinite` }}
-              >
-                <Box color="accent.solid" display="inline-flex"><LuDownload size={16} /></Box>
-              </Box>
-            )}
-          </Flex>
+          <Link key={item.id} href={item.href} style={{ textDecoration: "none" }}>
+            <Flex
+              alignItems="center"
+              gap={3}
+              px={4}
+              py={2.5}
+              borderRadius="md"
+              cursor="pointer"
+              bg={isActive ? "bg.muted" : "transparent"}
+              color={isActive ? "fg.default" : "fg.muted"}
+              borderLeftWidth="3px"
+              borderLeftColor={isActive ? "accent.solid" : "transparent"}
+              _hover={{ bg: isActive ? "bg.muted" : "bg.subtle" }}
+            >
+              <Icon size={18} />
+              <Text fontSize="sm" fontWeight="medium">
+                {item.label}
+              </Text>
+              {showCategoryBadge && (
+                <Box
+                  ml="auto"
+                  bg="accent.solid"
+                  color="accent.contrast"
+                  fontSize="xs"
+                  fontWeight="bold"
+                  px={1.5}
+                  py={0}
+                  borderRadius="full"
+                  lineHeight="1.5"
+                  minW="20px"
+                  textAlign="center"
+                >
+                  {categoryBadgeCount}
+                </Box>
+              )}
+              {showDownloadIndicator && (
+                <Box
+                  ml="auto"
+                  css={{ animation: `${pulse} 2s ease-in-out infinite` }}
+                >
+                  <Box color="accent.solid" display="inline-flex"><LuDownload size={16} /></Box>
+                </Box>
+              )}
+            </Flex>
+          </Link>
         );
       })}
     </Stack>

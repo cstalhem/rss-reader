@@ -14,12 +14,8 @@ import { ModelManagement } from "./ModelManagement";
 import { SystemPrompts } from "./SystemPrompts";
 import type { OllamaConfig } from "@/lib/types";
 
-interface OllamaSectionProps {
-  isVisible: boolean;
-}
-
-export function OllamaSection({ isVisible }: OllamaSectionProps) {
-  const { data: health, isLoading: healthLoading } = useOllamaHealth(isVisible);
+export function OllamaSection() {
+  const { data: health, isLoading: healthLoading } = useOllamaHealth(true);
   const isConnected = health?.connected ?? false;
   const { data: models } = useOllamaModels(isConnected);
   const { config: serverConfig, isLoading: configLoading, saveMutation, rescoreMutation } =
