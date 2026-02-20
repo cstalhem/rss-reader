@@ -325,6 +325,17 @@ Plans:
 - [x] 09.1-03-PLAN.md -- Scoring pipeline: resource leaks, retries, async correctness, magic numbers
 - [x] 09.1-04-PLAN.md -- Router fixes: N+1 queries, type safety, SRP separation, unit tests, smoke tests
 
+### Phase 09.2: Frontend DOM tree simplification and component structure optimization (INSERTED)
+
+**Goal:** Reduce DOM complexity across the frontend — eliminate responsive duplication, use semantic HTML, route-based settings navigation, and ensure every rendered node serves a purpose
+**Depends on:** Phase 9.1
+**Plans:** 3 plans
+
+Plans:
+- [ ] 09.2-01-PLAN.md -- Settings route restructuring: nested routes, Link-based sidebar, mobile dropdown, OllamaSection isVisible removal
+- [ ] 09.2-02-PLAN.md -- CategoryRowShell extraction, WeightPresetStrip dedup and breakpoint-disabled tooltips
+- [ ] 09.2-03-PLAN.md -- ScoreBadge Tooltip removal and semantic HTML audit
+
 #### Phase 10: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
 **Depends on**: Phase 9.1 (clean codebase foundation — both frontend and backend)
