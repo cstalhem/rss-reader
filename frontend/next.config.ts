@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   experimental: {
     optimizePackageImports: ["@chakra-ui/react"],
+    preloadEntriesOnStart: false,
+    webpackMemoryOptimizations: true,
   },
 };
 
