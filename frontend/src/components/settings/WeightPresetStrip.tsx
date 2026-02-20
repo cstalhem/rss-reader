@@ -1,8 +1,7 @@
 "use client";
 
 import React from "react";
-import { Flex, Box, Button, IconButton, useBreakpointValue } from "@chakra-ui/react";
-import { Tooltip } from "@/components/ui/tooltip";
+import { Flex, Box, Button, IconButton } from "@chakra-ui/react";
 import {
   LuBan,
   LuChevronDown,
@@ -34,7 +33,6 @@ const WeightPresetStripComponent = ({
   onReset,
 }: WeightPresetStripProps) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
-  const tooltipDisabled = useBreakpointValue({ base: true, md: false });
 
   return (
     <Flex
@@ -61,29 +59,24 @@ const WeightPresetStripComponent = ({
               maxW={{ md: isActive ? undefined : isExpanded ? "auto" : "0" }}
               transition={{ md: isActive ? undefined : "max-width 0.2s ease-out" }}
             >
-              <Tooltip
-                content={option.label}
-                openDelay={300}
-                disabled={tooltipDisabled}
+              <Button
+                size="xs"
+                variant={isActive ? "outline" : "ghost"}
+                colorPalette={isActive ? "accent" : undefined}
+                borderColor={isActive ? "accent.solid" : undefined}
+                color={isActive ? "accent.solid" : undefined}
+                aria-label={option.label}
+                title={option.label}
+                onClick={handleClick}
+                h="24px"
+                px={{ base: "6px", md: "4px" }}
+                minW={{ md: "24px" }}
               >
-                <Button
-                  size="xs"
-                  variant={isActive ? "outline" : "ghost"}
-                  colorPalette={isActive ? "accent" : undefined}
-                  borderColor={isActive ? "accent.solid" : undefined}
-                  color={isActive ? "accent.solid" : undefined}
-                  aria-label={option.label}
-                  onClick={handleClick}
-                  h="24px"
-                  px={{ base: "6px", md: "4px" }}
-                  minW={{ md: "24px" }}
-                >
-                  <Icon size={12} />
-                  <Box as="span" display={{ base: "inline", md: "none" }}>
-                    {option.label}
-                  </Box>
-                </Button>
-              </Tooltip>
+                <Icon size={12} />
+                <Box as="span" display={{ base: "inline", md: "none" }}>
+                  {option.label}
+                </Box>
+              </Button>
             </Box>
           );
         })}
