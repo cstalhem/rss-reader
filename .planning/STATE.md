@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 Milestone: v1.1 Configuration, Feedback & Polish
 Phase: 9.1 complete, Phase 10 not started
 Status: Milestone audit complete (gaps_found — Phase 10 pending)
-Last activity: 2026-02-20 - Completed quick task 12: Fix slow checkbox response in settings categories bulk-edit
+Last activity: 2026-02-20 - Completed quick task 13: Fix slow settings page navigation on desktop
 
 Progress: [████████░░] 80% (8/9 v1.1 phases complete, Phase 10 remaining)
 
@@ -268,6 +268,7 @@ Key architectural decisions carrying forward to v1.1:
 | 10 | Fix category drag-and-drop placeholder (destination detection) and badge dismiss X spacing/size/divider | 2026-02-16 | 0ffaebc | [10-fix-category-drag-and-drop-placeholder-a](./quick/10-fix-category-drag-and-drop-placeholder-a/) |
 | 11 | ~~Migrate all DnD from @dnd-kit to @hello-pangea/dnd~~ (reverted: collapsed accordion drop targets incompatible) | 2026-02-17 | 34908f2 | [11-migrate-drag-and-drop-from-dnd-kit-to-he](./quick/11-migrate-drag-and-drop-from-dnd-kit-to-he/) |
 | 12 | Fix slow checkbox response in settings categories by stabilizing callback references for React.memo | 2026-02-20 | 2a4ccde | [12-fix-slow-checkbox-response-in-settings-c](./quick/12-fix-slow-checkbox-response-in-settings-c/) |
+| 13 | Fix slow settings page navigation by switching desktop sections from display-toggle to conditional rendering | 2026-02-20 | ce99058 | [13-fix-slow-settings-page-navigation-on-des](./quick/13-fix-slow-settings-page-navigation-on-des/) |
 
 **Phase 7 considerations:**
 - Pydantic Settings `@lru_cache` prevents runtime updates - requires two-tier config pattern (Settings for infrastructure, UserPreferences for runtime choices)
@@ -284,9 +285,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed quick task 12 (fix slow checkbox response)
+Stopped at: Completed quick task 13 (fix slow settings page navigation)
 Resume file: N/A (quick task complete)
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-20 after v1.0 milestone completion*
+*Last updated: 2026-02-20 after quick task 13*
