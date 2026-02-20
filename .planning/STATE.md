@@ -110,6 +110,7 @@ Progress: [████████░░] 80% (8/9 v1.1 phases complete, Phase 
 | Phase 09.1 P04 | 7.0 | 2 tasks | 14 files |
 | Phase 09.2 P01 | 15 | 2 tasks | 10 files |
 | Phase 09.2 P02 | 4.0 | 2 tasks | 5 files |
+| Phase 09.2 P03 | 2 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -252,6 +253,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 09.2]: settings/layout.tsx is a server component — SettingsMobileNav and SettingsSidebar carry the client boundaries
 - [Phase 09.2]: OllamaSection always passes true to useOllamaHealth — component is only mounted at /settings/ollama so mount == visible
 - [Phase 09.2]: App Router nested route pattern for settings: layout + redirect page + per-section pages, with thin client component extraction to preserve server layout
+- [Phase 09.2]: ScoreBadge uses aria-label instead of Tooltip -- score text is already visible so Tooltip was redundant information adding 2 DOM nodes per article row
+- [Phase 09.2]: Chakra as prop semantic swaps (as=article/section/aside) are zero-cost element tag changes with no style impact
 
 ### Pending Todos
 
