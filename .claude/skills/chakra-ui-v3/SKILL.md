@@ -103,6 +103,43 @@ Set `colorPalette="accent"` **per-component** on call-to-action elements (save b
 
 ## Anti-Patterns
 
+### Zag State Machine Multiplier in Lists
+
+Chakra UI v3 uses `@zag-js` state machines under the hood. Each machine allocates a scope object, multiple `useRef`s, `useState`s, and lifecycle effects. In isolation this is fine — in a list of N items it dominates memory.
+
+**Per-component machine cost:**
+
+| Component | Zag machines | Notes |
+|---|---|---|
+| `Tooltip.Root` | 2 | tooltip + presence |
+| `Menu.Root` | 2 | menu + presence (even when closed) |
+| `Checkbox.Root` | 1 | checkbox machine |
+| `useBreakpointValue` | 0 machines, 2 MQL listeners | per call |
+
+**Real example (Quick-18/19):** Categories settings page with 35 rows, each rendering 5 Tooltips + 1 Menu + 1 Checkbox = 13 machines/row = 455 machines total. Safari tab used 2.3 GB. After replacing Tooltips with native `title` attribute: **under 300 MB** (87% reduction).
+
+```tsx
+// BAD — 10 Zag machines per row (5 tooltip + 5 presence)
+{options.map((opt) => (
+  <Tooltip content={opt.label}>
+    <Button>{opt.icon}</Button>
+  </Tooltip>
+))}
+
+// GOOD — 0 machines, native browser tooltip
+{options.map((opt) => (
+  <Button title={opt.label}>{opt.icon}</Button>
+))}
+```
+
+**Guidelines for list contexts:**
+- Replace `Tooltip` with native `title` attribute (browser handles positioning, zero JS cost)
+- `Menu.Root` creates 2 machines even when closed — acceptable if N is small, consider alternatives for large lists
+- `Checkbox.Root` can be replaced with styled `<input type="checkbox">` if you manage state externally (trade-off: lose Chakra styling)
+- Hoist `useBreakpointValue` to parent and pass as prop (N×2 listeners → 2 listeners)
+
+**The principle:** Push per-item overhead out of the render loop. This applies to Zag machines, MQL listeners, responsive duplication (`display:none/block`), and `Collapsible.Content` (mounts children when closed — use conditional rendering instead for lists).
+
 ### Hardcoded Colors in Components
 
 ```tsx
