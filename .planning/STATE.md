@@ -108,6 +108,7 @@ Progress: [████████░░] 80% (8/9 v1.1 phases complete, Phase 
 | Phase 09.1 P03 | 4.0 | 2 tasks | 9 files |
 | Phase 09.1 P02 | 7.3 | 2 tasks | 13 files |
 | Phase 09.1 P04 | 7.0 | 2 tasks | 14 files |
+| Phase 09.2 P01 | 15 | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -247,6 +248,9 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 09.1]: APIRouter per domain with prefix/tags; static routes registered before parameterized to avoid path conflicts
 - [Phase 09.1]: unread_count only counts scored, non-blocked, unread articles (matches frontend display)
 - [Phase 09.1]: SRP: PUT /api/ollama/config saves only, POST /api/scoring triggers rescore; frontend orchestrates two-step flow
+- [Phase 09.2]: settings/layout.tsx is a server component — SettingsMobileNav and SettingsSidebar carry the client boundaries
+- [Phase 09.2]: OllamaSection always passes true to useOllamaHealth — component is only mounted at /settings/ollama so mount == visible
+- [Phase 09.2]: App Router nested route pattern for settings: layout + redirect page + per-section pages, with thin client component extraction to preserve server layout
 
 ### Pending Todos
 
