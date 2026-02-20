@@ -332,9 +332,9 @@ Plans:
 **Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 09.2-01-PLAN.md -- Settings route restructuring: nested routes, Link-based sidebar, mobile dropdown, OllamaSection isVisible removal
-- [ ] 09.2-02-PLAN.md -- CategoryRowShell extraction, WeightPresetStrip dedup and breakpoint-disabled tooltips
-- [ ] 09.2-03-PLAN.md -- ScoreBadge Tooltip removal and semantic HTML audit
+- [x] 09.2-01-PLAN.md -- Settings route restructuring: nested routes, Link-based sidebar, mobile dropdown, OllamaSection isVisible removal
+- [x] 09.2-02-PLAN.md -- CategoryRowShell extraction, WeightPresetStrip dedup and breakpoint-disabled tooltips
+- [x] 09.2-03-PLAN.md -- ScoreBadge Tooltip removal and semantic HTML audit
 
 #### Phase 10: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
@@ -355,7 +355,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 9.1 -> 10
+Phases execute in numeric order: 6 -> 7 -> 8 -> 08.1 -> 08.2 -> 08.3 -> 9 -> 9.1 -> 09.2 -> 10
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -370,10 +370,11 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 9 -> 9.1 -> 10
 | 08.1. Categories UI Redesign | v1.1 | 10/10 | Complete | 2026-02-17 |
 | 08.2. Category Data Model Refactor | v1.1 | 7/7 | Complete | 2026-02-18 |
 | 08.3. Group Management Redesign | v1.1 | 6/6 | Complete | 2026-02-19 |
-| 9. Frontend Codebase Evaluation & Simplification | v1.1 | Complete    | 2026-02-19 | - |
-| 9.1. Backend Codebase Evaluation & Simplification | v1.1 | 0/4 | Not started | - |
+| 9. Frontend Codebase Evaluation | v1.1 | 4/4 | Complete | 2026-02-19 |
+| 9.1. Backend Codebase Evaluation | v1.1 | 4/4 | Complete | 2026-02-20 |
+| 09.2. DOM Tree Simplification | v1.1 | 3/3 | Complete | 2026-02-20 |
 | 10. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-20 -- Phase 09.1 complete (4/4 plans)*
+*Last updated: 2026-02-20 -- Phase 09.2 complete (3/3 plans)*
