@@ -1,6 +1,12 @@
 "use client";
 
 import { ActionBar, Button, Flex, Portal, Text } from "@chakra-ui/react";
+import {
+  LuEyeOff,
+  LuIndentDecrease,
+  LuListTree,
+  LuTrash2,
+} from "react-icons/lu";
 
 interface CategoryActionBarProps {
   selectedCount: number;
@@ -42,7 +48,7 @@ export function CategoryActionBar({
             disabled={selectedCount === 0}
             onClick={onMoveToGroup}
           >
-            Move to group
+            <LuListTree /> Move to group
           </Button>
           <Button
             variant="outline"
@@ -50,7 +56,7 @@ export function CategoryActionBar({
             disabled={selectedCount === 0}
             onClick={onUngroup}
           >
-            Ungroup
+            <LuIndentDecrease /> Ungroup
           </Button>
           <Button
             variant="outline"
@@ -58,7 +64,7 @@ export function CategoryActionBar({
             disabled={selectedCount === 0}
             onClick={onHide}
           >
-            Hide
+            <LuEyeOff /> Hide
           </Button>
           <Button
             variant="outline"
@@ -67,7 +73,7 @@ export function CategoryActionBar({
             disabled={selectedCount === 0}
             onClick={onDelete}
           >
-            Delete
+            <LuTrash2 /> Delete
           </Button>
         </Flex>
       </Flex>
@@ -82,13 +88,13 @@ export function CategoryActionBar({
               </ActionBar.SelectionTrigger>
               <ActionBar.Separator />
               <Button variant="outline" size="sm" onClick={onMoveToGroup}>
-                Move to group
+                <LuListTree /> Move to group
               </Button>
               <Button variant="outline" size="sm" onClick={onUngroup}>
-                Ungroup
+                <LuIndentDecrease /> Ungroup
               </Button>
               <Button variant="outline" size="sm" onClick={onHide}>
-                Hide
+                <LuEyeOff /> Hide
               </Button>
               <Button
                 variant="outline"
@@ -96,7 +102,7 @@ export function CategoryActionBar({
                 colorPalette="red"
                 onClick={onDelete}
               >
-                Delete
+                <LuTrash2 /> Delete
               </Button>
             </ActionBar.Content>
           </ActionBar.Positioner>

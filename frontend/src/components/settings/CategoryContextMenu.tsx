@@ -1,7 +1,14 @@
 "use client";
 
 import { IconButton, Menu, Portal } from "@chakra-ui/react";
-import { LuEllipsisVertical } from "react-icons/lu";
+import {
+  LuEllipsisVertical,
+  LuEyeOff,
+  LuIndentDecrease,
+  LuPencil,
+  LuTrash2,
+  LuUndo2,
+} from "react-icons/lu";
 
 interface CategoryContextMenuProps {
   type: "parent" | "child" | "ungrouped";
@@ -39,6 +46,7 @@ export function CategoryContextMenu({
           <Menu.Content>
             {type === "parent" && (
               <Menu.Item value="ungroup" onClick={onUngroup}>
+                <LuIndentDecrease />
                 Ungroup
               </Menu.Item>
             )}
@@ -48,17 +56,21 @@ export function CategoryContextMenu({
                 disabled={!isWeightOverridden}
                 onClick={onResetWeight}
               >
+                <LuUndo2 />
                 Reset weight
               </Menu.Item>
             )}
             <Menu.Item value="rename" onClick={onRename}>
+              <LuPencil />
               Edit name
             </Menu.Item>
             <Menu.Item value="hide" onClick={onHide}>
+              <LuEyeOff />
               Hide
             </Menu.Item>
             <Menu.Separator />
             <Menu.Item value="delete" color="fg.error" onClick={onDelete}>
+              <LuTrash2 />
               Delete
             </Menu.Item>
           </Menu.Content>

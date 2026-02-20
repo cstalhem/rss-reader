@@ -86,6 +86,7 @@ const CategoryUngroupedRowComponent = ({
       <Box onClick={(e) => e.stopPropagation()} minH={{ base: "44px", sm: "auto" }} display="flex" alignItems="center">
         <Checkbox.Root
           size="sm"
+          colorPalette="accent"
           checked={isSelected}
           onCheckedChange={() => onToggleSelection(category.id)}
         >
