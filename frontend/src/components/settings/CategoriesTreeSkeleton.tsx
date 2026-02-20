@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Flex, Skeleton, Stack } from "@chakra-ui/react";
+import { Box, Flex, Input, Skeleton, Stack, Text } from "@chakra-ui/react";
 
 function ParentGroupSkeleton({
   nameWidth,
@@ -41,22 +41,40 @@ function ParentGroupSkeleton({
   );
 }
 
-export function CategoriesTreeSkeleton() {
+function TreeSkeleton() {
   return (
     <Stack gap={1}>
-        <ParentGroupSkeleton nameWidth="140px" childWidths={["120px", "90px"]} />
-        <ParentGroupSkeleton nameWidth="170px" childWidths={["100px", "130px"]} />
-        <ParentGroupSkeleton nameWidth="120px" childWidths={["140px", "80px"]} />
+      <ParentGroupSkeleton nameWidth="140px" childWidths={["120px", "90px"]} />
+      <ParentGroupSkeleton nameWidth="170px" childWidths={["100px", "130px"]} />
+      <ParentGroupSkeleton nameWidth="120px" childWidths={["140px", "80px"]} />
 
-        {/* Ungrouped rows */}
-        <Flex alignItems="center" gap={2} py={2} px={3}>
-          <Skeleton variant="shine" boxSize="16px" borderRadius="sm" />
-          <Skeleton variant="shine" height="14px" width="110px" />
-        </Flex>
-        <Flex alignItems="center" gap={2} py={2} px={3}>
-          <Skeleton variant="shine" boxSize="16px" borderRadius="sm" />
-          <Skeleton variant="shine" height="14px" width="95px" />
-        </Flex>
+      {/* Ungrouped rows */}
+      <Flex alignItems="center" gap={2} py={2} px={3}>
+        <Skeleton variant="shine" boxSize="16px" borderRadius="sm" />
+        <Skeleton variant="shine" height="14px" width="110px" />
+      </Flex>
+      <Flex alignItems="center" gap={2} py={2} px={3}>
+        <Skeleton variant="shine" boxSize="16px" borderRadius="sm" />
+        <Skeleton variant="shine" height="14px" width="95px" />
+      </Flex>
+    </Stack>
+  );
+}
+
+export function CategoriesTreeSkeleton({ withShell = false }: { withShell?: boolean }) {
+  if (!withShell) return <TreeSkeleton />;
+
+  return (
+    <Stack gap={6}>
+      <Flex alignItems="center" gap={2}>
+        <Text fontSize="xl" fontWeight="semibold">
+          Topic Categories
+        </Text>
+      </Flex>
+
+      <Input placeholder="Filter categories..." size="sm" disabled />
+
+      <TreeSkeleton />
     </Stack>
   );
 }

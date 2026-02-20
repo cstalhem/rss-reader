@@ -58,7 +58,7 @@ export default function SettingsPage() {
             {/* Desktop: mount only the active section (uses deferredSection so heavy renders don't block sidebar) */}
             <Box display={{ base: "none", md: "block" }}>
               {isPending && activeSection === "categories" ? (
-                <CategoriesTreeSkeleton />
+                <CategoriesTreeSkeleton withShell />
               ) : (
                 <>
                   {deferredSection === "feeds" && <FeedsSection />}
