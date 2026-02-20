@@ -1,5 +1,7 @@
 """Scoring status and trigger endpoints."""
 
+import logging
+
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, func, select
 
@@ -7,6 +9,8 @@ from backend.config import get_settings
 from backend.deps import get_session
 from backend.models import Article, UserPreferences
 from backend.ollama_service import check_health, list_models
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/scoring", tags=["scoring"])
 
@@ -65,11 +69,11 @@ async def get_scoring_status(
     scoring_ready = False
     scoring_ready_reason: str | None = None
 
-    try:
-        health = await check_health(settings.ollama.host)
-        if not health["connected"]:
-            scoring_ready_reason = "Scoring paused — Ollama is not running"
-        else:
+    health = await check_health(settings.ollama.host)
+    if not health["connected"]:
+        scoring_ready_reason = "Scoring paused — Ollama is not running"
+    else:
+        try:
             models_resp = await list_models(settings.ollama.host)
             installed_names = {m["name"] for m in models_resp}
 
@@ -96,8 +100,9 @@ async def get_scoring_status(
                 )
             else:
                 scoring_ready = True
-    except Exception:
-        scoring_ready_reason = "Scoring paused — Ollama is not running"
+        except Exception:
+            logger.exception("Scoring readiness check failed")
+            scoring_ready_reason = "Scoring paused — could not check model availability"
 
     counts["scoring_ready"] = scoring_ready
     counts["scoring_ready_reason"] = scoring_ready_reason

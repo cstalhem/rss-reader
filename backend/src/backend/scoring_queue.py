@@ -116,7 +116,7 @@ class ScoringQueue:
             models_resp = await list_models(settings.ollama.host)
             installed_names = {m["name"] for m in models_resp}
         except Exception:
-            logger.warning("Scoring skipped: could not list Ollama models")
+            logger.exception("Scoring skipped: could not list Ollama models")
             return 0
 
         # Resolve required model names from preferences/config
