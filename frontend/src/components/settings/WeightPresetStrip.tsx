@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Flex, Box, Button, IconButton } from "@chakra-ui/react";
+import { Flex, Box, Button, IconButton, useBreakpointValue } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   LuBan,
@@ -34,6 +34,7 @@ const WeightPresetStripComponent = ({
   onReset,
 }: WeightPresetStripProps) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
+  const tooltipDisabled = useBreakpointValue({ base: true, md: false });
 
   return (
     <Flex
@@ -63,6 +64,7 @@ const WeightPresetStripComponent = ({
               <Tooltip
                 content={option.label}
                 openDelay={300}
+                disabled={tooltipDisabled}
               >
                 <Button
                   size="xs"
@@ -70,6 +72,7 @@ const WeightPresetStripComponent = ({
                   colorPalette={isActive ? "accent" : undefined}
                   borderColor={isActive ? "accent.solid" : undefined}
                   color={isActive ? "accent.solid" : undefined}
+                  aria-label={option.label}
                   onClick={handleClick}
                   h="24px"
                   px={{ base: "6px", md: "4px" }}
