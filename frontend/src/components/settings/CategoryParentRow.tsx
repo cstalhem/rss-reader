@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useCallback } from "react";
 import { Badge, Flex, Text, Box, Input } from "@chakra-ui/react";
 import { LuChevronRight, LuFolder } from "react-icons/lu";
 import { Category } from "@/lib/types";
@@ -12,13 +12,13 @@ interface CategoryParentRowProps {
   category: Category;
   weight: string;
   childCount: number;
-  onWeightChange: (weight: string) => void;
-  onRename: (newName: string) => void;
-  onDelete: () => void;
-  onUngroup: () => void;
-  onHide: () => void;
+  onWeightChange: (categoryId: number, weight: string) => void;
+  onRename: (categoryId: number, newName: string) => void;
+  onDelete: (categoryId: number) => void;
+  onUngroup: (categoryId: number) => void;
+  onHide: (categoryId: number) => void;
   isExpanded: boolean;
-  onToggleExpand: () => void;
+  onToggleExpand: (parentId: number) => void;
   newChildCount: number;
   onDismissNewChildren?: () => void;
 }
@@ -37,8 +37,15 @@ const CategoryParentRowComponent = ({
   newChildCount,
   onDismissNewChildren,
 }: CategoryParentRowProps) => {
+  const handleRename = useCallback((newName: string) => onRename(category.id, newName), [category.id, onRename]);
+  const handleWeightChange = useCallback((weight: string) => onWeightChange(category.id, weight), [category.id, onWeightChange]);
+  const handleDelete = useCallback(() => onDelete(category.id), [category.id, onDelete]);
+  const handleUngroup = useCallback(() => onUngroup(category.id), [category.id, onUngroup]);
+  const handleHide = useCallback(() => onHide(category.id), [category.id, onHide]);
+  const handleToggleExpand = useCallback(() => onToggleExpand(category.id), [category.id, onToggleExpand]);
+
   const { isRenaming, renameValue, setRenameValue, startRename, handleSubmit, handleCancel, inputRef } =
-    useRenameState(category.display_name, onRename);
+    useRenameState(category.display_name, handleRename);
 
   return (
     <Box
@@ -61,7 +68,7 @@ const CategoryParentRowComponent = ({
           display="inline-flex"
           alignItems="center"
           cursor="pointer"
-          onClick={onToggleExpand}
+          onClick={handleToggleExpand}
           transition="transform 0.2s"
           transform={isExpanded ? "rotate(90deg)" : "rotate(0deg)"}
           color="fg.muted"
@@ -93,7 +100,7 @@ const CategoryParentRowComponent = ({
             fontWeight="semibold"
             truncate
             cursor="pointer"
-            onClick={onToggleExpand}
+            onClick={handleToggleExpand}
           >
             {category.display_name}
           </Text>
@@ -121,17 +128,17 @@ const CategoryParentRowComponent = ({
 
         {/* Desktop weight strip */}
         <Box display={{ base: "none", sm: "block" }}>
-          <WeightPresetStrip value={weight} onChange={onWeightChange} />
+          <WeightPresetStrip value={weight} onChange={handleWeightChange} />
         </Box>
 
         {!isRenaming && (
           <Box minH={{ base: "44px", sm: "auto" }} display="flex" alignItems="center">
             <CategoryContextMenu
               type="parent"
-              onUngroup={onUngroup}
+              onUngroup={handleUngroup}
               onRename={startRename}
-              onHide={onHide}
-              onDelete={onDelete}
+              onHide={handleHide}
+              onDelete={handleDelete}
             />
           </Box>
         )}
@@ -139,7 +146,7 @@ const CategoryParentRowComponent = ({
 
       {/* Mobile weight strip */}
       <Box display={{ base: "block", sm: "none" }} px={3} pb={2}>
-        <WeightPresetStrip value={weight} onChange={onWeightChange} />
+        <WeightPresetStrip value={weight} onChange={handleWeightChange} />
       </Box>
     </Box>
   );

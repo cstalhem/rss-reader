@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Flex, Text, Badge, Box, Input, Checkbox } from "@chakra-ui/react";
 import { LuX } from "react-icons/lu";
 import { Category } from "@/lib/types";
@@ -13,12 +13,12 @@ interface CategoryUngroupedRowProps {
   weight: string;
   isNew?: boolean;
   isSelected: boolean;
-  onWeightChange: (weight: string) => void;
-  onHide: () => void;
-  onBadgeDismiss?: () => void;
-  onToggleSelection: () => void;
-  onRename: (newName: string) => void;
-  onDelete: () => void;
+  onWeightChange: (categoryId: number, weight: string) => void;
+  onHide: (categoryId: number) => void;
+  onBadgeDismiss: (categoryId: number) => void;
+  onToggleSelection: (id: number) => void;
+  onRename: (categoryId: number, newName: string) => void;
+  onDelete: (categoryId: number) => void;
 }
 
 const CategoryUngroupedRowComponent = ({
@@ -33,8 +33,14 @@ const CategoryUngroupedRowComponent = ({
   onRename,
   onDelete,
 }: CategoryUngroupedRowProps) => {
+  const handleRename = useCallback((newName: string) => onRename(category.id, newName), [category.id, onRename]);
+  const handleWeightChange = useCallback((weight: string) => onWeightChange(category.id, weight), [category.id, onWeightChange]);
+  const handleHide = useCallback(() => onHide(category.id), [category.id, onHide]);
+  const handleDelete = useCallback(() => onDelete(category.id), [category.id, onDelete]);
+  const handleBadgeDismiss = useCallback(() => onBadgeDismiss(category.id), [category.id, onBadgeDismiss]);
+
   const { isRenaming, renameValue, setRenameValue, startRename, handleSubmit, handleCancel, inputRef } =
-    useRenameState(category.display_name, onRename);
+    useRenameState(category.display_name, handleRename);
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -59,7 +65,7 @@ const CategoryUngroupedRowComponent = ({
           <Checkbox.Root
             size="sm"
             checked={isSelected}
-            onCheckedChange={() => onToggleSelection()}
+            onCheckedChange={() => onToggleSelection(category.id)}
           >
             <Checkbox.HiddenInput />
             <Checkbox.Control />
@@ -95,7 +101,7 @@ const CategoryUngroupedRowComponent = ({
             cursor="pointer"
             onClick={(e) => {
               e.stopPropagation();
-              onBadgeDismiss?.();
+              handleBadgeDismiss();
             }}
           >
             <Flex alignItems="center" gap={0}>
@@ -120,7 +126,7 @@ const CategoryUngroupedRowComponent = ({
         <Box display={{ base: "none", sm: "block" }}>
           <WeightPresetStrip
             value={weight}
-            onChange={onWeightChange}
+            onChange={handleWeightChange}
             isOverridden={false}
           />
         </Box>
@@ -130,8 +136,8 @@ const CategoryUngroupedRowComponent = ({
             <CategoryContextMenu
               type="ungrouped"
               onRename={startRename}
-              onHide={onHide}
-              onDelete={onDelete}
+              onHide={handleHide}
+              onDelete={handleDelete}
             />
           </Box>
         )}
@@ -141,7 +147,7 @@ const CategoryUngroupedRowComponent = ({
       <Box display={{ base: "block", sm: "none" }} px={3} pb={2}>
         <WeightPresetStrip
           value={weight}
-          onChange={onWeightChange}
+          onChange={handleWeightChange}
           isOverridden={false}
         />
       </Box>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Flex, Text, Badge, Box, Input, Checkbox } from "@chakra-ui/react";
 import { LuX } from "react-icons/lu";
 import { Category } from "@/lib/types";
@@ -14,14 +14,14 @@ interface CategoryChildRowProps {
   isOverridden: boolean;
   parentWeight: string;
   isNew?: boolean;
-  onWeightChange: (weight: string) => void;
-  onResetWeight?: () => void;
-  onHide: () => void;
-  onBadgeDismiss?: () => void;
-  onRename: (newName: string) => void;
-  onDelete: () => void;
+  onWeightChange: (categoryId: number, weight: string) => void;
+  onResetWeight: (categoryId: number) => void;
+  onHide: (categoryId: number) => void;
+  onBadgeDismiss: (categoryId: number) => void;
+  onRename: (categoryId: number, newName: string) => void;
+  onDelete: (categoryId: number) => void;
   isSelected: boolean;
-  onToggleSelection: () => void;
+  onToggleSelection: (id: number) => void;
 }
 
 const CategoryChildRowComponent = ({
@@ -38,8 +38,15 @@ const CategoryChildRowComponent = ({
   isSelected,
   onToggleSelection,
 }: CategoryChildRowProps) => {
+  const handleRename = useCallback((newName: string) => onRename(category.id, newName), [category.id, onRename]);
+  const handleWeightChange = useCallback((weight: string) => onWeightChange(category.id, weight), [category.id, onWeightChange]);
+  const handleResetWeight = useCallback(() => onResetWeight(category.id), [category.id, onResetWeight]);
+  const handleHide = useCallback(() => onHide(category.id), [category.id, onHide]);
+  const handleDelete = useCallback(() => onDelete(category.id), [category.id, onDelete]);
+  const handleBadgeDismiss = useCallback(() => onBadgeDismiss(category.id), [category.id, onBadgeDismiss]);
+
   const { isRenaming, renameValue, setRenameValue, startRename, handleSubmit, handleCancel, inputRef } =
-    useRenameState(category.display_name, onRename);
+    useRenameState(category.display_name, handleRename);
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -64,7 +71,7 @@ const CategoryChildRowComponent = ({
           <Checkbox.Root
             size="sm"
             checked={isSelected}
-            onCheckedChange={() => onToggleSelection()}
+            onCheckedChange={() => onToggleSelection(category.id)}
           >
             <Checkbox.HiddenInput />
             <Checkbox.Control />
@@ -100,7 +107,7 @@ const CategoryChildRowComponent = ({
             cursor="pointer"
             onClick={(e) => {
               e.stopPropagation();
-              onBadgeDismiss?.();
+              handleBadgeDismiss();
             }}
           >
             <Flex alignItems="center" gap={0}>
@@ -125,9 +132,9 @@ const CategoryChildRowComponent = ({
         <Box display={{ base: "none", sm: "block" }}>
           <WeightPresetStrip
             value={weight}
-            onChange={onWeightChange}
+            onChange={handleWeightChange}
             isOverridden={isOverridden}
-            onReset={onResetWeight}
+            onReset={handleResetWeight}
           />
         </Box>
 
@@ -136,10 +143,10 @@ const CategoryChildRowComponent = ({
             <CategoryContextMenu
               type="child"
               isWeightOverridden={isOverridden}
-              onResetWeight={onResetWeight}
+              onResetWeight={handleResetWeight}
               onRename={startRename}
-              onHide={onHide}
-              onDelete={onDelete}
+              onHide={handleHide}
+              onDelete={handleDelete}
             />
           </Box>
         )}
@@ -149,9 +156,9 @@ const CategoryChildRowComponent = ({
       <Box display={{ base: "block", sm: "none" }} px={3} pb={2}>
         <WeightPresetStrip
           value={weight}
-          onChange={onWeightChange}
+          onChange={handleWeightChange}
           isOverridden={isOverridden}
-          onReset={onResetWeight}
+          onReset={handleResetWeight}
         />
       </Box>
     </Box>
