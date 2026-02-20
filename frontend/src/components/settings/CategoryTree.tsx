@@ -67,13 +67,13 @@ const CategoryTreeComponent = ({
               category={parent}
               weight={parentWeight}
               childCount={children.length}
-              onWeightChange={(weight) => onWeightChange(parent.id, weight)}
-              onRename={(newName) => onRename(parent.id, newName)}
-              onDelete={() => onDelete(parent.id)}
-              onUngroup={() => onUngroup(parent.id)}
-              onHide={() => onHide(parent.id)}
+              onWeightChange={onWeightChange}
+              onRename={onRename}
+              onDelete={onDelete}
+              onUngroup={onUngroup}
+              onHide={onHide}
               isExpanded={isExpanded}
-              onToggleExpand={() => onToggleParent(parent.id)}
+              onToggleExpand={onToggleParent}
               newChildCount={newChildCount}
               onDismissNewChildren={() => {
                 const newChildIds = children
@@ -123,14 +123,14 @@ const CategoryTreeComponent = ({
                               isOverridden={isOverridden}
                               parentWeight={parentWeight}
                               isNew={newCategoryIds.has(child.id)}
-                              onWeightChange={(weight) => onWeightChange(child.id, weight)}
-                              onResetWeight={() => onResetWeight(child.id)}
-                              onHide={() => onHide(child.id)}
-                              onBadgeDismiss={() => onBadgeDismiss(child.id)}
-                              onRename={(newName) => onRename(child.id, newName)}
-                              onDelete={() => onDelete(child.id)}
+                              onWeightChange={onWeightChange}
+                              onResetWeight={onResetWeight}
+                              onHide={onHide}
+                              onBadgeDismiss={onBadgeDismiss}
+                              onRename={onRename}
+                              onDelete={onDelete}
                               isSelected={selectedIds.has(child.id)}
-                              onToggleSelection={() => onToggleSelection(child.id)}
+                              onToggleSelection={onToggleSelection}
                             />
                           </Box>
                         );
@@ -154,12 +154,12 @@ const CategoryTreeComponent = ({
             weight={weight}
             isNew={newCategoryIds.has(category.id)}
             isSelected={selectedIds.has(category.id)}
-            onWeightChange={(w) => onWeightChange(category.id, w)}
-            onHide={() => onHide(category.id)}
-            onBadgeDismiss={() => onBadgeDismiss(category.id)}
-            onToggleSelection={() => onToggleSelection(category.id)}
-            onRename={(newName) => onRename(category.id, newName)}
-            onDelete={() => onDelete(category.id)}
+            onWeightChange={onWeightChange}
+            onHide={onHide}
+            onBadgeDismiss={onBadgeDismiss}
+            onToggleSelection={onToggleSelection}
+            onRename={onRename}
+            onDelete={onDelete}
           />
         );
       })}
