@@ -2,19 +2,23 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-14)
+See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** Surface interesting articles and hide noise automatically via local LLM curation
-**Current focus:** Phase 9.1 - Backend Codebase Evaluation & Simplification
+**Current focus:** v1.1 milestone — Phase 10 (LLM Feedback Loop) remaining
 
 ## Current Position
 
-Phase: 9.1 of 10 (Backend Codebase Evaluation & Simplification)
-Plan: 4 of 4 complete
-Status: Phase Complete
-Last activity: 2026-02-20 - Completed Phase 09.1 Plan 04 (Query Optimization, SRP, Tests)
+Milestone: v1.1 Configuration, Feedback & Polish
+Phase: 9.1 complete, Phase 10 not started
+Status: Milestone audit complete (gaps_found — Phase 10 pending)
+Last activity: 2026-02-20 - v1.0 milestone archived, v1.1 audit completed
 
-Progress: [██████████] 100% (4/4 plans in Phase 09.1)
+Progress: [████████░░] 80% (8/9 v1.1 phases complete, Phase 10 remaining)
+
+## Milestone History
+
+- v1.0 MVP: SHIPPED 2026-02-14 (archived to milestones/)
 
 ## Performance Metrics
 
@@ -284,4 +288,4 @@ Resume file: N/A (phase complete)
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-20 after Phase 09.1 Plan 03 execution*
+*Last updated: 2026-02-20 after v1.0 milestone completion*
