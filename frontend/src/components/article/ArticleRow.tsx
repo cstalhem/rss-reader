@@ -4,7 +4,7 @@ import React from "react";
 import { Box, Flex, Text, Spinner } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { LuClock } from "react-icons/lu";
-import { Article } from "@/lib/types";
+import { ArticleListItem } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
 import { HIGH_SCORE_THRESHOLD } from "@/lib/constants";
 import { TagChip } from "./TagChip";
@@ -25,10 +25,10 @@ const scoreReveal = keyframes`
 `;
 
 interface ArticleRowProps {
-  article: Article;
+  article: ArticleListItem;
   feedName?: string;
-  onSelect: (article: Article) => void;
-  onToggleRead: (article: Article) => void;
+  onSelect: (article: ArticleListItem) => void;
+  onToggleRead: (article: ArticleListItem) => void;
   isCompleting?: boolean;
   scoringPhase?: string;
 }

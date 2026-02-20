@@ -9,21 +9,22 @@ import {
   Link,
   Drawer,
   Separator,
+  Spinner,
 } from "@chakra-ui/react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Article } from "@/lib/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArticleListItem } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
-import { updateCategory as apiUpdateCategory } from "@/lib/api";
+import { fetchArticle, updateCategory as apiUpdateCategory } from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
 import { useAutoMarkAsRead } from "@/hooks/useAutoMarkAsRead";
 import { TagChip } from "./TagChip";
 import { ScoreBadge } from "./ScoreBadge";
 
 interface ArticleReaderProps {
-  article: Article | null;
-  articles: Article[];
+  article: ArticleListItem | null;
+  articles: ArticleListItem[];
   onClose: () => void;
-  onNavigate: (article: Article) => void;
+  onNavigate: (article: ArticleListItem) => void;
 }
 
 export function ArticleReader({
@@ -33,6 +34,13 @@ export function ArticleReader({
   onNavigate,
 }: ArticleReaderProps) {
   const isOpen = article !== null;
+
+  // Fetch full article content on demand
+  const { data: fullArticle, isLoading: isLoadingContent } = useQuery({
+    queryKey: queryKeys.articles.detail(article?.id ?? 0),
+    queryFn: () => fetchArticle(article!.id),
+    enabled: !!article,
+  });
 
   // Trigger auto-mark as read when article is displayed
   useAutoMarkAsRead(article?.id ?? 0, article?.is_read ?? true);
@@ -72,7 +80,8 @@ export function ArticleReader({
 
   if (!article) return null;
 
-  const contentHtml = article.content || article.summary || "";
+  // Use full article content when available, fall back to empty while loading
+  const contentHtml = fullArticle?.content || fullArticle?.summary || "";
 
   return (
     <Drawer.Root
@@ -188,7 +197,7 @@ export function ArticleReader({
                       </>
                     )}
                   </Flex>
-                  {article.score_reasoning && (
+                  {fullArticle?.score_reasoning && (
                     <Text
                       mt={2}
                       fontSize="sm"
@@ -196,7 +205,7 @@ export function ArticleReader({
                       fontStyle="italic"
                       lineHeight="1.6"
                     >
-                      {article.score_reasoning}
+                      {fullArticle.score_reasoning}
                     </Text>
                   )}
                 </Box>
@@ -230,79 +239,85 @@ export function ArticleReader({
             </Flex>
 
             {/* Article body */}
-            <Box
-              textStyle="reader"
-              maxW="680px"
-              mx="auto"
-              css={{
-                "& img": {
-                  maxWidth: "100%",
-                  height: "auto",
-                  maxHeight: "600px",
-                  objectFit: "contain",
-                  borderRadius: "md",
-                  my: 4,
-                },
-                "& a": {
-                  textDecoration: "underline",
-                },
-                "& h1, & h2, & h3, & h4, & h5, & h6": {
-                  fontWeight: "600",
-                  mt: 6,
-                  mb: 3,
-                  lineHeight: "1.3",
-                },
-                "& h1": { fontSize: "2xl" },
-                "& h2": { fontSize: "xl" },
-                "& h3": { fontSize: "lg" },
-                "& p": {
-                  mb: 5,
-                  lineHeight: "1.85",
-                },
-                "& ul, & ol": {
-                  pl: 6,
-                  mb: 4,
-                },
-                "& li": {
-                  mb: 2,
-                },
-                "& blockquote": {
-                  borderLeftWidth: "4px",
-                  borderColor: "border.emphasized",
-                  pl: 4,
-                  py: 2,
-                  my: 4,
-                  fontStyle: "italic",
-                  color: "fg.muted",
-                },
-                "& pre": {
-                  bg: "bg.code",
-                  p: 5,
-                  borderRadius: "lg",
-                  overflowX: "auto",
-                  my: 5,
-                  borderWidth: "1px",
-                  borderColor: "border.subtle",
-                },
-                "& code": {
-                  fontFamily: "mono",
-                  fontSize: "0.875em",
-                  lineHeight: "1.6",
-                },
-                "& pre code": {
-                  bg: "transparent",
-                  p: 0,
-                },
-                "& :not(pre) > code": {
-                  bg: "bg.emphasized",
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: "sm",
-                  fontSize: "0.875em",
-                },
-              }}
-              dangerouslySetInnerHTML={{ __html: contentHtml }}
-            />
+            {isLoadingContent ? (
+              <Flex justifyContent="center" py={12}>
+                <Spinner size="lg" colorPalette="accent" />
+              </Flex>
+            ) : (
+              <Box
+                textStyle="reader"
+                maxW="680px"
+                mx="auto"
+                css={{
+                  "& img": {
+                    maxWidth: "100%",
+                    height: "auto",
+                    maxHeight: "600px",
+                    objectFit: "contain",
+                    borderRadius: "md",
+                    my: 4,
+                  },
+                  "& a": {
+                    textDecoration: "underline",
+                  },
+                  "& h1, & h2, & h3, & h4, & h5, & h6": {
+                    fontWeight: "600",
+                    mt: 6,
+                    mb: 3,
+                    lineHeight: "1.3",
+                  },
+                  "& h1": { fontSize: "2xl" },
+                  "& h2": { fontSize: "xl" },
+                  "& h3": { fontSize: "lg" },
+                  "& p": {
+                    mb: 5,
+                    lineHeight: "1.85",
+                  },
+                  "& ul, & ol": {
+                    pl: 6,
+                    mb: 4,
+                  },
+                  "& li": {
+                    mb: 2,
+                  },
+                  "& blockquote": {
+                    borderLeftWidth: "4px",
+                    borderColor: "border.emphasized",
+                    pl: 4,
+                    py: 2,
+                    my: 4,
+                    fontStyle: "italic",
+                    color: "fg.muted",
+                  },
+                  "& pre": {
+                    bg: "bg.code",
+                    p: 5,
+                    borderRadius: "lg",
+                    overflowX: "auto",
+                    my: 5,
+                    borderWidth: "1px",
+                    borderColor: "border.subtle",
+                  },
+                  "& code": {
+                    fontFamily: "mono",
+                    fontSize: "0.875em",
+                    lineHeight: "1.6",
+                  },
+                  "& pre code": {
+                    bg: "transparent",
+                    p: 0,
+                  },
+                  "& :not(pre) > code": {
+                    bg: "bg.emphasized",
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: "sm",
+                    fontSize: "0.875em",
+                  },
+                }}
+                dangerouslySetInnerHTML={{ __html: contentHtml }}
+              />
+            )}
           </Drawer.Body>
         </Drawer.Content>
       </Drawer.Positioner>

@@ -2,6 +2,7 @@ export const queryKeys = {
   articles: {
     all: ["articles"] as const,
     list: (filters: Record<string, unknown>) => ["articles", filters] as const,
+    detail: (id: number) => ["articles", "detail", id] as const,
   },
   feeds: {
     all: ["feeds"] as const,

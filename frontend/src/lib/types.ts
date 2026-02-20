@@ -38,6 +38,9 @@ export interface Article {
   scored_at: string | null;
 }
 
+/** Lightweight article for list views (no content/summary/score_reasoning). */
+export type ArticleListItem = Omit<Article, "content" | "summary" | "score_reasoning">;
+
 export interface Feed {
   id: number;
   url: string;

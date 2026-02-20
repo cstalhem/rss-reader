@@ -1,5 +1,6 @@
 import {
   Article,
+  ArticleListItem,
   Category,
   Feed,
   UserPreferences,
@@ -18,7 +19,7 @@ export const API_BASE_URL =
 
 export async function fetchArticles(
   params: FetchArticlesParams = {}
-): Promise<Article[]> {
+): Promise<ArticleListItem[]> {
   const searchParams = new URLSearchParams();
 
   if (params.skip !== undefined) {

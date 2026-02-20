@@ -2,7 +2,7 @@
 
 import { useRef, useState, useLayoutEffect } from "react";
 import { fetchArticle } from "@/lib/api";
-import { Article } from "@/lib/types";
+import { ArticleListItem } from "@/lib/types";
 
 const COMPLETING_ARTICLE_DURATION = 3_000;
 
@@ -20,13 +20,13 @@ const COMPLETING_ARTICLE_DURATION = 3_000;
  * Uses useLayoutEffect to detect disappearances before the browser paints.
  */
 export function useCompletingArticles(
-  currentArticles: Article[] | undefined,
+  currentArticles: ArticleListItem[] | undefined,
   isActive: boolean
 ) {
   const prevOrderRef = useRef<number[]>([]);
-  const prevDataRef = useRef<Map<number, Article>>(new Map());
+  const prevDataRef = useRef<Map<number, ArticleListItem>>(new Map());
   const detectedRef = useRef<Set<number>>(new Set());
-  const [completing, setCompleting] = useState<Map<number, Article>>(new Map());
+  const [completing, setCompleting] = useState<Map<number, ArticleListItem>>(new Map());
 
   useLayoutEffect(() => {
     if (!isActive || !currentArticles) {
@@ -91,14 +91,14 @@ export function useCompletingArticles(
   // Build merged display list preserving original positions
   const completingIds = new Set(completing.keys());
 
-  let displayArticles: Article[] | undefined;
+  let displayArticles: ArticleListItem[] | undefined;
   if (!currentArticles) {
     displayArticles = completing.size > 0 ? Array.from(completing.values()) : undefined;
   } else if (completing.size === 0) {
     displayArticles = currentArticles;
   } else {
     const currentMap = new Map(currentArticles.map((a) => [a.id, a]));
-    const result: Article[] = [];
+    const result: ArticleListItem[] = [];
 
     // Walk stored order to preserve positions
     for (const id of prevOrderRef.current) {

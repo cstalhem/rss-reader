@@ -13,7 +13,7 @@ import { ArticleRow } from "./ArticleRow";
 import { ArticleRowSkeleton } from "./ArticleRowSkeleton";
 import { ArticleReader } from "./ArticleReader";
 import { SortSelect } from "./SortSelect";
-import { Article } from "@/lib/types";
+import { ArticleListItem } from "@/lib/types";
 import { parseSortOption } from "@/lib/utils";
 
 interface ArticleListProps {
@@ -24,7 +24,7 @@ type FilterTab = "unread" | "all" | "scoring" | "blocked";
 
 export function ArticleList({ selectedFeedId }: ArticleListProps) {
   const [filter, setFilter] = useState<FilterTab>("unread");
-  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [selectedArticle, setSelectedArticle] = useState<ArticleListItem | null>(null);
   const { sortOption, setSortOption } = useSortPreference();
   const { data: scoringStatus } = useScoringStatus();
 
@@ -71,14 +71,14 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
     return map;
   }, [feeds]);
 
-  const handleToggleRead = (article: Article) => {
+  const handleToggleRead = (article: ArticleListItem) => {
     markAsRead.mutate({
       articleId: article.id,
       isRead: !article.is_read,
     });
   };
 
-  const handleSelect = (article: Article) => {
+  const handleSelect = (article: ArticleListItem) => {
     setSelectedArticle(article);
   };
 
