@@ -1,9 +1,6 @@
 "use client";
 
-import { Box, Flex, Input, Skeleton, Stack, Text } from "@chakra-ui/react";
-import { CategoryActionBar } from "./CategoryActionBar";
-
-const noop = () => {};
+import { Box, Flex, Skeleton, Stack } from "@chakra-ui/react";
 
 function ParentGroupSkeleton({
   nameWidth,
@@ -44,7 +41,7 @@ function ParentGroupSkeleton({
   );
 }
 
-function TreeSkeleton() {
+export function CategoriesTreeSkeleton() {
   return (
     <Stack gap={1}>
       <ParentGroupSkeleton nameWidth="140px" childWidths={["120px", "90px"]} />
@@ -60,32 +57,6 @@ function TreeSkeleton() {
         <Skeleton variant="shine" boxSize="16px" borderRadius="sm" />
         <Skeleton variant="shine" height="14px" width="95px" />
       </Flex>
-    </Stack>
-  );
-}
-
-export function CategoriesTreeSkeleton({ withShell = false }: { withShell?: boolean }) {
-  if (!withShell) return <TreeSkeleton />;
-
-  return (
-    <Stack gap={6}>
-      <Flex alignItems="center" gap={2}>
-        <Text fontSize="xl" fontWeight="semibold">
-          Topic Categories
-        </Text>
-      </Flex>
-
-      <CategoryActionBar
-        selectedCount={0}
-        onMoveToGroup={noop}
-        onUngroup={noop}
-        onHide={noop}
-        onDelete={noop}
-      />
-
-      <Input placeholder="Filter categories..." size="sm" disabled />
-
-      <TreeSkeleton />
     </Stack>
   );
 }

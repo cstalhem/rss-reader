@@ -1,6 +1,6 @@
 ---
 name: react-hooks
-description: React hook patterns — key prop reset, controlled components, async data initialization, custom hook extraction, React.memo, and useEffect anti-patterns
+description: React hook patterns — key prop reset, controlled components, async data init, useDeferredValue vs useTransition, React.memo, useEffect anti-patterns
 ---
 
 # React Hooks
@@ -111,6 +111,58 @@ export function useRenameState(
 ```
 
 **Extraction criteria:** The pattern must be truly identical across consumers — same state shape, same handlers, same side effects. If consumers need different behaviors, parameterize via callback props (like `onRename`) rather than adding config flags.
+
+### `useDeferredValue` vs `useTransition` for Deferred Rendering
+
+Both defer expensive renders, but they control different things:
+
+- **`useDeferredValue(value)`** — defers the *read*. Urgent readers (e.g., sidebar highlighting) see the new value instantly; expensive readers (e.g., content area) lag behind with the old value. Use when different parts of the UI need different urgency from the same state.
+- **`useTransition`** — defers the *write*. All readers see the old value until the transition completes. Use for self-contained deferred work within a component.
+
+**When the expensive component is a child mounting on tab switch**, prefer `useTransition` inside the child over `useDeferredValue` in the parent:
+
+```tsx
+// GOOD — component owns its loading story
+function CategoriesSection() {
+  const { isLoading } = useCategories();
+  const [treeReady, setTreeReady] = useState(false);
+  const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    startTransition(() => setTreeReady(true));
+  }, [startTransition]);
+
+  return (
+    <Stack>
+      {/* Shell renders instantly — real title, badge, action bar, search */}
+      <Header />
+      <ActionBar />
+      <SearchInput />
+      {isLoading || !treeReady ? <Skeleton /> : <ExpensiveTree />}
+    </Stack>
+  );
+}
+
+// BAD — parent duplicates child's shell for skeleton
+function Page() {
+  const deferred = useDeferredValue(activeSection);
+  const isPending = activeSection !== deferred;
+
+  // Parent must maintain a fake shell copy that drifts from reality
+  {isPending && activeSection === "categories" ? (
+    <CategoriesShellSkeleton /> // missing badge, noop handlers, disabled inputs
+  ) : (
+    <CategoriesSection />
+  )}
+}
+```
+
+**How the `useTransition` on-mount pattern works:**
+1. Component mounts with `treeReady=false` → shell + skeleton paints (~50ms)
+2. `useEffect` fires after paint, wraps `setTreeReady(true)` in `startTransition`
+3. React renders the heavy tree in the background, shell stays visible and responsive
+4. When ready, React swaps in the real tree
+5. Handles both cold cache (`isLoading=true`) and warm cache (`isLoading=false`, `treeReady=false`)
 
 ### `React.memo` on List Item Components
 

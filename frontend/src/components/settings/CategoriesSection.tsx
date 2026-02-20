@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { Badge, Box, Flex, Stack, Text, Input } from "@chakra-ui/react";
 import { LuTag } from "react-icons/lu";
 import { useCategories } from "@/hooks/useCategories";
@@ -32,6 +32,14 @@ export function CategoriesSection() {
     batchDeleteMutation,
     ungroupParentMutation,
   } = useCategories();
+
+  // Defer heavy tree render so the shell (title, action bar, search) paints instantly
+  const [treeReady, setTreeReady] = useState(false);
+  const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    startTransition(() => setTreeReady(true));
+  }, [startTransition]);
 
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -387,7 +395,7 @@ export function CategoriesSection() {
       />
 
       {/* Category tree */}
-      {isLoading ? (
+      {isLoading || !treeReady ? (
         <CategoriesTreeSkeleton />
       ) : (
         <CategoryTree
@@ -468,7 +476,7 @@ export function CategoriesSection() {
       />
 
       {/* Hidden categories section */}
-      {!isLoading && (
+      {!isLoading && treeReady && (
         <HiddenCategoriesSection
           hiddenCategories={hiddenCategories}
           onUnhide={handleUnhideCategory}
