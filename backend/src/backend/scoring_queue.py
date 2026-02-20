@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 
 from backend.config import get_settings
 from backend.models import Article, ArticleCategoryLink, Category, UserPreferences
+from backend.ollama_service import check_health, list_models
 from backend.scoring import (
     categorize_article,
     compute_composite_score,
@@ -105,6 +106,43 @@ class ScoringQueue:
         Returns:
             Number of articles processed
         """
+        # Guard: skip batch if Ollama is down or required models missing
+        health = await check_health(settings.ollama.host)
+        if not health["connected"]:
+            logger.warning("Scoring skipped: Ollama not connected")
+            return 0
+
+        try:
+            models_resp = await list_models(settings.ollama.host)
+            installed_names = {m["name"] for m in models_resp}
+        except Exception:
+            logger.warning("Scoring skipped: could not list Ollama models")
+            return 0
+
+        # Resolve required model names from preferences/config
+        preferences_for_guard = session.exec(select(UserPreferences)).first()
+        cat_model = (
+            (preferences_for_guard.ollama_categorization_model if preferences_for_guard else None)
+            or settings.ollama.categorization_model
+        )
+        if preferences_for_guard and preferences_for_guard.ollama_use_separate_models:
+            score_model = (
+                preferences_for_guard.ollama_scoring_model
+                or settings.ollama.scoring_model
+            )
+        else:
+            score_model = cat_model
+
+        missing = []
+        for model_name in {cat_model, score_model}:
+            if model_name not in installed_names:
+                missing.append(model_name)
+        if missing:
+            logger.warning(
+                "Scoring skipped: model(s) not available: %s", ", ".join(missing)
+            )
+            return 0
+
         # Get next batch -- priority articles first, then oldest
         articles = session.exec(
             select(Article)

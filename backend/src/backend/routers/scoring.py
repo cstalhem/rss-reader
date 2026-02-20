@@ -3,8 +3,10 @@
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, func, select
 
+from backend.config import get_settings
 from backend.deps import get_session
-from backend.models import Article
+from backend.models import Article, UserPreferences
+from backend.ollama_service import check_health, list_models
 
 router = APIRouter(prefix="/api/scoring", tags=["scoring"])
 
@@ -21,11 +23,13 @@ def trigger_rescore(
 
 
 @router.get("/status")
-def get_scoring_status(
+async def get_scoring_status(
     session: Session = Depends(get_session),
 ):
-    """Get counts of articles by scoring state, plus live activity phase."""
+    """Get counts of articles by scoring state, plus live activity and readiness."""
     from backend.scoring import get_scoring_activity
+
+    settings = get_settings()
 
     # Single GROUP BY query replaces 5 separate COUNT queries
     state_rows = session.exec(
@@ -56,5 +60,46 @@ def get_scoring_status(
     activity = get_scoring_activity()
     counts["current_article_id"] = activity["article_id"]
     counts["phase"] = activity["phase"]
+
+    # Readiness check: Ollama connected + required models available
+    scoring_ready = False
+    scoring_ready_reason: str | None = None
+
+    try:
+        health = await check_health(settings.ollama.host)
+        if not health["connected"]:
+            scoring_ready_reason = "Scoring paused — Ollama is not running"
+        else:
+            models_resp = await list_models(settings.ollama.host)
+            installed_names = {m["name"] for m in models_resp}
+
+            # Resolve required model names
+            prefs = session.exec(select(UserPreferences)).first()
+            cat_model = (
+                (prefs.ollama_categorization_model if prefs else None)
+                or settings.ollama.categorization_model
+            )
+            if prefs and prefs.ollama_use_separate_models:
+                score_model = (
+                    prefs.ollama_scoring_model or settings.ollama.scoring_model
+                )
+            else:
+                score_model = cat_model
+
+            missing = [m for m in {cat_model, score_model} if m not in installed_names]
+            if missing:
+                names = ", ".join(missing)
+                scoring_ready_reason = (
+                    f"Scoring paused — model {names} is not downloaded"
+                    if len(missing) == 1
+                    else f"Scoring paused — models {names} are not downloaded"
+                )
+            else:
+                scoring_ready = True
+    except Exception:
+        scoring_ready_reason = "Scoring paused — Ollama is not running"
+
+    counts["scoring_ready"] = scoring_ready
+    counts["scoring_ready_reason"] = scoring_ready_reason
 
     return counts

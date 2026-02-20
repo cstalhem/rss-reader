@@ -97,6 +97,8 @@ export interface ScoringStatus {
   blocked: number;
   current_article_id: number | null;
   phase: string;
+  scoring_ready: boolean;
+  scoring_ready_reason: string | null;
 }
 
 export interface DownloadStatus {

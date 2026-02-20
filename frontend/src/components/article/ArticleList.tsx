@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Box, Flex, Button, Text, Icon } from "@chakra-ui/react";
-import { LuCheckCheck, LuInbox, LuClock, LuBan } from "react-icons/lu";
+import { Alert, Box, Flex, Button, Text, Icon } from "@chakra-ui/react";
+import { LuCheckCheck, LuInbox, LuClock, LuBan, LuBrainCog } from "react-icons/lu";
 import { useArticles, useMarkAsRead } from "@/hooks/useArticles";
 import { useMarkAllRead } from "@/hooks/useFeedMutations";
 import { useFeeds } from "@/hooks/useFeeds";
@@ -119,6 +119,16 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
 
   return (
     <Box>
+      {/* Scoring readiness warning */}
+      {scoringStatus?.scoring_ready === false && scoringStatus.scoring_ready_reason && (
+        <Alert.Root status="warning" variant="surface" size="sm">
+          <Alert.Indicator>
+            <LuBrainCog />
+          </Alert.Indicator>
+          <Alert.Title fontSize="xs">{scoringStatus.scoring_ready_reason}</Alert.Title>
+        </Alert.Root>
+      )}
+
       {/* Top bar with filter tabs, sort, and count */}
       <Flex
         px={4}
