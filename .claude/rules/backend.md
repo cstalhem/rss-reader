@@ -23,6 +23,7 @@ paths: ["backend/**"]
 ## Dependencies & Background Jobs
 
 - **feedparser** for RSS/Atom parsing. **APScheduler** for background jobs (feed refresh, scoring queue).
+- `ollama.AsyncClient` is NOT an async context manager — use `client = AsyncClient(...)` directly, never `async with`.
 
 ## Configuration
 
