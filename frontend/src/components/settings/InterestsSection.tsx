@@ -112,7 +112,7 @@ export function InterestsSection() {
   }
 
   return (
-    <Stack gap={6}>
+    <Stack as="section" aria-label="Interests" gap={6}>
       <Text fontSize="xl" fontWeight="semibold">
         Interest Preferences
       </Text>

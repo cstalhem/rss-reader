@@ -48,6 +48,7 @@ export const ArticleRow = React.memo(function ArticleRow({
 
   return (
     <Flex
+      as="article"
       py={3}
       px={4}
       gap={3}

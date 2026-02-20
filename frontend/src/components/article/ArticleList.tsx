@@ -197,7 +197,7 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
         </Box>
       ) : displayArticles && displayArticles.length > 0 ? (
         <>
-          <Box>
+          <Box as="section" aria-label="Article list">
             {displayArticles.map((article) => (
               <ArticleRow
                 key={article.id}

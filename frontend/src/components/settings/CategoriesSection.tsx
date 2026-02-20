@@ -363,7 +363,7 @@ export function CategoriesSection() {
   }
 
   return (
-    <Stack gap={6} pb={{ base: selectedIds.size > 0 ? 16 : 0, sm: 0 }}>
+    <Stack as="section" aria-label="Categories" gap={6} pb={{ base: selectedIds.size > 0 ? 16 : 0, sm: 0 }}>
       {/* Header with title and new badge */}
       <Flex alignItems="center" gap={2}>
         <Text fontSize="xl" fontWeight="semibold">

@@ -169,7 +169,7 @@ export function FeedsSection() {
   };
 
   return (
-    <Box>
+    <Box as="section" aria-label="Feed management">
       <Flex alignItems="center" justifyContent="space-between" mb={6}>
         <Text fontSize="lg" fontWeight="semibold">
           Feeds
