@@ -139,22 +139,22 @@ async def categorize_article(
         write=30.0, pool=10.0,
     )
 
-    async with AsyncClient(host=settings.ollama.host, timeout=timeout) as client:
-        # Use streaming to prevent httpx.ReadTimeout on slower models
-        content = ""
-        async for chunk in await client.chat(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            format=CategoryResponse.model_json_schema(),
-            options={"temperature": 0},
-            stream=True,
-            think=True if settings.ollama.thinking else None,
-        ):
-            if chunk["message"].get("thinking"):
-                _scoring_activity["phase"] = "thinking"
-            if chunk["message"].get("content"):
-                _scoring_activity["phase"] = "categorizing"
-            content += chunk["message"].get("content") or ""
+    client = AsyncClient(host=settings.ollama.host, timeout=timeout)
+    # Use streaming to prevent httpx.ReadTimeout on slower models
+    content = ""
+    async for chunk in await client.chat(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+        format=CategoryResponse.model_json_schema(),
+        options={"temperature": 0},
+        stream=True,
+        think=True if settings.ollama.thinking else None,
+    ):
+        if chunk["message"].get("thinking"):
+            _scoring_activity["phase"] = "thinking"
+        if chunk["message"].get("content"):
+            _scoring_activity["phase"] = "categorizing"
+        content += chunk["message"].get("content") or ""
 
     # Parse accumulated structured response
     result = CategoryResponse.model_validate_json(content)
@@ -205,22 +205,22 @@ async def score_article(
         write=30.0, pool=10.0,
     )
 
-    async with AsyncClient(host=settings.ollama.host, timeout=timeout) as client:
-        # Use streaming to prevent httpx.ReadTimeout on slower models
-        content = ""
-        async for chunk in await client.chat(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            format=ScoringResponse.model_json_schema(),
-            options={"temperature": 0},
-            stream=True,
-            think=True if settings.ollama.thinking else None,
-        ):
-            if chunk["message"].get("thinking"):
-                _scoring_activity["phase"] = "thinking"
-            if chunk["message"].get("content"):
-                _scoring_activity["phase"] = "scoring"
-            content += chunk["message"].get("content") or ""
+    client = AsyncClient(host=settings.ollama.host, timeout=timeout)
+    # Use streaming to prevent httpx.ReadTimeout on slower models
+    content = ""
+    async for chunk in await client.chat(
+        model=model,
+        messages=[{"role": "user", "content": prompt}],
+        format=ScoringResponse.model_json_schema(),
+        options={"temperature": 0},
+        stream=True,
+        think=True if settings.ollama.thinking else None,
+    ):
+        if chunk["message"].get("thinking"):
+            _scoring_activity["phase"] = "thinking"
+        if chunk["message"].get("content"):
+            _scoring_activity["phase"] = "scoring"
+        content += chunk["message"].get("content") or ""
 
     # Parse accumulated structured response
     result = ScoringResponse.model_validate_json(content)

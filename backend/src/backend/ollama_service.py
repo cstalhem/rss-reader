@@ -60,9 +60,9 @@ async def list_models(host: str) -> list[dict]:
         quantization_level, and is_loaded fields.
     """
     timeout = httpx.Timeout(connect=OLLAMA_CONNECT_TIMEOUT, read=OLLAMA_MGMT_READ_TIMEOUT)
-    async with AsyncClient(host=host, timeout=timeout) as client:
-        models_resp = await client.list()
-        ps_resp = await client.ps()
+    client = AsyncClient(host=host, timeout=timeout)
+    models_resp = await client.list()
+    ps_resp = await client.ps()
 
     loaded_names = {m.model for m in ps_resp.models}
 
@@ -104,36 +104,36 @@ async def pull_model_stream(host: str, model: str):
     )
 
     try:
-        async with AsyncClient(host=host) as client:
-            async for chunk in await client.pull(model, stream=True):
-                if _cancel_requested:
-                    _cancel_requested = False
-                    raise asyncio.CancelledError("Download cancelled by user")
+        client = AsyncClient(host=host)
+        async for chunk in await client.pull(model, stream=True):
+            if _cancel_requested:
+                _cancel_requested = False
+                raise asyncio.CancelledError("Download cancelled by user")
 
-                # Check for error in chunk
-                if "error" in chunk:
-                    yield {"error": chunk["error"]}
-                    return
+            # Check for error in chunk
+            if "error" in chunk:
+                yield {"error": chunk["error"]}
+                return
 
-                status = chunk.get("status", "")
-                completed = chunk.get("completed", 0)
-                total = chunk.get("total", 0)
-                digest = chunk.get("digest", "")
+            status = chunk.get("status", "")
+            completed = chunk.get("completed", 0)
+            total = chunk.get("total", 0)
+            digest = chunk.get("digest", "")
 
-                _download_state.update(
-                    {
-                        "completed": completed,
-                        "total": total,
-                        "status": status,
-                    }
-                )
-
-                yield {
-                    "status": status,
+            _download_state.update(
+                {
                     "completed": completed,
                     "total": total,
-                    "digest": digest,
+                    "status": status,
                 }
+            )
+
+            yield {
+                "status": status,
+                "completed": completed,
+                "total": total,
+                "digest": digest,
+            }
     finally:
         _download_state.update(
             {
@@ -172,6 +172,6 @@ async def delete_model(host: str, model: str) -> dict:
         Dict with status "success".
     """
     timeout = httpx.Timeout(connect=OLLAMA_CONNECT_TIMEOUT, read=OLLAMA_MGMT_READ_TIMEOUT)
-    async with AsyncClient(host=host, timeout=timeout) as client:
-        await client.delete(model)
+    client = AsyncClient(host=host, timeout=timeout)
+    await client.delete(model)
     return {"status": "success"}
