@@ -52,23 +52,13 @@ export default function SettingsPage() {
               </Stack>
             </Box>
 
-            {/* Desktop: show active section only, keep all mounted to preserve state */}
+            {/* Desktop: mount only the active section */}
             <Box display={{ base: "none", md: "block" }}>
-              <Box display={activeSection === "feeds" ? "block" : "none"}>
-                <FeedsSection />
-              </Box>
-              <Box display={activeSection === "interests" ? "block" : "none"}>
-                <InterestsSection />
-              </Box>
-              <Box display={activeSection === "categories" ? "block" : "none"}>
-                <CategoriesSection />
-              </Box>
-              <Box display={activeSection === "ollama" ? "block" : "none"}>
-                <OllamaSection isVisible={activeSection === "ollama"} />
-              </Box>
-              <Box display={activeSection === "feedback" ? "block" : "none"}>
-                <FeedbackPlaceholder />
-              </Box>
+              {activeSection === "feeds" && <FeedsSection />}
+              {activeSection === "interests" && <InterestsSection />}
+              {activeSection === "categories" && <CategoriesSection />}
+              {activeSection === "ollama" && <OllamaSection isVisible={true} />}
+              {activeSection === "feedback" && <FeedbackPlaceholder />}
             </Box>
           </Box>
         </Flex>
