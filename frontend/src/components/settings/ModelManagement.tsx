@@ -100,10 +100,10 @@ function InstalledModelRow({
 
 const CURATED_MODELS = [
   { name: "qwen3:1.7b", size: "~1.0 GB", description: "Smallest, fast on CPU" },
-  { name: "qwen3:4b", size: "~2.5 GB", description: "Good balance" },
+  { name: "qwen3:4b", size: "~2.5 GB", description: "Good balance, best small structured output" },
+  { name: "phi4-mini", size: "~2.5 GB", description: "Microsoft, strong reasoning" },
   { name: "qwen3:8b", size: "~4.9 GB", description: "Strong accuracy" },
-  { name: "gemma3:4b", size: "~3.3 GB", description: "Google, good at classification" },
-  { name: "llama3.2:3b", size: "~2.0 GB", description: "Meta, efficient" },
+  { name: "gemma3:12b", size: "~8.1 GB", description: "Google, highest accuracy tier" },
 ];
 
 export function ModelManagement({
