@@ -1,7 +1,6 @@
 "use client";
 
 import { Badge } from "@chakra-ui/react";
-import { Tooltip } from "@/components/ui/tooltip";
 import { HIGH_SCORE_THRESHOLD } from "@/lib/constants";
 
 interface ScoreBadgeProps {
@@ -36,18 +35,17 @@ export function ScoreBadge({ score, scoringState, size = "sm" }: ScoreBadgeProps
   const fontSize = size === "sm" ? "xs" : "sm";
 
   return (
-    <Tooltip content={`Score: ${scoreDisplay}`}>
-      <Badge
-        colorPalette={colorPalette}
-        variant={variant}
-        fontSize={fontSize}
-        px={2}
-        py={0.5}
-        borderRadius="md"
-        fontWeight="semibold"
-      >
-        {scoreDisplay}
-      </Badge>
-    </Tooltip>
+    <Badge
+      aria-label={`Score: ${scoreDisplay}`}
+      colorPalette={colorPalette}
+      variant={variant}
+      fontSize={fontSize}
+      px={2}
+      py={0.5}
+      borderRadius="md"
+      fontWeight="semibold"
+    >
+      {scoreDisplay}
+    </Badge>
   );
 }
