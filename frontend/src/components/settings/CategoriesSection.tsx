@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { Badge, Box, Flex, Stack, Skeleton, Text, Input } from "@chakra-ui/react";
+import { Badge, Box, Flex, Stack, Text, Input } from "@chakra-ui/react";
 import { LuTag } from "react-icons/lu";
 import { useCategories } from "@/hooks/useCategories";
 import { Category } from "@/lib/types";
@@ -14,6 +14,7 @@ import { CreateCategoryPopover } from "./CreateCategoryPopover";
 import { DeleteCategoryDialog } from "./DeleteCategoryDialog";
 import { MoveToGroupDialog } from "./MoveToGroupDialog";
 import { HiddenCategoriesSection } from "./HiddenCategoriesSection";
+import { CategoriesTreeSkeleton } from "./CategoriesTreeSkeleton";
 
 export function CategoriesSection() {
   const {
@@ -321,11 +322,7 @@ export function CategoriesSection() {
   }, [selectedIds]);
 
   if (isLoading) {
-    return (
-      <Stack gap={4}>
-        <Skeleton height="200px" variant="shine" />
-      </Stack>
-    );
+    return <CategoriesTreeSkeleton />;
   }
 
   if (categories.length === 0) {
