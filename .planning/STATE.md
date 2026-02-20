@@ -253,7 +253,7 @@ Key architectural decisions carrying forward to v1.1:
 2. **Codebase evaluation and simplification phase** (area: general) — Thorough evaluation of codebase, architecture, and data models to surface simplifications and address technical debt (hard-coded values, duplicated logic, inconsistencies) while retaining all functionality
 3. **Fix Ollama client file descriptor leak** (area: backend, severity: blocker) — `scoring.py:categorize_article` creates a new `ollama.AsyncClient` per call without closing it, leaking httpx connections and SSL contexts. After ~60-70 articles the process hits `OSError: [Errno 24] Too many open files` and stops accepting connections. Fix: reuse a single client instance or properly close after each call.
 4. **Add category search tool for categorisation LLM** (area: backend) — Replace embedded category list in the categorisation prompt with an Ollama tool-use approach, letting the LLM search for existing categories/parents by keyword for accurate matching
-5. **Adopt article reader weight pattern in settings view** (area: ui) — Article reader tag chip weight changes are instant; settings WeightPresetStrip has a visible delay. Compare implementations and adopt the faster pattern.
+
 
 ### Blockers/Concerns
 
@@ -267,7 +267,7 @@ Key architectural decisions carrying forward to v1.1:
 | 9 | Consolidate Ollama disconnected state, split Model Library sub-sections, remove redundant SystemPrompts label | 2026-02-15 | 30be07b | [9-update-ollama-settings-panel-headings-se](./quick/9-update-ollama-settings-panel-headings-se/) |
 | 10 | Fix category drag-and-drop placeholder (destination detection) and badge dismiss X spacing/size/divider | 2026-02-16 | 0ffaebc | [10-fix-category-drag-and-drop-placeholder-a](./quick/10-fix-category-drag-and-drop-placeholder-a/) |
 | 11 | ~~Migrate all DnD from @dnd-kit to @hello-pangea/dnd~~ (reverted: collapsed accordion drop targets incompatible) | 2026-02-17 | 34908f2 | [11-migrate-drag-and-drop-from-dnd-kit-to-he](./quick/11-migrate-drag-and-drop-from-dnd-kit-to-he/) |
-| 12 | Fix slow checkbox response in settings categories by eliminating inline closures that defeat React.memo | 2026-02-20 | f4c101a | [12-fix-slow-checkbox-response-in-settings-c](./quick/12-fix-slow-checkbox-response-in-settings-c/) |
+| 12 | Fix slow checkbox response in settings categories by stabilizing callback references for React.memo | 2026-02-20 | 2a4ccde | [12-fix-slow-checkbox-response-in-settings-c](./quick/12-fix-slow-checkbox-response-in-settings-c/) |
 
 **Phase 7 considerations:**
 - Pydantic Settings `@lru_cache` prevents runtime updates - requires two-tier config pattern (Settings for infrastructure, UserPreferences for runtime choices)
