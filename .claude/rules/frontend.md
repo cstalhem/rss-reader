@@ -33,6 +33,8 @@ paths: ["frontend/**"]
 - Query keys centralized in `lib/queryKeys.ts`. No inline string literals.
 - Use named interval constants per app state for polling. No bare numeric literals.
 - No unnecessary `useEffect` — not for derived state, event responses, or prop-change resets.
+- `useCallback` deps: use `mutation.mutate` not `mutation` — the object is a new reference each render, `.mutate` is stable.
+- Custom hook helper functions with logic (not just delegation) must be `useCallback`-wrapped to maintain referential stability for consumers.
 
 ## File Organization
 

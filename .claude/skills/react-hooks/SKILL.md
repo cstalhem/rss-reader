@@ -128,6 +128,14 @@ export const ArticleRow = React.memo(function ArticleRow(
 
 **When to skip:** Components rendered once or in small lists (< 10 items). The shallow comparison cost isn't worth it.
 
+**Callback stability chains:** `React.memo` only works when ALL props are referentially stable. One unstable callback prop defeats the entire memoization. Instability cascades:
+
+1. Hook returns inline function → consumer's `useCallback` dep is unstable → `useCallback` recreates → child memo sees new prop → full re-render
+
+To verify memo is working, check prop stability at every link: hook return values → parent `useCallback` deps → props passed to memo'd children. Use React DevTools profiler or fiber inspection (`__reactFiber` on DOM nodes → walk up → compare `memoizedProps`) to identify which props break memo.
+
+**Inline closures in `.map()` loops:** A common cause of broken memo. When a parent maps over items and creates inline callbacks like `onClick={() => handler(item.id)}`, every child gets a new function reference each render. Fix: pass a stable callback that accepts the ID, and let each child bind its own ID internally via `useCallback`.
+
 ## Anti-Patterns
 
 ### `useEffect` for State Reset on Prop Change

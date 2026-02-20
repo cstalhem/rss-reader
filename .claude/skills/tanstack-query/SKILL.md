@@ -121,6 +121,52 @@ Every mutation MUST have either `meta.errorTitle` (for global toast) or `meta.ha
 
 Never use `queryKey: ["articles"]` in a hook or component. Always use `queryKeys.articles.all`. Inline strings drift — one hook uses `"articles"`, another uses `"article"`, and invalidation silently misses one.
 
+### `useCallback` Depending on Mutation Object (Not `.mutate`)
+
+**What went wrong:** `CategoriesSection` had `useCallback((id) => { hideMutation.mutate(id) }, [hideMutation])`. The `hideMutation` result object is a new reference on every render (TanStack Query creates a new result spread each time), so the callback was recreated every render despite `useCallback`. This defeated `React.memo` on 70+ category rows, causing a 577ms long task on every checkbox click.
+
+**Fix:** Depend on `mutation.mutate` instead of the whole mutation object. The `.mutate` function is bound to the mutation observer and is referentially stable across renders.
+
+```typescript
+// BAD — hideMutation is a new object each render
+const handleHide = useCallback(
+  (id: number) => { hideMutation.mutate(id); },
+  [hideMutation]  // unstable!
+);
+
+// GOOD — .mutate is stable
+const handleHide = useCallback(
+  (id: number) => { hideMutation.mutate(id); },
+  [hideMutation.mutate]  // stable
+);
+```
+
+### Inline Functions in Hook Return Values
+
+**What went wrong:** `useCategories()` returned an inline `updateCategory` function (not `useCallback`-wrapped). Every consumer's `useCallback` that depended on `updateCategory` was recreated every render, cascading instability through the entire component tree and defeating `React.memo` on all category rows.
+
+**Fix:** Wrap helper functions with business logic in `useCallback` inside the hook:
+
+```typescript
+// BAD — new function every render
+return {
+  updateCategory: (id, data) => {
+    const payload = data.weight ? { ...data, is_seen: true } : data;
+    mutation.mutate({ id, data: payload });
+  },
+};
+
+// GOOD — stable reference
+const updateCategory = useCallback((id, data) => {
+  const payload = data.weight ? { ...data, is_seen: true } : data;
+  mutation.mutate({ id, data: payload });
+}, [mutation.mutate]);
+
+return { updateCategory };
+```
+
+**Note:** This doesn't contradict "return mutation objects directly" — the raw mutation is still exposed alongside the helper. The helper exists because it adds auto-acknowledge logic, and it must be `useCallback`-wrapped so consumers get a stable reference.
+
 ## Decision Aids
 
 ### When to use `handlesOwnErrors: true`
