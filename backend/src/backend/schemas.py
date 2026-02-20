@@ -33,7 +33,27 @@ class ArticleCategoryEmbed(BaseModel):
     parent_display_name: str | None
 
 
+class ArticleListItem(BaseModel):
+    """Lightweight article for list endpoints (no content/summary/score_reasoning)."""
+
+    id: int
+    feed_id: int
+    title: str
+    url: str
+    author: str | None
+    published_at: datetime | None
+    is_read: bool
+    categories: list[ArticleCategoryEmbed] | None
+    interest_score: int | None
+    quality_score: int | None
+    composite_score: float | None
+    scoring_state: str
+    scored_at: datetime | None
+
+
 class ArticleResponse(BaseModel):
+    """Full article with content, summary, and score reasoning."""
+
     id: int
     feed_id: int
     title: str

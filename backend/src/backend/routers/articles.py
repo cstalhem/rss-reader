@@ -9,7 +9,12 @@ from sqlmodel import Session, select
 
 from backend.deps import get_session
 from backend.models import Article, Category
-from backend.schemas import ArticleCategoryEmbed, ArticleResponse, ArticleUpdate
+from backend.schemas import (
+    ArticleCategoryEmbed,
+    ArticleListItem,
+    ArticleResponse,
+    ArticleUpdate,
+)
 
 router = APIRouter(prefix="/api/articles", tags=["articles"])
 
@@ -51,7 +56,41 @@ def _article_to_response(article: Article) -> ArticleResponse:
     )
 
 
-@router.get("", response_model=list[ArticleResponse])
+def _article_to_list_item(article: Article) -> ArticleListItem:
+    """Convert an Article with loaded categories_rel to a lightweight list item."""
+    from backend.scoring import get_effective_weight
+
+    categories = None
+    if article.categories_rel:
+        categories = [
+            ArticleCategoryEmbed(
+                id=cat.id,
+                display_name=cat.display_name,
+                slug=cat.slug,
+                effective_weight=get_effective_weight(cat),
+                parent_display_name=cat.parent.display_name if cat.parent else None,
+            )
+            for cat in article.categories_rel
+        ]
+
+    return ArticleListItem(
+        id=article.id,
+        feed_id=article.feed_id,
+        title=article.title,
+        url=article.url,
+        author=article.author,
+        published_at=article.published_at,
+        is_read=article.is_read,
+        categories=categories,
+        interest_score=article.interest_score,
+        quality_score=article.quality_score,
+        composite_score=article.composite_score,
+        scoring_state=article.scoring_state,
+        scored_at=article.scored_at,
+    )
+
+
+@router.get("", response_model=list[ArticleListItem])
 def list_articles(
     skip: int = 0,
     limit: int = 50,
@@ -112,7 +151,7 @@ def list_articles(
 
     statement = statement.offset(skip).limit(limit)
     articles = session.exec(statement).all()
-    return [_article_to_response(article) for article in articles]
+    return [_article_to_list_item(article) for article in articles]
 
 
 @router.get("/{article_id}", response_model=ArticleResponse)
