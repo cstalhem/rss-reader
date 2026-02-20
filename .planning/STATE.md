@@ -267,6 +267,7 @@ Key architectural decisions carrying forward to v1.1:
 | 9 | Consolidate Ollama disconnected state, split Model Library sub-sections, remove redundant SystemPrompts label | 2026-02-15 | 30be07b | [9-update-ollama-settings-panel-headings-se](./quick/9-update-ollama-settings-panel-headings-se/) |
 | 10 | Fix category drag-and-drop placeholder (destination detection) and badge dismiss X spacing/size/divider | 2026-02-16 | 0ffaebc | [10-fix-category-drag-and-drop-placeholder-a](./quick/10-fix-category-drag-and-drop-placeholder-a/) |
 | 11 | ~~Migrate all DnD from @dnd-kit to @hello-pangea/dnd~~ (reverted: collapsed accordion drop targets incompatible) | 2026-02-17 | 34908f2 | [11-migrate-drag-and-drop-from-dnd-kit-to-he](./quick/11-migrate-drag-and-drop-from-dnd-kit-to-he/) |
+| 12 | Fix slow checkbox response in settings categories by eliminating inline closures that defeat React.memo | 2026-02-20 | f4c101a | [12-fix-slow-checkbox-response-in-settings-c](./quick/12-fix-slow-checkbox-response-in-settings-c/) |
 
 **Phase 7 considerations:**
 - Pydantic Settings `@lru_cache` prevents runtime updates - requires two-tier config pattern (Settings for infrastructure, UserPreferences for runtime choices)
@@ -283,8 +284,8 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed 09.1-04-PLAN.md (Phase 09.1 complete)
-Resume file: N/A (phase complete)
+Stopped at: Completed quick task 12 (fix slow checkbox response)
+Resume file: N/A (quick task complete)
 
 ---
 *State initialized: 2026-02-14*
