@@ -197,27 +197,31 @@ export function CategoriesSection() {
     [updateCategory]
   );
 
+  const { mutate: hideCategory } = hideMutation;
+  const { mutate: acknowledgeCategory } = acknowledgeMutation;
+  const { mutate: unhideCategory } = unhideMutation;
+
   const handleHideCategory = useCallback(
     (categoryId: number) => {
-      hideMutation.mutate(categoryId);
+      hideCategory(categoryId);
       toaster.create({ title: "Category hidden", type: "info" });
     },
-    [hideMutation.mutate]
+    [hideCategory]
   );
 
   const handleBadgeDismiss = useCallback(
     (categoryId: number) => {
-      acknowledgeMutation.mutate([categoryId]);
+      acknowledgeCategory([categoryId]);
     },
-    [acknowledgeMutation.mutate]
+    [acknowledgeCategory]
   );
 
   const handleUnhideCategory = useCallback(
     (categoryId: number) => {
-      unhideMutation.mutate(categoryId);
+      unhideCategory(categoryId);
       toaster.create({ title: "Category unhidden", type: "info" });
     },
-    [unhideMutation.mutate]
+    [unhideCategory]
   );
 
   const handleDeleteCategory = useCallback(

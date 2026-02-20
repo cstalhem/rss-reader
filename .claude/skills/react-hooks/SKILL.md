@@ -164,6 +164,28 @@ function Page() {
 4. When ready, React swaps in the real tree
 5. Handles both cold cache (`isLoading=true`) and warm cache (`isLoading=false`, `treeReady=false`)
 
+### Conditional Rendering over `display: none` for Mounted Subtrees
+
+When switching between views (tabs, accordion panels, mobile/desktop layouts), prefer conditional rendering over CSS hiding:
+
+```tsx
+// GOOD — inactive sections unmounted, TanStack Query cache prevents reload flash
+{activeSection === "feeds" && <FeedsSection />}
+{activeSection === "categories" && <CategoriesSection />}
+
+// BAD — all sections mounted, each with hooks, portals, event listeners
+<Box display={activeSection === "feeds" ? "block" : "none"}><FeedsSection /></Box>
+<Box display={activeSection === "categories" ? "block" : "none"}><CategoriesSection /></Box>
+```
+
+**Why it matters:** `display: none` hides visually but keeps the full React subtree alive — hooks run, context subscriptions fire, portals mount. In a list of N items where each has tooltips/menus/buttons, this means N hidden subtrees contributing to DOM size and re-render cost.
+
+**Real impact:** Settings page went from 8131 → 4215 DOM nodes (48% reduction) by switching desktop sections from display-toggle to conditional rendering.
+
+**Applies to Chakra `Collapsible` too:** `Collapsible.Content` renders children to DOM even when `data-state="closed"` (CSS hidden). For lists where collapsed groups have many children, use `{isExpanded && <children>}` instead. Trade-off: no expand/collapse CSS animation.
+
+**When `display: none` is fine:** Single static elements, or components with no hooks/portals (pure layout wrappers). The problem is mounted *component trees*, not hidden *DOM nodes*.
+
 ### `React.memo` on List Item Components
 
 Wrap list item components in `React.memo` when they render in lists of 50+ items:
