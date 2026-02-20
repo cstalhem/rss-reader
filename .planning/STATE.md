@@ -281,6 +281,7 @@ Key architectural decisions carrying forward to v1.1:
 | 15 | useDeferredValue for instant settings sidebar response with skeleton during heavy category render | 2026-02-20 | ac621b7 | [15-move-skeleton-inside-categories-page-lay](./quick/15-move-skeleton-inside-categories-page-lay/) |
 | 16 | Optimize category tree render: single responsive weight button, conditional child rendering (-26.7% DOM, -50% buttons) | 2026-02-20 | 083d1bc | [16-research-and-optimize-category-tree-comp](./quick/16-research-and-optimize-category-tree-comp/) |
 | 17 | Reduce frontend RAM: lightweight ArticleListItem list endpoint, on-demand content fetch in reader, 2-min gcTime | 2026-02-20 | 77f837c | [17-investigate-and-reduce-frontend-ram-usag](./quick/17-investigate-and-reduce-frontend-ram-usag/) |
+| 18 | Add preloadEntriesOnStart: false and webpackMemoryOptimizations: true to next.config.ts experimental block | 2026-02-20 | 97926d8 | [18-investigate-next-js-frontend-server-exce](./quick/18-investigate-next-js-frontend-server-exce/) |
 
 **Phase 7 considerations:**
 - Pydantic Settings `@lru_cache` prevents runtime updates - requires two-tier config pattern (Settings for infrastructure, UserPreferences for runtime choices)
@@ -297,8 +298,7 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Phase 9.2 context gathered
-Resume file: .planning/phases/09.2-frontend-dom-tree-simplification-and-component-structure-optimization/09.2-CONTEXT.md
+Stopped at: Completed quick task 18 (next.config.ts memory optimization flags)
 
 ---
 *State initialized: 2026-02-14*
