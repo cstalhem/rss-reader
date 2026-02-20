@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useCallback, useState } from "react";
-import { Flex, Text, Badge, Box, Input, Checkbox } from "@chakra-ui/react";
+import { Badge, Box, Checkbox, Flex } from "@chakra-ui/react";
 import { LuX } from "react-icons/lu";
 import { Category } from "@/lib/types";
-import { useRenameState } from "@/hooks/useRenameState";
-import { WeightPresetStrip } from "./WeightPresetStrip";
 import { CategoryContextMenu } from "./CategoryContextMenu";
+import { CategoryRowShell } from "./CategoryRowShell";
 
 interface CategoryUngroupedRowProps {
   category: Category;
@@ -34,67 +33,22 @@ const CategoryUngroupedRowComponent = ({
   onDelete,
 }: CategoryUngroupedRowProps) => {
   const handleRename = useCallback((newName: string) => onRename(category.id, newName), [category.id, onRename]);
-  const handleWeightChange = useCallback((weight: string) => onWeightChange(category.id, weight), [category.id, onWeightChange]);
+  const handleWeightChange = useCallback((w: string) => onWeightChange(category.id, w), [category.id, onWeightChange]);
   const handleHide = useCallback(() => onHide(category.id), [category.id, onHide]);
   const handleDelete = useCallback(() => onDelete(category.id), [category.id, onDelete]);
   const handleBadgeDismiss = useCallback(() => onBadgeDismiss(category.id), [category.id, onBadgeDismiss]);
 
-  const { isRenaming, renameValue, setRenameValue, startRename, handleSubmit, handleCancel, inputRef } =
-    useRenameState(category.display_name, handleRename);
   const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <Box
-      borderWidth={{ base: "1px", sm: "0" }}
-      borderColor="border.subtle"
-      borderRadius={{ base: "md", sm: "sm" }}
-      bg="bg.subtle"
-      _hover={{ bg: "bg.muted" }}
-      transition="background 0.15s"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <Flex
-        role="group"
-        alignItems="center"
-        gap={2}
-        py={2}
-        px={3}
-      >
-        <Box onClick={(e) => e.stopPropagation()} minH={{ base: "44px", sm: "auto" }} display="flex" alignItems="center">
-          <Checkbox.Root
-            size="sm"
-            checked={isSelected}
-            onCheckedChange={() => onToggleSelection(category.id)}
-          >
-            <Checkbox.HiddenInput />
-            <Checkbox.Control />
-          </Checkbox.Root>
-        </Box>
-
-        {isRenaming ? (
-          <Input
-            ref={inputRef}
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleSubmit();
-              } else if (e.key === "Escape") {
-                handleCancel();
-              }
-            }}
-            onBlur={handleSubmit}
-            size="sm"
-            flex={1}
-          />
-        ) : (
-          <Text fontSize="sm" truncate>
-            {category.display_name}
-          </Text>
-        )}
-
-        {isNew && (
+    <CategoryRowShell
+      category={category}
+      weight={weight}
+      onWeightChange={handleWeightChange}
+      onRename={handleRename}
+      onHoverChange={setIsHovered}
+      badge={
+        isNew ? (
           <Badge
             colorPalette="accent"
             size="sm"
@@ -118,40 +72,28 @@ const CategoryUngroupedRowComponent = ({
               New
             </Flex>
           </Badge>
-        )}
-
-        <Box flex={1} />
-
-        {/* Desktop weight strip */}
-        <Box display={{ base: "none", sm: "block" }}>
-          <WeightPresetStrip
-            value={weight}
-            onChange={handleWeightChange}
-            isOverridden={false}
-          />
-        </Box>
-
-        {!isRenaming && (
-          <Box minH={{ base: "44px", sm: "auto" }} display="flex" alignItems="center">
-            <CategoryContextMenu
-              type="ungrouped"
-              onRename={startRename}
-              onHide={handleHide}
-              onDelete={handleDelete}
-            />
-          </Box>
-        )}
-      </Flex>
-
-      {/* Mobile weight strip */}
-      <Box display={{ base: "block", sm: "none" }} px={3} pb={2}>
-        <WeightPresetStrip
-          value={weight}
-          onChange={handleWeightChange}
-          isOverridden={false}
+        ) : undefined
+      }
+      renderContextMenu={(startRename) => (
+        <CategoryContextMenu
+          type="ungrouped"
+          onRename={startRename}
+          onHide={handleHide}
+          onDelete={handleDelete}
         />
+      )}
+    >
+      <Box onClick={(e) => e.stopPropagation()} minH={{ base: "44px", sm: "auto" }} display="flex" alignItems="center">
+        <Checkbox.Root
+          size="sm"
+          checked={isSelected}
+          onCheckedChange={() => onToggleSelection(category.id)}
+        >
+          <Checkbox.HiddenInput />
+          <Checkbox.Control />
+        </Checkbox.Root>
       </Box>
-    </Box>
+    </CategoryRowShell>
   );
 };
 
