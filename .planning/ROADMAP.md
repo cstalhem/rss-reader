@@ -329,7 +329,7 @@ Plans:
 
 **Goal:** Reduce DOM complexity across the frontend — eliminate responsive duplication, use semantic HTML, route-based settings navigation, and ensure every rendered node serves a purpose
 **Depends on:** Phase 9.1
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 09.2-01-PLAN.md -- Settings route restructuring: nested routes, Link-based sidebar, mobile dropdown, OllamaSection isVisible removal
