@@ -270,7 +270,7 @@ Key architectural decisions carrying forward to v1.1:
 | 12 | Fix slow checkbox response in settings categories by stabilizing callback references for React.memo | 2026-02-20 | 2a4ccde | [12-fix-slow-checkbox-response-in-settings-c](./quick/12-fix-slow-checkbox-response-in-settings-c/) |
 | 13 | Fix slow settings page navigation by switching desktop sections from display-toggle to conditional rendering | 2026-02-20 | ce99058 | [13-fix-slow-settings-page-navigation-on-des](./quick/13-fix-slow-settings-page-navigation-on-des/) |
 | 14 | Add structured skeleton loading state to categories tree | 2026-02-20 | 6216f18 | [14-add-skeleton-loading-state-to-categories](./quick/14-add-skeleton-loading-state-to-categories/) |
-| 15 | Move skeleton inside categories page layout for instant chrome rendering | 2026-02-20 | f185dd8 | [15-move-skeleton-inside-categories-page-lay](./quick/15-move-skeleton-inside-categories-page-lay/) |
+| 15 | useDeferredValue for instant settings sidebar response with skeleton during heavy category render | 2026-02-20 | ac621b7 | [15-move-skeleton-inside-categories-page-lay](./quick/15-move-skeleton-inside-categories-page-lay/) |
 
 **Phase 7 considerations:**
 - Pydantic Settings `@lru_cache` prevents runtime updates - requires two-tier config pattern (Settings for infrastructure, UserPreferences for runtime choices)
