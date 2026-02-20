@@ -1,8 +1,7 @@
 import logging
-from datetime import datetime
 
 from sqlalchemy import event, text
-from sqlmodel import SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine
 
 from backend.config import get_settings
 
@@ -122,6 +121,7 @@ def _seed_default_categories(conn):
 
     Only runs on fresh installs (empty categories table).
     """
+    from backend.models import Category
     from backend.prompts import DEFAULT_CATEGORY_HIERARCHY
 
     count = conn.execute(text("SELECT COUNT(*) FROM categories")).scalar()
@@ -129,7 +129,7 @@ def _seed_default_categories(conn):
         return
 
     hierarchy = DEFAULT_CATEGORY_HIERARCHY
-    slug_to_id: dict[str, int] = {}
+    slug_to_cat: dict[str, Category] = {}
 
     # Collect all slugs from hierarchy
     all_slugs: set[str] = set()
@@ -137,42 +137,29 @@ def _seed_default_categories(conn):
         all_slugs.add(parent)
         all_slugs.update(children)
 
+    session = Session(bind=conn)
+
     # First pass: create all categories
     for slug in sorted(all_slugs):
-        display_name = kebab_to_display(slug)
-        conn.execute(
-            text(
-                "INSERT INTO categories (display_name, slug, is_seen, created_at) "
-                "VALUES (:display_name, :slug, :is_seen, :created_at)"
-            ),
-            {
-                "display_name": display_name,
-                "slug": slug,
-                "is_seen": True,
-                "created_at": datetime.now().isoformat(),
-            },
-        )
-        row = conn.execute(
-            text("SELECT id FROM categories WHERE slug = :slug"),
-            {"slug": slug},
-        ).first()
-        if row:
-            slug_to_id[slug] = row[0]
+        cat = Category(display_name=kebab_to_display(slug), slug=slug, is_seen=True)
+        session.add(cat)
+        slug_to_cat[slug] = cat
+
+    session.flush()  # Assigns IDs within existing transaction
 
     # Second pass: set parent_id
     for parent, children in hierarchy.items():
-        parent_id = slug_to_id.get(parent)
-        if not parent_id:
+        parent_cat = slug_to_cat.get(parent)
+        if not parent_cat:
             continue
         for child in children:
-            child_id = slug_to_id.get(child)
-            if child_id:
-                conn.execute(
-                    text("UPDATE categories SET parent_id = :parent_id WHERE id = :id"),
-                    {"parent_id": parent_id, "id": child_id},
-                )
+            child_cat = slug_to_cat.get(child)
+            if child_cat:
+                child_cat.parent_id = parent_cat.id
 
-    logger.info(f"Seeded {len(slug_to_id)} categories from default hierarchy")
+    session.flush()
+
+    logger.info(f"Seeded {len(slug_to_cat)} categories from default hierarchy")
 
 
 # --- Startup ---
