@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 Milestone: v1.1 Configuration, Feedback & Polish
 Phase: 9.1 complete, Phase 10 not started
 Status: Milestone audit complete (gaps_found — Phase 10 pending)
-Last activity: 2026-02-20 - Completed quick task 16: Optimize category tree render (single-button strip + conditional children)
+Last activity: 2026-02-20 - Completed quick task 17: Reduce frontend RAM via lightweight article list endpoint and on-demand content fetch
 
 Progress: [████████░░] 80% (8/9 v1.1 phases complete, Phase 10 remaining)
 
@@ -272,6 +272,7 @@ Key architectural decisions carrying forward to v1.1:
 | 14 | Add structured skeleton loading state to categories tree | 2026-02-20 | 6216f18 | [14-add-skeleton-loading-state-to-categories](./quick/14-add-skeleton-loading-state-to-categories/) |
 | 15 | useDeferredValue for instant settings sidebar response with skeleton during heavy category render | 2026-02-20 | ac621b7 | [15-move-skeleton-inside-categories-page-lay](./quick/15-move-skeleton-inside-categories-page-lay/) |
 | 16 | Optimize category tree render: single responsive weight button, conditional child rendering (-26.7% DOM, -50% buttons) | 2026-02-20 | 083d1bc | [16-research-and-optimize-category-tree-comp](./quick/16-research-and-optimize-category-tree-comp/) |
+| 17 | Reduce frontend RAM: lightweight ArticleListItem list endpoint, on-demand content fetch in reader, 2-min gcTime | 2026-02-20 | 77f837c | [17-investigate-and-reduce-frontend-ram-usag](./quick/17-investigate-and-reduce-frontend-ram-usag/) |
 
 **Phase 7 considerations:**
 - Pydantic Settings `@lru_cache` prevents runtime updates - requires two-tier config pattern (Settings for infrastructure, UserPreferences for runtime choices)
@@ -288,9 +289,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-20
-Stopped at: Completed quick task 16 (optimize category tree render)
+Stopped at: Completed quick task 17 (reduce frontend RAM via lightweight article list endpoint)
 Resume file: N/A (quick task complete)
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-20 after quick task 16*
+*Last updated: 2026-02-20 after quick task 17*
