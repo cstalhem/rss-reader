@@ -1,6 +1,9 @@
 "use client";
 
 import { Box, Flex, Input, Skeleton, Stack, Text } from "@chakra-ui/react";
+import { CategoryActionBar } from "./CategoryActionBar";
+
+const noop = () => {};
 
 function ParentGroupSkeleton({
   nameWidth,
@@ -71,6 +74,14 @@ export function CategoriesTreeSkeleton({ withShell = false }: { withShell?: bool
           Topic Categories
         </Text>
       </Flex>
+
+      <CategoryActionBar
+        selectedCount={0}
+        onMoveToGroup={noop}
+        onUngroup={noop}
+        onHide={noop}
+        onDelete={noop}
+      />
 
       <Input placeholder="Filter categories..." size="sm" disabled />
 
