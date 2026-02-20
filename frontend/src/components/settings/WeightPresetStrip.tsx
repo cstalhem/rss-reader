@@ -54,52 +54,34 @@ const WeightPresetStripComponent = ({
           };
 
           return (
-            <React.Fragment key={option.value}>
-              {/* Mobile: Button with icon + text label */}
-              <Button
-                display={{ base: "inline-flex", md: "none" }}
-                size="xs"
-                variant={isActive ? "outline" : "ghost"}
-                colorPalette={isActive ? "accent" : undefined}
-                borderColor={isActive ? "accent.solid" : undefined}
-                color={isActive ? "accent.solid" : undefined}
-                onClick={handleClick}
-                h="24px"
-                px="6px"
+            <Box
+              key={option.value}
+              overflow={{ md: isActive ? undefined : "hidden" }}
+              maxW={{ md: isActive ? undefined : isExpanded ? "auto" : "0" }}
+              transition={{ md: isActive ? undefined : "max-width 0.2s ease-out" }}
+            >
+              <Tooltip
+                content={option.label}
+                openDelay={300}
               >
-                <Icon size={12} />
-                {option.label}
-              </Button>
-
-              {/* Desktop: IconButton with tooltip, animated expand/collapse */}
-              <Box
-                display={{ base: "none", md: "block" }}
-                overflow={isActive ? undefined : "hidden"}
-                maxW={isActive ? undefined : isExpanded ? "24px" : "0"}
-                transition={isActive ? undefined : "max-width 0.2s ease-out"}
-              >
-                <Tooltip
-                  content={option.label}
-                  openDelay={300}
-                  disabled={false}
+                <Button
+                  size="xs"
+                  variant={isActive ? "outline" : "ghost"}
+                  colorPalette={isActive ? "accent" : undefined}
+                  borderColor={isActive ? "accent.solid" : undefined}
+                  color={isActive ? "accent.solid" : undefined}
+                  onClick={handleClick}
+                  h="24px"
+                  px={{ base: "6px", md: "4px" }}
+                  minW={{ md: "24px" }}
                 >
-                  <IconButton
-                    aria-label={option.label}
-                    size="xs"
-                    variant={isActive ? "outline" : "ghost"}
-                    colorPalette={isActive ? "accent" : undefined}
-                    borderColor={isActive ? "accent.solid" : undefined}
-                    color={isActive ? "accent.solid" : undefined}
-                    onClick={handleClick}
-                    minW="24px"
-                    h="24px"
-                    p="4px"
-                  >
-                    <Icon size={12} />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            </React.Fragment>
+                  <Icon size={12} />
+                  <Box as="span" display={{ base: "inline", md: "none" }}>
+                    {option.label}
+                  </Box>
+                </Button>
+              </Tooltip>
+            </Box>
           );
         })}
       </Flex>

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Stack, Box, Collapsible } from "@chakra-ui/react";
+import { Stack, Box } from "@chakra-ui/react";
 import { Category } from "@/lib/types";
 import { CategoryParentRow } from "./CategoryParentRow";
 import { CategoryChildRow } from "./CategoryChildRow";
@@ -83,62 +83,58 @@ const CategoryTreeComponent = ({
               }}
             />
 
-            {/* Children with connector lines inside Collapsible */}
-            {children.length > 0 && (
-              <Collapsible.Root open={isExpanded}>
-                <Collapsible.Content>
-                  <Box ml={6} pl={3} position="relative">
-                    <Stack gap={1}>
-                      {children.map((child, idx) => {
-                        const effectiveWeight = getEffectiveWeight(child, parent);
-                        const isOverridden = child.weight !== null;
-                        const isLast = idx === children.length - 1;
+            {/* Children with connector lines - conditionally rendered */}
+            {children.length > 0 && isExpanded && (
+              <Box ml={6} pl={3} position="relative">
+                <Stack gap={1}>
+                  {children.map((child, idx) => {
+                    const effectiveWeight = getEffectiveWeight(child, parent);
+                    const isOverridden = child.weight !== null;
+                    const isLast = idx === children.length - 1;
 
-                        return (
-                          <Box
-                            key={child.id}
-                            position="relative"
-                            _before={{
-                              content: '""',
-                              position: "absolute",
-                              left: "-12px",
-                              top: 0,
-                              width: "2px",
-                              height: isLast ? "50%" : "calc(100% + 4px)",
-                              bg: "border",
-                            }}
-                            _after={{
-                              content: '""',
-                              position: "absolute",
-                              left: "-12px",
-                              top: "50%",
-                              width: "12px",
-                              height: "2px",
-                              bg: "border",
-                            }}
-                          >
-                            <CategoryChildRow
-                              category={child}
-                              weight={effectiveWeight}
-                              isOverridden={isOverridden}
-                              parentWeight={parentWeight}
-                              isNew={newCategoryIds.has(child.id)}
-                              onWeightChange={onWeightChange}
-                              onResetWeight={onResetWeight}
-                              onHide={onHide}
-                              onBadgeDismiss={onBadgeDismiss}
-                              onRename={onRename}
-                              onDelete={onDelete}
-                              isSelected={selectedIds.has(child.id)}
-                              onToggleSelection={onToggleSelection}
-                            />
-                          </Box>
-                        );
-                      })}
-                    </Stack>
-                  </Box>
-                </Collapsible.Content>
-              </Collapsible.Root>
+                    return (
+                      <Box
+                        key={child.id}
+                        position="relative"
+                        _before={{
+                          content: '""',
+                          position: "absolute",
+                          left: "-12px",
+                          top: 0,
+                          width: "2px",
+                          height: isLast ? "50%" : "calc(100% + 4px)",
+                          bg: "border",
+                        }}
+                        _after={{
+                          content: '""',
+                          position: "absolute",
+                          left: "-12px",
+                          top: "50%",
+                          width: "12px",
+                          height: "2px",
+                          bg: "border",
+                        }}
+                      >
+                        <CategoryChildRow
+                          category={child}
+                          weight={effectiveWeight}
+                          isOverridden={isOverridden}
+                          parentWeight={parentWeight}
+                          isNew={newCategoryIds.has(child.id)}
+                          onWeightChange={onWeightChange}
+                          onResetWeight={onResetWeight}
+                          onHide={onHide}
+                          onBadgeDismiss={onBadgeDismiss}
+                          onRename={onRename}
+                          onDelete={onDelete}
+                          isSelected={selectedIds.has(child.id)}
+                          onToggleSelection={onToggleSelection}
+                        />
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              </Box>
             )}
           </Box>
         );
