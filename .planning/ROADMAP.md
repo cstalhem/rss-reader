@@ -248,6 +248,29 @@ Plans:
 - [ ] 09-03-PLAN.md -- Component updates: consumer migration, ConfirmDialog, semantic tokens, Tooltip/Portal/color fixes
 - [ ] 09-04-PLAN.md -- Dead code removal, useEffect fixes, performance sweep, final verification
 
+### Phase 09.3: Refine main view UX and typography (INSERTED)
+
+**Goal:** Polish the article list page and article reader pane — improve information density, typography, layout, navigation, and visual cohesion across the main reading experience
+**Depends on:** Phase 09.2 (DOM simplification complete)
+**Scope:** Article list (`ArticleList.tsx`, `ArticleRow.tsx`, `SortSelect.tsx`) and article reader (`ArticleReader.tsx`). Settings pages out of scope.
+**Origin:** Pending todo #3 (refine article reader view UX and typography), expanded to cover the full main view
+**Success Criteria** (what must be TRUE):
+  1. Article rows show a 1-2 line summary/preview below the title for easier scanning
+  2. Filter toolbar has clearer visual grouping — filters, sort, and actions are visually separated
+  3. Read/unread state has more visual distinction beyond opacity (e.g., typography weight, color shift, or subtle background)
+  4. Feed source is more prominently surfaced in article rows (icon, colored indicator, or other visual treatment)
+  5. Reader header section is more compact — metadata, tags, and score are denser so content is reached faster
+  6. Reader typography and spacing are refined for comfortable long-form reading (line length, paragraph spacing, heading hierarchy)
+  7. Reader navigation controls (prev/next, close) are more accessible (sticky positioning, keyboard shortcuts, or both)
+  8. Reader visual styling is cohesive with the settings pages (consistent panel styling, iconography patterns, spacing)
+  9. "Open original" link is repositioned for better discoverability (not buried between score and content)
+  10. `dangerouslySetInnerHTML` usage is reviewed and replaced with a safer/more controllable approach if a better alternative exists (e.g., `html-react-parser`, `rehype`, or sanitization library)
+  11. No functional regressions
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 09.3 to break down)
+
 ### Phase 09.1: Backend Codebase Evaluation & Simplification (INSERTED)
 
 **Goal:** Evaluate and simplify the backend codebase — models, API endpoints, scoring pipeline, configuration, and database patterns — addressing technical debt from rapid feature development while retaining all functionality
@@ -355,7 +378,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 6 -> 7 -> 8 -> 08.1 -> 08.2 -> 08.3 -> 9 -> 9.1 -> 09.2 -> 10
+Phases execute in numeric order: 6 -> 7 -> 8 -> 08.1 -> 08.2 -> 08.3 -> 9 -> 9.1 -> 09.2 -> 09.3 -> 10
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -373,6 +396,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 08.1 -> 08.2 -> 08.3 -> 9 -> 9.1
 | 9. Frontend Codebase Evaluation | v1.1 | 4/4 | Complete | 2026-02-19 |
 | 9.1. Backend Codebase Evaluation | v1.1 | 4/4 | Complete | 2026-02-20 |
 | 09.2. DOM Tree Simplification | v1.1 | 3/3 | Complete | 2026-02-20 |
+| 09.3. Main View UX & Typography | v1.1 | 0/TBD | Not started | - |
 | 10. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
 ---

@@ -119,6 +119,7 @@ Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase
 - Phase 08.1 inserted after Phase 8: Categories Settings UI Redesign (INSERTED) — accordion-based category grouping has fundamental DnD issues with collapsed drop targets; needs full UX rethink before feedback system
 - Phase 09.1 inserted after Phase 9: Backend Codebase Evaluation & Simplification (INSERTED) — companion to Phase 9 frontend evaluation; same purpose applied to backend codebase
 - Phase 09.2 inserted after Phase 9.1: Frontend DOM tree simplification and component structure optimization (INSERTED) — reduce DOM complexity by simplifying component HTML structure
+- Phase 09.3 inserted after Phase 09.2: Refine main view UX and typography (INSERTED) — polish article list page and reader pane across information density, typography, layout, navigation, and visual cohesion
 
 ### Decisions
 
