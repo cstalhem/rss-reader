@@ -23,6 +23,5 @@ export const queryKeys = {
     config: ["ollama-config"] as const,
     prompts: ["ollama-prompts"] as const,
     downloadStatus: ["download-status"] as const,
-    sidebarDownloadStatus: ["sidebar-download-status"] as const,
   },
 };

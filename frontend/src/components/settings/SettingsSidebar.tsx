@@ -39,7 +39,7 @@ export function SettingsSidebar() {
   const pathname = usePathname();
 
   const { data: downloadStatus } = useQuery<DownloadStatus>({
-    queryKey: queryKeys.ollama.sidebarDownloadStatus,
+    queryKey: queryKeys.ollama.downloadStatus,
     queryFn: fetchDownloadStatus,
     refetchInterval: SIDEBAR_DOWNLOAD_POLL_INTERVAL,
   });
@@ -51,6 +51,11 @@ export function SettingsSidebar() {
   });
 
   const isDownloadActive = downloadStatus?.active ?? false;
+  const downloadModel = downloadStatus?.model ?? null;
+  const downloadPct =
+    isDownloadActive && downloadStatus && downloadStatus.total > 0
+      ? Math.round((downloadStatus.completed / downloadStatus.total) * 100)
+      : null;
   const categoryBadgeCount = newCategoryCount?.count ?? 0;
 
   return (
@@ -75,11 +80,24 @@ export function SettingsSidebar() {
               borderLeftWidth="3px"
               borderLeftColor={isActive ? "accent.solid" : "transparent"}
               _hover={{ bg: isActive ? "bg.muted" : "bg.subtle" }}
+              position="relative"
             >
               <Icon size={18} />
-              <Text fontSize="sm" fontWeight="medium">
-                {item.label}
-              </Text>
+              <Box flex={1} minW={0}>
+                <Text fontSize="sm" fontWeight="medium">
+                  {item.label}
+                </Text>
+                {showDownloadIndicator && downloadModel && (
+                  <Text
+                    fontSize="xs"
+                    color="fg.muted"
+                    truncate
+                  >
+                    {downloadModel}
+                    {downloadPct != null && ` ${downloadPct}%`}
+                  </Text>
+                )}
+              </Box>
               {showCategoryBadge && (
                 <Box
                   ml="auto"
@@ -99,7 +117,7 @@ export function SettingsSidebar() {
               )}
               {showDownloadIndicator && (
                 <Box
-                  ml="auto"
+                  ml={showCategoryBadge ? undefined : "auto"}
                   css={{ animation: `${pulse} 2s ease-in-out infinite` }}
                 >
                   <Box color="accent.solid" display="inline-flex"><LuDownload size={16} /></Box>

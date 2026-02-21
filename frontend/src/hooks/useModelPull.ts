@@ -39,6 +39,17 @@ function calcSpeed(samples: SpeedSample[]): string {
   return formatSpeed(bytes / elapsed);
 }
 
+/** Write a DownloadStatus-shaped object into the TanStack Query cache. */
+function setCachedDownloadStatus(
+  queryClient: ReturnType<typeof useQueryClient>,
+  status: DownloadStatus
+) {
+  queryClient.setQueryData<DownloadStatus>(
+    queryKeys.ollama.downloadStatus,
+    status
+  );
+}
+
 export function useModelPull() {
   const [progress, setProgress] = useState<PullProgress | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -53,18 +64,19 @@ export function useModelPull() {
     queryKey: queryKeys.ollama.downloadStatus,
     queryFn: fetchDownloadStatus,
     refetchInterval: intervalMs,
-    // Only poll when we think a download is active but we lost the SSE stream
-    // (i.e., user navigated away and came back)
   });
+
+  // Derive model name from cache (works for both SSE-active and poll-recovery)
+  const modelName = downloadStatus?.active ? (downloadStatus.model ?? null) : null;
 
   // On mount, check if a download is already active (navigate-away recovery)
   useEffect(() => {
     if (!downloadStatus) return;
 
     if (downloadStatus.active && !abortRef.current) {
-      // There's an active download but we don't have an SSE stream — poll mode
+      // There's an active download but we don't have an SSE stream -- poll mode
       setIsDownloading(true);
-      setIntervalMs(DOWNLOAD_STATUS_POLL_INTERVAL); // Start polling
+      setIntervalMs(DOWNLOAD_STATUS_POLL_INTERVAL);
       const pct =
         downloadStatus.total > 0
           ? Math.round((downloadStatus.completed / downloadStatus.total) * 100)
@@ -79,8 +91,15 @@ export function useModelPull() {
     } else if (!downloadStatus.active && isDownloading && !abortRef.current) {
       // Download finished while we were polling
       setIsDownloading(false);
-      setIntervalMs(false); // Stop polling
+      setIntervalMs(false);
       setProgress(null);
+      setCachedDownloadStatus(queryClient, {
+        active: false,
+        model: null,
+        completed: 0,
+        total: 0,
+        status: null,
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
     }
   }, [downloadStatus, isDownloading, queryClient]);
@@ -98,6 +117,15 @@ export function useModelPull() {
         speed: "",
       });
       samplesRef.current = [];
+
+      // Write initial status to cache immediately so sidebar/selectors see it
+      setCachedDownloadStatus(queryClient, {
+        active: true,
+        model,
+        completed: 0,
+        total: 0,
+        status: "starting",
+      });
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -135,11 +163,17 @@ export function useModelPull() {
               try {
                 const data = JSON.parse(line.slice(6));
 
-                // Check for error field
                 if (data.error) {
                   setError(data.error);
                   setIsDownloading(false);
                   setProgress(null);
+                  setCachedDownloadStatus(queryClient, {
+                    active: false,
+                    model: null,
+                    completed: 0,
+                    total: 0,
+                    status: null,
+                  });
                   abortRef.current = null;
                   return;
                 }
@@ -156,12 +190,22 @@ export function useModelPull() {
                   (s) => now - s.time < 2000
                 );
 
-                setProgress({
+                const progressData: PullProgress = {
                   status: data.status ?? "downloading",
                   completed,
                   total,
                   percentage: pct,
                   speed: calcSpeed(samplesRef.current),
+                };
+                setProgress(progressData);
+
+                // Mirror to TanStack Query cache for cross-component access
+                setCachedDownloadStatus(queryClient, {
+                  active: true,
+                  model,
+                  completed,
+                  total,
+                  status: data.status ?? "downloading",
                 });
               } catch {
                 // Skip malformed JSON lines
@@ -172,44 +216,68 @@ export function useModelPull() {
 
         // Stream ended successfully
         abortRef.current = null;
-        // Show 100% briefly before clearing
         setProgress((prev) =>
           prev ? { ...prev, percentage: 100, status: "complete" } : null
         );
+        setCachedDownloadStatus(queryClient, {
+          active: true,
+          model,
+          completed: 0,
+          total: 0,
+          status: "complete",
+        });
         setTimeout(() => {
           setIsDownloading(false);
           setIntervalMs(false);
           setProgress(null);
+          setCachedDownloadStatus(queryClient, {
+            active: false,
+            model: null,
+            completed: 0,
+            total: 0,
+            status: null,
+          });
           queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
         }, SCORE_100_PERCENT_DELAY);
       } catch (err: unknown) {
         abortRef.current = null;
         if (err instanceof DOMException && err.name === "AbortError") {
-          // User cancelled — not an error
           setIsDownloading(false);
-          setIntervalMs(false); // Stop polling
+          setIntervalMs(false);
           setProgress(null);
+          setCachedDownloadStatus(queryClient, {
+            active: false,
+            model: null,
+            completed: 0,
+            total: 0,
+            status: null,
+          });
           return;
         }
         const message =
           err instanceof Error ? err.message : "Download failed";
         setError(message);
         setIsDownloading(false);
-        setIntervalMs(false); // Stop polling
+        setIntervalMs(false);
         setProgress(null);
+        setCachedDownloadStatus(queryClient, {
+          active: false,
+          model: null,
+          completed: 0,
+          total: 0,
+          status: null,
+        });
       }
     },
     [queryClient]
   );
 
   const cancelPull = useCallback(async () => {
-    // Abort the SSE stream
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
     }
 
-    // Safety net: also tell the backend to cancel
     try {
       await fetch(`${API_BASE_URL}/api/ollama/downloads`, {
         method: "DELETE",
@@ -219,10 +287,17 @@ export function useModelPull() {
     }
 
     setIsDownloading(false);
-    setIntervalMs(false); // Stop polling
+    setIntervalMs(false);
     setProgress(null);
     setError(null);
-  }, []);
+    setCachedDownloadStatus(queryClient, {
+      active: false,
+      model: null,
+      completed: 0,
+      total: 0,
+      status: null,
+    });
+  }, [queryClient]);
 
-  return { progress, isDownloading, error, startPull, cancelPull };
+  return { progress, isDownloading, error, modelName, startPull, cancelPull };
 }
