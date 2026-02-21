@@ -8,6 +8,7 @@ import { queryKeys } from "@/lib/queryKeys";
 
 const DOWNLOAD_STATUS_POLL_INTERVAL = 1_000;
 const SCORE_100_PERCENT_DELAY = 500;
+const MODEL_REGISTRATION_SAFETY_DELAY = 1_500;
 
 export interface PullProgress {
   status: string;
@@ -101,6 +102,10 @@ export function useModelPull() {
         status: null,
       });
       queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
+      // Safety follow-up: Ollama may need extra time to register the model
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
+      }, DOWNLOAD_STATUS_POLL_INTERVAL);
     }
   }, [downloadStatus, isDownloading, queryClient]);
 
@@ -239,6 +244,10 @@ export function useModelPull() {
           });
           queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
         }, SCORE_100_PERCENT_DELAY);
+        // Safety follow-up: Ollama may need extra time to register the model
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
+        }, MODEL_REGISTRATION_SAFETY_DELAY);
       } catch (err: unknown) {
         abortRef.current = null;
         if (err instanceof DOMException && err.name === "AbortError") {
