@@ -24,6 +24,7 @@ paths: ["backend/**"]
 
 - **feedparser** for RSS/Atom parsing. **APScheduler** for background jobs (feed refresh, scoring queue).
 - `ollama.AsyncClient` is NOT an async context manager — use `client = AsyncClient(...)` directly, never `async with`.
+- `httpx.Timeout` requires either a positional default or all four params (connect, read, write, pool) — use `httpx.Timeout(default, connect=override)` pattern.
 
 ## Configuration
 

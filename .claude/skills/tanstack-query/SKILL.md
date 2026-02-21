@@ -191,6 +191,29 @@ return { updateCategory };
 
 **Note:** This doesn't contradict "return mutation objects directly" — the raw mutation is still exposed alongside the helper. The helper exists because it adds auto-acknowledge logic, and it must be `useCallback`-wrapped so consumers get a stable reference.
 
+### `useQuery` Without `queryFn` on Shared Cache Keys
+
+**What went wrong:** `ModelSelector` used `useQuery<DownloadStatus>({ queryKey: queryKeys.ollama.downloadStatus })` without a `queryFn`, assuming the cache would already be populated by `useModelPull` (which writes via `setQueryData`) or `SettingsSidebar` (which polls with its own `queryFn`). On first render — before either of those components populated the cache — TanStack Query tried to fetch, found no `queryFn`, and threw a runtime error.
+
+**Why it's tempting:** When using `setQueryData` to share state across components via the cache, it feels redundant to also provide a `queryFn` on read-only consumers. The cache "should" already have data. But component mount order is not guaranteed, and the cache starts empty on page load.
+
+**Fix:** Every `useQuery` call must include `queryFn`, even if the data is primarily written by another component via `setQueryData`. The `queryFn` acts as a fallback for cold cache scenarios.
+
+```typescript
+// BAD — assumes cache is already warm
+const { data } = useQuery<DownloadStatus>({
+  queryKey: queryKeys.ollama.downloadStatus,
+});
+
+// GOOD — self-sufficient, works on cold cache
+const { data } = useQuery<DownloadStatus>({
+  queryKey: queryKeys.ollama.downloadStatus,
+  queryFn: fetchDownloadStatus,
+});
+```
+
+**Note:** `bun run build` does NOT catch this — it's a runtime-only error. The types are satisfied because `queryFn` is optional in TanStack Query's type definitions.
+
 ## Decision Aids
 
 ### When to use `handlesOwnErrors: true`

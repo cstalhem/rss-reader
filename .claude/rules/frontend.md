@@ -38,6 +38,7 @@ paths: ["frontend/**"]
 - No unnecessary `useEffect` — not for derived state, event responses, or prop-change resets.
 - `useCallback` deps: use `mutation.mutate` not `mutation` — the object is a new reference each render, `.mutate` is stable.
 - Custom hook helper functions with logic (not just delegation) must be `useCallback`-wrapped to maintain referential stability for consumers.
+- Every `useQuery` must include `queryFn` — cache may be empty on first render regardless of other components writing to the same key.
 
 ## File Organization
 
