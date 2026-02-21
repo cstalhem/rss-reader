@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 Milestone: v1.1 Configuration, Feedback & Polish
 Phase: 09.2 complete, Phase 10 not started
 Status: Phase 09.2 verified and complete — Phase 10 (LLM Feedback Loop) remaining
-Last activity: 2026-02-21 - Completed quick task 20: Persist Ollama download indicator across navigation
+Last activity: 2026-02-21 - Completed quick task 21: Refresh UI after model download complete
 
 Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase 10 remaining)
 
@@ -284,6 +284,7 @@ Key architectural decisions carrying forward to v1.1:
 | 18 | Add preloadEntriesOnStart: false and webpackMemoryOptimizations: true to next.config.ts experimental block | 2026-02-20 | 97926d8 | [18-investigate-next-js-frontend-server-exce](./quick/18-investigate-next-js-frontend-server-exce/) |
 | 19 | Replace Tooltip wrappers with native title attributes in WeightPresetStrip, remove useBreakpointValue (-350 Zag machines, -70 listeners) | 2026-02-20 | 7b9432a | [19-shared-tooltip-and-hoisted-breakpoint-fo](./quick/19-shared-tooltip-and-hoisted-breakpoint-fo/) |
 | 20 | Persist Ollama download indicator across navigation via unified TanStack Query cache with sidebar model name + selector progress | 2026-02-21 | 59108c2 | [20-persist-ollama-download-indicator-across](./quick/20-persist-ollama-download-indicator-across/) |
+| 21 | Refresh UI after model download complete: dual-path safety invalidation + ModelSelector queryFn fix | 2026-02-21 | 8c5b3d4 | [21-refresh-ui-after-model-download-complete](./quick/21-refresh-ui-after-model-download-complete/) |
 
 **Phase 7 considerations:**
 - Pydantic Settings `@lru_cache` prevents runtime updates - requires two-tier config pattern (Settings for infrastructure, UserPreferences for runtime choices)
@@ -300,8 +301,8 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed quick task 20 (persist Ollama download indicator across navigation)
+Stopped at: Completed quick task 21 (refresh UI after model download complete)
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-21 after quick task 20*
+*Last updated: 2026-02-21 after quick task 21*
