@@ -13,7 +13,6 @@ from tenacity import (
     wait_exponential,
 )
 
-from backend.config import Settings
 from backend.database import smart_case
 from backend.models import Category
 from backend.prompts import (
@@ -71,9 +70,7 @@ def get_or_create_category(
         Existing or newly created Category
     """
     slug = slugify(display_name)
-    category = session.exec(
-        select(Category).where(Category.slug == slug)
-    ).first()
+    category = session.exec(select(Category).where(Category.slug == slug)).first()
     if category:
         return category
 
@@ -107,8 +104,9 @@ async def categorize_article(
     article_title: str,
     article_text: str,
     existing_categories: list[str],
-    settings: Settings,
+    host: str,
     model: str,
+    thinking: bool = False,
     category_hierarchy: dict[str, list[str]] | None = None,
     hidden_categories: list[str] | None = None,
 ) -> CategoryResponse:
@@ -118,8 +116,9 @@ async def categorize_article(
         article_title: Article title
         article_text: Article content
         existing_categories: List of existing categories to reuse
-        settings: Application settings with Ollama config (host, thinking)
+        host: Ollama server URL
         model: Ollama model name to use for categorization
+        thinking: Whether to enable extended thinking mode
         category_hierarchy: Optional parent-child hierarchy to guide categorization
         hidden_categories: Optional list of hidden category names to avoid
 
@@ -130,16 +129,21 @@ async def categorize_article(
         Exception: On LLM call failure after retries
     """
     prompt = build_categorization_prompt(
-        article_title, article_text, existing_categories, category_hierarchy,
+        article_title,
+        article_text,
+        existing_categories,
+        category_hierarchy,
         hidden_categories=hidden_categories,
     )
 
     timeout = httpx.Timeout(
-        connect=OLLAMA_CONNECT_TIMEOUT, read=OLLAMA_READ_TIMEOUT,
-        write=30.0, pool=10.0,
+        connect=OLLAMA_CONNECT_TIMEOUT,
+        read=OLLAMA_READ_TIMEOUT,
+        write=30.0,
+        pool=10.0,
     )
 
-    client = AsyncClient(host=settings.ollama.host, timeout=timeout)
+    client = AsyncClient(host=host, timeout=timeout)
     # Use streaming to prevent httpx.ReadTimeout on slower models
     content = ""
     async for chunk in await client.chat(
@@ -148,7 +152,7 @@ async def categorize_article(
         format=CategoryResponse.model_json_schema(),
         options={"temperature": 0},
         stream=True,
-        think=True if settings.ollama.thinking else None,
+        think=True if thinking else None,
     ):
         if chunk["message"].get("thinking"):
             _scoring_activity["phase"] = "thinking"
@@ -177,8 +181,9 @@ async def score_article(
     article_text: str,
     interests: str,
     anti_interests: str,
-    settings: Settings,
+    host: str,
     model: str,
+    thinking: bool = False,
 ) -> ScoringResponse:
     """Score an article's interest and quality using Ollama LLM.
 
@@ -187,8 +192,9 @@ async def score_article(
         article_text: Article content
         interests: User's interest preferences
         anti_interests: User's anti-interest preferences
-        settings: Application settings with Ollama config (host, thinking)
+        host: Ollama server URL
         model: Ollama model name to use for scoring
+        thinking: Whether to enable extended thinking mode
 
     Returns:
         ScoringResponse with interest/quality scores and reasoning
@@ -201,11 +207,13 @@ async def score_article(
     )
 
     timeout = httpx.Timeout(
-        connect=OLLAMA_CONNECT_TIMEOUT, read=OLLAMA_READ_TIMEOUT,
-        write=30.0, pool=10.0,
+        connect=OLLAMA_CONNECT_TIMEOUT,
+        read=OLLAMA_READ_TIMEOUT,
+        write=30.0,
+        pool=10.0,
     )
 
-    client = AsyncClient(host=settings.ollama.host, timeout=timeout)
+    client = AsyncClient(host=host, timeout=timeout)
     # Use streaming to prevent httpx.ReadTimeout on slower models
     content = ""
     async for chunk in await client.chat(
@@ -214,7 +222,7 @@ async def score_article(
         format=ScoringResponse.model_json_schema(),
         options={"temperature": 0},
         stream=True,
-        think=True if settings.ollama.thinking else None,
+        think=True if thinking else None,
     ):
         if chunk["message"].get("thinking"):
             _scoring_activity["phase"] = "thinking"

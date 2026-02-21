@@ -152,6 +152,19 @@ def reorder_feeds(
     return {"ok": True}
 
 
+@router.get("/refresh-status")
+def get_refresh_status():
+    """Get next scheduled feed refresh time for countdown display."""
+    from backend.scheduler import scheduler
+
+    job = scheduler.get_job("refresh_feeds")
+    return {
+        "next_refresh_at": job.next_run_time.isoformat()
+        if job and job.next_run_time
+        else None,
+    }
+
+
 @router.post("/refresh", response_model=RefreshResponse)
 async def manual_refresh(
     session: Session = Depends(get_session),

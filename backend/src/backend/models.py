@@ -107,7 +107,11 @@ class UserPreferences(SQLModel, table=True):
     anti_interests: str = Field(default="")
     updated_at: datetime = Field(default_factory=datetime.now)
 
-    # Runtime Ollama model configuration (overrides YAML/env defaults)
+    # Ollama model configuration
     ollama_categorization_model: str | None = Field(default=None)
     ollama_scoring_model: str | None = Field(default=None)
     ollama_use_separate_models: bool = Field(default=False)
+    ollama_thinking: bool = Field(default=False)
+
+    # Scheduler configuration
+    feed_refresh_interval: int = Field(default=1800)  # seconds

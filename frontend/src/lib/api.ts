@@ -12,6 +12,7 @@ import {
   ScoringStatus,
   DownloadStatus,
   FetchArticlesParams,
+  RefreshStatus,
 } from "./types";
 
 export const API_BASE_URL =
@@ -437,5 +438,11 @@ export async function ungroupParent(
     method: "POST",
   });
   if (!response.ok) throw new Error(`Failed to ungroup category: ${response.statusText}`);
+  return response.json();
+}
+
+export async function fetchRefreshStatus(): Promise<RefreshStatus> {
+  const response = await fetch(`${API_BASE_URL}/api/feeds/refresh-status`);
+  if (!response.ok) throw new Error(`Failed to fetch refresh status: ${response.statusText}`);
   return response.json();
 }

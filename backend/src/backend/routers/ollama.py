@@ -45,27 +45,22 @@ async def ollama_models():
 def get_ollama_config(
     session: Session = Depends(get_session),
 ):
-    """Get runtime Ollama model config from UserPreferences (YAML fallback)."""
+    """Get runtime Ollama model config from UserPreferences."""
     preferences = session.exec(select(UserPreferences)).first()
 
-    categorization_model = settings.ollama.categorization_model
-    scoring_model = settings.ollama.scoring_model
-    use_separate_models = False
-
-    if preferences:
-        categorization_model = (
-            preferences.ollama_categorization_model or categorization_model
+    if not preferences:
+        return OllamaConfigResponse(
+            categorization_model=None,
+            scoring_model=None,
+            use_separate_models=False,
+            thinking=False,
         )
-        use_separate_models = preferences.ollama_use_separate_models
-        if use_separate_models:
-            scoring_model = preferences.ollama_scoring_model or scoring_model
-        else:
-            scoring_model = categorization_model
 
     return OllamaConfigResponse(
-        categorization_model=categorization_model,
-        scoring_model=scoring_model,
-        use_separate_models=use_separate_models,
+        categorization_model=preferences.ollama_categorization_model,
+        scoring_model=preferences.ollama_scoring_model,
+        use_separate_models=preferences.ollama_use_separate_models,
+        thinking=preferences.ollama_thinking,
     )
 
 
@@ -90,6 +85,7 @@ def update_ollama_config(
     preferences.ollama_categorization_model = update.categorization_model
     preferences.ollama_scoring_model = update.scoring_model
     preferences.ollama_use_separate_models = update.use_separate_models
+    preferences.ollama_thinking = update.thinking
     preferences.updated_at = datetime.now()
 
     session.add(preferences)
@@ -97,10 +93,10 @@ def update_ollama_config(
     session.refresh(preferences)
 
     return OllamaConfigResponse(
-        categorization_model=preferences.ollama_categorization_model
-        or settings.ollama.categorization_model,
-        scoring_model=preferences.ollama_scoring_model or settings.ollama.scoring_model,
+        categorization_model=preferences.ollama_categorization_model,
+        scoring_model=preferences.ollama_scoring_model,
         use_separate_models=preferences.ollama_use_separate_models,
+        thinking=preferences.ollama_thinking,
     )
 
 

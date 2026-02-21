@@ -53,6 +53,7 @@ export interface Feed {
 export interface UserPreferences {
   interests: string;
   anti_interests: string;
+  feed_refresh_interval: number;
   updated_at: string;
 }
 
@@ -71,9 +72,14 @@ export interface OllamaModel {
 }
 
 export interface OllamaConfig {
-  categorization_model: string;
-  scoring_model: string;
+  categorization_model: string | null;
+  scoring_model: string | null;
   use_separate_models: boolean;
+  thinking: boolean;
+}
+
+export interface RefreshStatus {
+  next_refresh_at: string | null;
 }
 
 export interface OllamaPrompts {

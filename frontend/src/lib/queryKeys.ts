@@ -6,6 +6,7 @@ export const queryKeys = {
   },
   feeds: {
     all: ["feeds"] as const,
+    refreshStatus: ["feeds", "refresh-status"] as const,
   },
   categories: {
     all: ["categories"] as const,

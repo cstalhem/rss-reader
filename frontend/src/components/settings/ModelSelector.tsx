@@ -125,10 +125,10 @@ export function ModelSelector({
     onSave(true);
   };
 
-  const handleModelChange = (field: keyof OllamaConfig, value: string) => {
-    const next = { ...config, [field]: value };
+  const handleModelChange = (field: "categorization_model" | "scoring_model", value: string) => {
+    const next = { ...config, [field]: value || null };
     if (!next.use_separate_models && field === "categorization_model") {
-      next.scoring_model = value;
+      next.scoring_model = value || null;
     }
     onConfigChange(next);
   };
@@ -181,7 +181,7 @@ export function ModelSelector({
               </Text>
               <ModelSelect
                 collection={modelCollection}
-                value={config.categorization_model}
+                value={config.categorization_model ?? ""}
                 onChange={(v) => handleModelChange("categorization_model", v)}
                 disabled={noModels}
                 placeholder={noModels ? "No models available" : "Select model"}
@@ -203,7 +203,7 @@ export function ModelSelector({
               </Text>
               <ModelSelect
                 collection={modelCollection}
-                value={config.scoring_model}
+                value={config.scoring_model ?? ""}
                 onChange={(v) => handleModelChange("scoring_model", v)}
                 disabled={noModels}
                 placeholder={noModels ? "No models available" : "Select model"}
@@ -234,7 +234,7 @@ export function ModelSelector({
           </Text>
           <ModelSelect
             collection={modelCollection}
-            value={config.categorization_model}
+            value={config.categorization_model ?? ""}
             onChange={(v) => handleModelChange("categorization_model", v)}
             disabled={noModels}
             placeholder={noModels ? "No models available" : "Select model"}
@@ -251,6 +251,20 @@ export function ModelSelector({
           )}
         </Box>
       )}
+
+      {/* Extended thinking toggle */}
+      <Switch.Root
+        checked={config.thinking}
+        onCheckedChange={(e) => onConfigChange({ ...config, thinking: e.checked })}
+      >
+        <Switch.HiddenInput />
+        <Switch.Control>
+          <Switch.Thumb />
+        </Switch.Control>
+        <Switch.Label>
+          <Text fontSize="sm">Enable extended thinking</Text>
+        </Switch.Label>
+      </Switch.Root>
 
       {/* Actions — separated from form fields */}
       <Box borderTopWidth="1px" borderColor="border.subtle" pt={4} mt={1}>
