@@ -103,12 +103,14 @@ class FeedResponse(BaseModel):
 class PreferencesResponse(BaseModel):
     interests: str
     anti_interests: str
+    feed_refresh_interval: int
     updated_at: datetime
 
 
 class PreferencesUpdate(BaseModel):
     interests: str | None = None
     anti_interests: str | None = None
+    feed_refresh_interval: int | None = None
 
 
 # --- Categories ---
@@ -181,15 +183,17 @@ class PullModelRequest(BaseModel):
 
 
 class OllamaConfigResponse(BaseModel):
-    categorization_model: str
-    scoring_model: str
+    categorization_model: str | None
+    scoring_model: str | None
     use_separate_models: bool
+    thinking: bool
 
 
 class OllamaConfigUpdate(BaseModel):
-    categorization_model: str
-    scoring_model: str
+    categorization_model: str | None
+    scoring_model: str | None
     use_separate_models: bool
+    thinking: bool
 
 
 class OllamaPromptsResponse(BaseModel):

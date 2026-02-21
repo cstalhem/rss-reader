@@ -6,7 +6,7 @@ from functools import lru_cache
 from typing import Any
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -30,17 +30,17 @@ class LoggingConfig(BaseModel):
 class SchedulerConfig(BaseModel):
     """Scheduler configuration."""
 
-    feed_refresh_interval: int = 1800  # 30 minutes
+    model_config = ConfigDict(extra="ignore")
+
     log_job_execution: bool = False
 
 
 class OllamaConfig(BaseModel):
     """Ollama LLM configuration."""
 
+    model_config = ConfigDict(extra="ignore")
+
     host: str = "http://localhost:11434"
-    categorization_model: str = "qwen3:8b"
-    scoring_model: str = "qwen3:8b"
-    thinking: bool = False
 
 
 class Settings(BaseSettings):
@@ -101,9 +101,7 @@ class YamlConfigSettingsSource(PydanticBaseSettingsSource):
     Loads config from file specified in CONFIG_FILE environment variable.
     """
 
-    def get_field_value(
-        self, field: Any, field_name: str
-    ) -> tuple[Any, str, bool]:
+    def get_field_value(self, field: Any, field_name: str) -> tuple[Any, str, bool]:
         # Not used for nested models
         return None, field_name, False
 

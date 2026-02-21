@@ -96,8 +96,8 @@ class ScoringQueue:
         1. Categorize article (skip if rescore_mode == "score_only")
         2. Score article (skip if blocked)
 
-        Model names are read from UserPreferences per-batch (two-tier config).
-        Infrastructure settings (host, thinking) still come from Pydantic Settings.
+        Model names and thinking flag are read from UserPreferences (DB).
+        Infrastructure settings (host) come from Pydantic Settings.
 
         Args:
             session: Database session
@@ -106,36 +106,40 @@ class ScoringQueue:
         Returns:
             Number of articles processed
         """
+        ollama_host = settings.ollama.host
+
         # Guard: skip batch if Ollama is down or required models missing
-        health = await check_health(settings.ollama.host)
+        health = await check_health(ollama_host)
         if not health["connected"]:
             logger.warning("Scoring skipped: Ollama not connected")
             return 0
 
         try:
-            models_resp = await list_models(settings.ollama.host)
+            models_resp = await list_models(ollama_host)
             installed_names = {m["name"] for m in models_resp}
         except Exception:
             logger.exception("Could not list Ollama models, treating as no models")
             installed_names = set()
 
-        # Resolve required model names from preferences/config
-        preferences_for_guard = session.exec(select(UserPreferences)).first()
-        cat_model = (
-            (preferences_for_guard.ollama_categorization_model if preferences_for_guard else None)
-            or settings.ollama.categorization_model
-        )
-        if preferences_for_guard and preferences_for_guard.ollama_use_separate_models:
-            score_model = (
-                preferences_for_guard.ollama_scoring_model
-                or settings.ollama.scoring_model
-            )
-        else:
-            score_model = cat_model
-
         if not installed_names:
             logger.warning("Scoring skipped: no models available in Ollama")
             return 0
+
+        # Resolve required model names from preferences
+        preferences_for_guard = session.exec(select(UserPreferences)).first()
+        cat_model = (
+            preferences_for_guard.ollama_categorization_model
+            if preferences_for_guard
+            else None
+        )
+        if not cat_model:
+            logger.warning("Scoring skipped: no model configured")
+            return 0
+
+        if preferences_for_guard and preferences_for_guard.ollama_use_separate_models:
+            score_model = preferences_for_guard.ollama_scoring_model or cat_model
+        else:
+            score_model = cat_model
 
         missing = [m for m in {cat_model, score_model} if m not in installed_names]
         if missing:
@@ -164,20 +168,23 @@ class ScoringQueue:
             session.add(preferences)
             session.commit()
 
-        # Resolve model names: UserPreferences overrides -> YAML/env defaults
-        categorization_model = (
-            preferences.ollama_categorization_model
-            or settings.ollama.categorization_model
-        )
+        # Resolve model names from preferences (DB is sole source of truth)
+        categorization_model = preferences.ollama_categorization_model
+        if not categorization_model:
+            logger.warning("Scoring skipped: no model configured")
+            return 0
+
         if preferences.ollama_use_separate_models:
-            scoring_model = (
-                preferences.ollama_scoring_model or settings.ollama.scoring_model
-            )
+            scoring_model = preferences.ollama_scoring_model or categorization_model
         else:
             scoring_model = categorization_model
 
+        use_thinking = preferences.ollama_thinking
+
         # Get active categories list, hierarchy, and hidden categories
-        active_categories, category_hierarchy, hidden_categories = get_active_categories(session)
+        active_categories, category_hierarchy, hidden_categories = (
+            get_active_categories(session)
+        )
 
         processed = 0
         for article in articles:
@@ -214,8 +221,9 @@ class ScoringQueue:
                         article.title,
                         article_text,
                         active_categories,
-                        settings,
+                        host=ollama_host,
                         model=categorization_model,
+                        thinking=use_thinking,
                         category_hierarchy=category_hierarchy,
                         hidden_categories=hidden_categories or None,
                     )
@@ -286,8 +294,9 @@ class ScoringQueue:
                         article_text,
                         preferences.interests,
                         preferences.anti_interests,
-                        settings,
+                        host=ollama_host,
                         model=scoring_model,
+                        thinking=use_thinking,
                     )
 
                     article.interest_score = scoring.interest_score

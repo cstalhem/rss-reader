@@ -117,8 +117,8 @@ export function ModelManagement({
 
   const activeModels = new Set<string>();
   if (config) {
-    activeModels.add(config.categorization_model);
-    activeModels.add(config.scoring_model);
+    if (config.categorization_model) activeModels.add(config.categorization_model);
+    if (config.scoring_model) activeModels.add(config.scoring_model);
   }
 
   const handlePull = useCallback(

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Alert, Box, Flex, Button, Text, Icon } from "@chakra-ui/react";
+import NextLink from "next/link";
+import { Alert, Box, Flex, Button, Link, Text, Icon } from "@chakra-ui/react";
 import { LuCheckCheck, LuInbox, LuClock, LuBan, LuBrainCog } from "react-icons/lu";
 import { useArticles, useMarkAsRead } from "@/hooks/useArticles";
 import { useMarkAllRead } from "@/hooks/useFeedMutations";
@@ -125,7 +126,17 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
           <Alert.Indicator>
             <LuBrainCog />
           </Alert.Indicator>
-          <Alert.Title fontSize="xs">{scoringStatus.scoring_ready_reason}</Alert.Title>
+          <Alert.Title fontSize="xs">
+            {scoringStatus.scoring_ready_reason}
+            {scoringStatus.scoring_ready_reason.includes("Ollama settings") && (
+              <>
+                {" "}
+                <Link asChild color="fg.warning" textDecoration="underline">
+                  <NextLink href="/settings/ollama">Configure →</NextLink>
+                </Link>
+              </>
+            )}
+          </Alert.Title>
         </Alert.Root>
       )}
 

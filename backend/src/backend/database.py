@@ -80,21 +80,20 @@ def kebab_to_display(kebab: str) -> str:
     if lower in SMART_CASE_MAP:
         return SMART_CASE_MAP[lower]
     return " ".join(
-        SMART_CASE_MAP.get(word, word.capitalize())
-        for word in kebab.split("-")
+        SMART_CASE_MAP.get(word, word.capitalize()) for word in kebab.split("-")
     )
 
 
 # --- Schema versioning ---
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
 
 
 def _get_schema_version(conn) -> int:
     """Get current schema version, creating table if needed."""
-    conn.execute(text(
-        "CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)"
-    ))
+    conn.execute(
+        text("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)")
+    )
     row = conn.execute(text("SELECT version FROM schema_version")).first()
     if row is None:
         conn.execute(text("INSERT INTO schema_version (version) VALUES (0)"))
@@ -110,7 +109,9 @@ def _set_schema_version(conn, version: int):
 def _recover_stuck_scoring(conn):
     """Reset articles orphaned in 'scoring' state back to 'queued'."""
     result = conn.execute(
-        text("UPDATE articles SET scoring_state = 'queued' WHERE scoring_state = 'scoring'")
+        text(
+            "UPDATE articles SET scoring_state = 'queued' WHERE scoring_state = 'scoring'"
+        )
     )
     if result.rowcount > 0:
         logger.info(f"Recovered {result.rowcount} articles stuck in scoring state")
@@ -176,5 +177,27 @@ def create_db_and_tables():
             _seed_default_categories(conn)
             _recover_stuck_scoring(conn)
             _set_schema_version(conn, 1)
+
+        if version < 2:
+            # Guard: columns may already exist if create_all() ran on a fresh DB
+            existing = {
+                row[1]
+                for row in conn.execute(text("PRAGMA table_info(user_preferences)"))
+            }
+            if "ollama_thinking" not in existing:
+                conn.execute(
+                    text(
+                        "ALTER TABLE user_preferences "
+                        "ADD COLUMN ollama_thinking BOOLEAN NOT NULL DEFAULT 0"
+                    )
+                )
+            if "feed_refresh_interval" not in existing:
+                conn.execute(
+                    text(
+                        "ALTER TABLE user_preferences "
+                        "ADD COLUMN feed_refresh_interval INTEGER NOT NULL DEFAULT 1800"
+                    )
+                )
+            _set_schema_version(conn, 2)
 
     logger.info(f"Database ready at schema version {CURRENT_SCHEMA_VERSION}")

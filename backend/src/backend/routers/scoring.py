@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session, func, select
 
 from backend.config import get_settings
-from backend.deps import get_session
+from backend.deps import get_session, resolve_ollama_models
 from backend.models import Article, UserPreferences
 from backend.ollama_service import check_health, list_models
 
@@ -80,25 +80,26 @@ async def get_scoring_status(
             logger.exception("Could not list Ollama models")
             installed_names = set()
 
-        # Resolve required model names
+        # Resolve required model names from DB (no config fallback)
         prefs = session.exec(select(UserPreferences)).first()
-        cat_model = (
-            (prefs.ollama_categorization_model if prefs else None)
-            or settings.ollama.categorization_model
-        )
-        if prefs and prefs.ollama_use_separate_models:
-            score_model = (
-                prefs.ollama_scoring_model or settings.ollama.scoring_model
-            )
+        if not prefs:
+            cat_model = None
+            score_model = None
         else:
-            score_model = cat_model
+            cat_model, score_model = resolve_ollama_models(prefs)
 
-        if not installed_names:
+        if cat_model is None:
+            scoring_ready_reason = (
+                "No model selected — configure one in Ollama settings"
+            )
+        elif not installed_names:
             scoring_ready_reason = "Scoring paused — no models available in Ollama"
         else:
             missing = [m for m in {cat_model, score_model} if m not in installed_names]
             if missing:
-                scoring_ready_reason = "Scoring paused — configured model no longer available"
+                scoring_ready_reason = (
+                    "Scoring paused — configured model no longer available"
+                )
             else:
                 scoring_ready = True
 

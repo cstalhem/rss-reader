@@ -95,15 +95,13 @@ logging:
   format: plain
 
 scheduler:
-  feed_refresh_interval: 1800  # seconds (30 minutes)
   log_job_execution: false
 
 ollama:
   host: http://localhost:11434
-  categorization_model: qwen3:8b
-  scoring_model: qwen3:8b
-  timeout: 120.0
 ```
+
+> **Note:** Model selection, extended thinking, and feed refresh interval are configured through the Settings UI and stored in the database.
 
 ### Environment Variables
 
@@ -113,10 +111,6 @@ Environment variables use double-underscore notation for nested config:
 |----------|-------------|---------|
 | `DATABASE__PATH` | SQLite database path | `./data/rss-reader.db` |
 | `OLLAMA__HOST` | Ollama API URL | `http://localhost:11434` |
-| `OLLAMA__CATEGORIZATION_MODEL` | Model for topic tagging | `qwen3:8b` |
-| `OLLAMA__SCORING_MODEL` | Model for interest scoring | `qwen3:8b` |
-| `OLLAMA__TIMEOUT` | LLM request timeout (seconds) | `120.0` |
-| `SCHEDULER__FEED_REFRESH_INTERVAL` | Feed poll interval (seconds) | `1800` |
 | `CONFIG_FILE` | Path to YAML config file | *(none)* |
 
 ### Reverse Proxy

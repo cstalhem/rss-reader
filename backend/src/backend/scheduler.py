@@ -6,12 +6,13 @@ from sqlmodel import Session, select
 from backend.config import get_settings
 from backend.database import engine
 from backend.feeds import refresh_feed
-from backend.models import Feed
+from backend.models import Feed, UserPreferences
 from backend.scoring_queue import ScoringQueue
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
+DEFAULT_FEED_REFRESH_INTERVAL = 1800  # seconds
 SCORING_BATCH_SIZE = 5
 SCORING_INTERVAL_SECONDS = 30
 
@@ -53,7 +54,8 @@ async def process_scoring_queue():
         session.expire_on_commit = False
         try:
             processed = await scoring_queue.process_next_batch(
-                session, batch_size=SCORING_BATCH_SIZE,
+                session,
+                batch_size=SCORING_BATCH_SIZE,
             )
             if settings.scheduler.log_job_execution and processed > 0:
                 logger.info(f"Processed {processed} articles from scoring queue")
@@ -63,8 +65,13 @@ async def process_scoring_queue():
 
 def start_scheduler():
     """Start the background scheduler."""
-    # Add job to refresh feeds at configured interval
-    interval_seconds = settings.scheduler.feed_refresh_interval
+    # Read feed refresh interval from DB
+    with Session(engine) as session:
+        prefs = session.exec(select(UserPreferences)).first()
+        interval_seconds = (
+            prefs.feed_refresh_interval if prefs else DEFAULT_FEED_REFRESH_INTERVAL
+        )
+
     scheduler.add_job(
         refresh_all_feeds,
         "interval",
@@ -87,6 +94,14 @@ def start_scheduler():
         f"Scheduler started - feeds will refresh every {interval_seconds} seconds, "
         f"scoring queue will process every {SCORING_INTERVAL_SECONDS} seconds"
     )
+
+
+def reschedule_feed_refresh(interval_seconds: int):
+    """Reschedule the feed refresh job with a new interval."""
+    scheduler.reschedule_job(
+        "refresh_feeds", trigger="interval", seconds=interval_seconds
+    )
+    logger.info(f"Feed refresh rescheduled to every {interval_seconds} seconds")
 
 
 def shutdown_scheduler():
