@@ -16,6 +16,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { LuTriangleAlert } from "react-icons/lu";
 import { useScoringStatus } from "@/hooks/useScoringStatus";
+import { fetchDownloadStatus } from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
 import type { DownloadStatus, OllamaConfig, OllamaModel } from "@/lib/types";
 
@@ -106,6 +107,7 @@ export function ModelSelector({
   // Download status from shared cache
   const { data: downloadStatus } = useQuery<DownloadStatus>({
     queryKey: queryKeys.ollama.downloadStatus,
+    queryFn: fetchDownloadStatus,
   });
   const downloadingModel = downloadStatus?.active ? downloadStatus.model : null;
   const downloadPct =
