@@ -113,8 +113,8 @@ export function ModelManagement({
 }: ModelManagementProps) {
   const [customModel, setCustomModel] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [pullingModel, setPullingModel] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const pullingModel = pullHook.modelName;
 
   const installedNames = new Set(models.map((m) => m.name));
 
@@ -126,7 +126,6 @@ export function ModelManagement({
 
   const handlePull = useCallback(
     (name: string) => {
-      setPullingModel(name);
       pullHook.startPull(name);
     },
     [pullHook]
@@ -135,7 +134,6 @@ export function ModelManagement({
   const handleCustomPull = useCallback(() => {
     const trimmed = customModel.trim();
     if (!trimmed) return;
-    setPullingModel(trimmed);
     pullHook.startPull(trimmed);
     setCustomModel("");
   }, [customModel, pullHook]);
@@ -156,11 +154,6 @@ export function ModelManagement({
     },
     [queryClient]
   );
-
-  // Clear pullingModel when download finishes
-  if (!pullHook.isDownloading && pullingModel) {
-    setPullingModel(null);
-  }
 
   const installedCurated = CURATED_MODELS.filter((c) => installedNames.has(c.name));
   const nonCuratedInstalled = models.filter(

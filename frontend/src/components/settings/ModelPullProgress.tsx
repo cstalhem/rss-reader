@@ -6,12 +6,40 @@ import type { PullProgress } from "@/hooks/useModelPull";
 interface ModelPullProgressProps {
   progress: PullProgress;
   onCancel: () => void;
+  /** Compact variant: thin bar + percentage only, no cancel/speed/status */
+  compact?: boolean;
 }
 
 export function ModelPullProgress({
   progress,
   onCancel,
+  compact,
 }: ModelPullProgressProps) {
+  if (compact) {
+    return (
+      <Box width="100%">
+        <Box
+          height="4px"
+          bg="bg.subtle"
+          borderRadius="full"
+          overflow="hidden"
+          mb={0.5}
+        >
+          <Box
+            height="100%"
+            bg="accent.solid"
+            borderRadius="full"
+            width={`${progress.percentage}%`}
+            transition="width 0.3s ease"
+          />
+        </Box>
+        <Text fontSize="xs" color="fg.muted">
+          Downloading... {progress.percentage}%
+        </Text>
+      </Box>
+    );
+  }
+
   return (
     <Box width="100%">
       {/* Progress bar */}
