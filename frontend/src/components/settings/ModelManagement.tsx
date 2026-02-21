@@ -2,12 +2,10 @@
 
 import { useState, useCallback } from "react";
 import {
-  Badge,
   Box,
   Button,
   Dialog,
   Flex,
-  IconButton,
   Input,
   Stack,
   Text,
@@ -16,6 +14,7 @@ import { LuDownload, LuTrash2 } from "react-icons/lu";
 import { useQueryClient } from "@tanstack/react-query";
 import { deleteOllamaModel } from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
+import { formatSize } from "@/lib/utils";
 import { toaster } from "@/components/ui/toaster";
 import { ModelPullProgress } from "./ModelPullProgress";
 import type { OllamaModel, OllamaConfig } from "@/lib/types";
@@ -67,21 +66,19 @@ function InstalledModelRow({
               {sizeLabel}
             </Text>
           )}
-          <Badge size="sm" colorPalette="green" variant="subtle">
-            Installed
-          </Badge>
         </Flex>
         <Flex alignItems="center" gap={1} ml={2} flexShrink={0}>
           {canDelete && (
-            <IconButton
+            <Button
               aria-label={`Delete ${name}`}
               size="xs"
-              variant="ghost"
-              color="fg.muted"
+              variant="subtle"
+              colorPalette="red"
               onClick={onDelete}
             >
               <LuTrash2 size={14} />
-            </IconButton>
+              Remove
+            </Button>
           )}
         </Flex>
       </Flex>
@@ -165,34 +162,38 @@ export function ModelManagement({
 
   return (
     <Stack gap={4}>
-      {/* Sub-section 1: Downloaded Models */}
+      {/* Sub-section 1: Installed Models */}
       <Box>
         <Text fontSize="sm" fontWeight="medium" color="fg.muted" mb={2}>
-          Downloaded Models
+          Installed Models
         </Text>
         {!hasInstalledModels ? (
           <Text fontSize="sm" color="fg.muted">
-            No models downloaded yet
+            No models installed yet
           </Text>
         ) : (
           <Stack gap={0}>
-            {installedCurated.map((curated) => (
-              <InstalledModelRow
-                key={curated.name}
-                name={curated.name}
-                sizeLabel={curated.size}
-                canDelete={!activeModels.has(curated.name)}
-                onDelete={() => setDeleteTarget(curated.name)}
-                isPulling={pullHook.isDownloading && pullingModel === curated.name}
-                progress={pullHook.progress}
-                onCancelPull={pullHook.cancelPull}
-              />
-            ))}
+            {installedCurated.map((curated) => {
+              const model = models.find((m) => m.name === curated.name);
+              return (
+                <InstalledModelRow
+                  key={curated.name}
+                  name={curated.name}
+                  sizeLabel={model ? formatSize(model.size) : curated.size}
+                  canDelete={!activeModels.has(curated.name)}
+                  onDelete={() => setDeleteTarget(curated.name)}
+                  isPulling={pullHook.isDownloading && pullingModel === curated.name}
+                  progress={pullHook.progress}
+                  onCancelPull={pullHook.cancelPull}
+                />
+              );
+            })}
 
             {nonCuratedInstalled.map((m) => (
               <InstalledModelRow
                 key={m.name}
                 name={m.name}
+                sizeLabel={formatSize(m.size)}
                 canDelete={!activeModels.has(m.name)}
                 onDelete={() => setDeleteTarget(m.name)}
                 isPulling={pullHook.isDownloading && pullingModel === m.name}

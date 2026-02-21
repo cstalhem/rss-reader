@@ -15,6 +15,7 @@ paths: ["frontend/**"]
 - `colorPalette` requires `solid`, `contrast`, and `focusRing` semantic tokens to resolve.
 - Theme built with `createSystem(defaultConfig, {...})` in `frontend/src/theme/index.ts`.
 - Emotion `keyframes` cannot be defined inline in `css` prop — use `keyframes` tagged template from `@emotion/react`.
+- Don't fight variants with `color`/`_hover` — set `colorPalette` and pick the right variant. The variant owns all state styling.
 - In lists: avoid `Tooltip.Root`, `Menu.Root`, `Checkbox.Root` per row — each creates 1-2 Zag state machines. Use native `title` for tooltips.
 - `useBreakpointValue` registers 2 MQL listeners per call — hoist outside lists, pass result as prop.
 - CSS `max-width: auto` cannot be transitioned — use a Chakra sizing token (e.g. `"8"`) or specific value.

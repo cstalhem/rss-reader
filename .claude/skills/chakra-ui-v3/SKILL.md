@@ -140,6 +140,30 @@ Chakra UI v3 uses `@zag-js` state machines under the hood. Each machine allocate
 
 **The principle:** Push per-item overhead out of the render loop. This applies to Zag machines, MQL listeners, responsive duplication (`display:none/block`), and `Collapsible.Content` (mounts children when closed — use conditional rendering instead for lists).
 
+### Fighting Variants with `color` and `_hover`
+
+Chakra v3 variants (`ghost`, `subtle`, `solid`, etc.) own all state styling — base, hover, active, focus — derived from `colorPalette`. Setting `color` or `_hover` on a variant-powered component fights the variant's generated CSS, causing specificity conflicts where your overrides either don't apply on hover or can't be overridden back.
+
+```tsx
+// BAD — color="fg.muted" overrides the variant's text color at all states
+// _hover can't reliably win back because both are style props at same specificity
+<Button variant="ghost" color="fg.muted" _hover={{ color: "red.fg", bg: "red.subtle" }}>
+  Remove
+</Button>
+
+// BAD — colorPalette inside _hover doesn't work (it sets CSS variables at render, not on hover)
+<Button variant="ghost" _hover={{ colorPalette: "red" }}>
+  Remove
+</Button>
+
+// GOOD — pick the variant that matches your intent, set colorPalette for the color family
+<Button variant="subtle" colorPalette="red">
+  Remove
+</Button>
+```
+
+**The principle:** Choose the variant for the *behavior* you want (subtle = tinted bg + text, ghost = transparent with hover bg, solid = filled). Set `colorPalette` for the *color family*. Don't manually reconstruct what a variant already provides.
+
 ### Hardcoded Colors in Components
 
 ```tsx

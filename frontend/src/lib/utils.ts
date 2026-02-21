@@ -1,5 +1,12 @@
 import { SortOption } from "./types";
 
+export function formatSize(bytes: number): string {
+  const gb = bytes / (1024 * 1024 * 1024);
+  if (gb >= 1) return `${gb.toFixed(1)} GB`;
+  const mb = bytes / (1024 * 1024);
+  return `${mb.toFixed(0)} MB`;
+}
+
 export function parseSortOption(option: SortOption): { sort_by: string; order: string } {
   switch (option) {
     case "score_desc": return { sort_by: "composite_score", order: "desc" };
