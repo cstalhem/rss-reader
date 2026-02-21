@@ -76,33 +76,31 @@ async def get_scoring_status(
         try:
             models_resp = await list_models(settings.ollama.host)
             installed_names = {m["name"] for m in models_resp}
+        except Exception:
+            logger.exception("Could not list Ollama models")
+            installed_names = set()
 
-            # Resolve required model names
-            prefs = session.exec(select(UserPreferences)).first()
-            cat_model = (
-                (prefs.ollama_categorization_model if prefs else None)
-                or settings.ollama.categorization_model
+        # Resolve required model names
+        prefs = session.exec(select(UserPreferences)).first()
+        cat_model = (
+            (prefs.ollama_categorization_model if prefs else None)
+            or settings.ollama.categorization_model
+        )
+        if prefs and prefs.ollama_use_separate_models:
+            score_model = (
+                prefs.ollama_scoring_model or settings.ollama.scoring_model
             )
-            if prefs and prefs.ollama_use_separate_models:
-                score_model = (
-                    prefs.ollama_scoring_model or settings.ollama.scoring_model
-                )
-            else:
-                score_model = cat_model
+        else:
+            score_model = cat_model
 
+        if not installed_names:
+            scoring_ready_reason = "Scoring paused — no models available in Ollama"
+        else:
             missing = [m for m in {cat_model, score_model} if m not in installed_names]
             if missing:
-                names = ", ".join(missing)
-                scoring_ready_reason = (
-                    f"Scoring paused — model {names} is not downloaded"
-                    if len(missing) == 1
-                    else f"Scoring paused — models {names} are not downloaded"
-                )
+                scoring_ready_reason = "Scoring paused — configured model no longer available"
             else:
                 scoring_ready = True
-        except Exception:
-            logger.exception("Scoring readiness check failed")
-            scoring_ready_reason = "Scoring paused — could not check model availability"
 
     counts["scoring_ready"] = scoring_ready
     counts["scoring_ready_reason"] = scoring_ready_reason

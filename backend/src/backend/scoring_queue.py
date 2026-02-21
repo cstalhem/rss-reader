@@ -116,8 +116,8 @@ class ScoringQueue:
             models_resp = await list_models(settings.ollama.host)
             installed_names = {m["name"] for m in models_resp}
         except Exception:
-            logger.exception("Scoring skipped: could not list Ollama models")
-            return 0
+            logger.exception("Could not list Ollama models, treating as no models")
+            installed_names = set()
 
         # Resolve required model names from preferences/config
         preferences_for_guard = session.exec(select(UserPreferences)).first()
@@ -133,14 +133,13 @@ class ScoringQueue:
         else:
             score_model = cat_model
 
-        missing = []
-        for model_name in {cat_model, score_model}:
-            if model_name not in installed_names:
-                missing.append(model_name)
+        if not installed_names:
+            logger.warning("Scoring skipped: no models available in Ollama")
+            return 0
+
+        missing = [m for m in {cat_model, score_model} if m not in installed_names]
         if missing:
-            logger.warning(
-                "Scoring skipped: model(s) not available: %s", ", ".join(missing)
-            )
+            logger.warning("Scoring skipped: configured model no longer available")
             return 0
 
         # Get next batch -- priority articles first, then oldest
