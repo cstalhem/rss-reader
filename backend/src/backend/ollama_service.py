@@ -59,7 +59,7 @@ async def list_models(host: str) -> list[dict]:
         List of model dicts with name, size, parameter_size,
         quantization_level, and is_loaded fields.
     """
-    timeout = httpx.Timeout(connect=OLLAMA_CONNECT_TIMEOUT, read=OLLAMA_MGMT_READ_TIMEOUT)
+    timeout = httpx.Timeout(OLLAMA_MGMT_READ_TIMEOUT, connect=OLLAMA_CONNECT_TIMEOUT)
     client = AsyncClient(host=host, timeout=timeout)
     models_resp = await client.list()
     ps_resp = await client.ps()
@@ -171,7 +171,7 @@ async def delete_model(host: str, model: str) -> dict:
     Returns:
         Dict with status "success".
     """
-    timeout = httpx.Timeout(connect=OLLAMA_CONNECT_TIMEOUT, read=OLLAMA_MGMT_READ_TIMEOUT)
+    timeout = httpx.Timeout(OLLAMA_MGMT_READ_TIMEOUT, connect=OLLAMA_CONNECT_TIMEOUT)
     client = AsyncClient(host=host, timeout=timeout)
     await client.delete(model)
     return {"status": "success"}
