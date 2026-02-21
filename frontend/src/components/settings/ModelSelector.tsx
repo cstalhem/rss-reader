@@ -43,10 +43,14 @@ function ModelSelect({
   collection,
   value,
   onChange,
+  disabled,
+  placeholder = "Select model",
 }: {
   collection: ReturnType<typeof createListCollection<{ label: string; value: string }>>;
   value: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
 }) {
   return (
     <Select.Root
@@ -58,11 +62,12 @@ function ModelSelect({
         if (selected) onChange(selected);
       }}
       positioning={{ sameWidth: true }}
+      disabled={disabled}
     >
       <Select.HiddenSelect />
       <Select.Control>
         <Select.Trigger>
-          <Select.ValueText placeholder="Select model" />
+          <Select.ValueText placeholder={placeholder} />
         </Select.Trigger>
         <Select.IndicatorGroup>
           <Select.Indicator />
@@ -92,6 +97,7 @@ export function ModelSelector({
   onSave,
   isSaving,
 }: ModelSelectorProps) {
+  const noModels = models.length === 0;
   const hasMultipleModels = models.length >= 2;
   const isDirty = JSON.stringify(config) !== JSON.stringify(savedConfig);
 
@@ -169,6 +175,8 @@ export function ModelSelector({
                 collection={modelCollection}
                 value={config.categorization_model}
                 onChange={(v) => handleModelChange("categorization_model", v)}
+                disabled={noModels}
+                placeholder={noModels ? "No models available" : "Select model"}
               />
             </Box>
             <Box>
@@ -179,6 +187,8 @@ export function ModelSelector({
                 collection={modelCollection}
                 value={config.scoring_model}
                 onChange={(v) => handleModelChange("scoring_model", v)}
+                disabled={noModels}
+                placeholder={noModels ? "No models available" : "Select model"}
               />
             </Box>
           </Grid>
@@ -198,6 +208,8 @@ export function ModelSelector({
             collection={modelCollection}
             value={config.categorization_model}
             onChange={(v) => handleModelChange("categorization_model", v)}
+            disabled={noModels}
+            placeholder={noModels ? "No models available" : "Select model"}
           />
         </Box>
       )}
