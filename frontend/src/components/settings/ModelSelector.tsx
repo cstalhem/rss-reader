@@ -13,12 +13,9 @@ import {
   Switch,
   Text,
 } from "@chakra-ui/react";
-import { useQuery } from "@tanstack/react-query";
 import { LuTriangleAlert } from "react-icons/lu";
 import { useScoringStatus } from "@/hooks/useScoringStatus";
-import { fetchDownloadStatus } from "@/lib/api";
-import { queryKeys } from "@/lib/queryKeys";
-import type { DownloadStatus, OllamaConfig, OllamaModel } from "@/lib/types";
+import type { OllamaConfig, OllamaModel } from "@/lib/types";
 import { formatSize } from "@/lib/utils";
 
 interface ModelSelectorProps {
@@ -98,17 +95,6 @@ export function ModelSelector({
   const hasMultipleModels = models.length >= 2;
   const isDirty = JSON.stringify(config) !== JSON.stringify(savedConfig);
 
-  // Download status from shared cache
-  const { data: downloadStatus } = useQuery<DownloadStatus>({
-    queryKey: queryKeys.ollama.downloadStatus,
-    queryFn: fetchDownloadStatus,
-  });
-  const downloadingModel = downloadStatus?.active ? downloadStatus.model : null;
-  const downloadPct =
-    downloadStatus?.active && downloadStatus.total > 0
-      ? Math.round((downloadStatus.completed / downloadStatus.total) * 100)
-      : null;
-
   // Rescore state
   const [initialConfig] = useState(() => JSON.stringify(savedConfig));
   const [hasRescored, setHasRescored] = useState(false);
@@ -186,16 +172,6 @@ export function ModelSelector({
                 disabled={noModels}
                 placeholder={noModels ? "No models available" : "Select model"}
               />
-              {downloadingModel === config.categorization_model && (
-                <Box mt={1.5}>
-                  <Box height="4px" bg="bg.subtle" borderRadius="full" overflow="hidden" mb={0.5}>
-                    <Box height="100%" bg="accent.solid" borderRadius="full" width={`${downloadPct ?? 0}%`} transition="width 0.3s ease" />
-                  </Box>
-                  <Text fontSize="xs" color="fg.muted">
-                    Downloading... {downloadPct != null ? `${downloadPct}%` : ""}
-                  </Text>
-                </Box>
-              )}
             </Box>
             <Box>
               <Text fontSize="sm" fontWeight="medium" mb={1.5}>
@@ -208,16 +184,6 @@ export function ModelSelector({
                 disabled={noModels}
                 placeholder={noModels ? "No models available" : "Select model"}
               />
-              {downloadingModel === config.scoring_model && config.scoring_model !== config.categorization_model && (
-                <Box mt={1.5}>
-                  <Box height="4px" bg="bg.subtle" borderRadius="full" overflow="hidden" mb={0.5}>
-                    <Box height="100%" bg="accent.solid" borderRadius="full" width={`${downloadPct ?? 0}%`} transition="width 0.3s ease" />
-                  </Box>
-                  <Text fontSize="xs" color="fg.muted">
-                    Downloading... {downloadPct != null ? `${downloadPct}%` : ""}
-                  </Text>
-                </Box>
-              )}
             </Box>
           </Grid>
           <Flex alignItems="center" gap={2} color="fg.warning">
@@ -239,16 +205,6 @@ export function ModelSelector({
             disabled={noModels}
             placeholder={noModels ? "No models available" : "Select model"}
           />
-          {downloadingModel === config.categorization_model && (
-            <Box mt={1.5}>
-              <Box height="4px" bg="bg.subtle" borderRadius="full" overflow="hidden" mb={0.5}>
-                <Box height="100%" bg="accent.solid" borderRadius="full" width={`${downloadPct ?? 0}%`} transition="width 0.3s ease" />
-              </Box>
-              <Text fontSize="xs" color="fg.muted">
-                Downloading... {downloadPct != null ? `${downloadPct}%` : ""}
-              </Text>
-            </Box>
-          )}
         </Box>
       )}
 

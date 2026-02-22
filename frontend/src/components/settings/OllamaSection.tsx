@@ -128,6 +128,7 @@ export function OllamaSection() {
               models={models ?? []}
               config={effectiveConfig}
               pullHook={pullHook}
+              onConfigChange={handleConfigChange}
             />
           </SettingsPanel>
 

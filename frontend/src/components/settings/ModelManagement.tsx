@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   Box,
   Button,
-  Dialog,
   Flex,
   Input,
   Stack,
@@ -16,6 +15,7 @@ import { deleteOllamaModel } from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
 import { formatSize } from "@/lib/utils";
 import { toaster } from "@/components/ui/toaster";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ModelPullProgress } from "./ModelPullProgress";
 import type { OllamaModel, OllamaConfig } from "@/lib/types";
 import type { useModelPull } from "@/hooks/useModelPull";
@@ -24,12 +24,12 @@ interface ModelManagementProps {
   models: OllamaModel[];
   config: OllamaConfig | undefined;
   pullHook: ReturnType<typeof useModelPull>;
+  onConfigChange: (config: OllamaConfig) => void;
 }
 
 interface InstalledModelRowProps {
   name: string;
   sizeLabel?: string;
-  canDelete: boolean;
   onDelete: () => void;
   isPulling: boolean;
   progress: ReturnType<typeof useModelPull>["progress"];
@@ -39,7 +39,6 @@ interface InstalledModelRowProps {
 function InstalledModelRow({
   name,
   sizeLabel,
-  canDelete,
   onDelete,
   isPulling,
   progress,
@@ -68,18 +67,16 @@ function InstalledModelRow({
           )}
         </Flex>
         <Flex alignItems="center" gap={1} ml={2} flexShrink={0}>
-          {canDelete && (
-            <Button
-              aria-label={`Delete ${name}`}
-              size="xs"
-              variant="subtle"
-              colorPalette="red"
-              onClick={onDelete}
-            >
-              <LuTrash2 size={14} />
-              Remove
-            </Button>
-          )}
+          <Button
+            aria-label={`Delete ${name}`}
+            size="xs"
+            variant="subtle"
+            colorPalette="red"
+            onClick={onDelete}
+          >
+            <LuTrash2 size={14} />
+            Remove
+          </Button>
         </Flex>
       </Flex>
 
@@ -107,6 +104,7 @@ export function ModelManagement({
   models,
   config,
   pullHook,
+  onConfigChange,
 }: ModelManagementProps) {
   const [customModel, setCustomModel] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -115,11 +113,14 @@ export function ModelManagement({
 
   const installedNames = new Set(models.map((m) => m.name));
 
-  const activeModels = new Set<string>();
-  if (config) {
-    if (config.categorization_model) activeModels.add(config.categorization_model);
-    if (config.scoring_model) activeModels.add(config.scoring_model);
-  }
+  const activeModels = useMemo(() => {
+    const set = new Set<string>();
+    if (config) {
+      if (config.categorization_model) set.add(config.categorization_model);
+      if (config.scoring_model) set.add(config.scoring_model);
+    }
+    return set;
+  }, [config]);
 
   const handlePull = useCallback(
     (name: string) => {
@@ -135,22 +136,27 @@ export function ModelManagement({
     setCustomModel("");
   }, [customModel, pullHook]);
 
-  const handleDelete = useCallback(
-    async (name: string) => {
-      try {
-        await deleteOllamaModel(name);
-        queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
-        toaster.create({ title: `Deleted ${name}`, type: "success" });
-      } catch {
-        toaster.create({
-          title: `Failed to delete ${name}`,
-          type: "error",
-        });
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return;
+    const isActive = activeModels.has(deleteTarget);
+    try {
+      await deleteOllamaModel(deleteTarget);
+      queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
+      if (isActive && config) {
+        const nextConfig = { ...config };
+        if (nextConfig.categorization_model === deleteTarget) nextConfig.categorization_model = null;
+        if (nextConfig.scoring_model === deleteTarget) nextConfig.scoring_model = null;
+        onConfigChange(nextConfig);
       }
-      setDeleteTarget(null);
-    },
-    [queryClient]
-  );
+      toaster.create({ title: `Deleted ${deleteTarget}`, type: "success" });
+    } catch {
+      toaster.create({
+        title: `Failed to delete ${deleteTarget}`,
+        type: "error",
+      });
+    }
+    setDeleteTarget(null);
+  }, [deleteTarget, activeModels, config, queryClient, onConfigChange]);
 
   const installedCurated = CURATED_MODELS.filter((c) => installedNames.has(c.name));
   const nonCuratedInstalled = models.filter(
@@ -180,7 +186,6 @@ export function ModelManagement({
                   key={curated.name}
                   name={curated.name}
                   sizeLabel={model ? formatSize(model.size) : curated.size}
-                  canDelete={!activeModels.has(curated.name)}
                   onDelete={() => setDeleteTarget(curated.name)}
                   isPulling={pullHook.isDownloading && pullingModel === curated.name}
                   progress={pullHook.progress}
@@ -194,7 +199,6 @@ export function ModelManagement({
                 key={m.name}
                 name={m.name}
                 sizeLabel={formatSize(m.size)}
-                canDelete={!activeModels.has(m.name)}
                 onDelete={() => setDeleteTarget(m.name)}
                 isPulling={pullHook.isDownloading && pullingModel === m.name}
                 progress={pullHook.progress}
@@ -325,40 +329,22 @@ export function ModelManagement({
       )}
 
       {/* Delete confirmation dialog */}
-      <Dialog.Root
+      <ConfirmDialog
         open={!!deleteTarget}
-        onOpenChange={({ open }) => !open && setDeleteTarget(null)}
-        placement="center"
-      >
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
-            <Dialog.Header>
-              <Dialog.Title>Delete Model</Dialog.Title>
-            </Dialog.Header>
-            <Dialog.Body>
-              <Text>
-                Delete <strong>{deleteTarget}</strong>? This will remove the
-                model from Ollama. You can re-download it later.
-              </Text>
-            </Dialog.Body>
-            <Dialog.Footer>
-              <Dialog.ActionTrigger asChild>
-                <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
-                  Cancel
-                </Button>
-              </Dialog.ActionTrigger>
-              <Button
-                colorPalette="red"
-                onClick={() => deleteTarget && handleDelete(deleteTarget)}
-              >
-                Delete
-              </Button>
-            </Dialog.Footer>
-            <Dialog.CloseTrigger />
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Dialog.Root>
+        onOpenChange={(d) => { if (!d.open) setDeleteTarget(null); }}
+        title="Delete Model"
+        body={
+          <Text>
+            Delete <strong>{deleteTarget}</strong>?{" "}
+            {activeModels.has(deleteTarget ?? "") &&
+              "This model is currently selected \u2014 it will be deselected. "}
+            You can re-download it later.
+          </Text>
+        }
+        confirmLabel="Delete"
+        confirmColorPalette="red"
+        onConfirm={handleDeleteConfirm}
+      />
     </Stack>
   );
 }
