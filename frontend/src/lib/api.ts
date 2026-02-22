@@ -96,6 +96,36 @@ export async function updateArticleReadStatus(
   return response.json();
 }
 
+export async function rescoreArticle(
+  articleId: number
+): Promise<{ ok: boolean }> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/articles/${articleId}/rescore`,
+    { method: "POST" }
+  );
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to rescore article");
+  }
+
+  return response.json();
+}
+
+export async function markAllArticlesRead(): Promise<{
+  ok: boolean;
+  count: number;
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/articles/mark-all-read`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to mark all articles read");
+  }
+
+  return response.json();
+}
+
 export async function fetchFeeds(): Promise<Feed[]> {
   const response = await fetch(`${API_BASE_URL}/api/feeds`);
 

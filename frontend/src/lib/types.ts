@@ -38,8 +38,24 @@ export interface Article {
   scored_at: string | null;
 }
 
-/** Lightweight article for list views (no content/summary/score_reasoning). */
-export type ArticleListItem = Omit<Article, "content" | "summary" | "score_reasoning">;
+/** Lightweight article for list views (no content/full summary). */
+export interface ArticleListItem {
+  id: number;
+  feed_id: number;
+  title: string;
+  url: string;
+  author: string | null;
+  published_at: string | null;
+  is_read: boolean;
+  categories: ArticleCategory[] | null;
+  interest_score: number | null;
+  quality_score: number | null;
+  composite_score: number | null;
+  score_reasoning: string | null;
+  summary_preview: string | null;
+  scoring_state: string;
+  scored_at: string | null;
+}
 
 export interface Feed {
   id: number;

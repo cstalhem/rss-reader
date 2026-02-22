@@ -7,6 +7,7 @@ import {
   updateFeed,
   reorderFeeds,
   markAllFeedRead,
+  markAllArticlesRead,
 } from "@/lib/api";
 import { Feed } from "@/lib/types";
 import { queryKeys } from "@/lib/queryKeys";
@@ -95,6 +96,19 @@ export function useMarkAllRead() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
+    },
+  });
+}
+
+export function useMarkAllArticlesRead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => markAllArticlesRead(),
+    meta: { errorTitle: "Failed to mark all articles read" },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
     },
   });
 }
