@@ -248,29 +248,6 @@ Plans:
 - [ ] 09-03-PLAN.md -- Component updates: consumer migration, ConfirmDialog, semantic tokens, Tooltip/Portal/color fixes
 - [ ] 09-04-PLAN.md -- Dead code removal, useEffect fixes, performance sweep, final verification
 
-### Phase 09.3: Refine main view UX and typography (INSERTED)
-
-**Goal:** Polish the article list page and article reader pane — improve information density, typography, layout, navigation, and visual cohesion across the main reading experience
-**Depends on:** Phase 09.2 (DOM simplification complete)
-**Scope:** Article list (`ArticleList.tsx`, `ArticleRow.tsx`, `SortSelect.tsx`) and article reader (`ArticleReader.tsx`). Settings pages out of scope.
-**Origin:** Pending todo #3 (refine article reader view UX and typography), expanded to cover the full main view
-**Success Criteria** (what must be TRUE):
-  1. Article rows show a 1-2 line summary/preview below the title for easier scanning
-  2. Filter toolbar has clearer visual grouping — filters, sort, and actions are visually separated
-  3. Read/unread state has more visual distinction beyond opacity (e.g., typography weight, color shift, or subtle background)
-  4. Feed source is more prominently surfaced in article rows (icon, colored indicator, or other visual treatment)
-  5. Reader header section is more compact — metadata, tags, and score are denser so content is reached faster
-  6. Reader typography and spacing are refined for comfortable long-form reading (line length, paragraph spacing, heading hierarchy)
-  7. Reader navigation controls (prev/next, close) are more accessible (sticky positioning, keyboard shortcuts, or both)
-  8. Reader visual styling is cohesive with the settings pages (consistent panel styling, iconography patterns, spacing)
-  9. "Open original" link is repositioned for better discoverability (not buried between score and content)
-  10. `dangerouslySetInnerHTML` usage is reviewed and replaced with a safer/more controllable approach if a better alternative exists (e.g., `html-react-parser`, `rehype`, or sanitization library)
-  11. No functional regressions
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (run /gsd:plan-phase 09.3 to break down)
-
 ### Phase 09.1: Backend Codebase Evaluation & Simplification (INSERTED)
 
 **Goal:** Evaluate and simplify the backend codebase — models, API endpoints, scoring pipeline, configuration, and database patterns — addressing technical debt from rapid feature development while retaining all functionality
@@ -359,6 +336,58 @@ Plans:
 - [x] 09.2-02-PLAN.md -- CategoryRowShell extraction, WeightPresetStrip dedup and breakpoint-disabled tooltips
 - [x] 09.2-03-PLAN.md -- ScoreBadge Tooltip removal and semantic HTML audit
 
+### Phase 09.3: Settings page architecture research and audit (INSERTED)
+
+**Goal:** Research and audit the settings page component architecture — map the component hierarchy, evaluate complexity, research best practices for Next.js App Router page/component composition with Chakra UI v3, and produce actionable findings for a follow-up implementation phase
+**Scope:** Frontend settings only (`frontend/src/app/settings/`, `frontend/src/components/settings/`). Main view and backend out of scope.
+**Depends on:** Phase 09.2 (DOM simplification complete)
+**Output:** Research document with findings; implementation phase (09.4) added to roadmap
+**Success Criteria** (what must be TRUE):
+  1. Settings component hierarchy is documented — which components render which, data/props flow, and nesting depth for each settings page
+  2. Complexity hotspots are identified — components with excessive props threading, redundant wrappers, or unclear single responsibility
+  3. Hard-coded UI patterns that should be shared components are catalogued with specific extraction targets
+  4. Best practices for Next.js App Router + Chakra UI v3 page/component architecture are researched with reference examples (colocation, composition, server vs client boundaries)
+  5. Simplification recommendations are prioritized by impact and effort
+  6. Implementation phase (09.4) is added to the roadmap with findings as scope and specific refactoring targets
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 09.3 to break down)
+
+### Phase 09.4: Settings page architecture implementation (INSERTED)
+
+**Goal:** Implement the simplification recommendations from Phase 09.3 research — refactor settings component hierarchy, extract shared primitives, and reduce complexity
+**Scope:** Frontend settings only (`frontend/src/app/settings/`, `frontend/src/components/settings/`). Specific targets TBD from Phase 09.3 findings.
+**Depends on:** Phase 09.3 (research complete)
+**Success Criteria:** TBD — derived from Phase 09.3 findings
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 09.4 after 09.3 research)
+
+### Phase 09.5: Refine main view UX and typography (INSERTED)
+
+**Goal:** Polish the article list page and article reader pane — improve information density, typography, layout, navigation, and visual cohesion across the main reading experience
+**Depends on:** Phase 09.2 (DOM simplification complete)
+**Scope:** Article list (`ArticleList.tsx`, `ArticleRow.tsx`, `SortSelect.tsx`) and article reader (`ArticleReader.tsx`). Settings pages out of scope.
+**Origin:** Pending todo #3 (refine article reader view UX and typography), expanded to cover the full main view
+**Success Criteria** (what must be TRUE):
+  1. Article rows show a 1-2 line summary/preview below the title for easier scanning
+  2. Filter toolbar has clearer visual grouping — filters, sort, and actions are visually separated
+  3. Read/unread state has more visual distinction beyond opacity (e.g., typography weight, color shift, or subtle background)
+  4. Feed source is more prominently surfaced in article rows (icon, colored indicator, or other visual treatment)
+  5. Reader header section is more compact — metadata, tags, and score are denser so content is reached faster
+  6. Reader typography and spacing are refined for comfortable long-form reading (line length, paragraph spacing, heading hierarchy)
+  7. Reader navigation controls (prev/next, close) are more accessible (sticky positioning, keyboard shortcuts, or both)
+  8. Reader visual styling is cohesive with the settings pages (consistent panel styling, iconography patterns, spacing)
+  9. "Open original" link is repositioned for better discoverability (not buried between score and content)
+  10. `dangerouslySetInnerHTML` usage is reviewed and replaced with a safer/more controllable approach if a better alternative exists (e.g., `html-react-parser`, `rehype`, or sanitization library)
+  11. No functional regressions
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 09.5 to break down)
+
 #### Phase 10: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
 **Depends on**: Phase 9.1 (clean codebase foundation — both frontend and backend)
@@ -378,7 +407,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 6 -> 7 -> 8 -> 08.1 -> 08.2 -> 08.3 -> 9 -> 9.1 -> 09.2 -> 09.3 -> 10
+Phases execute in numeric order: 6 -> 7 -> 8 -> 08.1 -> 08.2 -> 08.3 -> 9 -> 9.1 -> 09.2 -> 09.3 -> 09.4 -> 09.5 -> 10
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -396,7 +425,9 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 08.1 -> 08.2 -> 08.3 -> 9 -> 9.1
 | 9. Frontend Codebase Evaluation | v1.1 | 4/4 | Complete | 2026-02-19 |
 | 9.1. Backend Codebase Evaluation | v1.1 | 4/4 | Complete | 2026-02-20 |
 | 09.2. DOM Tree Simplification | v1.1 | 3/3 | Complete | 2026-02-20 |
-| 09.3. Main View UX & Typography | v1.1 | 0/TBD | Not started | - |
+| 09.3. Settings Architecture Audit | v1.1 | 0/TBD | Not started | - |
+| 09.4. Settings Architecture Impl. | v1.1 | 0/TBD | Not started | - |
+| 09.5. Main View UX & Typography | v1.1 | 0/TBD | Not started | - |
 | 10. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
 ---
