@@ -1,8 +1,6 @@
 import type { ElementType } from "react";
 import { LuSettings, LuRss, LuHeart, LuTag, LuBot, LuMessageSquare } from "react-icons/lu";
 
-/** Height of the fixed header bar */
-export const HEADER_HEIGHT = "64px";
 /** Sidebar width when collapsed (icons only) */
 export const SIDEBAR_WIDTH_COLLAPSED = "48px";
 /** Sidebar width when expanded (full navigation) */
