@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["dev", "--port", "3210"],
+      "port": 3210,
+      "cwd": "frontend"
+    },
+    {
+      "name": "backend",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "uvicorn", "backend.main:app", "--reload", "--port", "8912"],
+      "port": 8912,
+      "cwd": "backend"
+    }
+  ]
+}
