@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import { Box } from "@chakra-ui/react";
-import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { MobileSidebar } from "./MobileSidebar";
 import { AddFeedDialog } from "@/components/feed/AddFeedDialog";
 import { ArticleList } from "@/components/article/ArticleList";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { HEADER_HEIGHT, SIDEBAR_WIDTH_COLLAPSED, SIDEBAR_WIDTH_EXPANDED } from "@/lib/constants";
+import { SIDEBAR_WIDTH_COLLAPSED, SIDEBAR_WIDTH_EXPANDED } from "@/lib/constants";
 
 export default function AppShell() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useLocalStorage(
@@ -21,7 +20,6 @@ export default function AppShell() {
 
   return (
     <Box minHeight="100vh" bg="bg">
-      <Header onMenuToggle={() => setIsMobileSidebarOpen(true)} />
       <Sidebar
         isCollapsed={isSidebarCollapsed}
         onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -42,12 +40,14 @@ export default function AppShell() {
       <Box
         as="main"
         ml={{ base: 0, md: isSidebarCollapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED }}
-        pt={HEADER_HEIGHT}
         minHeight="100vh"
         overflowY="auto"
         transition="margin-left 0.2s ease"
       >
-        <ArticleList selectedFeedId={selectedFeedId} />
+        <ArticleList
+          selectedFeedId={selectedFeedId}
+          onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+        />
       </Box>
       <AddFeedDialog
         isOpen={isAddDialogOpen}

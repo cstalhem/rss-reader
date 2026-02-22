@@ -1,5 +1,4 @@
 import { Box, Container, Flex } from "@chakra-ui/react";
-import { Header } from "@/components/layout/Header";
 import { SettingsSidebar } from "@/components/settings/SettingsSidebar";
 import { SettingsMobileNav } from "@/components/settings/SettingsMobileNav";
 
@@ -10,8 +9,7 @@ export default function SettingsLayout({
 }) {
   return (
     <Box minHeight="100vh" bg="bg">
-      <Header />
-      <Container maxW="5xl" py={8} px={6} pt="88px">
+      <Container maxW="5xl" py={8} px={6}>
         <Flex gap={8}>
           {/* Desktop sidebar nav */}
           <Box
@@ -28,7 +26,7 @@ export default function SettingsLayout({
             flex={1}
             minW={0}
             overflowY="auto"
-            maxH="calc(100vh - 88px - 64px)"
+            maxH="calc(100vh - 64px)"
             css={{ scrollbarGutter: "stable" }}
           >
             {/* Mobile dropdown nav */}

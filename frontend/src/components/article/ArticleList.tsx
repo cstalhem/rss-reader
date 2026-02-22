@@ -19,6 +19,7 @@ import { parseSortOption } from "@/lib/utils";
 
 interface ArticleListProps {
   selectedFeedId?: number | null;
+  onOpenMobileSidebar?: () => void;
 }
 
 type FilterTab = "unread" | "all" | "scoring" | "blocked";

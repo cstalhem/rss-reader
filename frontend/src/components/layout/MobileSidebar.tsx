@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Flex, Button, Text, Badge, CloseButton, Drawer } from "@chakra-ui/react";
-import { LuPlus } from "react-icons/lu";
+import { Box, Flex, Heading, Button, Text, Badge, CloseButton, Drawer, IconButton } from "@chakra-ui/react";
+import { LuPlus, LuSettings } from "react-icons/lu";
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { useFeeds } from "@/hooks/useFeeds";
 import {
   useDeleteFeed,
@@ -12,7 +14,11 @@ import {
 import { EmptyFeedState } from "@/components/feed/EmptyFeedState";
 import { FeedRow } from "@/components/feed/FeedRow";
 import { DeleteFeedDialog } from "@/components/feed/DeleteFeedDialog";
+import { ThemeToggle } from "@/components/ui/color-mode";
 import { Feed } from "@/lib/types";
+import { fetchNewCategoryCount } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
+import { NEW_COUNT_POLL_INTERVAL } from "@/lib/constants";
 
 interface MobileSidebarProps {
   isOpen: boolean;
@@ -35,6 +41,14 @@ export function MobileSidebar({
   const updateFeed = useUpdateFeed();
 
   const [feedToDelete, setFeedToDelete] = useState<Feed | null>(null);
+
+  // New category count for settings dot badge
+  const { data: newCatCount } = useQuery({
+    queryKey: queryKeys.categories.newCount,
+    queryFn: fetchNewCategoryCount,
+    refetchInterval: NEW_COUNT_POLL_INTERVAL,
+  });
+  const hasNewCategories = (newCatCount?.count ?? 0) > 0;
 
   // Calculate aggregate unread count
   const totalUnread = feeds?.reduce((sum, feed) => sum + feed.unread_count, 0) ?? 0;
@@ -70,7 +84,13 @@ export function MobileSidebar({
       <Drawer.Positioner>
         <Drawer.Content>
           <Drawer.Header>
-            <Drawer.Title>Feeds</Drawer.Title>
+            <Drawer.Title>
+              <Link href="/">
+                <Heading size="md" fontWeight="semibold">
+                  RSS Reader
+                </Heading>
+              </Link>
+            </Drawer.Title>
           </Drawer.Header>
           <Drawer.CloseTrigger asChild>
             <CloseButton size="sm" />
@@ -129,9 +149,38 @@ export function MobileSidebar({
             )}
           </Drawer.Body>
           <Drawer.Footer>
-            <Button variant="outline" width="100%" onClick={onAddFeedClick} colorPalette="accent">
-              <LuPlus /> Add feed
-            </Button>
+            <Flex direction="column" width="100%" gap={2}>
+              {/* Settings and Theme row */}
+              <Flex alignItems="center" justifyContent="space-between">
+                <Link href="/settings" onClick={onClose}>
+                  <Flex alignItems="center" gap={2} position="relative">
+                    <IconButton aria-label="Settings" size="sm" variant="ghost">
+                      <LuSettings />
+                    </IconButton>
+                    <Text fontSize="sm" color="fg.muted">
+                      Settings
+                    </Text>
+                    {hasNewCategories && (
+                      <Box
+                        position="absolute"
+                        top="4px"
+                        left="28px"
+                        width="8px"
+                        height="8px"
+                        borderRadius="full"
+                        bg="accent.solid"
+                        pointerEvents="none"
+                      />
+                    )}
+                  </Flex>
+                </Link>
+                <ThemeToggle colorPalette="accent" />
+              </Flex>
+              {/* Add feed button */}
+              <Button variant="outline" width="100%" onClick={onAddFeedClick} colorPalette="accent">
+                <LuPlus /> Add feed
+              </Button>
+            </Flex>
           </Drawer.Footer>
         </Drawer.Content>
       </Drawer.Positioner>
