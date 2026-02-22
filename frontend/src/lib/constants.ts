@@ -1,3 +1,6 @@
+import type { ElementType } from "react";
+import { LuSettings, LuRss, LuHeart, LuTag, LuBot, LuMessageSquare } from "react-icons/lu";
+
 /** Height of the fixed header bar */
 export const HEADER_HEIGHT = "64px";
 /** Sidebar width when collapsed (icons only) */
@@ -8,3 +11,21 @@ export const SIDEBAR_WIDTH_EXPANDED = "240px";
 export const NEW_COUNT_POLL_INTERVAL = 30_000;
 /** Score threshold for accent-colored score badge */
 export const HIGH_SCORE_THRESHOLD = 15;
+
+export type SettingsSection = "general" | "feeds" | "interests" | "categories" | "ollama" | "feedback";
+
+export interface SettingsSectionItem {
+  id: SettingsSection;
+  href: string;
+  icon: ElementType;
+  label: string;
+}
+
+export const SETTINGS_SECTIONS: SettingsSectionItem[] = [
+  { id: "general", href: "/settings/general", icon: LuSettings, label: "General" },
+  { id: "feeds", href: "/settings/feeds", icon: LuRss, label: "Feeds" },
+  { id: "interests", href: "/settings/interests", icon: LuHeart, label: "Interests" },
+  { id: "categories", href: "/settings/categories", icon: LuTag, label: "Categories" },
+  { id: "ollama", href: "/settings/ollama", icon: LuBot, label: "Ollama" },
+  { id: "feedback", href: "/settings/feedback", icon: LuMessageSquare, label: "Feedback" },
+];

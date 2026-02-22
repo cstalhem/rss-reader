@@ -5,31 +5,13 @@ import { usePathname } from "next/navigation";
 import { Box, Stack, Flex, Text } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { useQuery } from "@tanstack/react-query";
-import { LuRss, LuHeart, LuTag, LuBot, LuMessageSquare, LuDownload, LuSettings } from "react-icons/lu";
+import { LuDownload } from "react-icons/lu";
 import { fetchDownloadStatus, fetchNewCategoryCount } from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
-import { NEW_COUNT_POLL_INTERVAL } from "@/lib/constants";
+import { NEW_COUNT_POLL_INTERVAL, SETTINGS_SECTIONS } from "@/lib/constants";
 import { DownloadStatus } from "@/lib/types";
 
 const SIDEBAR_DOWNLOAD_POLL_INTERVAL = 3_000;
-
-export type SettingsSection = "general" | "feeds" | "interests" | "categories" | "ollama" | "feedback";
-
-interface SidebarItem {
-  id: SettingsSection;
-  href: string;
-  icon: React.ElementType;
-  label: string;
-}
-
-const SIDEBAR_ITEMS: SidebarItem[] = [
-  { id: "general", href: "/settings/general", icon: LuSettings, label: "General" },
-  { id: "feeds", href: "/settings/feeds", icon: LuRss, label: "Feeds" },
-  { id: "interests", href: "/settings/interests", icon: LuHeart, label: "Interests" },
-  { id: "categories", href: "/settings/categories", icon: LuTag, label: "Categories" },
-  { id: "ollama", href: "/settings/ollama", icon: LuBot, label: "Ollama" },
-  { id: "feedback", href: "/settings/feedback", icon: LuMessageSquare, label: "Feedback" },
-];
 
 const pulse = keyframes`
   0%, 100% { opacity: 0.4; }
@@ -61,7 +43,7 @@ export function SettingsSidebar() {
 
   return (
     <Stack as="nav" gap={1}>
-      {SIDEBAR_ITEMS.map((item) => {
+      {SETTINGS_SECTIONS.map((item) => {
         const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
         const Icon = item.icon;
         const showDownloadIndicator = item.id === "ollama" && isDownloadActive;
