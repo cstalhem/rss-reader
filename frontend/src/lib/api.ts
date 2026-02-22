@@ -18,6 +18,12 @@ import {
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8912";
 
+/** Throw an error with the backend's `detail` message if available, otherwise fall back to a generic message. */
+async function throwApiError(response: Response, fallback: string): Promise<never> {
+  const body = await response.json().catch(() => null);
+  throw new Error(body?.detail ?? `${fallback}: ${response.statusText}`);
+}
+
 export async function fetchArticles(
   params: FetchArticlesParams = {}
 ): Promise<ArticleListItem[]> {
@@ -55,7 +61,7 @@ export async function fetchArticles(
   const response = await fetch(url);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch articles: ${response.statusText}`);
+    await throwApiError(response, "Failed to fetch articles");
   }
 
   return response.json();
@@ -65,7 +71,7 @@ export async function fetchArticle(id: number): Promise<Article> {
   const response = await fetch(`${API_BASE_URL}/api/articles/${id}`);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch article: ${response.statusText}`);
+    await throwApiError(response, "Failed to fetch article");
   }
 
   return response.json();
@@ -84,9 +90,7 @@ export async function updateArticleReadStatus(
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Failed to update article read status: ${response.statusText}`
-    );
+    await throwApiError(response, "Failed to update article read status");
   }
 
   return response.json();
@@ -96,7 +100,7 @@ export async function fetchFeeds(): Promise<Feed[]> {
   const response = await fetch(`${API_BASE_URL}/api/feeds`);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch feeds: ${response.statusText}`);
+    await throwApiError(response, "Failed to fetch feeds");
   }
 
   return response.json();
@@ -112,7 +116,7 @@ export async function createFeed(url: string): Promise<Feed> {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to create feed: ${response.statusText}`);
+    await throwApiError(response, "Failed to create feed");
   }
 
   return response.json();
@@ -124,7 +128,7 @@ export async function deleteFeed(id: number): Promise<void> {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to delete feed: ${response.statusText}`);
+    await throwApiError(response, "Failed to delete feed");
   }
 }
 
@@ -141,7 +145,7 @@ export async function updateFeed(
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to update feed: ${response.statusText}`);
+    await throwApiError(response, "Failed to update feed");
   }
 
   return response.json();
@@ -157,7 +161,7 @@ export async function reorderFeeds(feedIds: number[]): Promise<void> {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to reorder feeds: ${response.statusText}`);
+    await throwApiError(response, "Failed to reorder feeds");
   }
 }
 
@@ -170,7 +174,7 @@ export async function markAllFeedRead(feedId: number): Promise<void> {
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to mark all feed read: ${response.statusText}`);
+    await throwApiError(response, "Failed to mark all feed read");
   }
 }
 
@@ -178,7 +182,7 @@ export async function fetchPreferences(): Promise<UserPreferences> {
   const response = await fetch(`${API_BASE_URL}/api/preferences`);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch preferences: ${response.statusText}`);
+    await throwApiError(response, "Failed to fetch preferences");
   }
 
   return response.json();
@@ -196,7 +200,7 @@ export async function updatePreferences(
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to update preferences: ${response.statusText}`);
+    await throwApiError(response, "Failed to update preferences");
   }
 
   return response.json();
@@ -204,7 +208,7 @@ export async function updatePreferences(
 
 export async function fetchCategories(): Promise<Category[]> {
   const response = await fetch(`${API_BASE_URL}/api/categories`);
-  if (!response.ok) throw new Error(`Failed to fetch categories: ${response.statusText}`);
+  if (!response.ok) await throwApiError(response, "Failed to fetch categories");
   return response.json();
 }
 
@@ -217,7 +221,7 @@ export async function updateCategory(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error(`Failed to update category: ${response.statusText}`);
+  if (!response.ok) await throwApiError(response, "Failed to update category");
   return response.json();
 }
 
@@ -230,10 +234,7 @@ export async function createCategory(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ display_name: displayName, parent_id: parentId }),
   });
-  if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    throw new Error(body?.detail ?? `Failed to create category: ${response.statusText}`);
-  }
+  if (!response.ok) await throwApiError(response, "Failed to create category");
   return response.json();
 }
 
@@ -241,7 +242,7 @@ export async function deleteCategory(id: number): Promise<{ ok: boolean }> {
   const response = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
     method: "DELETE",
   });
-  if (!response.ok) throw new Error(`Failed to delete category: ${response.statusText}`);
+  if (!response.ok) await throwApiError(response, "Failed to delete category");
   return response.json();
 }
 
@@ -254,7 +255,7 @@ export async function mergeCategories(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ source_id: sourceId, target_id: targetId }),
   });
-  if (!response.ok) throw new Error(`Failed to merge categories: ${response.statusText}`);
+  if (!response.ok) await throwApiError(response, "Failed to merge categories");
   return response.json();
 }
 
@@ -268,7 +269,7 @@ export async function unhideCategory(id: number): Promise<Category> {
 
 export async function fetchNewCategoryCount(): Promise<{ count: number }> {
   const response = await fetch(`${API_BASE_URL}/api/categories/unseen-count`);
-  if (!response.ok) throw new Error(`Failed to fetch new category count: ${response.statusText}`);
+  if (!response.ok) await throwApiError(response, "Failed to fetch new category count");
   return response.json();
 }
 
@@ -278,7 +279,7 @@ export async function acknowledgeCategories(categoryIds: number[]): Promise<{ ok
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ category_ids: categoryIds }),
   });
-  if (!response.ok) throw new Error(`Failed to acknowledge categories: ${response.statusText}`);
+  if (!response.ok) await throwApiError(response, "Failed to acknowledge categories");
   return response.json();
 }
 
@@ -286,7 +287,7 @@ export async function fetchScoringStatus(): Promise<ScoringStatus> {
   const response = await fetch(`${API_BASE_URL}/api/scoring/status`);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch scoring status: ${response.statusText}`);
+    await throwApiError(response, "Failed to fetch scoring status");
   }
 
   return response.json();
@@ -298,7 +299,7 @@ export async function fetchOllamaHealth(): Promise<OllamaHealth> {
   const response = await fetch(`${API_BASE_URL}/api/ollama/health`);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch Ollama health: ${response.statusText}`);
+    await throwApiError(response, "Failed to fetch Ollama health");
   }
 
   return response.json();
@@ -308,7 +309,7 @@ export async function fetchOllamaModels(): Promise<OllamaModel[]> {
   const response = await fetch(`${API_BASE_URL}/api/ollama/models`);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch Ollama models: ${response.statusText}`);
+    await throwApiError(response, "Failed to fetch Ollama models");
   }
 
   return response.json();
@@ -318,7 +319,7 @@ export async function fetchOllamaConfig(): Promise<OllamaConfig> {
   const response = await fetch(`${API_BASE_URL}/api/ollama/config`);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch Ollama config: ${response.statusText}`);
+    await throwApiError(response, "Failed to fetch Ollama config");
   }
 
   return response.json();
@@ -336,7 +337,7 @@ export async function saveOllamaConfig(
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to save Ollama config: ${response.statusText}`);
+    await throwApiError(response, "Failed to save Ollama config");
   }
 
   return response.json();
@@ -351,7 +352,7 @@ export async function triggerRescore(): Promise<RescoreResult> {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to trigger rescore: ${response.statusText}`);
+    await throwApiError(response, "Failed to trigger rescore");
   }
 
   return response.json();
@@ -361,7 +362,7 @@ export async function fetchOllamaPrompts(): Promise<OllamaPrompts> {
   const response = await fetch(`${API_BASE_URL}/api/ollama/prompts`);
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch Ollama prompts: ${response.statusText}`);
+    await throwApiError(response, "Failed to fetch Ollama prompts");
   }
 
   return response.json();
@@ -376,7 +377,7 @@ export async function deleteOllamaModel(name: string): Promise<void> {
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to delete Ollama model: ${response.statusText}`);
+    await throwApiError(response, "Failed to delete Ollama model");
   }
 }
 
@@ -384,9 +385,7 @@ export async function fetchDownloadStatus(): Promise<DownloadStatus> {
   const response = await fetch(`${API_BASE_URL}/api/ollama/downloads`);
 
   if (!response.ok) {
-    throw new Error(
-      `Failed to fetch download status: ${response.statusText}`
-    );
+    await throwApiError(response, "Failed to fetch download status");
   }
 
   return response.json();
@@ -403,7 +402,7 @@ export async function batchMoveCategories(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ category_ids: categoryIds, target_parent_id: targetParentId }),
   });
-  if (!response.ok) throw new Error(`Failed to move categories: ${response.statusText}`);
+  if (!response.ok) await throwApiError(response, "Failed to move categories");
   return response.json();
 }
 
@@ -415,7 +414,7 @@ export async function batchHideCategories(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ category_ids: categoryIds }),
   });
-  if (!response.ok) throw new Error(`Failed to hide categories: ${response.statusText}`);
+  if (!response.ok) await throwApiError(response, "Failed to hide categories");
   return response.json();
 }
 
@@ -427,7 +426,7 @@ export async function batchDeleteCategories(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ category_ids: categoryIds }),
   });
-  if (!response.ok) throw new Error(`Failed to delete categories: ${response.statusText}`);
+  if (!response.ok) await throwApiError(response, "Failed to delete categories");
   return response.json();
 }
 
@@ -437,12 +436,12 @@ export async function ungroupParent(
   const response = await fetch(`${API_BASE_URL}/api/categories/${categoryId}/ungroup`, {
     method: "POST",
   });
-  if (!response.ok) throw new Error(`Failed to ungroup category: ${response.statusText}`);
+  if (!response.ok) await throwApiError(response, "Failed to ungroup category");
   return response.json();
 }
 
 export async function fetchRefreshStatus(): Promise<RefreshStatus> {
   const response = await fetch(`${API_BASE_URL}/api/feeds/refresh-status`);
-  if (!response.ok) throw new Error(`Failed to fetch refresh status: ${response.statusText}`);
+  if (!response.ok) await throwApiError(response, "Failed to fetch refresh status");
   return response.json();
 }

@@ -92,6 +92,8 @@ export interface RescoreResult {
   rescore_queued: number;
 }
 
+export type TimeUnit = "seconds" | "minutes" | "hours";
+
 export type SortOption = "score_desc" | "score_asc" | "date_desc" | "date_asc";
 
 export interface ScoringStatus {
