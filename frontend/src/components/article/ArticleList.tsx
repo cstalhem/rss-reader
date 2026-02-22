@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import NextLink from "next/link";
 import {
   Alert,
@@ -54,6 +54,7 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar }: ArticleList
   const [isScrolled, setIsScrolled] = useState(false);
   const [isConfirmMarkAllOpen, setIsConfirmMarkAllOpen] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const scrollPositionRef = useRef(0);
   const { sortOption, setSortOption } = useSortPreference();
   const { data: scoringStatus } = useScoringStatus();
   const queryClient = useQueryClient();
@@ -139,8 +140,17 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar }: ArticleList
   };
 
   const handleSelect = (article: ArticleListItem) => {
+    scrollPositionRef.current = window.scrollY;
     setSelectedArticle(article);
   };
+
+  const handleCloseReader = useCallback(() => {
+    setSelectedArticle(null);
+    // Restore scroll position after React renders the list
+    requestAnimationFrame(() => {
+      window.scrollTo(0, scrollPositionRef.current);
+    });
+  }, []);
 
   const handleRescore = (article: ArticleListItem) => {
     rescoreMutation.mutate(article.id);
@@ -195,6 +205,19 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar }: ArticleList
       : filter === "scoring"
       ? LuClock
       : LuBan;
+
+  // When an article is selected, show the inline reader instead of the list
+  if (selectedArticle) {
+    return (
+      <ArticleReader
+        key={selectedArticle.id}
+        article={selectedArticle}
+        articles={displayArticles ?? []}
+        onClose={handleCloseReader}
+        onNavigate={setSelectedArticle}
+      />
+    );
+  }
 
   return (
     <Box>
@@ -400,15 +423,6 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar }: ArticleList
         confirmLabel="Mark all read"
         confirmColorPalette="accent"
         onConfirm={handleConfirmMarkAllArticlesRead}
-      />
-
-      {/* Article reader drawer */}
-      <ArticleReader
-        key={selectedArticle?.id}
-        article={selectedArticle}
-        articles={displayArticles ?? []}
-        onClose={() => setSelectedArticle(null)}
-        onNavigate={(article) => setSelectedArticle(article)}
       />
     </Box>
   );
