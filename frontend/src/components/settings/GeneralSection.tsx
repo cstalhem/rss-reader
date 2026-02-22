@@ -12,6 +12,8 @@ import {
   Stack,
   Text,
 } from "@chakra-ui/react";
+import { SettingsPanel } from "./SettingsPanel";
+import { SettingsPageHeader } from "./SettingsPageHeader";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchRefreshStatus } from "@/lib/api";
 import { usePreferences } from "@/hooks/usePreferences";
@@ -128,12 +130,10 @@ export function GeneralSection() {
 
   return (
     <Stack gap={6}>
-      <Text fontSize="lg" fontWeight="semibold">
-        General
-      </Text>
+      <SettingsPageHeader title="General" />
 
       {/* Feed Refresh Schedule */}
-      <Box bg="bg.panel" borderRadius="lg" borderWidth="1px" borderColor="border.subtle" p={5}>
+      <SettingsPanel bg="bg.panel" borderRadius="lg" p={5}>
         <Stack gap={4}>
           <Text fontSize="sm" fontWeight="medium" color="fg.muted">
             Feed Refresh Schedule
@@ -220,7 +220,7 @@ export function GeneralSection() {
             </Button>
           </Box>
         </Stack>
-      </Box>
+      </SettingsPanel>
     </Stack>
   );
 }

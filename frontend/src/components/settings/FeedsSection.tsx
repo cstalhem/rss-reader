@@ -4,14 +4,17 @@ import { useState } from "react";
 import {
   Box,
   Button,
+  EmptyState,
   Flex,
   Text,
   Badge,
   IconButton,
   Skeleton,
   Stack,
+  VStack,
 } from "@chakra-ui/react";
 import { LuRss, LuGripVertical, LuTrash2, LuPlus } from "react-icons/lu";
+import { SettingsPageHeader } from "./SettingsPageHeader";
 import {
   DndContext,
   closestCenter,
@@ -170,10 +173,7 @@ export function FeedsSection() {
 
   return (
     <Box as="section" aria-label="Feed management">
-      <Flex alignItems="center" justifyContent="space-between" mb={6}>
-        <Text fontSize="lg" fontWeight="semibold">
-          Feeds
-        </Text>
+      <SettingsPageHeader title="Feeds">
         <Button
           colorPalette="accent"
           size="sm"
@@ -182,7 +182,7 @@ export function FeedsSection() {
           <LuPlus size={16} />
           Add Feed
         </Button>
-      </Flex>
+      </SettingsPageHeader>
 
       {isLoading ? (
         <Stack gap={3}>
@@ -212,34 +212,27 @@ export function FeedsSection() {
           </SortableContext>
         </DndContext>
       ) : (
-        <Flex
-          direction="column"
-          alignItems="center"
-          justifyContent="center"
-          gap={4}
-          py={16}
-          px={8}
-          bg="bg.subtle"
-          borderRadius="md"
-          borderWidth="1px"
-          borderColor="border.subtle"
-        >
-          <Box color="fg.subtle"><LuRss size={40} /></Box>
-          <Text fontSize="lg" color="fg.muted" textAlign="center">
-            No feeds added yet
-          </Text>
-          <Text fontSize="sm" color="fg.muted" textAlign="center">
-            Add your first RSS feed to get started
-          </Text>
-          <Button
-            colorPalette="accent"
-            variant="outline"
-            onClick={() => setShowAddDialog(true)}
-          >
-            <LuPlus size={16} />
-            Add Feed
-          </Button>
-        </Flex>
+        <EmptyState.Root>
+          <EmptyState.Content>
+            <EmptyState.Indicator>
+              <LuRss size={40} />
+            </EmptyState.Indicator>
+            <VStack textAlign="center">
+              <EmptyState.Title>No feeds added yet</EmptyState.Title>
+              <EmptyState.Description>
+                Add your first RSS feed to get started
+              </EmptyState.Description>
+            </VStack>
+            <Button
+              colorPalette="accent"
+              variant="outline"
+              onClick={() => setShowAddDialog(true)}
+            >
+              <LuPlus size={16} />
+              Add Feed
+            </Button>
+          </EmptyState.Content>
+        </EmptyState.Root>
       )}
 
       {/* Add Feed Dialog */}

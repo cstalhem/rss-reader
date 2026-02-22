@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { Badge, Box, Flex, Stack, Text, Input } from "@chakra-ui/react";
+import { Badge, EmptyState, Stack, Text, Input } from "@chakra-ui/react";
 import { LuTag } from "react-icons/lu";
+import { SettingsPageHeader } from "./SettingsPageHeader";
 import { useCategories } from "@/hooks/useCategories";
 import { Category } from "@/lib/types";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
@@ -336,28 +337,18 @@ export function CategoriesSection() {
   if (!isLoading && categories.length === 0) {
     return (
       <Stack gap={8}>
-        <Box>
-          <Text fontSize="xl" fontWeight="semibold" mb={2}>
-            Topic Categories
-          </Text>
+        <SettingsPageHeader title="Topic Categories" />
 
-          <Flex
-            direction="column"
-            alignItems="center"
-            justifyContent="center"
-            gap={4}
-            p={8}
-            bg="bg.subtle"
-            borderRadius="md"
-            borderWidth="1px"
-            borderColor="border.subtle"
-          >
-            <Box color="fg.subtle"><LuTag size={40} /></Box>
-            <Text color="fg.muted" textAlign="center">
+        <EmptyState.Root>
+          <EmptyState.Content>
+            <EmptyState.Indicator>
+              <LuTag size={40} />
+            </EmptyState.Indicator>
+            <EmptyState.Description>
               Categories will appear here once articles are scored by the LLM
-            </Text>
-          </Flex>
-        </Box>
+            </EmptyState.Description>
+          </EmptyState.Content>
+        </EmptyState.Root>
       </Stack>
     );
   }
@@ -365,21 +356,21 @@ export function CategoriesSection() {
   return (
     <Stack as="section" aria-label="Categories" gap={6} pb={{ base: selectedIds.size > 0 ? 16 : 0, sm: 0 }}>
       {/* Header with title and new badge */}
-      <Flex alignItems="center" gap={2}>
-        <Text fontSize="xl" fontWeight="semibold">
-          Topic Categories
-        </Text>
-        {newCount > 0 && (
-          <Badge colorPalette="accent" size="sm">
-            {newCount} new
-          </Badge>
-        )}
-        <Box flex={1} />
+      <SettingsPageHeader
+        title="Topic Categories"
+        titleBadge={
+          newCount > 0 ? (
+            <Badge colorPalette="accent" size="sm">
+              {newCount} new
+            </Badge>
+          ) : undefined
+        }
+      >
         <CreateCategoryPopover
           onCreateCategory={(displayName) => createCategoryMutation.mutate({ displayName })}
           existingCategories={categories}
         />
-      </Flex>
+      </SettingsPageHeader>
 
       {/* Action bar */}
       <CategoryActionBar

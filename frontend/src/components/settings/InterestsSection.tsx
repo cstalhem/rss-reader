@@ -12,6 +12,8 @@ import {
 import { Field } from "@/components/ui/field";
 import { toaster } from "@/components/ui/toaster";
 import { usePreferences } from "@/hooks/usePreferences";
+import { SettingsPanel } from "./SettingsPanel";
+import { SettingsPageHeader } from "./SettingsPageHeader";
 import { UserPreferences } from "@/lib/types";
 
 interface InterestsFormProps {
@@ -44,13 +46,7 @@ function InterestsForm({ preferences, updatePreferencesMutation }: InterestsForm
   };
 
   return (
-    <Box
-      bg="bg.subtle"
-      borderRadius="md"
-      borderWidth="1px"
-      borderColor="border.subtle"
-      p={6}
-    >
+    <SettingsPanel>
       <Stack gap={6}>
         <Box>
           <Text fontSize="lg" fontWeight="semibold" mb={4}>
@@ -91,7 +87,7 @@ function InterestsForm({ preferences, updatePreferencesMutation }: InterestsForm
           Save Preferences
         </Button>
       </Stack>
-    </Box>
+    </SettingsPanel>
   );
 }
 
@@ -113,9 +109,7 @@ export function InterestsSection() {
 
   return (
     <Stack as="section" aria-label="Interests" gap={6}>
-      <Text fontSize="xl" fontWeight="semibold">
-        Interest Preferences
-      </Text>
+      <SettingsPageHeader title="Interest Preferences" />
 
       <InterestsForm
         preferences={preferences}

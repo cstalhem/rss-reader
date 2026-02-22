@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useReducer } from "react";
-import { Box, Flex, Stack, Text } from "@chakra-ui/react";
+import { EmptyState, Stack, Text } from "@chakra-ui/react";
 import { LuServerOff } from "react-icons/lu";
 import { toaster } from "@/components/ui/toaster";
 import { useOllamaHealth } from "@/hooks/useOllamaHealth";
@@ -12,6 +12,8 @@ import { OllamaHealthBadge } from "./OllamaHealthBadge";
 import { ModelSelector } from "./ModelSelector";
 import { ModelManagement } from "./ModelManagement";
 import { SystemPrompts } from "./SystemPrompts";
+import { SettingsPanel } from "./SettingsPanel";
+import { SettingsPageHeader } from "./SettingsPageHeader";
 import type { OllamaConfig } from "@/lib/types";
 
 export function OllamaSection() {
@@ -83,38 +85,25 @@ export function OllamaSection() {
   return (
     <Stack gap={6}>
       {/* Section header */}
-      <Flex alignItems="center" justifyContent="space-between">
-        <Text fontSize="xl" fontWeight="semibold">
-          Ollama
-        </Text>
+      <SettingsPageHeader title="Ollama">
         <OllamaHealthBadge health={health} isLoading={healthLoading} />
-      </Flex>
+      </SettingsPageHeader>
 
       {!isConnected ? (
-        <Flex
-          direction="column"
-          alignItems="center"
-          justifyContent="center"
-          gap={4}
-          py={16}
-          px={8}
-          bg="bg.subtle"
-          borderRadius="md"
-          borderWidth="1px"
-          borderColor="border.subtle"
-        >
-          <Box color="fg.subtle"><LuServerOff size={40} /></Box>
-          <Text fontSize="lg" color="fg.muted" textAlign="center">
-            Ollama is not connected
-          </Text>
-          <Text fontSize="sm" color="fg.muted" textAlign="center">
-            Start Ollama to configure models and prompts
-          </Text>
-        </Flex>
+        <EmptyState.Root>
+          <EmptyState.Content>
+            <EmptyState.Indicator>
+              <LuServerOff size={40} />
+            </EmptyState.Indicator>
+            <EmptyState.Description>
+              Ollama is not connected. Start Ollama to configure models and prompts.
+            </EmptyState.Description>
+          </EmptyState.Content>
+        </EmptyState.Root>
       ) : (
         <>
           {/* Panel 1: Model Configuration */}
-          <Box bg="bg.subtle" borderRadius="md" borderWidth="1px" borderColor="border.subtle" p={6}>
+          <SettingsPanel>
             <Text fontSize="lg" fontWeight="semibold" mb={4}>
               Model Configuration
             </Text>
@@ -128,10 +117,10 @@ export function OllamaSection() {
                 isSaving={saveMutation.isPending || rescoreMutation.isPending}
               />
             )}
-          </Box>
+          </SettingsPanel>
 
           {/* Panel 2: Model Library */}
-          <Box bg="bg.subtle" borderRadius="md" borderWidth="1px" borderColor="border.subtle" p={6}>
+          <SettingsPanel>
             <Text fontSize="lg" fontWeight="semibold" mb={4}>
               Model Library
             </Text>
@@ -140,15 +129,15 @@ export function OllamaSection() {
               config={effectiveConfig}
               pullHook={pullHook}
             />
-          </Box>
+          </SettingsPanel>
 
           {/* Panel 3: System Prompts */}
-          <Box bg="bg.subtle" borderRadius="md" borderWidth="1px" borderColor="border.subtle" p={6}>
+          <SettingsPanel>
             <Text fontSize="lg" fontWeight="semibold" mb={4}>
               System Prompts
             </Text>
             <SystemPrompts />
-          </Box>
+          </SettingsPanel>
         </>
       )}
     </Stack>
