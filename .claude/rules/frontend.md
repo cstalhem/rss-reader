@@ -52,6 +52,11 @@ paths: ["frontend/**"]
 - **Inter** for UI text, **Lora** for reader content (defined in `theme/typography.ts`).
 - Dark mode default with orange accent (`oklch(64.6% 0.222 41.116)`).
 
+## Settings Sections
+
+- Root element: `<Stack as="section" aria-label="..." gap={6}>` — all settings sections use this for landmark navigation.
+- Use `SettingsPanel` for card wrappers, `SettingsPageHeader` for page headers, `SettingsPanelHeading` for sub-headings inside panels. Don't inline these styles.
+
 ## UI Patterns
 
 - Load-more pagination, not infinite scroll.
