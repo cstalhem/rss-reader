@@ -366,16 +366,17 @@ Plans:
   4. CategoryTree prop count reduced from 15 to ~5 (data only), row components from 10-12 to 3-5 (via context)
   5. ModelManagement uses ConfirmDialog instead of inline Dialog.Root
   6. ModelSelector uses ModelPullProgress compact (or extracted DownloadProgressBar) instead of 3 inline progress bars
-  7. All page titles use consistent fontSize="xl"
-  8. SettingsMobileNav includes "General" section
-  9. OllamaPlaceholder.tsx dead code deleted
-  10. No functional regressions -- all existing behavior preserved
+  7. SettingsPageHeader shared component standardises all page headers (title fontSize="xl", optional children slot for right-side actions, optional title badge slot)
+  8. Shared SETTINGS_SECTIONS array in lib/constants.ts powers both SettingsSidebar and SettingsMobileNav (single source of truth)
+  9. SettingsMobileNav uses Chakra UI Select with icons matching desktop sidebar, replacing NativeSelect
+  10. OllamaPlaceholder.tsx dead code deleted
+  11. No functional regressions -- all existing behavior preserved
 **Plans:** 3 plans
 
 Plans:
-- [ ] 09.4-01-PLAN.md -- Shared layout primitives (Theme A): SettingsPanel, EmptyState, dead code cleanup
+- [ ] 09.4-01-PLAN.md -- Shared layout primitives (Theme A + D): SettingsPanel, EmptyState, SettingsPageHeader, dead code cleanup
 - [ ] 09.4-02-PLAN.md -- Category section decomposition (Theme B): useCategoryTree, CategoryTreeContext, useCategoryDialogs
-- [ ] 09.4-03-PLAN.md -- Ollama section cleanup + consistency fixes (Themes C + D + E): ConfirmDialog, progress bars, headings, mobile nav
+- [ ] 09.4-03-PLAN.md -- Ollama section cleanup + nav/consistency fixes (Themes C + E): ConfirmDialog, progress bars, shared nav array, mobile nav overhaul
 
 ### Phase 09.5: Refine main view UX and typography (INSERTED)
 
