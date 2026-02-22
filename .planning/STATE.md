@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Milestone: v1.1 Configuration, Feedback & Polish
-Phase: 09.3 complete (Plan 01 finished, user reviewed and approved findings with expanded Themes D+E)
-Status: Settings architecture audit complete. Phase 09.4 scope finalized in roadmap with 11 success criteria and 3 plans.
-Last activity: 2026-02-22 - Phase 09.3 complete: findings approved, Themes D (SettingsPageHeader) and E (mobile nav overhaul) expanded per user feedback
+Phase: 09.4 in progress (Plan 01 of 3 complete)
+Status: Shared layout primitives (SettingsPanel, SettingsPageHeader) created and migrated across all settings sections. Plans 02-03 remaining.
+Last activity: 2026-02-22 - Phase 09.4 Plan 01 complete: shared primitives, EmptyState migration, OllamaPlaceholder deletion
 
 Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase 10 remaining)
 
@@ -111,6 +111,7 @@ Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase
 | Phase 09.2 P01 | 15 | 2 tasks | 10 files |
 | Phase 09.2 P02 | 4.0 | 2 tasks | 5 files |
 | Phase 09.2 P03 | 2 | 2 tasks | 6 files |
+| Phase 09.4 P01 | 5.3 | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -258,6 +259,8 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 09.2]: App Router nested route pattern for settings: layout + redirect page + per-section pages, with thin client component extraction to preserve server layout
 - [Phase 09.2]: ScoreBadge uses aria-label instead of Tooltip -- score text is already visible so Tooltip was redundant information adding 2 DOM nodes per article row
 - [Phase 09.2]: Chakra as prop semantic swaps (as=article/section/aside) are zero-cost element tag changes with no style impact
+- [Phase 09.4]: SettingsPanel uses BoxProps spread for bg/borderRadius overrides (not variant prop)
+- [Phase 09.4]: EmptyState used directly from @chakra-ui/react, not wrapped in project component
 
 ### Pending Todos
 
@@ -303,8 +306,8 @@ Key architectural decisions carrying forward to v1.1:
 
 ## Session Continuity
 
-Last session: 2026-02-21
-Stopped at: Completed quick task 21 (refresh UI after model download complete)
+Last session: 2026-02-22
+Stopped at: Completed 09.4-01-PLAN.md (shared layout primitives)
 
 ---
 *State initialized: 2026-02-14*
