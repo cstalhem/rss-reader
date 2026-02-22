@@ -1,14 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Box, Flex, Text, Spinner } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
-import { LuClock } from "react-icons/lu";
+import { LuClock, LuSparkles } from "react-icons/lu";
 import { ArticleListItem } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
-import { HIGH_SCORE_THRESHOLD } from "@/lib/constants";
 import { TagChip } from "./TagChip";
 import { ScoreBadge } from "./ScoreBadge";
+import { ArticleRowContextMenu } from "./ArticleRowContextMenu";
 
 const MAX_VISIBLE_TAGS = 3;
 
@@ -29,6 +29,7 @@ interface ArticleRowProps {
   feedName?: string;
   onSelect: (article: ArticleListItem) => void;
   onToggleRead: (article: ArticleListItem) => void;
+  onRescore?: (article: ArticleListItem) => void;
   isCompleting?: boolean;
   scoringPhase?: string;
 }
@@ -38,13 +39,15 @@ export const ArticleRow = React.memo(function ArticleRow({
   feedName,
   onSelect,
   onToggleRead,
+  onRescore,
   isCompleting = false,
   scoringPhase,
 }: ArticleRowProps) {
-  // Add subtle accent background tint for high-scored rows
-  const isHighScored = article.scoring_state === "scored" &&
-    article.composite_score !== null &&
-    article.composite_score >= HIGH_SCORE_THRESHOLD;
+  const [isHovered, setIsHovered] = useState(false);
+
+  // Determine summary/preview text
+  const previewText = article.score_reasoning || article.summary_preview;
+  const isAiGenerated = !!article.score_reasoning;
 
   return (
     <Flex
@@ -55,42 +58,43 @@ export const ArticleRow = React.memo(function ArticleRow({
       borderBottom="1px solid"
       borderColor="border.subtle"
       cursor="pointer"
-      opacity={article.is_read && !isCompleting ? 0.6 : 1}
-      bg={isHighScored ? "accent.subtle" : undefined}
+      bg={!article.is_read ? "bg.subtle" : undefined}
       _hover={{ bg: "bg.subtle" }}
       onClick={() => onSelect(article)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       css={isCompleting ? {
         animation: `${scoreReveal} 3s ease-out forwards`,
       } : undefined}
     >
-      {/* Read/unread toggle dot */}
-      <Box
-        flexShrink={0}
-        alignSelf="center"
-        px={2}
-        cursor="pointer"
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggleRead(article);
-        }}
-        title={article.is_read ? "Mark as unread" : "Mark as read"}
-      >
+      {/* Read/unread toggle dot - only render for unread articles */}
+      {!article.is_read && (
         <Box
-          w="10px"
-          h="10px"
-          borderRadius="full"
-          bg={article.is_read ? "transparent" : "accent.solid"}
-          borderWidth="2px"
-          borderColor={article.is_read ? "fg.muted" : "accent.solid"}
-        />
-      </Box>
+          flexShrink={0}
+          alignSelf="center"
+          px={2}
+          cursor="pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleRead(article);
+          }}
+          title="Mark as read"
+        >
+          <Box
+            w="10px"
+            h="10px"
+            borderRadius="full"
+            bg="accent.solid"
+          />
+        </Box>
+      )}
 
       {/* Main content */}
       <Flex flex={1} direction="column" gap={1} minW={0}>
         {/* Title - truncated */}
         <Text
           fontSize="md"
-          fontWeight="medium"
+          fontWeight={article.is_read ? "normal" : "semibold"}
           color="fg.default"
           whiteSpace="nowrap"
           overflow="hidden"
@@ -99,10 +103,33 @@ export const ArticleRow = React.memo(function ArticleRow({
           {article.title}
         </Text>
 
+        {/* Summary/preview line */}
+        {previewText && (
+          <Flex gap={1} alignItems="flex-start">
+            {isAiGenerated && (
+              <Box flexShrink={0} color="fg.muted" mt="2px">
+                <LuSparkles size={14} />
+              </Box>
+            )}
+            <Text
+              fontSize="sm"
+              color="fg.muted"
+              css={{
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                display: "-webkit-box",
+                overflow: "hidden",
+              }}
+            >
+              {previewText}
+            </Text>
+          </Flex>
+        )}
+
         {/* Source, date, and category tags */}
         <Flex gap={2} alignItems="center" flexWrap="wrap">
           <Text fontSize="sm" color="fg.muted" flexShrink={0}>
-            {feedName ? `${feedName} • ` : ""}{formatRelativeDate(article.published_at)}
+            {feedName ? `${feedName} \u2022 ` : ""}{formatRelativeDate(article.published_at)}
           </Text>
           {article.categories && article.categories.length > 0 && (
             <>
@@ -127,13 +154,13 @@ export const ArticleRow = React.memo(function ArticleRow({
           <Flex alignItems="center" gap={1.5}>
             <Text fontSize="xs" color="fg.muted">
               {scoringPhase === "thinking"
-                ? "Thinking…"
+                ? "Thinking\u2026"
                 : scoringPhase === "categorizing"
-                  ? "Categorizing…"
+                  ? "Categorizing\u2026"
                   : scoringPhase === "scoring"
-                    ? "Scoring…"
+                    ? "Scoring\u2026"
                     : scoringPhase === "starting"
-                      ? "Starting…"
+                      ? "Starting\u2026"
                       : "Scoring complete"}
             </Text>
             <Spinner
@@ -163,7 +190,7 @@ export const ArticleRow = React.memo(function ArticleRow({
           </Flex>
         )}
         {article.scoring_state === "failed" && (
-          <Text fontSize="xs" color="red.fg">✕ Failed</Text>
+          <Text fontSize="xs" color="red.fg">&#10005; Failed</Text>
         )}
 
         {/* Score badge for scored articles */}
@@ -172,6 +199,15 @@ export const ArticleRow = React.memo(function ArticleRow({
           scoringState={article.scoring_state}
           size="sm"
         />
+
+        {/* Context menu for read articles (hover-reveal) */}
+        {isHovered && article.is_read && onRescore && (
+          <ArticleRowContextMenu
+            article={article}
+            onMarkUnread={() => onToggleRead(article)}
+            onRescore={() => onRescore(article)}
+          />
+        )}
       </Flex>
     </Flex>
   );
