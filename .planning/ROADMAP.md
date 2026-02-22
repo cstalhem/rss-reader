@@ -396,7 +396,7 @@ Plans:
   9. "Open original" link is repositioned for better discoverability (not buried between score and content)
   10. `dangerouslySetInnerHTML` usage is reviewed and replaced with a safer/more controllable approach if a better alternative exists (e.g., `html-react-parser`, `rehype`, or sanitization library)
   11. No functional regressions
-**Plans:** 4/5 plans executed
+**Plans:** 7 plans (5 executed + 2 gap closure)
 
 Plans:
 - [ ] 09.5-01-PLAN.md -- Backend: summary_preview + score_reasoning in list endpoint, per-article rescore, cross-feed mark-all-read
@@ -404,6 +404,8 @@ Plans:
 - [ ] 09.5-03-PLAN.md -- Article row redesign + toolbar overhaul: summary preview, read/unread styling, context menu, filter dropdown, sticky scroll-collapse
 - [ ] 09.5-04-PLAN.md -- Inline reader + content rendering: replace drawer with inline reader, html-react-parser + DOMPurify pipeline
 - [ ] 09.5-05-PLAN.md -- Keyboard shortcuts, typography polish, and visual verification checkpoint
+- [ ] 09.5-06-PLAN.md -- Gap closure: scroll container fix, always-sticky controls bar, accordion reader animation, reader sticky header
+- [ ] 09.5-07-PLAN.md -- Gap closure: sidebar theme toggle alignment, context menu toggle label, filter order/counts, confirm dialog layout, nested anchor fix
 
 #### Phase 10: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
@@ -444,9 +446,9 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 08.1 -> 08.2 -> 08.3 -> 9 -> 9.1
 | 09.2. DOM Tree Simplification | v1.1 | 3/3 | Complete | 2026-02-20 |
 | 09.3. Settings Architecture Audit | 1/1 | Complete    | 2026-02-22 | - |
 | 09.4. Settings Architecture Impl. | 3/3 | Complete    | 2026-02-22 | - |
-| 09.5. Main View UX & Typography | 4/5 | In Progress|  | - |
+| 09.5. Main View UX & Typography | 5/7 | In Progress (gap closure) | - |
 | 10. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-20 -- Phase 09.2 complete (3/3 plans)*
+*Last updated: 2026-02-22 -- Phase 09.5 gap closure plans 06 and 07 added*
