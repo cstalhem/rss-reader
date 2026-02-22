@@ -58,7 +58,24 @@ export function useCompletingArticles(
         // Fetch updated data (now has score + categories) to show in animation
         fetchArticle(id).then((updated) => {
           if (updated.scoring_state === "scored") {
-            setCompleting((prev) => new Map(prev).set(id, updated));
+            const listItem: ArticleListItem = {
+              id: updated.id,
+              feed_id: updated.feed_id,
+              title: updated.title,
+              url: updated.url,
+              author: updated.author,
+              published_at: updated.published_at,
+              is_read: updated.is_read,
+              categories: updated.categories,
+              interest_score: updated.interest_score,
+              quality_score: updated.quality_score,
+              composite_score: updated.composite_score,
+              score_reasoning: updated.score_reasoning,
+              summary_preview: null,
+              scoring_state: updated.scoring_state,
+              scored_at: updated.scored_at,
+            };
+            setCompleting((prev) => new Map(prev).set(id, listItem));
           }
         });
 
