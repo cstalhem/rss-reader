@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Milestone: v1.1 Configuration, Feedback & Polish
-Phase: 09.5 in progress (3 of 5 plans complete)
-Status: Plan 03 complete. Article rows redesigned, toolbar overhauled with filter dropdown and sticky scroll-collapse.
-Last activity: 2026-02-22 - Phase 09.5 Plan 03 complete: Redesigned article rows with summary preview, read/unread typography, hover context menu; overhauled toolbar with filter dropdown, sticky scroll-collapse, mark-all-read
+Phase: 09.5 in progress (4 of 5 plans complete)
+Status: Plan 04 complete. Inline reader replaces drawer, content rendered via html-react-parser + DOMPurify.
+Last activity: 2026-02-22 - Phase 09.5 Plan 04 complete: Replaced drawer-based reader with inline reader, added ArticleContent with html-react-parser + DOMPurify sanitization
 
 Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase 10 remaining)
 
@@ -117,6 +117,7 @@ Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase
 | Phase 09.5 P01 | 2.9 | 2 tasks | 5 files |
 | Phase 09.5 P02 | 4.1 | 2 tasks | 7 files |
 | Phase 09.5 P03 | 4.9 | 2 tasks | 4 files |
+| Phase 09.5 P04 | 6.9 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -277,6 +278,9 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 09.5-03]: Hover-reveal context menu via conditional mount on isHovered state (0-1 Menu.Root instances, no Zag multiplier)
 - [Phase 09.5-03]: IntersectionObserver with rootMargin -1px for hysteresis-free sticky scroll-collapse toolbar
 - [Phase 09.5-03]: Filter dropdown uses createListCollection disabled property (Select.Item has no disabled prop in Chakra v3)
+- [Phase 09.5]: READER_CONTENT_STYLES as exported constant in typography.ts (defineTextStyles can't handle deeply nested selectors)
+- [Phase 09.5]: Conditional early return in ArticleList for reader view (simpler than dual JSX branches)
+- [Phase 09.5]: requestAnimationFrame for scroll restore to ensure DOM has rendered list before scrolling
 
 ### Pending Todos
 
@@ -323,8 +327,8 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 09.5-03-PLAN.md (article rows and toolbar redesign)
+Stopped at: Completed 09.5-04-PLAN.md (inline reader with html-react-parser + DOMPurify)
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-22 after Phase 09.5 Plan 02*
+*Last updated: 2026-02-22 after Phase 09.5 Plan 04*

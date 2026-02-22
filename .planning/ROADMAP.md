@@ -396,7 +396,7 @@ Plans:
   9. "Open original" link is repositioned for better discoverability (not buried between score and content)
   10. `dangerouslySetInnerHTML` usage is reviewed and replaced with a safer/more controllable approach if a better alternative exists (e.g., `html-react-parser`, `rehype`, or sanitization library)
   11. No functional regressions
-**Plans:** 3/5 plans executed
+**Plans:** 4/5 plans executed
 
 Plans:
 - [ ] 09.5-01-PLAN.md -- Backend: summary_preview + score_reasoning in list endpoint, per-article rescore, cross-feed mark-all-read
@@ -444,7 +444,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 08.1 -> 08.2 -> 08.3 -> 9 -> 9.1
 | 09.2. DOM Tree Simplification | v1.1 | 3/3 | Complete | 2026-02-20 |
 | 09.3. Settings Architecture Audit | 1/1 | Complete    | 2026-02-22 | - |
 | 09.4. Settings Architecture Impl. | 3/3 | Complete    | 2026-02-22 | - |
-| 09.5. Main View UX & Typography | 3/5 | In Progress|  | - |
+| 09.5. Main View UX & Typography | 4/5 | In Progress|  | - |
 | 10. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
 ---
