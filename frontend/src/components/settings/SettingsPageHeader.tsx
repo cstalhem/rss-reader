@@ -15,7 +15,7 @@ export function SettingsPageHeader({
   children,
 }: SettingsPageHeaderProps) {
   return (
-    <Flex alignItems="center" gap={2}>
+    <Flex alignItems="center" gap={2} minH={8}>
       <Text fontSize="xl" fontWeight="semibold">
         {title}
       </Text>
