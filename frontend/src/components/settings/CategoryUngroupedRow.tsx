@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
-import { Badge, Box, Checkbox, Flex } from "@chakra-ui/react";
-import { LuX } from "react-icons/lu";
+import React, { useCallback } from "react";
+import { Box, Checkbox } from "@chakra-ui/react";
 import { Category } from "@/lib/types";
 import { CategoryContextMenu } from "./CategoryContextMenu";
 import { CategoryRowShell } from "./CategoryRowShell";
+import { NewCategoryBadge } from "./NewCategoryBadge";
 
 interface CategoryUngroupedRowProps {
   category: Category;
@@ -38,41 +38,16 @@ const CategoryUngroupedRowComponent = ({
   const handleDelete = useCallback(() => onDelete(category.id), [category.id, onDelete]);
   const handleBadgeDismiss = useCallback(() => onBadgeDismiss(category.id), [category.id, onBadgeDismiss]);
 
-  const [isHovered, setIsHovered] = useState(false);
-
   return (
     <CategoryRowShell
       category={category}
       weight={weight}
       onWeightChange={handleWeightChange}
       onRename={handleRename}
-      onHoverChange={setIsHovered}
       badge={
-        isNew ? (
-          <Badge
-            colorPalette="accent"
-            size="sm"
-            cursor="pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleBadgeDismiss();
-            }}
-          >
-            <Flex alignItems="center" gap={0}>
-              <Box
-                display="flex"
-                alignItems="center"
-                maxW={{ base: "20px", md: isHovered ? "20px" : "0" }}
-                overflow="hidden"
-                transition="max-width 0.15s, padding 0.15s"
-                pr={isHovered ? 1 : 0}
-              >
-                <LuX size={14} />
-              </Box>
-              New
-            </Flex>
-          </Badge>
-        ) : undefined
+        isNew
+          ? (isHovered: boolean) => <NewCategoryBadge isHovered={isHovered} onDismiss={handleBadgeDismiss} />
+          : undefined
       }
       renderContextMenu={(startRename) => (
         <CategoryContextMenu

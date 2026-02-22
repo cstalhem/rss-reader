@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Box, Flex, Input, Text } from "@chakra-ui/react";
 import { Category } from "@/lib/types";
 import { useRenameState } from "@/hooks/useRenameState";
@@ -15,9 +15,8 @@ interface CategoryRowShellProps {
   renderContextMenu: (startRename: () => void) => React.ReactNode;
   isOverridden?: boolean; // For WeightPresetStrip opacity + reset button
   onReset?: () => void; // Reset to parent weight
-  badge?: React.ReactNode; // "New" badge, "N new" badge
+  badge?: React.ReactNode | ((isHovered: boolean) => React.ReactNode); // Render prop for hover-aware badges, or plain ReactNode
   trailingContent?: React.ReactNode; // Child count text (for parent rows)
-  onHoverChange?: (isHovered: boolean) => void; // For badge X animation on child/ungrouped
   onNameClick?: () => void; // Category name click handler (for parent expand/collapse)
   nameFontWeight?: string; // Font weight for name text (semibold for parent)
   py?: number; // Vertical padding override (parent=3, child/ungrouped=2)
@@ -34,13 +33,15 @@ export function CategoryRowShell({
   onReset,
   badge,
   trailingContent,
-  onHoverChange,
   onNameClick,
   nameFontWeight,
   py = 2,
 }: CategoryRowShellProps) {
   const { isRenaming, renameValue, setRenameValue, startRename, handleSubmit, handleCancel, inputRef } =
     useRenameState(category.display_name, onRename);
+
+  const needsHover = typeof badge === "function";
+  const [isHovered, setIsHovered] = useState(false);
 
   return (
     <Box
@@ -50,8 +51,8 @@ export function CategoryRowShell({
       bg="bg.subtle"
       _hover={{ bg: "bg.muted" }}
       transition="background 0.15s"
-      onMouseEnter={onHoverChange ? () => onHoverChange(true) : undefined}
-      onMouseLeave={onHoverChange ? () => onHoverChange(false) : undefined}
+      onMouseEnter={needsHover ? () => setIsHovered(true) : undefined}
+      onMouseLeave={needsHover ? () => setIsHovered(false) : undefined}
     >
       <Flex
         role="group"
@@ -93,7 +94,7 @@ export function CategoryRowShell({
 
         {trailingContent}
 
-        {badge}
+        {typeof badge === "function" ? badge(isHovered) : badge}
 
         <Box flex={1} />
 
