@@ -1,19 +1,43 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import NextLink from "next/link";
-import { Alert, Box, Flex, Button, Link, Text, Icon } from "@chakra-ui/react";
-import { LuCheckCheck, LuInbox, LuClock, LuBan, LuBrainCog } from "react-icons/lu";
+import {
+  Alert,
+  Box,
+  createListCollection,
+  Flex,
+  Button,
+  Heading,
+  IconButton,
+  Link,
+  Portal,
+  Select,
+  Text,
+  Icon,
+} from "@chakra-ui/react";
+import {
+  LuCheckCheck,
+  LuInbox,
+  LuClock,
+  LuBan,
+  LuBrainCog,
+  LuMenu,
+} from "react-icons/lu";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useArticles, useMarkAsRead } from "@/hooks/useArticles";
-import { useMarkAllRead } from "@/hooks/useFeedMutations";
+import { useMarkAllRead, useMarkAllArticlesRead } from "@/hooks/useFeedMutations";
 import { useFeeds } from "@/hooks/useFeeds";
 import { useSortPreference } from "@/hooks/useSortPreference";
 import { useScoringStatus } from "@/hooks/useScoringStatus";
 import { useCompletingArticles } from "@/hooks/useCompletingArticles";
+import { rescoreArticle } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
 import { ArticleRow } from "./ArticleRow";
 import { ArticleRowSkeleton } from "./ArticleRowSkeleton";
 import { ArticleReader } from "./ArticleReader";
 import { SortSelect } from "./SortSelect";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ArticleListItem } from "@/lib/types";
 import { parseSortOption } from "@/lib/utils";
 
@@ -24,11 +48,15 @@ interface ArticleListProps {
 
 type FilterTab = "unread" | "all" | "scoring" | "blocked";
 
-export function ArticleList({ selectedFeedId }: ArticleListProps) {
+export function ArticleList({ selectedFeedId, onOpenMobileSidebar }: ArticleListProps) {
   const [filter, setFilter] = useState<FilterTab>("unread");
   const [selectedArticle, setSelectedArticle] = useState<ArticleListItem | null>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isConfirmMarkAllOpen, setIsConfirmMarkAllOpen] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const { sortOption, setSortOption } = useSortPreference();
   const { data: scoringStatus } = useScoringStatus();
+  const queryClient = useQueryClient();
 
   // Calculate tab counts (needed before useArticles for scoringActive)
   const scoringCount = (scoringStatus?.unscored ?? 0) + (scoringStatus?.queued ?? 0) + (scoringStatus?.scoring ?? 0);
@@ -53,7 +81,6 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
   });
 
   // Track articles completing scoring (for animation in Scoring tab)
-  // Hook returns merged display list with completing articles in original positions
   const { displayArticles, completingIds } = useCompletingArticles(
     articles,
     filter === "scoring"
@@ -62,7 +89,19 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
   const { data: feeds } = useFeeds();
   const markAsRead = useMarkAsRead();
   const markAllRead = useMarkAllRead();
+  const markAllArticlesRead = useMarkAllArticlesRead();
 
+  // Rescore mutation
+  const rescoreMutation = useMutation({
+    mutationFn: (articleId: number) => rescoreArticle(articleId),
+    meta: { errorTitle: "Failed to rescore article" },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.scoringStatus.all });
+    },
+  });
+
+  // Feed name lookup
   const feedNames = useMemo(() => {
     const map: Record<number, string> = {};
     if (feeds) {
@@ -72,6 +111,25 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
     }
     return map;
   }, [feeds]);
+
+  // Current feed name for heading
+  const feedName = selectedFeedId ? feedNames[selectedFeedId] ?? "Feed" : "Articles";
+
+  // IntersectionObserver for sticky scroll-collapse
+  useEffect(() => {
+    const heading = headingRef.current;
+    if (!heading) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsScrolled(!entry.isIntersecting);
+      },
+      { rootMargin: "-1px 0px 0px 0px" }
+    );
+
+    observer.observe(heading);
+    return () => observer.disconnect();
+  }, []);
 
   const handleToggleRead = (article: ArticleListItem) => {
     markAsRead.mutate({
@@ -84,21 +142,40 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
     setSelectedArticle(article);
   };
 
+  const handleRescore = (article: ArticleListItem) => {
+    rescoreMutation.mutate(article.id);
+  };
+
   const handleMarkAllAsRead = () => {
     if (selectedFeedId) {
       markAllRead.mutate(selectedFeedId);
+    } else {
+      // All Articles view: show confirmation
+      setIsConfirmMarkAllOpen(true);
     }
   };
 
+  const handleConfirmMarkAllArticlesRead = () => {
+    markAllArticlesRead.mutate();
+    setIsConfirmMarkAllOpen(false);
+  };
+
   const articleCount = displayArticles?.length ?? 0;
-  const countLabel =
-    filter === "unread"
-      ? `${articleCount} unread article${articleCount !== 1 ? "s" : ""}`
-      : filter === "scoring"
-      ? `${articleCount} pending article${articleCount !== 1 ? "s" : ""}`
-      : filter === "blocked"
-      ? `${articleCount} blocked article${articleCount !== 1 ? "s" : ""}`
-      : `${articleCount} article${articleCount !== 1 ? "s" : ""}`;
+
+  // Filter dropdown collection with counts
+  const filterCollection = useMemo(() => {
+    const unreadCount = filter === "unread" ? articleCount : undefined;
+    const allCount = filter === "all" ? articleCount : undefined;
+
+    return createListCollection({
+      items: [
+        { label: `Unread${unreadCount !== undefined ? ` (${unreadCount})` : ""}`, value: "unread" },
+        { label: `All${allCount !== undefined ? ` (${allCount})` : ""}`, value: "all" },
+        { label: `Scoring${scoringCount > 0 ? ` (${scoringCount})` : ""}`, value: "scoring", disabled: scoringCount === 0 },
+        { label: `Blocked${blockedCount > 0 ? ` (${blockedCount})` : ""}`, value: "blocked", disabled: blockedCount === 0 },
+      ],
+    });
+  }, [filter, articleCount, scoringCount, blockedCount]);
 
   // Empty state messages and icons by filter
   const emptyMessage =
@@ -133,7 +210,7 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
               <>
                 {" "}
                 <Link asChild color="fg.warning" textDecoration="underline">
-                  <NextLink href="/settings/ollama">Configure →</NextLink>
+                  <NextLink href="/settings/ollama">Configure &rarr;</NextLink>
                 </Link>
               </>
             )}
@@ -141,72 +218,113 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
         </Alert.Root>
       )}
 
-      {/* Top bar with filter tabs, sort, and count */}
+      {/* Feed name heading */}
+      <Flex px={4} pt={4} pb={2} alignItems="center" gap={2}>
+        {/* Mobile hamburger */}
+        <IconButton
+          aria-label="Open sidebar"
+          size="sm"
+          variant="ghost"
+          display={{ base: "flex", md: "none" }}
+          onClick={onOpenMobileSidebar}
+        >
+          <LuMenu />
+        </IconButton>
+        <Heading ref={headingRef} fontSize="2xl" fontWeight="bold">
+          {feedName}
+        </Heading>
+      </Flex>
+
+      {/* Controls bar */}
       <Flex
         px={4}
-        py={3}
+        py={2}
         borderBottom="1px solid"
         borderColor="border.subtle"
         alignItems="center"
-        justifyContent="space-between"
+        gap={2}
+        position={isScrolled ? "sticky" : "static"}
+        top={0}
+        zIndex={isScrolled ? 5 : undefined}
+        bg="bg"
       >
-        <Flex gap={2} alignItems="center" flexWrap="wrap">
-          {/* Filter tabs */}
-          <Button
-            size="sm"
-            variant={filter === "unread" ? "solid" : "ghost"}
-            colorPalette={filter === "unread" ? "accent" : undefined}
-            onClick={() => setFilter("unread")}
+        {/* Inline feed name when scrolled */}
+        {isScrolled && (
+          <Text
+            fontSize="sm"
+            fontWeight="medium"
+            flexShrink={0}
+            mr={1}
+            css={{
+              animation: "fadeIn 0.15s ease-out",
+              "@keyframes fadeIn": {
+                "0%": { opacity: 0 },
+                "100%": { opacity: 1 },
+              },
+            }}
           >
-            Unread
-          </Button>
-          <Button
-            size="sm"
-            variant={filter === "all" ? "solid" : "ghost"}
-            colorPalette={filter === "all" ? "accent" : undefined}
-            onClick={() => setFilter("all")}
-          >
-            All
-          </Button>
-          <Button
-            size="sm"
-            variant={filter === "scoring" ? "solid" : "ghost"}
-            colorPalette={filter === "scoring" ? "accent" : undefined}
-            onClick={() => setFilter("scoring")}
-            disabled={scoringCount === 0}
-          >
-            Scoring{scoringCount > 0 ? ` (${scoringCount})` : ""}
-          </Button>
-          <Button
-            size="sm"
-            variant={filter === "blocked" ? "solid" : "ghost"}
-            colorPalette={filter === "blocked" ? "accent" : undefined}
-            onClick={() => setFilter("blocked")}
-            disabled={blockedCount === 0}
-          >
-            Blocked{blockedCount > 0 ? ` (${blockedCount})` : ""}
-          </Button>
+            {feedName}
+          </Text>
+        )}
 
-          {/* Mark all read button - only for unread tab with a selected feed */}
-          {filter === "unread" &&
-            selectedFeedId &&
-            articleCount > 0 && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={handleMarkAllAsRead}
-                disabled={markAllRead.isPending}
-              >
-                Mark all read
-              </Button>
-            )}
+        {/* Filter dropdown */}
+        <Select.Root
+          collection={filterCollection}
+          size="sm"
+          value={[filter]}
+          onValueChange={(details) => {
+            const selected = details.value[0] as FilterTab | undefined;
+            if (selected) setFilter(selected);
+          }}
+          positioning={{ sameWidth: true }}
+          width="auto"
+          minWidth="130px"
+        >
+          <Select.HiddenSelect />
+          <Select.Control>
+            <Select.Trigger>
+              <Select.ValueText placeholder="Filter..." />
+            </Select.Trigger>
+            <Select.IndicatorGroup>
+              <Select.Indicator />
+            </Select.IndicatorGroup>
+          </Select.Control>
+          <Portal>
+            <Select.Positioner>
+              <Select.Content>
+                {filterCollection.items.map((option) => (
+                  <Select.Item key={option.value} item={option}>
+                    {option.label}
+                    <Select.ItemIndicator />
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Positioner>
+          </Portal>
+        </Select.Root>
 
-          {/* Sort dropdown */}
-          <SortSelect value={sortOption} onChange={setSortOption} />
-        </Flex>
+        {/* Sort dropdown */}
+        <SortSelect value={sortOption} onChange={setSortOption} />
 
-        <Text fontSize="sm" color="fg.muted">
-          {countLabel}
+        <Box flex={1} />
+
+        {/* Mark all read icon button */}
+        {filter === "unread" && articleCount > 0 && (
+          <IconButton
+            aria-label="Mark all as read"
+            title="Mark all as read"
+            size="sm"
+            variant="ghost"
+            onClick={handleMarkAllAsRead}
+            disabled={markAllRead.isPending || markAllArticlesRead.isPending}
+          >
+            <LuCheckCheck />
+          </IconButton>
+        )}
+
+        {/* Count label */}
+        <Text fontSize="sm" color="fg.muted" flexShrink={0}>
+          {articleCount}
         </Text>
       </Flex>
 
@@ -227,6 +345,7 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
                 feedName={selectedFeedId ? undefined : feedNames[article.feed_id]}
                 onSelect={handleSelect}
                 onToggleRead={handleToggleRead}
+                onRescore={handleRescore}
                 isCompleting={completingIds.has(article.id)}
                 scoringPhase={
                   article.scoring_state === "scoring" &&
@@ -271,6 +390,17 @@ export function ArticleList({ selectedFeedId }: ArticleListProps) {
           )}
         </Flex>
       )}
+
+      {/* Confirm mark all articles read dialog */}
+      <ConfirmDialog
+        open={isConfirmMarkAllOpen}
+        onOpenChange={({ open }) => setIsConfirmMarkAllOpen(open)}
+        title="Mark all articles as read?"
+        body="This will mark all unread articles across all feeds as read."
+        confirmLabel="Mark all read"
+        confirmColorPalette="accent"
+        onConfirm={handleConfirmMarkAllArticlesRead}
+      />
 
       {/* Article reader drawer */}
       <ArticleReader

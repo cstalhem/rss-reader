@@ -9,6 +9,8 @@ export const SIDEBAR_WIDTH_EXPANDED = "240px";
 export const NEW_COUNT_POLL_INTERVAL = 30_000;
 /** Score threshold for accent-colored score badge */
 export const HIGH_SCORE_THRESHOLD = 15;
+/** Default page size for article list pagination */
+export const ARTICLE_LIST_PAGE_SIZE = 50;
 
 export type SettingsSection = "general" | "feeds" | "interests" | "categories" | "ollama" | "feedback";
 
