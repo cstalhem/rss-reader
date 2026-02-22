@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Milestone: v1.1 Configuration, Feedback & Polish
-Phase: 09.5 in progress (1 of 5 plans complete)
-Status: Plan 01 complete. Data layer foundation for main view UX redesign.
-Last activity: 2026-02-22 - Phase 09.5 Plan 01 complete: Backend endpoints + frontend types/API/hooks for summary_preview, rescore, mark-all-read
+Phase: 09.5 in progress (2 of 5 plans complete)
+Status: Plan 02 complete. Layout shell restructured — header removed, sidebar restructured.
+Last activity: 2026-02-22 - Phase 09.5 Plan 02 complete: Removed Header, restructured Sidebar with logo/feeds/utilities zones and collapsed icon-only state
 
 Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase 10 remaining)
 
@@ -115,6 +115,7 @@ Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase
 | Phase 09.4 P03 | 5.9 | 2 tasks | 6 files |
 | Phase 09.4 P02 | 7.0 | 2 tasks | 7 files |
 | Phase 09.5 P01 | 2.9 | 2 tasks | 5 files |
+| Phase 09.5 P02 | 4.1 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -266,6 +267,9 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 09.4]: EmptyState used directly from @chakra-ui/react, not wrapped in project component
 - [Phase 09.4]: useMemo for activeModels set in ModelManagement to satisfy React Compiler dep inference
 - [Phase 09.4]: Co-located CategoryTreeContext in CategoriesSection.tsx for single-consumer context pattern
+- [Phase 09.5-02]: Three-zone sidebar layout: logo top, scrollable feeds middle, pinned utilities (settings+theme+collapse) bottom
+- [Phase 09.5-02]: Collapsed sidebar uses Circle with feed initial letter for icon-only feed items
+- [Phase 09.5-02]: New category count query in both Sidebar and MobileSidebar (shared TanStack Query cache deduplicates)
 - [Phase 09.5-01]: summary_preview generated server-side via HTML strip + truncate (not client-side)
 - [Phase 09.5-01]: mark-all-read uses SQLAlchemy bulk update for efficiency (no per-article loop)
 - [Phase 09.5-01]: useMarkAllArticlesRead uses onSettled (not onSuccess) for cache freshness on both success and error
@@ -315,8 +319,8 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 09.5-01-PLAN.md (data layer foundation for main view UX redesign)
+Stopped at: Completed 09.5-02-PLAN.md (layout shell restructure — header removed, sidebar restructured)
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-22 after Phase 09.5 Plan 01*
+*Last updated: 2026-02-22 after Phase 09.5 Plan 02*
