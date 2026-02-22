@@ -382,7 +382,7 @@ Plans:
 
 **Goal:** Polish the article list page and article reader pane — improve information density, typography, layout, navigation, and visual cohesion across the main reading experience
 **Depends on:** Phase 09.2 (DOM simplification complete)
-**Scope:** Article list (`ArticleList.tsx`, `ArticleRow.tsx`, `SortSelect.tsx`) and article reader (`ArticleReader.tsx`). Settings pages out of scope.
+**Scope:** Article list, article reader, layout shell (AppShell, Header, Sidebar, MobileSidebar), and content rendering. Settings pages out of scope.
 **Origin:** Pending todo #3 (refine article reader view UX and typography), expanded to cover the full main view
 **Success Criteria** (what must be TRUE):
   1. Article rows show a 1-2 line summary/preview below the title for easier scanning
@@ -396,10 +396,14 @@ Plans:
   9. "Open original" link is repositioned for better discoverability (not buried between score and content)
   10. `dangerouslySetInnerHTML` usage is reviewed and replaced with a safer/more controllable approach if a better alternative exists (e.g., `html-react-parser`, `rehype`, or sanitization library)
   11. No functional regressions
-**Plans:** 0 plans
+**Plans:** 5 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 09.5 to break down)
+- [ ] 09.5-01-PLAN.md -- Backend: summary_preview + score_reasoning in list endpoint, per-article rescore, cross-feed mark-all-read
+- [ ] 09.5-02-PLAN.md -- Layout shell: remove Header, restructure Sidebar with logo/feeds/utilities, update AppShell and MobileSidebar
+- [ ] 09.5-03-PLAN.md -- Article row redesign + toolbar overhaul: summary preview, read/unread styling, context menu, filter dropdown, sticky scroll-collapse
+- [ ] 09.5-04-PLAN.md -- Inline reader + content rendering: replace drawer with inline reader, html-react-parser + DOMPurify pipeline
+- [ ] 09.5-05-PLAN.md -- Keyboard shortcuts, typography polish, and visual verification checkpoint
 
 #### Phase 10: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
@@ -440,7 +444,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 08.1 -> 08.2 -> 08.3 -> 9 -> 9.1
 | 09.2. DOM Tree Simplification | v1.1 | 3/3 | Complete | 2026-02-20 |
 | 09.3. Settings Architecture Audit | 1/1 | Complete    | 2026-02-22 | - |
 | 09.4. Settings Architecture Impl. | 3/3 | Complete    | 2026-02-22 | - |
-| 09.5. Main View UX & Typography | v1.1 | 0/TBD | Not started | - |
+| 09.5. Main View UX & Typography | v1.1 | 0/5 | Not started | - |
 | 10. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
 
 ---
