@@ -142,6 +142,7 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar }: ArticleList
   const handleSelect = (article: ArticleListItem) => {
     scrollPositionRef.current = window.scrollY;
     setSelectedArticle(article);
+    window.scrollTo(0, 0);
   };
 
   const handleCloseReader = useCallback(() => {
@@ -213,6 +214,7 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar }: ArticleList
         key={selectedArticle.id}
         article={selectedArticle}
         articles={displayArticles ?? []}
+        feedName={feedNames[selectedArticle.feed_id]}
         onClose={handleCloseReader}
         onNavigate={setSelectedArticle}
       />

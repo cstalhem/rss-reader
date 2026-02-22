@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Flex,
+  Link,
   Text,
   IconButton,
   Spinner,
@@ -27,6 +28,7 @@ import { ArticleContent } from "./ArticleContent";
 interface ArticleReaderProps {
   article: ArticleListItem;
   articles: ArticleListItem[];
+  feedName?: string;
   onClose: () => void;
   onNavigate: (article: ArticleListItem) => void;
 }
@@ -34,6 +36,7 @@ interface ArticleReaderProps {
 export function ArticleReader({
   article,
   articles,
+  feedName,
   onClose,
   onNavigate,
 }: ArticleReaderProps) {
@@ -78,6 +81,20 @@ export function ArticleReader({
         currentIndex < articles.length - 1 ? articles[currentIndex + 1] : null,
     };
   }, [article, articles]);
+
+  // Keyboard shortcuts: Escape to close, J/K for next/prev
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      if (e.key === "Escape") onClose();
+      if ((e.key === "j" || e.key === "J") && nextArticle) onNavigate(nextArticle);
+      if ((e.key === "k" || e.key === "K") && prevArticle) onNavigate(prevArticle);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose, onNavigate, prevArticle, nextArticle]);
 
   // Use full article content when available, fall back to empty while loading
   const contentHtml = fullArticle?.content || fullArticle?.summary || "";
@@ -148,13 +165,12 @@ export function ArticleReader({
       </Flex>
 
       {/* Scrollable content area */}
-      <Box maxW="800px" mx="auto" px={{ base: 4, md: 8 }} py={6}>
+      <Box maxW="800px" mx="auto" px={{ base: 4, md: 8 }} py={6} pb={16}>
         {/* Article title */}
         <Text
-          textStyle="reader.heading"
           fontSize="3xl"
           fontWeight="700"
-          fontFamily="sans"
+          fontFamily="serif"
           lineHeight="1.25"
           letterSpacing="-0.01em"
           mb={4}
@@ -163,13 +179,13 @@ export function ArticleReader({
         </Text>
 
         {/* Metadata */}
-        <Flex gap={4} alignItems="center" fontSize="sm" color="fg.muted" mb={3}>
-          <Text>Feed</Text>
-          <Text>*</Text>
+        <Flex gap={2} alignItems="center" fontSize="sm" color="fg.muted" mb={3} flexWrap="wrap">
+          {feedName && <Text>{feedName}</Text>}
+          {feedName && <Text>{"\u00B7"}</Text>}
           <Text>{formatRelativeDate(article.published_at)}</Text>
           {article.author && (
             <>
-              <Text>*</Text>
+              <Text>{"\u00B7"}</Text>
               <Text>{article.author}</Text>
             </>
           )}
@@ -196,7 +212,7 @@ export function ArticleReader({
 
         {/* Score Display */}
         {article.scoring_state === "scored" ? (
-          <Box mb={6}>
+          <Box mb={8}>
             <Flex gap={3} alignItems="center">
               <ScoreBadge
                 score={article.composite_score}
@@ -228,7 +244,7 @@ export function ArticleReader({
             )}
           </Box>
         ) : (
-          <Box mb={6}>
+          <Box mb={8}>
             <Text fontSize="sm" color="fg.muted">
               {article.scoring_state === "scoring" && "Scoring in progress..."}
               {article.scoring_state === "queued" && "Queued for scoring..."}
@@ -246,6 +262,20 @@ export function ArticleReader({
         ) : (
           <ArticleContent html={contentHtml} />
         )}
+
+        {/* Read on original link */}
+        <Box mt={10} pt={6} borderTopWidth="1px" borderColor="border.subtle">
+          <Link
+            href={article.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            fontSize="sm"
+            color="fg.muted"
+            _hover={{ color: "fg" }}
+          >
+            Read on {feedName ?? "original site"} &rarr;
+          </Link>
+        </Box>
       </Box>
     </Box>
   );
