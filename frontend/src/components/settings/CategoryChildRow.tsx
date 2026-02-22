@@ -3,6 +3,7 @@
 import React, { useCallback } from "react";
 import { Box, Checkbox } from "@chakra-ui/react";
 import { Category } from "@/lib/types";
+import { useCategoryTreeContext } from "./CategoriesSection";
 import { CategoryContextMenu } from "./CategoryContextMenu";
 import { CategoryRowShell } from "./CategoryRowShell";
 import { NewCategoryBadge } from "./NewCategoryBadge";
@@ -12,31 +13,21 @@ interface CategoryChildRowProps {
   weight: string;
   isOverridden: boolean;
   parentWeight: string;
-  isNew?: boolean;
-  onWeightChange: (categoryId: number, weight: string) => void;
-  onResetWeight: (categoryId: number) => void;
-  onHide: (categoryId: number) => void;
-  onBadgeDismiss: (categoryId: number) => void;
-  onRename: (categoryId: number, newName: string) => void;
-  onDelete: (categoryId: number) => void;
-  isSelected: boolean;
-  onToggleSelection: (id: number) => void;
 }
 
 const CategoryChildRowComponent = ({
   category,
   weight,
   isOverridden,
-  isNew,
-  onWeightChange,
-  onResetWeight,
-  onHide,
-  onBadgeDismiss,
-  onRename,
-  onDelete,
-  isSelected,
-  onToggleSelection,
 }: CategoryChildRowProps) => {
+  const {
+    onWeightChange, onResetWeight, onHide, onBadgeDismiss,
+    onRename, onDelete, selectedIds, onToggleSelection, newCategoryIds,
+  } = useCategoryTreeContext();
+
+  const isNew = newCategoryIds.has(category.id);
+  const isSelected = selectedIds.has(category.id);
+
   const handleRename = useCallback((newName: string) => onRename(category.id, newName), [category.id, onRename]);
   const handleWeightChange = useCallback((w: string) => onWeightChange(category.id, w), [category.id, onWeightChange]);
   const handleResetWeight = useCallback(() => onResetWeight(category.id), [category.id, onResetWeight]);

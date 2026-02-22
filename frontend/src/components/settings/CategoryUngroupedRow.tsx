@@ -3,6 +3,7 @@
 import React, { useCallback } from "react";
 import { Box, Checkbox } from "@chakra-ui/react";
 import { Category } from "@/lib/types";
+import { useCategoryTreeContext } from "./CategoriesSection";
 import { CategoryContextMenu } from "./CategoryContextMenu";
 import { CategoryRowShell } from "./CategoryRowShell";
 import { NewCategoryBadge } from "./NewCategoryBadge";
@@ -10,28 +11,20 @@ import { NewCategoryBadge } from "./NewCategoryBadge";
 interface CategoryUngroupedRowProps {
   category: Category;
   weight: string;
-  isNew?: boolean;
-  isSelected: boolean;
-  onWeightChange: (categoryId: number, weight: string) => void;
-  onHide: (categoryId: number) => void;
-  onBadgeDismiss: (categoryId: number) => void;
-  onToggleSelection: (id: number) => void;
-  onRename: (categoryId: number, newName: string) => void;
-  onDelete: (categoryId: number) => void;
 }
 
 const CategoryUngroupedRowComponent = ({
   category,
   weight,
-  isNew,
-  isSelected,
-  onWeightChange,
-  onHide,
-  onBadgeDismiss,
-  onToggleSelection,
-  onRename,
-  onDelete,
 }: CategoryUngroupedRowProps) => {
+  const {
+    onWeightChange, onHide, onBadgeDismiss,
+    onRename, onDelete, selectedIds, onToggleSelection, newCategoryIds,
+  } = useCategoryTreeContext();
+
+  const isNew = newCategoryIds.has(category.id);
+  const isSelected = selectedIds.has(category.id);
+
   const handleRename = useCallback((newName: string) => onRename(category.id, newName), [category.id, onRename]);
   const handleWeightChange = useCallback((w: string) => onWeightChange(category.id, w), [category.id, onWeightChange]);
   const handleHide = useCallback(() => onHide(category.id), [category.id, onHide]);

@@ -4,6 +4,7 @@ import React, { useCallback } from "react";
 import { Badge, Text, Box } from "@chakra-ui/react";
 import { LuChevronRight, LuFolder } from "react-icons/lu";
 import { Category } from "@/lib/types";
+import { useCategoryTreeContext } from "./CategoriesSection";
 import { CategoryContextMenu } from "./CategoryContextMenu";
 import { CategoryRowShell } from "./CategoryRowShell";
 
@@ -11,11 +12,6 @@ interface CategoryParentRowProps {
   category: Category;
   weight: string;
   childCount: number;
-  onWeightChange: (categoryId: number, weight: string) => void;
-  onRename: (categoryId: number, newName: string) => void;
-  onDelete: (categoryId: number) => void;
-  onUngroup: (categoryId: number) => void;
-  onHide: (categoryId: number) => void;
   isExpanded: boolean;
   onToggleExpand: (parentId: number) => void;
   newChildCount: number;
@@ -26,16 +22,13 @@ const CategoryParentRowComponent = ({
   category,
   weight,
   childCount,
-  onWeightChange,
-  onRename,
-  onDelete,
-  onUngroup,
-  onHide,
   isExpanded,
   onToggleExpand,
   newChildCount,
   onDismissNewChildren,
 }: CategoryParentRowProps) => {
+  const { onWeightChange, onRename, onDelete, onUngroup, onHide } = useCategoryTreeContext();
+
   const handleRename = useCallback((newName: string) => onRename(category.id, newName), [category.id, onRename]);
   const handleWeightChange = useCallback((w: string) => onWeightChange(category.id, w), [category.id, onWeightChange]);
   const handleDelete = useCallback(() => onDelete(category.id), [category.id, onDelete]);

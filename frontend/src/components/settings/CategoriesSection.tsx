@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useTransition } from "react";
 import { Badge, EmptyState, Stack, Text, Input } from "@chakra-ui/react";
 import { LuTag } from "react-icons/lu";
 import { SettingsPageHeader } from "./SettingsPageHeader";
 import { useCategories } from "@/hooks/useCategories";
-import { Category } from "@/lib/types";
+import { useCategoryTree } from "@/hooks/useCategoryTree";
+import { useCategoryDialogs } from "@/hooks/useCategoryDialogs";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { toaster } from "@/components/ui/toaster";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -16,6 +17,31 @@ import { DeleteCategoryDialog } from "./DeleteCategoryDialog";
 import { MoveToGroupDialog } from "./MoveToGroupDialog";
 import { HiddenCategoriesSection } from "./HiddenCategoriesSection";
 import { CategoriesTreeSkeleton } from "./CategoriesTreeSkeleton";
+
+// --- CategoryTreeContext (co-located: single consumer) ---
+
+export interface CategoryTreeContextValue {
+  onWeightChange: (categoryId: number, weight: string) => void;
+  onResetWeight: (categoryId: number) => void;
+  onHide: (categoryId: number) => void;
+  onBadgeDismiss: (categoryId: number) => void;
+  onRename: (categoryId: number, newName: string) => void;
+  onDelete: (categoryId: number) => void;
+  onUngroup: (categoryId: number) => void;
+  selectedIds: Set<number>;
+  onToggleSelection: (id: number) => void;
+  newCategoryIds: Set<number>;
+}
+
+const CategoryTreeContext = createContext<CategoryTreeContextValue | null>(null);
+
+export function useCategoryTreeContext() {
+  const ctx = useContext(CategoryTreeContext);
+  if (!ctx) throw new Error("useCategoryTreeContext must be used within CategoryTreeContext.Provider");
+  return ctx;
+}
+
+// --- CategoriesSection ---
 
 export function CategoriesSection() {
   const {
@@ -34,13 +60,16 @@ export function CategoriesSection() {
     ungroupParentMutation,
   } = useCategories();
 
-  // Defer heavy tree render so the shell (title, action bar, search) paints instantly
+  // Defer heavy tree render so the shell paints instantly
   const [treeReady, setTreeReady] = useState(false);
   const [, startTransition] = useTransition();
-
   useEffect(() => {
     startTransition(() => setTreeReady(true));
   }, [startTransition]);
+
+  // Tree building + search
+  const { parents, childrenMap, ungroupedCategories, newCategoryIds, hiddenCategories, searchQuery, setSearchQuery } =
+    useCategoryTree(categories);
 
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -68,139 +97,32 @@ export function CategoriesSection() {
     [expandedParents, setExpandedParents]
   );
 
-  const [searchQuery, setSearchQuery] = useState("");
+  // Dialog state + handlers
+  const dialogs = useCategoryDialogs({
+    categories,
+    childrenMap,
+    selectedIds,
+    clearSelection,
+    batchMoveMutate: batchMoveMutation.mutate,
+    batchDeleteMutate: batchDeleteMutation.mutate,
+    deleteCategoryMutate: deleteCategoryMutation.mutate,
+    ungroupParentMutate: ungroupParentMutation.mutate,
+    createCategoryMutateAsync: createCategoryMutation.mutateAsync,
+  });
 
-  // Move to group dialog state
-  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
-
-  // Ungroup confirmation state (null = closed, number = count)
-  const [ungroupConfirmCount, setUngroupConfirmCount] = useState<number | null>(null);
-
-  // Delete dialog state (supports single and bulk)
-  const [deleteDialogState, setDeleteDialogState] = useState<{
-    open: boolean;
-    count: number;
-    categoryName: string | null;
-    isParent: boolean;
-    childCount: number;
-    ids: number[];
-  }>({ open: false, count: 0, categoryName: null, isParent: false, childCount: 0, ids: [] });
-
-  // Ungroup parent confirmation state (for context menu on parent rows)
-  const [ungroupParentConfirm, setUngroupParentConfirm] = useState<{
-    id: number;
-    name: string;
-  } | null>(null);
-
-  // Build tree from flat Category array
-  const { parents, childrenMap, ungroupedCategories } = useMemo(() => {
-    const cMap: Record<number, Category[]> = {};
-    const parentIds = new Set<number>();
-
-    // Group children by parent_id
-    for (const cat of categories) {
-      if (cat.parent_id !== null) {
-        if (!cMap[cat.parent_id]) cMap[cat.parent_id] = [];
-        cMap[cat.parent_id].push(cat);
-        parentIds.add(cat.parent_id);
-      }
-    }
-
-    // Parents: root-level categories that have children
-    const parentCats = categories
-      .filter((c) => c.parent_id === null && parentIds.has(c.id) && !c.is_hidden)
-      .sort((a, b) => a.display_name.localeCompare(b.display_name));
-
-    // Ungrouped: root-level categories that have no children and are not hidden
-    const ungrouped = categories
-      .filter((c) => c.parent_id === null && !parentIds.has(c.id) && !c.is_hidden)
-      .sort((a, b) => a.display_name.localeCompare(b.display_name));
-
-    // Sort children within each parent
-    for (const parentId of Object.keys(cMap)) {
-      cMap[Number(parentId)].sort((a, b) => a.display_name.localeCompare(b.display_name));
-    }
-
-    return { parents: parentCats, childrenMap: cMap, ungroupedCategories: ungrouped };
-  }, [categories]);
-
-  // New categories: unseen and not hidden
-  const newCategoryIds = useMemo(() => {
-    return new Set(
-      categories
-        .filter((c) => !c.is_seen && !c.is_hidden)
-        .map((c) => c.id)
-    );
-  }, [categories]);
-
-  // Hidden categories
-  const hiddenCategories = useMemo(
-    () =>
-      categories
-        .filter((c) => c.is_hidden)
-        .sort((a, b) => a.display_name.localeCompare(b.display_name)),
-    [categories]
-  );
-
-  // Search filtering
-  const { filteredParents, filteredChildrenMap, filteredUngrouped } = useMemo(() => {
-    if (!searchQuery) {
-      return {
-        filteredParents: parents,
-        filteredChildrenMap: childrenMap,
-        filteredUngrouped: ungroupedCategories,
-      };
-    }
-
-    const query = searchQuery.toLowerCase();
-    const newParents: Category[] = [];
-    const newChildrenMap: Record<number, Category[]> = {};
-
-    for (const parent of parents) {
-      const parentMatches = parent.display_name.toLowerCase().includes(query);
-      const children = childrenMap[parent.id] ?? [];
-      const matchingChildren = children.filter((c) =>
-        c.display_name.toLowerCase().includes(query)
-      );
-
-      if (parentMatches) {
-        newParents.push(parent);
-        newChildrenMap[parent.id] = children;
-      } else if (matchingChildren.length > 0) {
-        newParents.push(parent);
-        newChildrenMap[parent.id] = matchingChildren;
-      }
-    }
-
-    const newUngrouped = ungroupedCategories.filter((c) =>
-      c.display_name.toLowerCase().includes(query)
-    );
-
-    return {
-      filteredParents: newParents,
-      filteredChildrenMap: newChildrenMap,
-      filteredUngrouped: newUngrouped,
-    };
-  }, [searchQuery, parents, childrenMap, ungroupedCategories]);
-
+  // Action callbacks for context
   const handleWeightChange = useCallback(
-    (categoryId: number, weight: string) => {
-      updateCategory(categoryId, { weight });
-    },
+    (categoryId: number, weight: string) => updateCategory(categoryId, { weight }),
     [updateCategory]
   );
-
   const handleResetWeight = useCallback(
-    (categoryId: number) => {
-      // Send "inherit" to clear explicit weight (backend convention)
-      updateCategory(categoryId, { weight: "inherit" as string | null });
-    },
+    (categoryId: number) => updateCategory(categoryId, { weight: "inherit" as string | null }),
     [updateCategory]
   );
-
   const { mutate: hideCategory } = hideMutation;
   const { mutate: acknowledgeCategory } = acknowledgeMutation;
   const { mutate: unhideCategory } = unhideMutation;
+  const { mutate: batchHide } = batchHideMutation;
 
   const handleHideCategory = useCallback(
     (categoryId: number) => {
@@ -209,14 +131,14 @@ export function CategoriesSection() {
     },
     [hideCategory]
   );
-
   const handleBadgeDismiss = useCallback(
-    (categoryId: number) => {
-      acknowledgeCategory([categoryId]);
-    },
+    (categoryId: number) => acknowledgeCategory([categoryId]),
     [acknowledgeCategory]
   );
-
+  const handleRenameCategory = useCallback(
+    (categoryId: number, newName: string) => updateCategory(categoryId, { display_name: newName }),
+    [updateCategory]
+  );
   const handleUnhideCategory = useCallback(
     (categoryId: number) => {
       unhideCategory(categoryId);
@@ -225,120 +147,38 @@ export function CategoriesSection() {
     [unhideCategory]
   );
 
-  const handleDeleteCategory = useCallback(
-    (categoryId: number) => {
-      const cat = categories.find((c) => c.id === categoryId);
-      if (!cat) return;
-      const children = childrenMap[categoryId] ?? [];
-      const isParent = children.length > 0;
-      setDeleteDialogState({
-        open: true,
-        count: 1,
-        categoryName: cat.display_name,
-        isParent,
-        childCount: children.length,
-        ids: [categoryId],
-      });
-    },
-    [categories, childrenMap]
-  );
-
-  const handleDeleteConfirm = useCallback(() => {
-    if (deleteDialogState.ids.length > 1) {
-      batchDeleteMutation.mutate(deleteDialogState.ids);
-    } else if (deleteDialogState.ids.length === 1) {
-      deleteCategoryMutation.mutate(deleteDialogState.ids[0]);
-    }
-    clearSelection();
-    setDeleteDialogState((prev) => ({ ...prev, open: false }));
-  }, [deleteDialogState, deleteCategoryMutation, batchDeleteMutation, clearSelection]);
-
-  const handleRenameCategory = useCallback(
-    (categoryId: number, newName: string) => {
-      updateCategory(categoryId, { display_name: newName });
-    },
-    [updateCategory]
-  );
-
-  const handleUngroupParent = useCallback(
-    (categoryId: number) => {
-      const cat = categories.find((c) => c.id === categoryId);
-      if (!cat) return;
-      setUngroupParentConfirm({ id: categoryId, name: cat.display_name });
-    },
-    [categories]
-  );
-
-  const handleUngroupParentConfirm = useCallback(() => {
-    if (ungroupParentConfirm) {
-      ungroupParentMutation.mutate(ungroupParentConfirm.id);
-      toaster.create({ title: "Group ungrouped", type: "info" });
-      setUngroupParentConfirm(null);
-    }
-  }, [ungroupParentConfirm, ungroupParentMutation]);
-
-  const handleActionMoveToGroup = useCallback(() => {
-    setMoveDialogOpen(true);
-  }, []);
-
-  const handleMoveToGroup = useCallback(
-    (targetParentId: number) => {
-      batchMoveMutation.mutate({ categoryIds: Array.from(selectedIds), targetParentId });
-      clearSelection();
-      setMoveDialogOpen(false);
-    },
-    [selectedIds, batchMoveMutation, clearSelection]
-  );
-
-  const handleCreateAndMove = useCallback(
-    async (groupName: string) => {
-      const created = await createCategoryMutation.mutateAsync({ displayName: groupName });
-      batchMoveMutation.mutate({ categoryIds: Array.from(selectedIds), targetParentId: created.id });
-      clearSelection();
-      setMoveDialogOpen(false);
-    },
-    [selectedIds, createCategoryMutation, batchMoveMutation, clearSelection]
-  );
-
-  const handleActionUngroup = useCallback(() => {
-    setUngroupConfirmCount(selectedIds.size);
-  }, [selectedIds]);
-
-  const handleUngroupConfirm = useCallback(() => {
-    batchMoveMutation.mutate({ categoryIds: Array.from(selectedIds), targetParentId: -1 });
-    toaster.create({
-      title: `${selectedIds.size} ${selectedIds.size === 1 ? "category" : "categories"} ungrouped`,
-      type: "info",
-    });
-    clearSelection();
-    setUngroupConfirmCount(null);
-  }, [selectedIds, batchMoveMutation, clearSelection]);
-
+  // Action bar: hide
   const handleActionHide = useCallback(() => {
-    batchHideMutation.mutate(Array.from(selectedIds));
+    batchHide(Array.from(selectedIds));
     toaster.create({
       title: `${selectedIds.size} ${selectedIds.size === 1 ? "category" : "categories"} hidden`,
       type: "info",
     });
     clearSelection();
-  }, [selectedIds, batchHideMutation, clearSelection]);
+  }, [selectedIds, batchHide, clearSelection]);
 
-  const handleActionDelete = useCallback(() => {
-    setDeleteDialogState({
-      open: true,
-      count: selectedIds.size,
-      categoryName: null,
-      isParent: false,
-      childCount: 0,
-      ids: Array.from(selectedIds),
-    });
-  }, [selectedIds]);
+  // Context value (memoized to prevent spurious re-renders)
+  const contextValue = useMemo<CategoryTreeContextValue>(() => ({
+    onWeightChange: handleWeightChange,
+    onResetWeight: handleResetWeight,
+    onHide: handleHideCategory,
+    onBadgeDismiss: handleBadgeDismiss,
+    onRename: handleRenameCategory,
+    onDelete: dialogs.handleDeleteCategory,
+    onUngroup: dialogs.handleUngroupParent,
+    selectedIds,
+    onToggleSelection: toggleSelection,
+    newCategoryIds,
+  }), [
+    handleWeightChange, handleResetWeight, handleHideCategory, handleBadgeDismiss,
+    handleRenameCategory, dialogs.handleDeleteCategory, dialogs.handleUngroupParent,
+    selectedIds, toggleSelection, newCategoryIds,
+  ]);
 
   if (!isLoading && categories.length === 0) {
     return (
       <Stack gap={8}>
         <SettingsPageHeader title="Topic Categories" />
-
         <EmptyState.Root>
           <EmptyState.Content>
             <EmptyState.Indicator>
@@ -354,129 +194,114 @@ export function CategoriesSection() {
   }
 
   return (
-    <Stack as="section" aria-label="Categories" gap={6} pb={{ base: selectedIds.size > 0 ? 16 : 0, sm: 0 }}>
-      {/* Header with title and new badge */}
-      <SettingsPageHeader
-        title="Topic Categories"
-        titleBadge={
-          newCount > 0 ? (
-            <Badge colorPalette="accent" size="sm">
-              {newCount} new
-            </Badge>
-          ) : undefined
-        }
-      >
-        <CreateCategoryPopover
-          onCreateCategory={(displayName) => createCategoryMutation.mutate({ displayName })}
-          existingCategories={categories}
+    <CategoryTreeContext.Provider value={contextValue}>
+      <Stack as="section" aria-label="Categories" gap={6} pb={{ base: selectedIds.size > 0 ? 16 : 0, sm: 0 }}>
+        <SettingsPageHeader
+          title="Topic Categories"
+          titleBadge={
+            newCount > 0 ? (
+              <Badge colorPalette="accent" size="sm">
+                {newCount} new
+              </Badge>
+            ) : undefined
+          }
+        >
+          <CreateCategoryPopover
+            onCreateCategory={(displayName) => createCategoryMutation.mutate({ displayName })}
+            existingCategories={categories}
+          />
+        </SettingsPageHeader>
+
+        <CategoryActionBar
+          selectedCount={selectedIds.size}
+          onMoveToGroup={dialogs.handleActionMoveToGroup}
+          onUngroup={dialogs.handleActionUngroup}
+          onHide={handleActionHide}
+          onDelete={dialogs.handleActionDelete}
         />
-      </SettingsPageHeader>
 
-      {/* Action bar */}
-      <CategoryActionBar
-        selectedCount={selectedIds.size}
-        onMoveToGroup={handleActionMoveToGroup}
-        onUngroup={handleActionUngroup}
-        onHide={handleActionHide}
-        onDelete={handleActionDelete}
-      />
-
-      {/* Search input */}
-      <Input
-        placeholder="Filter categories..."
-        size="sm"
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-      />
-
-      {/* Category tree */}
-      {isLoading || !treeReady ? (
-        <CategoriesTreeSkeleton />
-      ) : (
-        <CategoryTree
-          parents={filteredParents}
-          childrenMap={filteredChildrenMap}
-          ungroupedCategories={filteredUngrouped}
-          newCategoryIds={newCategoryIds}
-          onWeightChange={handleWeightChange}
-          onResetWeight={handleResetWeight}
-          onHide={handleHideCategory}
-          onBadgeDismiss={handleBadgeDismiss}
-          onRename={handleRenameCategory}
-          onDelete={handleDeleteCategory}
-          onUngroup={handleUngroupParent}
-          selectedIds={selectedIds}
-          onToggleSelection={toggleSelection}
-          expandedParents={expandedParents}
-          onToggleParent={toggleParent}
+        <Input
+          placeholder="Filter categories..."
+          size="sm"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
         />
-      )}
 
-      <DeleteCategoryDialog
-        open={deleteDialogState.open}
-        onOpenChange={(open) => setDeleteDialogState((prev) => ({ ...prev, open }))}
-        count={deleteDialogState.count}
-        categoryName={deleteDialogState.categoryName}
-        isParent={deleteDialogState.isParent}
-        childCount={deleteDialogState.childCount}
-        onConfirm={handleDeleteConfirm}
-      />
+        {isLoading || !treeReady ? (
+          <CategoriesTreeSkeleton />
+        ) : (
+          <CategoryTree
+            parents={parents}
+            childrenMap={childrenMap}
+            ungroupedCategories={ungroupedCategories}
+            expandedParents={expandedParents}
+            onToggleParent={toggleParent}
+          />
+        )}
 
-      <MoveToGroupDialog
-        open={moveDialogOpen}
-        onOpenChange={setMoveDialogOpen}
-        parentCategories={parents}
-        childrenMap={childrenMap}
-        selectedCount={selectedIds.size}
-        onMove={handleMoveToGroup}
-        onCreate={handleCreateAndMove}
-      />
-
-      {/* Ungroup confirmation dialog (action bar batch ungroup) */}
-      <ConfirmDialog
-        open={ungroupConfirmCount !== null}
-        onOpenChange={(e) => {
-          if (!e.open) setUngroupConfirmCount(null);
-        }}
-        title="Ungroup categories"
-        body={
-          <Text>
-            Ungroup {ungroupConfirmCount}{" "}
-            {ungroupConfirmCount === 1 ? "category" : "categories"}? They
-            will be moved to the root level.
-          </Text>
-        }
-        confirmLabel="Confirm"
-        confirmColorPalette="accent"
-        onConfirm={handleUngroupConfirm}
-      />
-
-      {/* Ungroup parent confirmation dialog (context menu on parent row) */}
-      <ConfirmDialog
-        open={ungroupParentConfirm !== null}
-        onOpenChange={(e) => {
-          if (!e.open) setUngroupParentConfirm(null);
-        }}
-        title="Ungroup parent category"
-        body={
-          <Text>
-            Ungroup <strong>{ungroupParentConfirm?.name}</strong>? All
-            children will be moved to the root level and the parent will
-            become an ungrouped category.
-          </Text>
-        }
-        confirmLabel="Confirm"
-        confirmColorPalette="accent"
-        onConfirm={handleUngroupParentConfirm}
-      />
-
-      {/* Hidden categories section */}
-      {!isLoading && treeReady && (
-        <HiddenCategoriesSection
-          hiddenCategories={hiddenCategories}
-          onUnhide={handleUnhideCategory}
+        <DeleteCategoryDialog
+          open={dialogs.deleteDialogState.open}
+          onOpenChange={(open) => dialogs.setDeleteDialogState((prev) => ({ ...prev, open }))}
+          count={dialogs.deleteDialogState.count}
+          categoryName={dialogs.deleteDialogState.categoryName}
+          isParent={dialogs.deleteDialogState.isParent}
+          childCount={dialogs.deleteDialogState.childCount}
+          onConfirm={dialogs.handleDeleteConfirm}
         />
-      )}
-    </Stack>
+
+        <MoveToGroupDialog
+          open={dialogs.moveDialogOpen}
+          onOpenChange={dialogs.setMoveDialogOpen}
+          parentCategories={parents}
+          childrenMap={childrenMap}
+          selectedCount={selectedIds.size}
+          onMove={dialogs.handleMoveToGroup}
+          onCreate={dialogs.handleCreateAndMove}
+        />
+
+        <ConfirmDialog
+          open={dialogs.ungroupConfirmCount !== null}
+          onOpenChange={(e) => {
+            if (!e.open) dialogs.setUngroupConfirmCount(null);
+          }}
+          title="Ungroup categories"
+          body={
+            <Text>
+              Ungroup {dialogs.ungroupConfirmCount}{" "}
+              {dialogs.ungroupConfirmCount === 1 ? "category" : "categories"}? They
+              will be moved to the root level.
+            </Text>
+          }
+          confirmLabel="Confirm"
+          confirmColorPalette="accent"
+          onConfirm={dialogs.handleUngroupConfirm}
+        />
+
+        <ConfirmDialog
+          open={dialogs.ungroupParentConfirm !== null}
+          onOpenChange={(e) => {
+            if (!e.open) dialogs.setUngroupParentConfirm(null);
+          }}
+          title="Ungroup parent category"
+          body={
+            <Text>
+              Ungroup <strong>{dialogs.ungroupParentConfirm?.name}</strong>? All
+              children will be moved to the root level and the parent will
+              become an ungrouped category.
+            </Text>
+          }
+          confirmLabel="Confirm"
+          confirmColorPalette="accent"
+          onConfirm={dialogs.handleUngroupParentConfirm}
+        />
+
+        {!isLoading && treeReady && (
+          <HiddenCategoriesSection
+            hiddenCategories={hiddenCategories}
+            onUnhide={handleUnhideCategory}
+          />
+        )}
+      </Stack>
+    </CategoryTreeContext.Provider>
   );
 }
