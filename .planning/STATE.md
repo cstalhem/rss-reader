@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Milestone: v1.1 Configuration, Feedback & Polish
-Phase: 09.5 in progress (2 of 5 plans complete)
-Status: Plan 02 complete. Layout shell restructured — header removed, sidebar restructured.
-Last activity: 2026-02-22 - Phase 09.5 Plan 02 complete: Removed Header, restructured Sidebar with logo/feeds/utilities zones and collapsed icon-only state
+Phase: 09.5 in progress (3 of 5 plans complete)
+Status: Plan 03 complete. Article rows redesigned, toolbar overhauled with filter dropdown and sticky scroll-collapse.
+Last activity: 2026-02-22 - Phase 09.5 Plan 03 complete: Redesigned article rows with summary preview, read/unread typography, hover context menu; overhauled toolbar with filter dropdown, sticky scroll-collapse, mark-all-read
 
 Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase 10 remaining)
 
@@ -116,6 +116,7 @@ Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase
 | Phase 09.4 P02 | 7.0 | 2 tasks | 7 files |
 | Phase 09.5 P01 | 2.9 | 2 tasks | 5 files |
 | Phase 09.5 P02 | 4.1 | 2 tasks | 7 files |
+| Phase 09.5 P03 | 4.9 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -273,6 +274,9 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 09.5-01]: summary_preview generated server-side via HTML strip + truncate (not client-side)
 - [Phase 09.5-01]: mark-all-read uses SQLAlchemy bulk update for efficiency (no per-article loop)
 - [Phase 09.5-01]: useMarkAllArticlesRead uses onSettled (not onSuccess) for cache freshness on both success and error
+- [Phase 09.5-03]: Hover-reveal context menu via conditional mount on isHovered state (0-1 Menu.Root instances, no Zag multiplier)
+- [Phase 09.5-03]: IntersectionObserver with rootMargin -1px for hysteresis-free sticky scroll-collapse toolbar
+- [Phase 09.5-03]: Filter dropdown uses createListCollection disabled property (Select.Item has no disabled prop in Chakra v3)
 
 ### Pending Todos
 
@@ -319,7 +323,7 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 09.5-02-PLAN.md (layout shell restructure — header removed, sidebar restructured)
+Stopped at: Completed 09.5-03-PLAN.md (article rows and toolbar redesign)
 
 ---
 *State initialized: 2026-02-14*
