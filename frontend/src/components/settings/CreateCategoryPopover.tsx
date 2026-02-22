@@ -38,8 +38,8 @@ export function CreateCategoryPopover({
       positioning={{ placement: "bottom-start" }}
     >
       <Popover.Trigger asChild>
-        <Button size="sm" variant="outline">
-          <LuPlus />
+        <Button colorPalette="accent" size="sm">
+          <LuPlus size={16} />
           Add Category
         </Button>
       </Popover.Trigger>
