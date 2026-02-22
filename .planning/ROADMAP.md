@@ -352,18 +352,30 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 09.3-01-PLAN.md -- Compile findings document, update Phase 09.4 scope, user review checkpoint
+- [x] 09.3-01-PLAN.md -- Compile findings document, update Phase 09.4 scope, user review checkpoint
 
 ### Phase 09.4: Settings page architecture implementation (INSERTED)
 
-**Goal:** Implement the simplification recommendations from Phase 09.3 research — refactor settings component hierarchy, extract shared primitives, and reduce complexity
-**Scope:** Frontend settings only (`frontend/src/app/settings/`, `frontend/src/components/settings/`). Specific targets TBD from Phase 09.3 findings.
+**Goal:** Implement settings architecture simplifications -- shared layout primitives, category section decomposition, Ollama section cleanup, and consistency fixes
+**Scope:** Frontend settings only (`frontend/src/app/settings/`, `frontend/src/components/settings/`)
 **Depends on:** Phase 09.3 (research complete)
-**Success Criteria:** TBD — derived from Phase 09.3 findings
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. SettingsPanel shared component replaces 7+ inline card wrappers across all settings sections
+  2. EmptyState shared component replaces 4+ inline empty state blocks
+  3. CategoriesSection reduced from ~491 to ~200 lines via useCategoryTree hook, CategoryTreeContext, and useCategoryDialogs hook
+  4. CategoryTree prop count reduced from 15 to ~5 (data only), row components from 10-12 to 3-5 (via context)
+  5. ModelManagement uses ConfirmDialog instead of inline Dialog.Root
+  6. ModelSelector uses ModelPullProgress compact (or extracted DownloadProgressBar) instead of 3 inline progress bars
+  7. All page titles use consistent fontSize="xl"
+  8. SettingsMobileNav includes "General" section
+  9. OllamaPlaceholder.tsx dead code deleted
+  10. No functional regressions -- all existing behavior preserved
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 09.4 after 09.3 research)
+- [ ] 09.4-01-PLAN.md -- Shared layout primitives (Theme A): SettingsPanel, EmptyState, dead code cleanup
+- [ ] 09.4-02-PLAN.md -- Category section decomposition (Theme B): useCategoryTree, CategoryTreeContext, useCategoryDialogs
+- [ ] 09.4-03-PLAN.md -- Ollama section cleanup + consistency fixes (Themes C + D + E): ConfirmDialog, progress bars, headings, mobile nav
 
 ### Phase 09.5: Refine main view UX and typography (INSERTED)
 
