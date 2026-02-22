@@ -172,7 +172,7 @@ export function FeedsSection() {
   };
 
   return (
-    <Box as="section" aria-label="Feed management">
+    <Stack as="section" aria-label="Feeds" gap={6}>
       <SettingsPageHeader title="Feeds">
         <Button
           colorPalette="accent"
@@ -247,6 +247,6 @@ export function FeedsSection() {
         onClose={() => setFeedToDelete(null)}
         onConfirm={handleDeleteConfirm}
       />
-    </Box>
+    </Stack>
   );
 }

@@ -129,7 +129,7 @@ export function GeneralSection() {
   if (isLoading) return null;
 
   return (
-    <Stack gap={6}>
+    <Stack as="section" aria-label="General" gap={6}>
       <SettingsPageHeader title="General" />
 
       {/* Feed Refresh Schedule */}

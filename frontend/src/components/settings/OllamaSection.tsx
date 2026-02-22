@@ -83,8 +83,7 @@ export function OllamaSection() {
   );
 
   return (
-    <Stack gap={6}>
-      {/* Section header */}
+    <Stack as="section" aria-label="Ollama" gap={6}>
       <SettingsPageHeader title="Ollama">
         <OllamaHealthBadge health={health} isLoading={healthLoading} />
       </SettingsPageHeader>
