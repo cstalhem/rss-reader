@@ -112,6 +112,63 @@ export function useRenameState(
 
 **Extraction criteria:** The pattern must be truly identical across consumers — same state shape, same handlers, same side effects. If consumers need different behaviors, parameterize via callback props (like `onRename`) rather than adding config flags.
 
+### Co-located Context for Action Callback Distribution
+
+When a parent provides 8+ action callbacks consumed by multiple nested row components (e.g., `onRename`, `onDelete`, `onHide`, `onWeightChange`), prop drilling becomes unwieldy — every intermediate component must forward all callbacks. Use a React context co-located in the parent file:
+
+```tsx
+// CategoriesSection.tsx — context defined in same file as provider
+
+interface CategoryTreeContextValue {
+  onWeightChange: (categoryId: number, weight: string) => void;
+  onRename: (categoryId: number, newName: string) => void;
+  onDelete: (categoryId: number) => void;
+  // ... other action callbacks
+  selectedIds: Set<number>;
+  newCategoryIds: Set<number>;
+}
+
+const CategoryTreeContext = createContext<CategoryTreeContextValue | null>(null);
+
+export function useCategoryTreeContext() {
+  const ctx = useContext(CategoryTreeContext);
+  if (!ctx) throw new Error("useCategoryTreeContext must be used within CategoriesSection");
+  return ctx;
+}
+
+// In the component — memoize context value
+const contextValue = useMemo(() => ({
+  onWeightChange, onRename, onDelete, /* ... */
+  selectedIds, newCategoryIds,
+}), [onWeightChange, onRename, onDelete, /* ... */ selectedIds, newCategoryIds]);
+
+return (
+  <CategoryTreeContext.Provider value={contextValue}>
+    <CategoryTree parents={parents} childrenMap={childrenMap} /* ~5 data props */ />
+  </CategoryTreeContext.Provider>
+);
+```
+
+Row components consume from context, keeping their prop interfaces to data-only (3-5 props):
+
+```tsx
+// CategoryChildRow.tsx
+const ctx = useCategoryTreeContext();
+const isNew = ctx.newCategoryIds.has(category.id);
+const handleRename = useCallback(
+  (newName: string) => ctx.onRename(category.id, newName),
+  [category.id, ctx.onRename]
+);
+```
+
+**When to use:** Deep component trees (3+ levels) where many row components need identical action callbacks. The CategoriesSection went from 15 props on CategoryTree to 5.
+
+**When NOT to use:** Shallow trees (parent → child, no intermediary). Props are more explicit and easier to trace. Don't reach for context just to avoid passing 3-4 callbacks one level down.
+
+**Key:** Always `useMemo` the context value object. Without it, every parent re-render creates a new object reference, causing all context consumers to re-render — even `React.memo`'d ones (memo checks props, but context bypasses it).
+
+**Co-locate vs separate file:** Start co-located (context + provider in the parent file). Extract to a separate file only when multiple unrelated components need to provide the same context shape. The CategoriesSection context has exactly one provider — co-location keeps it simple.
+
 ### `useDeferredValue` vs `useTransition` for Deferred Rendering
 
 Both defer expensive renders, but they control different things:

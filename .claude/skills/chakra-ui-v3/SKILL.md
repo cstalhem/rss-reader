@@ -198,6 +198,79 @@ Chakra v3 variants (`ghost`, `subtle`, `solid`, etc.) own all state styling — 
 <Dialog.Root>...</Dialog.Root>
 ```
 
+### EmptyState from Wrong Import
+
+```tsx
+// BAD — no wrapper exists in components/ui
+import { EmptyState } from "@/components/ui/empty-state";
+
+// GOOD — import directly from Chakra
+import { EmptyState } from "@chakra-ui/react";
+
+<EmptyState.Root>
+  <EmptyState.Content>
+    <EmptyState.Indicator>
+      <LuRss />
+    </EmptyState.Indicator>
+    <EmptyState.Title>No feeds yet</EmptyState.Title>
+    <EmptyState.Description>Add an RSS feed to get started.</EmptyState.Description>
+  </EmptyState.Content>
+</EmptyState.Root>
+```
+
+Unlike Tooltip or ConfirmDialog, there is no project wrapper for EmptyState — use the Chakra primitives directly. Used in OllamaSection, FeedsSection, CategoriesSection, and FeedbackPlaceholder.
+
+### Select with Custom Trigger Content (`useSelectContext`)
+
+When the Select trigger needs to render more than plain text (e.g., icon + label), create a co-located sub-component that reads `useSelectContext`:
+
+```tsx
+import { createListCollection, Select, useSelectContext } from "@chakra-ui/react";
+import { Portal } from "@chakra-ui/react";
+
+const collection = createListCollection({
+  items: SETTINGS_SECTIONS,
+  itemToString: (item) => item.label,
+  itemToValue: (item) => item.id,
+});
+
+// Must render INSIDE Select.Root — useSelectContext reads from the nearest provider
+function SectionValueText() {
+  const { selectedItems } = useSelectContext();
+  const item = selectedItems[0];
+  if (!item) return null;
+  return (
+    <Flex alignItems="center" gap={2}>
+      <item.icon /> {item.label}
+    </Flex>
+  );
+}
+
+// In the component:
+<Select.Root collection={collection} value={[activeSection]} onValueChange={...}>
+  <Select.Control>
+    <Select.Trigger>
+      <SectionValueText />
+    </Select.Trigger>
+  </Select.Control>
+  <Portal>
+    <Select.Positioner>
+      <Select.Content>
+        {collection.items.map((item) => (
+          <Select.Item key={item.id} item={item}>
+            <Flex alignItems="center" gap={2}>
+              <item.icon /> {item.label}
+            </Flex>
+          </Select.Item>
+        ))}
+      </Select.Content>
+    </Select.Positioner>
+  </Portal>
+</Select.Root>
+```
+
+**Key rule:** The sub-component using `useSelectContext` must be a child of `Select.Root`. Co-locate it in the same file — it's tightly coupled to the collection shape.
+
 ## Decision Aids
 
 ### When to Create a New Semantic Token
