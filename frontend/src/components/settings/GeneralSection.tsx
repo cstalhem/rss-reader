@@ -13,6 +13,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { SettingsPanel } from "./SettingsPanel";
+import { SettingsPanelHeading } from "./SettingsPanelHeading";
 import { SettingsPageHeader } from "./SettingsPageHeader";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchRefreshStatus } from "@/lib/api";
@@ -135,9 +136,9 @@ export function GeneralSection() {
       {/* Feed Refresh Schedule */}
       <SettingsPanel>
         <Stack gap={4}>
-          <Text fontSize="lg" fontWeight="semibold" mb={4}>
+          <SettingsPanelHeading>
             Feed Refresh Schedule
-          </Text>
+          </SettingsPanelHeading>
 
           {/* Live countdown */}
           <Box>

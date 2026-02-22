@@ -6,13 +6,13 @@ import {
   Button,
   Stack,
   Textarea,
-  Text,
   Skeleton,
 } from "@chakra-ui/react";
 import { Field } from "@/components/ui/field";
 import { toaster } from "@/components/ui/toaster";
 import { usePreferences } from "@/hooks/usePreferences";
 import { SettingsPanel } from "./SettingsPanel";
+import { SettingsPanelHeading } from "./SettingsPanelHeading";
 import { SettingsPageHeader } from "./SettingsPageHeader";
 import { UserPreferences } from "@/lib/types";
 
@@ -49,9 +49,9 @@ function InterestsForm({ preferences, updatePreferencesMutation }: InterestsForm
     <SettingsPanel>
       <Stack gap={6}>
         <Box>
-          <Text fontSize="lg" fontWeight="semibold" mb={4}>
+          <SettingsPanelHeading>
             Interests
-          </Text>
+          </SettingsPanelHeading>
           <Field helperText="Describe topics you want to see more of in natural language">
             <Textarea
               value={interests}
@@ -64,9 +64,9 @@ function InterestsForm({ preferences, updatePreferencesMutation }: InterestsForm
         </Box>
 
         <Box>
-          <Text fontSize="lg" fontWeight="semibold" mb={4}>
+          <SettingsPanelHeading>
             Anti-interests
-          </Text>
+          </SettingsPanelHeading>
           <Field helperText="Describe topics you want to avoid">
             <Textarea
               value={antiInterests}

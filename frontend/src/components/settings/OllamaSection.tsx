@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useReducer } from "react";
-import { EmptyState, Stack, Text } from "@chakra-ui/react";
+import { EmptyState, Stack } from "@chakra-ui/react";
 import { LuServerOff } from "react-icons/lu";
 import { toaster } from "@/components/ui/toaster";
 import { useOllamaHealth } from "@/hooks/useOllamaHealth";
@@ -13,6 +13,7 @@ import { ModelSelector } from "./ModelSelector";
 import { ModelManagement } from "./ModelManagement";
 import { SystemPrompts } from "./SystemPrompts";
 import { SettingsPanel } from "./SettingsPanel";
+import { SettingsPanelHeading } from "./SettingsPanelHeading";
 import { SettingsPageHeader } from "./SettingsPageHeader";
 import type { OllamaConfig } from "@/lib/types";
 
@@ -103,9 +104,9 @@ export function OllamaSection() {
         <>
           {/* Panel 1: Model Configuration */}
           <SettingsPanel>
-            <Text fontSize="lg" fontWeight="semibold" mb={4}>
+            <SettingsPanelHeading>
               Model Configuration
-            </Text>
+            </SettingsPanelHeading>
             {!configLoading && effectiveConfig && serverConfig && (
               <ModelSelector
                 models={models ?? []}
@@ -120,9 +121,9 @@ export function OllamaSection() {
 
           {/* Panel 2: Model Library */}
           <SettingsPanel>
-            <Text fontSize="lg" fontWeight="semibold" mb={4}>
+            <SettingsPanelHeading>
               Model Library
-            </Text>
+            </SettingsPanelHeading>
             <ModelManagement
               models={models ?? []}
               config={effectiveConfig}
@@ -133,9 +134,9 @@ export function OllamaSection() {
 
           {/* Panel 3: System Prompts */}
           <SettingsPanel>
-            <Text fontSize="lg" fontWeight="semibold" mb={4}>
+            <SettingsPanelHeading>
               System Prompts
-            </Text>
+            </SettingsPanelHeading>
             <SystemPrompts />
           </SettingsPanel>
         </>
