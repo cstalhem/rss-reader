@@ -133,9 +133,9 @@ export function GeneralSection() {
       <SettingsPageHeader title="General" />
 
       {/* Feed Refresh Schedule */}
-      <SettingsPanel bg="bg.panel" borderRadius="lg" p={5}>
+      <SettingsPanel>
         <Stack gap={4}>
-          <Text fontSize="sm" fontWeight="medium" color="fg.muted">
+          <Text fontSize="lg" fontWeight="semibold" mb={4}>
             Feed Refresh Schedule
           </Text>
 
