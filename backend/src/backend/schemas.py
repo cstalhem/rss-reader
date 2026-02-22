@@ -34,7 +34,7 @@ class ArticleCategoryEmbed(BaseModel):
 
 
 class ArticleListItem(BaseModel):
-    """Lightweight article for list endpoints (no content/summary/score_reasoning)."""
+    """Lightweight article for list endpoints (no content/full summary)."""
 
     id: int
     feed_id: int
@@ -47,6 +47,8 @@ class ArticleListItem(BaseModel):
     interest_score: int | None
     quality_score: int | None
     composite_score: float | None
+    score_reasoning: str | None
+    summary_preview: str | None
     scoring_state: str
     scored_at: datetime | None
 

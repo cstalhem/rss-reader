@@ -1,9 +1,10 @@
 """Article CRUD endpoints."""
 
+import re
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import desc, nulls_last
+from sqlalchemy import desc, nulls_last, update
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
@@ -17,6 +18,17 @@ from backend.schemas import (
 )
 
 router = APIRouter(prefix="/api/articles", tags=["articles"])
+
+
+def _strip_html_truncate(html: str | None, max_len: int = 200) -> str | None:
+    """Strip HTML tags, normalize whitespace, and truncate with ellipsis."""
+    if not html:
+        return None
+    text = re.sub(r"<[^>]+>", "", html)
+    text = " ".join(text.split())
+    if len(text) > max_len:
+        return text[:max_len] + "..."
+    return text
 
 
 def _article_to_response(article: Article) -> ArticleResponse:
@@ -85,6 +97,8 @@ def _article_to_list_item(article: Article) -> ArticleListItem:
         interest_score=article.interest_score,
         quality_score=article.quality_score,
         composite_score=article.composite_score,
+        score_reasoning=article.score_reasoning,
+        summary_preview=_strip_html_truncate(article.summary),
         scoring_state=article.scoring_state,
         scored_at=article.scored_at,
     )
@@ -152,6 +166,33 @@ def list_articles(
     statement = statement.offset(skip).limit(limit)
     articles = session.exec(statement).all()
     return [_article_to_list_item(article) for article in articles]
+
+
+@router.post("/mark-all-read")
+def mark_all_read(session: Session = Depends(get_session)):
+    """Mark all unread scored non-blocked articles as read."""
+    result = session.exec(
+        update(Article)
+        .where(Article.is_read.is_(False))
+        .where(Article.scoring_state == "scored")
+        .where(Article.composite_score != 0)
+        .values(is_read=True)
+    )
+    session.commit()
+    return {"ok": True, "count": result.rowcount}
+
+
+@router.post("/{article_id}/rescore")
+def rescore_article(article_id: int, session: Session = Depends(get_session)):
+    """Queue a single article for re-scoring with high priority."""
+    article = session.get(Article, article_id)
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+    article.scoring_state = "queued"
+    article.scoring_priority = 1
+    session.add(article)
+    session.commit()
+    return {"ok": True}
 
 
 @router.get("/{article_id}", response_model=ArticleResponse)
