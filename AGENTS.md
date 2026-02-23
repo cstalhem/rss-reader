@@ -59,9 +59,7 @@ Two Docker images published to GHCR via GitHub Actions (`.github/workflows/docke
 - `ghcr.io/cstalhem/rss-reader/backend:latest`
 - `ghcr.io/cstalhem/rss-reader/frontend:latest`
 
-Production compose (`docker-compose.prod.yml`) uses Traefik labels for reverse proxy routing. The frontend image is built with relative API URLs — Traefik routes `PathPrefix('/api')` to the backend, all other requests to the frontend.
-
-Development compose (`docker-compose.yml`) builds locally and exposes ports directly.
+The frontend image is built with relative API URLs — a reverse proxy routes `PathPrefix('/api')` to the backend, all other requests to the frontend. See `README.md` for an example Docker Compose setup.
 
 ---
 

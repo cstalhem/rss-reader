@@ -35,6 +35,9 @@ frontend/bun.lockb
 # MCP plugins
 .playwright-mcp/
 
+# Browser automation
+.rodney/
+
 # IDE
 .idea/
 .vscode/

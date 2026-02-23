@@ -2,16 +2,6 @@
 
 A personal RSS reader with LLM-powered content curation. Surfaces interesting articles, hides noise, and discovers unexpected treasures — all scored locally by [Ollama](https://ollama.com).
 
-## Quick Links
-
-- [Features](#features)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-- [Development](#development)
-- [Architecture](#architecture)
-
----
-
 ## Features
 
 - **LLM-Powered Scoring** — Articles are automatically scored by interest and quality using a local Ollama model
@@ -19,10 +9,26 @@ A personal RSS reader with LLM-powered content curation. Surfaces interesting ar
 - **Score-Based Sorting** — Sort by relevance, date, or score with high-interest articles surfaced first
 - **Filter Tabs** — Unread, All, Scoring (in-progress), and Blocked views
 - **Feed Management** — Add, remove, rename, and reorder RSS feed subscriptions
-- **Reading Experience** — Clean reader drawer with auto-mark-as-read, keyboard navigation, and Lora serif typography
-- **Dark Theme** — Dark-mode-first design with orange accent color
-- **Docker Deployment** — Production-ready Docker Compose with Traefik reverse proxy support
+- **Reading Experience** — Clean reader view with auto-mark-as-read, keyboard navigation, and Lora serif typography
 - **Fully Local** — No external APIs, no tracking. SQLite database, Ollama LLM, runs on your hardware
+
+### Screenshots
+
+**Article list** — Articles scored and sorted by relevance, with category badges and composite scores.
+
+![Article list](docs/article-list.png)
+
+**Reader view** — Inline reader with serif typography, score breakdown, and keyboard navigation.
+
+![Reader view](docs/reader-view.png)
+
+**Interest preferences** — Describe what you want to see (and avoid) in natural language. The LLM uses this to score every article.
+
+![Interest preferences](docs/settings-interests.png)
+
+**Topic categories** — Auto-generated categories with configurable weights that influence scoring.
+
+![Topic categories](docs/settings-categories.png)
 
 ---
 
@@ -31,45 +37,74 @@ A personal RSS reader with LLM-powered content curation. Surfaces interesting ar
 ### Prerequisites
 
 - Docker and Docker Compose
-- An [Ollama](https://ollama.com) instance (included in compose, or external)
+- An [Ollama](https://ollama.com) instance (included in the example below, or use an existing one)
 
-### Deploy with Docker Compose
+### Deploy
 
-1. Clone the repository:
+Create a `docker-compose.yml` adapted to your setup:
 
-   ```bash
-   git clone https://github.com/cstalhem/rss-reader.git
-   cd rss-reader
-   ```
+```yaml
+services:
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
 
-2. Create a `.env` file (can be empty, used for overrides):
+  backend:
+    image: ghcr.io/cstalhem/rss-reader/backend:latest
+    restart: unless-stopped
+    depends_on:
+      - ollama
+    volumes:
+      - db-data:/data
+      - ./config:/config:ro
+    environment:
+      - CONFIG_FILE=/config/app.yaml
+      - OLLAMA__HOST=http://ollama:11434
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    ports:
+      - "8000:8000"
 
-   ```bash
-   touch .env
-   ```
+  frontend:
+    image: ghcr.io/cstalhem/rss-reader/frontend:latest
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
 
-3. Pull the model on the Ollama instance:
+volumes:
+  db-data:
+  ollama-data:
+```
 
-   ```bash
-   docker compose -f docker-compose.prod.yml up -d ollama
-   docker exec rss-reader-ollama ollama pull qwen3:8b
-   ```
+Then pull the Ollama model and start the services:
 
-4. Start all services:
+```bash
+docker compose up -d ollama
+docker exec <ollama-container> ollama pull qwen3:8b
+docker compose up -d
+```
 
-   ```bash
-   docker compose -f docker-compose.prod.yml pull
-   docker compose -f docker-compose.prod.yml up -d
-   ```
-
-The frontend is available at port `3000` and the backend API at port `8000`. If using a reverse proxy, see [Reverse Proxy](#reverse-proxy) below.
+The frontend is available at `http://localhost:3000` and the backend API at `http://localhost:8000`.
 
 ### Update
 
 ```bash
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d
+docker compose pull
+docker compose up -d
 ```
+
+### Reverse Proxy
+
+The frontend Docker image is built with relative API URLs. If you place a reverse proxy (like [Traefik](https://traefik.io) or Nginx) in front, route `PathPrefix('/api')` to the backend and everything else to the frontend. With this setup, you can remove the `ports` from both services and let the proxy handle external access.
 
 ---
 
@@ -79,12 +114,12 @@ Configuration is loaded with the following priority (highest to lowest):
 
 1. Environment variables (e.g., `OLLAMA__HOST`)
 2. `.env` file
-3. YAML config file (`config/app.yaml`)
+3. YAML config file (`CONFIG_FILE`)
 4. Default values
 
 ### Config File
 
-The YAML config file is mounted at `/config/app.yaml` inside the container:
+Mount a YAML config file into the backend container at a path of your choice and set `CONFIG_FILE` to point to it:
 
 ```yaml
 database:
@@ -96,12 +131,7 @@ logging:
 
 scheduler:
   log_job_execution: false
-
-ollama:
-  host: http://localhost:11434
 ```
-
-> **Note:** Model selection, extended thinking, and feed refresh interval are configured through the Settings UI and stored in the database.
 
 ### Environment Variables
 
@@ -113,18 +143,7 @@ Environment variables use double-underscore notation for nested config:
 | `OLLAMA__HOST` | Ollama API URL | `http://localhost:11434` |
 | `CONFIG_FILE` | Path to YAML config file | *(none)* |
 
-### Reverse Proxy
-
-The production compose file (`docker-compose.prod.yml`) includes [Traefik](https://traefik.io) labels. Adjust the hostname in the labels to match your domain:
-
-```yaml
-traefik.http.routers.rss-reader-frontend.rule: Host(`rss-reader.your-domain.example`)
-traefik.http.routers.rss-reader-backend.rule: Host(`rss-reader.your-domain.example`) && PathPrefix(`/api`)
-```
-
-The frontend Docker image is built with relative API URLs, so all `/api/*` requests from the browser are routed to the backend by the reverse proxy.
-
-For development or direct access without a reverse proxy, use the standard `docker-compose.yml` which exposes ports directly.
+> **Note:** Model selection, extended thinking, and feed refresh interval are configured through the Settings UI and stored in the database.
 
 ---
 
@@ -202,8 +221,8 @@ The frontend connects to the backend at `http://localhost:8912` by default (conf
 
 ### How Scoring Works
 
-1. **Feed refresh** — APScheduler polls feeds every 30 minutes, saving new articles
-2. **Categorization** — LLM assigns up to 4 topic categories per article (English only)
+1. **Feed refresh** — APScheduler polls feeds on a configurable interval, saving new articles
+2. **Categorization** — LLM assigns up to 4 topic categories per article
 3. **Weight check** — If all categories are weighted "blocked", the article is blocked (score 0)
 4. **Scoring** — LLM evaluates interest (0-10) and quality (0-10) based on user-written preferences
 5. **Composite score** — `interest * category_weight * quality_multiplier` (capped at 20.0)
@@ -225,9 +244,7 @@ rss-reader/
 │   │   └── theme/         # Chakra UI theme (colors, typography)
 │   └── Dockerfile
 ├── config/
-│   └── app.yaml           # Production configuration
-├── docker-compose.yml      # Development (local build)
-├── docker-compose.prod.yml # Production (GHCR images + Traefik)
+│   └── app.yaml           # Example configuration
 └── spec/                   # Product requirements and milestone plans
 ```
 
