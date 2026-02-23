@@ -8,7 +8,7 @@ from ollama import AsyncClient
 logger = logging.getLogger(__name__)
 
 OLLAMA_CONNECT_TIMEOUT = 10.0
-OLLAMA_READ_TIMEOUT = 120.0  # Longest timeout (scoring streaming)
+OLLAMA_READ_TIMEOUT = 300.0  # Time-to-first-chunk can be long (model loading, thinking)
 
 _client: AsyncClient | None = None
 _client_host: str | None = None
