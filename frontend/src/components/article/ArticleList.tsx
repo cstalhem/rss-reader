@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import NextLink from "next/link";
 import {
   Alert,
@@ -15,6 +15,7 @@ import {
   Select,
   Text,
   Icon,
+  Collapsible,
 } from "@chakra-ui/react";
 import {
   LuCheckCheck,
@@ -44,17 +45,20 @@ import { parseSortOption } from "@/lib/utils";
 interface ArticleListProps {
   selectedFeedId?: number | null;
   onOpenMobileSidebar?: () => void;
+  mainRef: React.RefObject<HTMLDivElement | null>;
 }
 
 type FilterTab = "unread" | "all" | "scoring" | "blocked";
 
-export function ArticleList({ selectedFeedId, onOpenMobileSidebar }: ArticleListProps) {
+export function ArticleList({ selectedFeedId, onOpenMobileSidebar, mainRef }: ArticleListProps) {
   const [filter, setFilter] = useState<FilterTab>("unread");
   const [selectedArticle, setSelectedArticle] = useState<ArticleListItem | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isReaderOpen, setIsReaderOpen] = useState(false);
   const [isConfirmMarkAllOpen, setIsConfirmMarkAllOpen] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const scrollPositionRef = useRef(0);
+  const rowRefs = useRef<Map<number, HTMLElement>>(new Map());
+  const pendingOpenRef = useRef<ArticleListItem | null>(null);
   const { sortOption, setSortOption } = useSortPreference();
   const { data: scoringStatus } = useScoringStatus();
   const queryClient = useQueryClient();
@@ -125,12 +129,12 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar }: ArticleList
       ([entry]) => {
         setIsScrolled(!entry.isIntersecting);
       },
-      { rootMargin: "-1px 0px 0px 0px" }
+      { root: mainRef.current, rootMargin: "-1px 0px 0px 0px" }
     );
 
     observer.observe(heading);
     return () => observer.disconnect();
-  }, []);
+  }, [mainRef]);
 
   const handleToggleRead = (article: ArticleListItem) => {
     markAsRead.mutate({
@@ -139,19 +143,70 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar }: ArticleList
     });
   };
 
-  const handleSelect = (article: ArticleListItem) => {
-    scrollPositionRef.current = window.scrollY;
-    setSelectedArticle(article);
-    window.scrollTo(0, 0);
-  };
+  const openArticle = useCallback((article: ArticleListItem) => {
+    const rowEl = rowRefs.current.get(article.id);
+    if (rowEl && mainRef.current) {
+      rowEl.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Wait for scroll to settle, then expand
+      const onScrollEnd = () => {
+        mainRef.current?.removeEventListener("scrollend", onScrollEnd);
+        clearTimeout(fallback);
+        setSelectedArticle(article);
+        setIsReaderOpen(true);
+      };
+      mainRef.current.addEventListener("scrollend", onScrollEnd, { once: true });
+      // Fallback timeout in case scrollend doesn't fire (already at position)
+      const fallback = setTimeout(onScrollEnd, 400);
+    } else {
+      // No ref or no scroll container — just open immediately
+      setSelectedArticle(article);
+      setIsReaderOpen(true);
+    }
+  }, [mainRef]);
+
+  const handleSelect = useCallback((article: ArticleListItem) => {
+    // If clicking the already-open article, close it
+    if (selectedArticle?.id === article.id && isReaderOpen) {
+      setIsReaderOpen(false);
+      return;
+    }
+
+    // If another article is open, close it first, then open the new one after exit
+    if (isReaderOpen) {
+      pendingOpenRef.current = article;
+      setIsReaderOpen(false);
+      return;
+    }
+
+    // No reader open — scroll the row to top, then expand
+    openArticle(article);
+  }, [selectedArticle, isReaderOpen, openArticle]);
 
   const handleCloseReader = useCallback(() => {
-    setSelectedArticle(null);
-    // Restore scroll position after React renders the list
-    requestAnimationFrame(() => {
-      window.scrollTo(0, scrollPositionRef.current);
-    });
+    setIsReaderOpen(false);
   }, []);
+
+  // Escape key to close the reader
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isReaderOpen) {
+        handleCloseReader();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [isReaderOpen, handleCloseReader]);
+
+  const handleExitComplete = useCallback(() => {
+    // If there's a pending article to open (user clicked a different article), open it
+    if (pendingOpenRef.current) {
+      const next = pendingOpenRef.current;
+      pendingOpenRef.current = null;
+      openArticle(next);
+    } else {
+      setSelectedArticle(null);
+    }
+  }, [openArticle]);
 
   const handleRescore = (article: ArticleListItem) => {
     rescoreMutation.mutate(article.id);
@@ -207,20 +262,6 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar }: ArticleList
       ? LuClock
       : LuBan;
 
-  // When an article is selected, show the inline reader instead of the list
-  if (selectedArticle) {
-    return (
-      <ArticleReader
-        key={selectedArticle.id}
-        article={selectedArticle}
-        articles={displayArticles ?? []}
-        feedName={feedNames[selectedArticle.feed_id]}
-        onClose={handleCloseReader}
-        onNavigate={setSelectedArticle}
-      />
-    );
-  }
-
   return (
     <Box>
       {/* Scoring readiness warning */}
@@ -268,9 +309,9 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar }: ArticleList
         borderColor="border.subtle"
         alignItems="center"
         gap={2}
-        position={isScrolled ? "sticky" : "static"}
+        position="sticky"
         top={0}
-        zIndex={isScrolled ? 5 : undefined}
+        zIndex={5}
         bg="bg"
       >
         {/* Inline feed name when scrolled */}
@@ -363,23 +404,56 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar }: ArticleList
       ) : displayArticles && displayArticles.length > 0 ? (
         <>
           <Box as="section" aria-label="Article list">
-            {displayArticles.map((article) => (
-              <ArticleRow
-                key={article.id}
-                article={article}
-                feedName={selectedFeedId ? undefined : feedNames[article.feed_id]}
-                onSelect={handleSelect}
-                onToggleRead={handleToggleRead}
-                onRescore={handleRescore}
-                isCompleting={completingIds.has(article.id)}
-                scoringPhase={
-                  article.scoring_state === "scoring" &&
-                  scoringStatus?.current_article_id === article.id
-                    ? scoringStatus.phase
-                    : undefined
-                }
-              />
-            ))}
+            {displayArticles.map((article, index) => {
+              const isExpanded = selectedArticle?.id === article.id && isReaderOpen;
+              return (
+              <React.Fragment key={article.id}>
+                <ArticleRow
+                  ref={(el: HTMLDivElement | null) => {
+                    if (el) rowRefs.current.set(article.id, el);
+                    else rowRefs.current.delete(article.id);
+                  }}
+                  article={article}
+                  feedName={selectedFeedId ? undefined : feedNames[article.feed_id]}
+                  onSelect={handleSelect}
+                  onToggleRead={handleToggleRead}
+                  onRescore={handleRescore}
+                  isCompleting={completingIds.has(article.id)}
+                  isExpanded={isExpanded}
+                  onClose={isExpanded ? handleCloseReader : undefined}
+                  onOpenOriginal={isExpanded ? () => window.open(article.url, "_blank", "noopener,noreferrer") : undefined}
+                  onNavigatePrev={isExpanded && index > 0 ? () => handleSelect(displayArticles[index - 1]) : null}
+                  onNavigateNext={isExpanded && index < displayArticles.length - 1 ? () => handleSelect(displayArticles[index + 1]) : null}
+                  scoringPhase={
+                    article.scoring_state === "scoring" &&
+                    scoringStatus?.current_article_id === article.id
+                      ? scoringStatus.phase
+                      : undefined
+                  }
+                />
+                {selectedArticle?.id === article.id && (
+                  <Collapsible.Root
+                    open={isReaderOpen}
+                    lazyMount
+                    unmountOnExit
+                    onExitComplete={handleExitComplete}
+                  >
+                    <Collapsible.Content>
+                      <ArticleReader
+                        key={article.id}
+                        article={selectedArticle}
+                        articles={displayArticles ?? []}
+                        feedName={feedNames[selectedArticle.feed_id]}
+                        onClose={handleCloseReader}
+                        onNavigate={handleSelect}
+                        showHeader={false}
+                      />
+                    </Collapsible.Content>
+                  </Collapsible.Root>
+                )}
+              </React.Fragment>
+              );
+            })}
           </Box>
 
           {/* Load more button */}

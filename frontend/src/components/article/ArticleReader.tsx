@@ -31,6 +31,7 @@ interface ArticleReaderProps {
   feedName?: string;
   onClose: () => void;
   onNavigate: (article: ArticleListItem) => void;
+  showHeader?: boolean;
 }
 
 export function ArticleReader({
@@ -39,6 +40,7 @@ export function ArticleReader({
   feedName,
   onClose,
   onNavigate,
+  showHeader = true,
 }: ArticleReaderProps) {
   // Fetch full article content on demand
   const { data: fullArticle, isLoading: isLoadingContent } = useQuery({
@@ -101,68 +103,70 @@ export function ArticleReader({
 
   return (
     <Box>
-      {/* Sticky header bar */}
-      <Flex
-        position="sticky"
-        top={0}
-        zIndex={2}
-        bg="bg"
-        borderBottomWidth="1px"
-        borderColor="border.subtle"
-        alignItems="center"
-        gap={2}
-        px={4}
-        py={2}
-      >
-        <Text
-          flex={1}
-          whiteSpace="nowrap"
-          overflow="hidden"
-          textOverflow="ellipsis"
-          fontSize="sm"
-          fontWeight="medium"
+      {/* Sticky header bar — hidden when ArticleRow provides compact header */}
+      {showHeader && (
+        <Flex
+          position="sticky"
+          top={0}
+          zIndex={2}
+          bg="bg"
+          borderBottomWidth="1px"
+          borderColor="border.subtle"
+          alignItems="center"
+          gap={2}
+          px={4}
+          py={2}
         >
-          {article.title}
-        </Text>
-        <IconButton
-          aria-label="Open original"
-          title="Open original"
-          size="sm"
-          variant="ghost"
-          onClick={() => window.open(article.url, "_blank", "noopener,noreferrer")}
-        >
-          <LuExternalLink />
-        </IconButton>
-        <IconButton
-          aria-label="Previous article"
-          title="Previous article"
-          size="sm"
-          variant="ghost"
-          disabled={!prevArticle}
-          onClick={() => prevArticle && onNavigate(prevArticle)}
-        >
-          <LuChevronUp />
-        </IconButton>
-        <IconButton
-          aria-label="Next article"
-          title="Next article"
-          size="sm"
-          variant="ghost"
-          disabled={!nextArticle}
-          onClick={() => nextArticle && onNavigate(nextArticle)}
-        >
-          <LuChevronDown />
-        </IconButton>
-        <IconButton
-          aria-label="Close reader"
-          title="Close reader"
-          size="sm"
-          variant="ghost"
-          onClick={onClose}
-        >
-          <LuX />
-        </IconButton>
-      </Flex>
+          <Text
+            flex={1}
+            whiteSpace="nowrap"
+            overflow="hidden"
+            textOverflow="ellipsis"
+            fontSize="sm"
+            fontWeight="medium"
+          >
+            {article.title}
+          </Text>
+          <IconButton
+            aria-label="Open original"
+            title="Open original"
+            size="sm"
+            variant="ghost"
+            onClick={() => window.open(article.url, "_blank", "noopener,noreferrer")}
+          >
+            <LuExternalLink />
+          </IconButton>
+          <IconButton
+            aria-label="Previous article"
+            title="Previous article"
+            size="sm"
+            variant="ghost"
+            disabled={!prevArticle}
+            onClick={() => prevArticle && onNavigate(prevArticle)}
+          >
+            <LuChevronUp />
+          </IconButton>
+          <IconButton
+            aria-label="Next article"
+            title="Next article"
+            size="sm"
+            variant="ghost"
+            disabled={!nextArticle}
+            onClick={() => nextArticle && onNavigate(nextArticle)}
+          >
+            <LuChevronDown />
+          </IconButton>
+          <IconButton
+            aria-label="Close reader"
+            title="Close reader"
+            size="sm"
+            variant="ghost"
+            onClick={onClose}
+          >
+            <LuX />
+          </IconButton>
+        </Flex>
+      )}
 
       {/* Scrollable content area */}
       <Box maxW="800px" mx="auto" px={{ base: 4, md: 8 }} py={6} pb={16}>
