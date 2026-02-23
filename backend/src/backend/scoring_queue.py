@@ -3,6 +3,7 @@
 import logging
 from datetime import datetime, timedelta
 
+from slugify import slugify
 from sqlmodel import Session, select
 
 from backend.config import get_settings
@@ -228,20 +229,34 @@ class ScoringQueue:
                         hidden_categories=hidden_categories or None,
                     )
 
-                    # Create/find categories and write junction table links
-                    for cat_name in categorization.categories:
-                        category = get_or_create_category(session, cat_name)
-                        article_categories.append(category)
+                    # Phase A: Resolve categories, then commit to get IDs
+                    # Use no_autoflush to prevent SELECTs from starting
+                    # implicit write transactions during category lookup.
+                    seen_slugs: dict[str, Category] = {}
+                    with session.no_autoflush:
+                        for cat_name in categorization.categories:
+                            slug = slugify(cat_name)
+                            if slug not in seen_slugs:
+                                category = get_or_create_category(
+                                    session, cat_name
+                                )
+                                seen_slugs[slug] = category
+                            article_categories.append(seen_slugs[slug])
 
-                    for cat_name in categorization.suggested_new:
-                        category = get_or_create_category(
-                            session,
-                            cat_name,
-                            suggested_parent=categorization.suggested_parent,
-                        )
-                        article_categories.append(category)
+                        for cat_name in categorization.suggested_new:
+                            slug = slugify(cat_name)
+                            if slug not in seen_slugs:
+                                category = get_or_create_category(
+                                    session,
+                                    cat_name,
+                                    suggested_parent=categorization.suggested_parent,
+                                )
+                                seen_slugs[slug] = category
+                            article_categories.append(seen_slugs[slug])
 
-                    # Write ArticleCategoryLink rows (skip if already exists)
+                    session.commit()  # ~1ms: persist new categories, get IDs
+
+                    # Phase B: Write links + unhide, then commit
                     for category in article_categories:
                         existing_link = session.exec(
                             select(ArticleCategoryLink).where(
@@ -256,21 +271,19 @@ class ScoringQueue:
                             )
                             session.add(link)
 
-                    session.flush()
+                    if not skip_categorization:
+                        for cat in article_categories:
+                            if cat.is_hidden:
+                                cat.is_hidden = False
+                                cat.is_seen = False
+                                session.add(cat)
+                                logger.info(
+                                    f"Article {article.id}: unhid returned category '{cat.display_name}'"
+                                )
 
-                # Step 1.5: Handle returned hidden categories
-                if not skip_categorization and article_categories:
-                    for cat in article_categories:
-                        if cat.is_hidden:
-                            # Category reappeared -- unhide it and mark unseen
-                            cat.is_hidden = False
-                            cat.is_seen = False
-                            session.add(cat)
-                            logger.info(
-                                f"Article {article.id}: unhid returned category '{cat.display_name}'"
-                            )
-                    session.flush()
+                    session.commit()  # ~1ms: persist links + unhide mutations
 
+                # Phase C: Score with no write lock held
                 # Step 2: Check if blocked
                 if is_blocked(article_categories):
                     # Auto-score 0 for blocked articles
