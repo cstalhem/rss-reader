@@ -3,7 +3,6 @@
 import logging
 
 import httpx
-from ollama import AsyncClient
 from slugify import slugify
 from sqlmodel import Session, select
 from tenacity import (
@@ -15,6 +14,7 @@ from tenacity import (
 
 from backend.database import smart_case
 from backend.models import Category
+from backend.ollama_client import get_ollama_client
 from backend.prompts import (
     CategoryResponse,
     ScoringResponse,
@@ -25,9 +25,6 @@ from backend.prompts import (
 logger = logging.getLogger(__name__)
 
 MAX_COMPOSITE_SCORE = 20.0
-
-OLLAMA_CONNECT_TIMEOUT = 10.0  # Fail fast if Ollama is down
-OLLAMA_READ_TIMEOUT = 120.0  # Per-chunk timeout in streaming mode
 
 TRANSIENT_ERRORS = (
     ConnectionError,
@@ -136,14 +133,7 @@ async def categorize_article(
         hidden_categories=hidden_categories,
     )
 
-    timeout = httpx.Timeout(
-        connect=OLLAMA_CONNECT_TIMEOUT,
-        read=OLLAMA_READ_TIMEOUT,
-        write=30.0,
-        pool=10.0,
-    )
-
-    client = AsyncClient(host=host, timeout=timeout)
+    client = get_ollama_client(host)
     # Use streaming to prevent httpx.ReadTimeout on slower models
     content = ""
     async for chunk in await client.chat(
@@ -206,14 +196,7 @@ async def score_article(
         article_title, article_text, interests, anti_interests
     )
 
-    timeout = httpx.Timeout(
-        connect=OLLAMA_CONNECT_TIMEOUT,
-        read=OLLAMA_READ_TIMEOUT,
-        write=30.0,
-        pool=10.0,
-    )
-
-    client = AsyncClient(host=host, timeout=timeout)
+    client = get_ollama_client(host)
     # Use streaming to prevent httpx.ReadTimeout on slower models
     content = ""
     async for chunk in await client.chat(

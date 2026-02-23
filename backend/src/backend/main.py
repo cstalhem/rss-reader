@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import get_settings
 from backend.database import create_db_and_tables
+from backend.ollama_client import close_ollama_client
 from backend.routers import articles, categories, feeds, ollama, preferences, scoring
 from backend.scheduler import shutdown_scheduler, start_scheduler
 from backend.schemas import HealthResponse
@@ -37,6 +38,7 @@ async def lifespan(app: FastAPI):
     yield
 
     shutdown_scheduler()
+    await close_ollama_client()
     logger.info("Shutting down...")
 
 

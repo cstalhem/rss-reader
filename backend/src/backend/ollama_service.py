@@ -5,12 +5,10 @@ import logging
 import time
 
 import httpx
-from ollama import AsyncClient
+
+from backend.ollama_client import get_ollama_client
 
 logger = logging.getLogger(__name__)
-
-OLLAMA_CONNECT_TIMEOUT = 10.0  # Fail fast if Ollama is down
-OLLAMA_MGMT_READ_TIMEOUT = 30.0  # Short read timeout for management operations
 
 # Module-level state for download tracking.
 # Safe in single-worker asyncio -- no threading concerns.
@@ -59,8 +57,7 @@ async def list_models(host: str) -> list[dict]:
         List of model dicts with name, size, parameter_size,
         quantization_level, and is_loaded fields.
     """
-    timeout = httpx.Timeout(OLLAMA_MGMT_READ_TIMEOUT, connect=OLLAMA_CONNECT_TIMEOUT)
-    client = AsyncClient(host=host, timeout=timeout)
+    client = get_ollama_client(host)
     models_resp = await client.list()
     ps_resp = await client.ps()
 
@@ -104,7 +101,7 @@ async def pull_model_stream(host: str, model: str):
     )
 
     try:
-        client = AsyncClient(host=host)
+        client = get_ollama_client(host)
         async for chunk in await client.pull(model, stream=True):
             if _cancel_requested:
                 _cancel_requested = False
@@ -171,7 +168,6 @@ async def delete_model(host: str, model: str) -> dict:
     Returns:
         Dict with status "success".
     """
-    timeout = httpx.Timeout(OLLAMA_MGMT_READ_TIMEOUT, connect=OLLAMA_CONNECT_TIMEOUT)
-    client = AsyncClient(host=host, timeout=timeout)
+    client = get_ollama_client(host)
     await client.delete(model)
     return {"status": "success"}
