@@ -19,6 +19,7 @@ paths: ["backend/**"]
 - SQLAlchemy does NOT detect in-place mutations to JSON columns. Reassign the entire value: `obj.field = {**obj.field, key: value}` — never mutate in place.
 - Schema versioning via `schema_version` table in `database.py` — version-gated migrations run once per version bump, not every startup.
 - Don't use raw SQL to INSERT into ORM-modeled tables — bypasses Python-level defaults (`Field(default=...)`) and breaks when new NOT NULL columns are added. Use `Session(bind=conn)` + ORM objects instead.
+- Never hold a write transaction open across slow I/O (LLM calls, network requests). Use short atomic commits and `session.no_autoflush` to prevent SELECTs from triggering implicit flushes.
 
 ## Dependencies & Background Jobs
 

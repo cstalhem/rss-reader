@@ -32,7 +32,13 @@ Articles are scored in two stages using separate Ollama models (configurable ind
 1. **`categorize_article()`** -- assigns up to 4 kebab-case English categories using `categorization_model`
 2. **`score_article()`** -- evaluates interest (0-10) and quality (0-10) using `scoring_model`
 
-The scoring queue in `scoring_queue.py` processes articles via `ScoringQueue.process_next_batch()`, called every 30 seconds by the scheduler.
+The scoring queue in `scoring_queue.py` processes articles via `ScoringQueue.process_next_batch()`, called every 30 seconds by the scheduler. The per-article loop uses three short atomic commits to avoid holding SQLite write locks across LLM calls:
+
+- **Phase A**: Resolve/create categories under `session.no_autoflush`, then commit (~1ms)
+- **Phase B**: Write `ArticleCategoryLink` rows + unhide mutations, then commit (~1ms)
+- **Phase C**: `score_article()` LLM call (no write lock), then commit final scores (~1ms)
+
+The session uses `expire_on_commit=False` (set in `scheduler.py`) so Category objects remain populated across intermediate commits.
 
 ## Article Lifecycle (Scoring States)
 
