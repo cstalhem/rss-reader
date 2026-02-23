@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback,
+} from "react";
 import NextLink from "next/link";
 import {
   Alert,
@@ -27,7 +33,10 @@ import {
 } from "react-icons/lu";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useArticles, useMarkAsRead } from "@/hooks/useArticles";
-import { useMarkAllRead, useMarkAllArticlesRead } from "@/hooks/useFeedMutations";
+import {
+  useMarkAllRead,
+  useMarkAllArticlesRead,
+} from "@/hooks/useFeedMutations";
 import { useFeeds } from "@/hooks/useFeeds";
 import { useSortPreference } from "@/hooks/useSortPreference";
 import { useScoringStatus } from "@/hooks/useScoringStatus";
@@ -50,9 +59,14 @@ interface ArticleListProps {
 
 type FilterTab = "unread" | "all" | "scoring" | "blocked";
 
-export function ArticleList({ selectedFeedId, onOpenMobileSidebar, mainRef }: ArticleListProps) {
+export function ArticleList({
+  selectedFeedId,
+  onOpenMobileSidebar,
+  mainRef,
+}: ArticleListProps) {
   const [filter, setFilter] = useState<FilterTab>("unread");
-  const [selectedArticle, setSelectedArticle] = useState<ArticleListItem | null>(null);
+  const [selectedArticle, setSelectedArticle] =
+    useState<ArticleListItem | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isReaderOpen, setIsReaderOpen] = useState(false);
   const [isConfirmMarkAllOpen, setIsConfirmMarkAllOpen] = useState(false);
@@ -64,18 +78,31 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar, mainRef }: Ar
   const queryClient = useQueryClient();
 
   // Calculate tab counts (needed before useArticles for scoringActive)
-  const scoringCount = (scoringStatus?.unscored ?? 0) + (scoringStatus?.queued ?? 0) + (scoringStatus?.scoring ?? 0);
+  const scoringCount =
+    (scoringStatus?.unscored ?? 0) +
+    (scoringStatus?.queued ?? 0) +
+    (scoringStatus?.scoring ?? 0);
   const blockedCount = scoringStatus?.blocked ?? 0;
 
   // Derive useArticles options from filter state
   const showAll = filter !== "unread";
-  const scoringState = filter === "scoring" ? "pending" : filter === "blocked" ? "blocked" : undefined;
+  const scoringState =
+    filter === "scoring"
+      ? "pending"
+      : filter === "blocked"
+        ? "blocked"
+        : undefined;
   const excludeBlocked = filter === "unread" || filter === "all";
 
   // Parse sort option for backend
   const { sort_by, order } = parseSortOption(sortOption);
 
-  const { data: articles, isLoading, loadMore, hasMore } = useArticles({
+  const {
+    data: articles,
+    isLoading,
+    loadMore,
+    hasMore,
+  } = useArticles({
     showAll,
     feedId: selectedFeedId ?? undefined,
     sortBy: sort_by,
@@ -88,7 +115,7 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar, mainRef }: Ar
   // Track articles completing scoring (for animation in Scoring tab)
   const { displayArticles, completingIds } = useCompletingArticles(
     articles,
-    filter === "scoring"
+    filter === "scoring",
   );
 
   const { data: feeds } = useFeeds();
@@ -118,7 +145,9 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar, mainRef }: Ar
   }, [feeds]);
 
   // Current feed name for heading
-  const feedName = selectedFeedId ? feedNames[selectedFeedId] ?? "Feed" : "Articles";
+  const feedName = selectedFeedId
+    ? (feedNames[selectedFeedId] ?? "Feed")
+    : "Articles";
 
   // IntersectionObserver for sticky scroll-collapse
   useEffect(() => {
@@ -129,7 +158,7 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar, mainRef }: Ar
       ([entry]) => {
         setIsScrolled(!entry.isIntersecting);
       },
-      { root: mainRef.current, rootMargin: "-1px 0px 0px 0px" }
+      { root: mainRef.current, rootMargin: "-1px 0px 0px 0px" },
     );
 
     observer.observe(heading);
@@ -143,44 +172,52 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar, mainRef }: Ar
     });
   };
 
-  const openArticle = useCallback((article: ArticleListItem) => {
-    const rowEl = rowRefs.current.get(article.id);
-    if (rowEl && mainRef.current) {
-      rowEl.scrollIntoView({ behavior: "smooth", block: "start" });
-      // Wait for scroll to settle, then expand
-      const onScrollEnd = () => {
-        mainRef.current?.removeEventListener("scrollend", onScrollEnd);
-        clearTimeout(fallback);
+  const openArticle = useCallback(
+    (article: ArticleListItem) => {
+      const rowEl = rowRefs.current.get(article.id);
+      if (rowEl && mainRef.current) {
+        rowEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        // Wait for scroll to settle, then expand
+        const onScrollEnd = () => {
+          mainRef.current?.removeEventListener("scrollend", onScrollEnd);
+          clearTimeout(fallback);
+          setSelectedArticle(article);
+          setIsReaderOpen(true);
+        };
+        mainRef.current.addEventListener("scrollend", onScrollEnd, {
+          once: true,
+        });
+        // Fallback timeout in case scrollend doesn't fire (already at position)
+        const fallback = setTimeout(onScrollEnd, 400);
+      } else {
+        // No ref or no scroll container — just open immediately
         setSelectedArticle(article);
         setIsReaderOpen(true);
-      };
-      mainRef.current.addEventListener("scrollend", onScrollEnd, { once: true });
-      // Fallback timeout in case scrollend doesn't fire (already at position)
-      const fallback = setTimeout(onScrollEnd, 400);
-    } else {
-      // No ref or no scroll container — just open immediately
-      setSelectedArticle(article);
-      setIsReaderOpen(true);
-    }
-  }, [mainRef]);
+      }
+    },
+    [mainRef],
+  );
 
-  const handleSelect = useCallback((article: ArticleListItem) => {
-    // If clicking the already-open article, close it
-    if (selectedArticle?.id === article.id && isReaderOpen) {
-      setIsReaderOpen(false);
-      return;
-    }
+  const handleSelect = useCallback(
+    (article: ArticleListItem) => {
+      // If clicking the already-open article, close it
+      if (selectedArticle?.id === article.id && isReaderOpen) {
+        setIsReaderOpen(false);
+        return;
+      }
 
-    // If another article is open, close it first, then open the new one after exit
-    if (isReaderOpen) {
-      pendingOpenRef.current = article;
-      setIsReaderOpen(false);
-      return;
-    }
+      // If another article is open, close it first, then open the new one after exit
+      if (isReaderOpen) {
+        pendingOpenRef.current = article;
+        setIsReaderOpen(false);
+        return;
+      }
 
-    // No reader open — scroll the row to top, then expand
-    openArticle(article);
-  }, [selectedArticle, isReaderOpen, openArticle]);
+      // No reader open — scroll the row to top, then expand
+      openArticle(article);
+    },
+    [selectedArticle, isReaderOpen, openArticle],
+  );
 
   const handleCloseReader = useCallback(() => {
     setIsReaderOpen(false);
@@ -235,10 +272,24 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar, mainRef }: Ar
 
     return createListCollection({
       items: [
-        { label: `Unread${unreadCount !== undefined ? ` (${unreadCount})` : ""}`, value: "unread" },
-        { label: `All${allCount !== undefined ? ` (${allCount})` : ""}`, value: "all" },
-        { label: `Scoring${scoringCount > 0 ? ` (${scoringCount})` : ""}`, value: "scoring", disabled: scoringCount === 0 },
-        { label: `Blocked${blockedCount > 0 ? ` (${blockedCount})` : ""}`, value: "blocked", disabled: blockedCount === 0 },
+        {
+          label: `Unread${unreadCount !== undefined ? ` (${unreadCount})` : ""}`,
+          value: "unread",
+        },
+        {
+          label: `All${allCount !== undefined ? ` (${allCount})` : ""}`,
+          value: "all",
+        },
+        {
+          label: `Scoring${scoringCount > 0 ? ` (${scoringCount})` : ""}`,
+          value: "scoring",
+          disabled: scoringCount === 0,
+        },
+        {
+          label: `Blocked${blockedCount > 0 ? ` (${blockedCount})` : ""}`,
+          value: "blocked",
+          disabled: blockedCount === 0,
+        },
       ],
     });
   }, [filter, articleCount, scoringCount, blockedCount]);
@@ -248,55 +299,62 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar, mainRef }: Ar
     filter === "unread"
       ? "No unread articles. You're all caught up!"
       : filter === "all"
-      ? "No articles yet"
-      : filter === "scoring"
-      ? "No articles awaiting scoring."
-      : "No blocked articles.";
+        ? "No articles yet"
+        : filter === "scoring"
+          ? "No articles awaiting scoring."
+          : "No blocked articles.";
 
   const emptyIcon =
     filter === "unread"
       ? LuCheckCheck
       : filter === "all"
-      ? LuInbox
-      : filter === "scoring"
-      ? LuClock
-      : LuBan;
+        ? LuInbox
+        : filter === "scoring"
+          ? LuClock
+          : LuBan;
 
   return (
     <Box>
       {/* Scoring readiness warning */}
-      {scoringStatus?.scoring_ready === false && scoringStatus.scoring_ready_reason && (
-        <Alert.Root status="warning" variant="surface" size="sm">
-          <Alert.Indicator>
-            <LuBrainCog />
-          </Alert.Indicator>
-          <Alert.Title fontSize="xs">
-            {scoringStatus.scoring_ready_reason}
-            {scoringStatus.scoring_ready_reason.includes("Ollama settings") && (
-              <>
-                {" "}
-                <Link asChild color="fg.warning" textDecoration="underline">
-                  <NextLink href="/settings/ollama">Configure &rarr;</NextLink>
-                </Link>
-              </>
-            )}
-          </Alert.Title>
-        </Alert.Root>
-      )}
+      {scoringStatus?.scoring_ready === false &&
+        scoringStatus.scoring_ready_reason && (
+          <Box px={4} pt={4} pb={0}>
+            <Alert.Root status='warning' variant='surface' size='sm'>
+              <Alert.Indicator>
+                <LuBrainCog />
+              </Alert.Indicator>
+              <Alert.Title fontSize='xs'>
+                {scoringStatus.scoring_ready_reason}
+                {scoringStatus.scoring_ready_reason.includes(
+                  "Ollama settings",
+                ) && (
+                  <>
+                    {" "}
+                    <Link asChild color='fg.warning' textDecoration='underline'>
+                      <NextLink href='/settings/ollama'>
+                        Configure &rarr;
+                      </NextLink>
+                    </Link>
+                  </>
+                )}
+              </Alert.Title>
+            </Alert.Root>
+          </Box>
+        )}
 
       {/* Feed name heading */}
-      <Flex px={4} pt={4} pb={2} alignItems="center" gap={2}>
+      <Flex px={4} pt={4} pb={2} alignItems='center' gap={2}>
         {/* Mobile hamburger */}
         <IconButton
-          aria-label="Open sidebar"
-          size="sm"
-          variant="ghost"
+          aria-label='Open sidebar'
+          size='sm'
+          variant='ghost'
           display={{ base: "flex", md: "none" }}
           onClick={onOpenMobileSidebar}
         >
           <LuMenu />
         </IconButton>
-        <Heading ref={headingRef} fontSize="2xl" fontWeight="bold">
+        <Heading ref={headingRef} fontSize='2xl' fontWeight='bold'>
           {feedName}
         </Heading>
       </Flex>
@@ -305,20 +363,20 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar, mainRef }: Ar
       <Flex
         px={4}
         py={2}
-        borderBottom="1px solid"
-        borderColor="border.subtle"
-        alignItems="center"
+        borderBottom='1px solid'
+        borderColor='border.subtle'
+        alignItems='center'
         gap={2}
-        position="sticky"
+        position='sticky'
         top={0}
         zIndex={5}
-        bg="bg"
+        bg='bg'
       >
         {/* Inline feed name when scrolled */}
         {isScrolled && (
           <Text
-            fontSize="sm"
-            fontWeight="medium"
+            fontSize='sm'
+            fontWeight='medium'
             flexShrink={0}
             mr={1}
             css={{
@@ -336,20 +394,20 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar, mainRef }: Ar
         {/* Filter dropdown */}
         <Select.Root
           collection={filterCollection}
-          size="sm"
+          size='sm'
           value={[filter]}
           onValueChange={(details) => {
             const selected = details.value[0] as FilterTab | undefined;
             if (selected) setFilter(selected);
           }}
           positioning={{ sameWidth: true }}
-          width="auto"
-          minWidth="130px"
+          width='auto'
+          minWidth='130px'
         >
           <Select.HiddenSelect />
           <Select.Control>
             <Select.Trigger>
-              <Select.ValueText placeholder="Filter..." />
+              <Select.ValueText placeholder='Filter...' />
             </Select.Trigger>
             <Select.IndicatorGroup>
               <Select.Indicator />
@@ -377,10 +435,10 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar, mainRef }: Ar
         {/* Mark all read icon button */}
         {filter === "unread" && articleCount > 0 && (
           <IconButton
-            aria-label="Mark all as read"
-            title="Mark all as read"
-            size="sm"
-            variant="ghost"
+            aria-label='Mark all as read'
+            title='Mark all as read'
+            size='sm'
+            variant='ghost'
             onClick={handleMarkAllAsRead}
             disabled={markAllRead.isPending || markAllArticlesRead.isPending}
           >
@@ -389,7 +447,7 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar, mainRef }: Ar
         )}
 
         {/* Count label */}
-        <Text fontSize="sm" color="fg.muted" flexShrink={0}>
+        <Text fontSize='sm' color='fg.muted' flexShrink={0}>
           {articleCount}
         </Text>
       </Flex>
@@ -403,64 +461,84 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar, mainRef }: Ar
         </Box>
       ) : displayArticles && displayArticles.length > 0 ? (
         <>
-          <Box as="section" aria-label="Article list">
+          <Box as='section' aria-label='Article list'>
             {displayArticles.map((article, index) => {
-              const isExpanded = selectedArticle?.id === article.id && isReaderOpen;
+              const isExpanded =
+                selectedArticle?.id === article.id && isReaderOpen;
               return (
-              <React.Fragment key={article.id}>
-                <ArticleRow
-                  ref={(el: HTMLDivElement | null) => {
-                    if (el) rowRefs.current.set(article.id, el);
-                    else rowRefs.current.delete(article.id);
-                  }}
-                  article={article}
-                  feedName={selectedFeedId ? undefined : feedNames[article.feed_id]}
-                  onSelect={handleSelect}
-                  onToggleRead={handleToggleRead}
-                  onRescore={handleRescore}
-                  isCompleting={completingIds.has(article.id)}
-                  isExpanded={isExpanded}
-                  onClose={isExpanded ? handleCloseReader : undefined}
-                  onOpenOriginal={isExpanded ? () => window.open(article.url, "_blank", "noopener,noreferrer") : undefined}
-                  onNavigatePrev={isExpanded && index > 0 ? () => handleSelect(displayArticles[index - 1]) : null}
-                  onNavigateNext={isExpanded && index < displayArticles.length - 1 ? () => handleSelect(displayArticles[index + 1]) : null}
-                  scoringPhase={
-                    article.scoring_state === "scoring" &&
-                    scoringStatus?.current_article_id === article.id
-                      ? scoringStatus.phase
-                      : undefined
-                  }
-                />
-                {selectedArticle?.id === article.id && (
-                  <Collapsible.Root
-                    open={isReaderOpen}
-                    lazyMount
-                    unmountOnExit
-                    onExitComplete={handleExitComplete}
-                  >
-                    <Collapsible.Content>
-                      <ArticleReader
-                        key={article.id}
-                        article={selectedArticle}
-                        articles={displayArticles ?? []}
-                        feedName={feedNames[selectedArticle.feed_id]}
-                        onClose={handleCloseReader}
-                        onNavigate={handleSelect}
-                        showHeader={false}
-                      />
-                    </Collapsible.Content>
-                  </Collapsible.Root>
-                )}
-              </React.Fragment>
+                <React.Fragment key={article.id}>
+                  <ArticleRow
+                    ref={(el: HTMLDivElement | null) => {
+                      if (el) rowRefs.current.set(article.id, el);
+                      else rowRefs.current.delete(article.id);
+                    }}
+                    article={article}
+                    feedName={
+                      selectedFeedId ? undefined : feedNames[article.feed_id]
+                    }
+                    onSelect={handleSelect}
+                    onToggleRead={handleToggleRead}
+                    onRescore={handleRescore}
+                    isCompleting={completingIds.has(article.id)}
+                    isExpanded={isExpanded}
+                    onClose={isExpanded ? handleCloseReader : undefined}
+                    onOpenOriginal={
+                      isExpanded
+                        ? () =>
+                            window.open(
+                              article.url,
+                              "_blank",
+                              "noopener,noreferrer",
+                            )
+                        : undefined
+                    }
+                    onNavigatePrev={
+                      isExpanded && index > 0
+                        ? () => handleSelect(displayArticles[index - 1])
+                        : null
+                    }
+                    onNavigateNext={
+                      isExpanded && index < displayArticles.length - 1
+                        ? () => handleSelect(displayArticles[index + 1])
+                        : null
+                    }
+                    scoringPhase={
+                      article.scoring_state === "scoring" &&
+                      scoringStatus?.current_article_id === article.id
+                        ? scoringStatus.phase
+                        : undefined
+                    }
+                  />
+                  {selectedArticle?.id === article.id && (
+                    <Collapsible.Root
+                      open={isReaderOpen}
+                      lazyMount
+                      unmountOnExit
+                      onExitComplete={handleExitComplete}
+                    >
+                      <Collapsible.Content>
+                        <ArticleReader
+                          key={article.id}
+                          article={selectedArticle}
+                          articles={displayArticles ?? []}
+                          feedName={feedNames[selectedArticle.feed_id]}
+                          onClose={handleCloseReader}
+                          onNavigate={handleSelect}
+                          showHeader={false}
+                        />
+                      </Collapsible.Content>
+                    </Collapsible.Root>
+                  )}
+                </React.Fragment>
               );
             })}
           </Box>
 
           {/* Load more button */}
           {hasMore && (
-            <Flex justifyContent="center" py={4}>
+            <Flex justifyContent='center' py={4}>
               <Button
-                colorPalette="accent"
+                colorPalette='accent'
                 onClick={loadMore}
                 disabled={isLoading}
               >
@@ -471,19 +549,19 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar, mainRef }: Ar
         </>
       ) : (
         <Flex
-          direction="column"
-          alignItems="center"
-          justifyContent="center"
+          direction='column'
+          alignItems='center'
+          justifyContent='center'
           gap={4}
           py={16}
           px={8}
         >
-          <Icon as={emptyIcon} boxSize={12} color="fg.subtle" />
-          <Text fontSize="lg" color="fg.muted" textAlign="center">
+          <Icon as={emptyIcon} boxSize={12} color='fg.subtle' />
+          <Text fontSize='lg' color='fg.muted' textAlign='center'>
             {emptyMessage}
           </Text>
           {filter === "all" && (
-            <Text fontSize="sm" color="fg.subtle" textAlign="center">
+            <Text fontSize='sm' color='fg.subtle' textAlign='center'>
               Add feeds from the sidebar to get started
             </Text>
           )}
@@ -494,10 +572,10 @@ export function ArticleList({ selectedFeedId, onOpenMobileSidebar, mainRef }: Ar
       <ConfirmDialog
         open={isConfirmMarkAllOpen}
         onOpenChange={({ open }) => setIsConfirmMarkAllOpen(open)}
-        title="Mark all articles as read?"
-        body="This will mark all unread articles across all feeds as read."
-        confirmLabel="Mark all read"
-        confirmColorPalette="accent"
+        title='Mark all articles as read?'
+        body='This will mark all unread articles across all feeds as read.'
+        confirmLabel='Mark all read'
+        confirmColorPalette='accent'
         onConfirm={handleConfirmMarkAllArticlesRead}
       />
     </Box>
