@@ -53,11 +53,19 @@ bun run build         # Production build
 
 ---
 
+## Branching
+
+- **`main`** — Production. Always deployable. Docker images are built and pushed to GHCR on every push here.
+- **`dev`** — Development. All day-to-day work (GSD phases, bug fixes, features) happens here.
+- Merge `dev` → `main` when ready to deploy. Pushes to `dev` trigger CI builds (validation only, no image push).
+
 ## Deployment
 
 Two Docker images published to GHCR via GitHub Actions (`.github/workflows/docker-publish.yml`):
 - `ghcr.io/cstalhem/rss-reader/backend:latest`
 - `ghcr.io/cstalhem/rss-reader/frontend:latest`
+
+Images are only pushed on merges to `main` or version tags. Pushes to `dev` and PRs run the build for validation without publishing.
 
 The frontend image is built with relative API URLs — a reverse proxy routes `PathPrefix('/api')` to the backend, all other requests to the frontend. See `README.md` for an example Docker Compose setup.
 
