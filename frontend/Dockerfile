@@ -1,12 +1,12 @@
 # Builder stage
-FROM node:22-alpine AS builder
+FROM oven/bun:1-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY package.json package-lock.json ./
+COPY package.json bun.lock ./
 
-# Install dependencies (all deps needed for Next.js build)
-RUN npm ci
+# Install dependencies (frozen lockfile for reproducible builds)
+RUN bun install --frozen-lockfile
 
 # Copy application code
 COPY . .
@@ -19,7 +19,7 @@ ARG NEXT_PUBLIC_API_URL=""
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 # Build the application
-RUN npm run build
+RUN bun run build
 
 # Runtime stage
 FROM node:22-alpine
