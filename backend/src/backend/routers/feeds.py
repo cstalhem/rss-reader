@@ -139,6 +139,8 @@ async def create_feed(
         display_order=feed.display_order,
         last_fetched_at=feed.last_fetched_at,
         unread_count=article_count,
+        folder_id=feed.folder_id,
+        folder_name=None,
     )
 
 

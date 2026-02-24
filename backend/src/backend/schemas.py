@@ -99,8 +99,8 @@ class FeedResponse(BaseModel):
     display_order: int
     last_fetched_at: datetime | None
     unread_count: int
-    folder_id: int | None
-    folder_name: str | None
+    folder_id: int | None = None
+    folder_name: str | None = None
 
 
 class FeedFolderCreate(BaseModel):

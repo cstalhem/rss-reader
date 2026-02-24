@@ -190,3 +190,34 @@ def test_refresh_feed_no_feeds(test_client: TestClient):
     data = response.json()
     assert data["message"] == "No feeds configured"
     assert data["new_articles"] == 0
+
+
+def test_create_feed_includes_folder_fields_in_response(
+    test_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Creating a feed should always return folder fields (null for root feeds)."""
+
+    class _ParsedFeed:
+        bozo = False
+        entries = [{"link": "https://example.com/article-1", "title": "Article 1"}]
+        feed = {"title": "Patched Feed"}
+
+    async def fake_fetch_feed(_url: str):
+        return _ParsedFeed()
+
+    def fake_save_articles(_session, _feed_id: int, _entries: list[dict]):
+        return (1, [])
+
+    monkeypatch.setattr("backend.routers.feeds.fetch_feed", fake_fetch_feed)
+    monkeypatch.setattr("backend.routers.feeds.save_articles", fake_save_articles)
+
+    response = test_client.post(
+        "/api/feeds", json={"url": "https://example.com/patched-feed.xml"}
+    )
+    assert response.status_code == 201
+
+    data = response.json()
+    assert data["title"] == "Patched Feed"
+    assert data["folder_id"] is None
+    assert data["folder_name"] is None
