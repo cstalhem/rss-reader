@@ -240,6 +240,8 @@ def batch_move_categories(
                 detail="Target must be a root category (no parent)",
             )
         for cat_id in body.category_ids:
+            if cat_id == body.target_parent_id:
+                continue
             category = session.get(Category, cat_id)
             if not category:
                 continue

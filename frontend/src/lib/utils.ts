@@ -66,3 +66,13 @@ export function formatCountdown(remainingSeconds: number): string {
   if (m > 0) return `${m}m ${s}s`;
   return `${s}s`;
 }
+
+/** Normalize a category name into the canonical slug-style matching backend slugify usage. */
+export function normalizeCategoryName(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}

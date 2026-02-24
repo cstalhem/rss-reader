@@ -15,7 +15,7 @@ import { Category } from "@/lib/types";
 interface MoveToGroupDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  parentCategories: Category[];
+  rootCategories: Category[];
   childrenMap: Record<number, Category[]>;
   selectedCount: number;
   onMove: (targetParentId: number) => void;
@@ -25,7 +25,7 @@ interface MoveToGroupDialogProps {
 export function MoveToGroupDialog({
   open,
   onOpenChange,
-  parentCategories,
+  rootCategories,
   childrenMap,
   selectedCount,
   onMove,
@@ -35,9 +35,14 @@ export function MoveToGroupDialog({
   const [isCreating, setIsCreating] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
 
-  const filtered = parentCategories.filter((p) =>
-    p.display_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filtered = rootCategories
+    .filter((p) => p.display_name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      const aIsGroup = (childrenMap[a.id]?.length ?? 0) > 0;
+      const bIsGroup = (childrenMap[b.id]?.length ?? 0) > 0;
+      if (aIsGroup !== bIsGroup) return aIsGroup ? -1 : 1;
+      return a.display_name.localeCompare(b.display_name);
+    });
 
   const handleClose = () => {
     onOpenChange(false);
@@ -74,38 +79,43 @@ export function MoveToGroupDialog({
             <Dialog.Body>
               <Stack gap={3}>
                 <Input
-                  placeholder="Search groups..."
+                  placeholder="Search categories..."
                   size="sm"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
 
                 <Stack gap={1} maxH="240px" overflowY="auto">
-                  {filtered.map((parent) => (
-                    <Flex
-                      key={parent.id}
-                      alignItems="center"
-                      gap={2}
-                      px={3}
-                      py={2}
-                      borderRadius="sm"
-                      cursor="pointer"
-                      _hover={{ bg: "bg.subtle" }}
-                      onClick={() => handleMove(parent.id)}
-                    >
-                      <LuFolder size={16} />
-                      <Text fontSize="sm" flex={1}>
-                        {parent.display_name}
-                      </Text>
-                      <Text fontSize="xs" color="fg.muted">
-                        {childrenMap[parent.id]?.length ?? 0}
-                      </Text>
-                    </Flex>
-                  ))}
+                  {filtered.map((parent) => {
+                    const childCount = childrenMap[parent.id]?.length ?? 0;
+                    const isGroup = childCount > 0;
+
+                    return (
+                      <Flex
+                        key={parent.id}
+                        alignItems="center"
+                        gap={2}
+                        px={3}
+                        py={2}
+                        borderRadius="sm"
+                        cursor="pointer"
+                        _hover={{ bg: "bg.subtle" }}
+                        onClick={() => handleMove(parent.id)}
+                      >
+                        {isGroup ? <LuFolder size={16} /> : null}
+                        <Text fontSize="sm" flex={1}>
+                          {parent.display_name}
+                        </Text>
+                        <Text fontSize="xs" color="fg.muted">
+                          {childCount}
+                        </Text>
+                      </Flex>
+                    );
+                  })}
 
                   {filtered.length === 0 && searchQuery && (
                     <Text fontSize="sm" color="fg.muted" px={3} py={2}>
-                      No groups match "{searchQuery}"
+                      No categories match &quot;{searchQuery}&quot;
                     </Text>
                   )}
                 </Stack>
