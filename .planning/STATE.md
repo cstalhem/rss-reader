@@ -327,9 +327,10 @@ Key architectural decisions carrying forward to v1.1:
 
 ## Session Continuity
 
-Last session: 2026-02-22
-Stopped at: Completed 09.5-04-PLAN.md (inline reader with html-react-parser + DOMPurify)
+Last session: 2026-02-24
+Stopped at: Phase 09.6 context gathered
+Resume file: .planning/phases/09.6-llm-providers-settings-refresh/09.6-CONTEXT.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-22 after Phase 09.5 Plan 04*
+*Last updated: 2026-02-24 after Phase 09.6 context gathered*
