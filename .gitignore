@@ -52,6 +52,6 @@ frontend/bun.lockb
 .env*.local
 
 # Data (keep directory, ignore contents)
-**/data/*.db
-**/data/*.db-wal
-**/data/*.db-shm
+**/data/**/*.db
+**/data/**/*.db-wal
+**/data/**/*.db-shm
