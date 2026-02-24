@@ -407,6 +407,15 @@ Plans:
 - [x] 09.5-06-PLAN.md -- Gap closure: scroll container fix, always-sticky controls bar, accordion reader animation, reader sticky header
 - [x] 09.5-07-PLAN.md -- Gap closure: sidebar theme toggle alignment, context menu toggle label, filter order/counts, confirm dialog layout, nested anchor fix
 
+### Phase 09.6: UI refresh of LLM Providers settings section (INSERTED)
+
+**Goal:** Redesign the LLM Providers settings section — separate provider configuration from model management, introduce a multi-provider UI with name/logo selection and per-provider settings surfaces, and prepare the architecture for additional providers (OpenAI, Anthropic, Google, OpenRouter) without implementing them yet
+**Depends on:** Phase 09.5
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 09.6 to break down)
+
 #### Phase 10: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
 **Depends on**: Phase 9.1 (clean codebase foundation — both frontend and backend)
@@ -426,7 +435,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 6 -> 7 -> 8 -> 08.1 -> 08.2 -> 08.3 -> 9 -> 9.1 -> 09.2 -> 09.3 -> 09.4 -> 09.5 -> 10
+Phases execute in numeric order: 6 -> 7 -> 8 -> 08.1 -> 08.2 -> 08.3 -> 9 -> 9.1 -> 09.2 -> 09.3 -> 09.4 -> 09.5 -> 09.6 -> 10
 
 | Phase                              | Milestone | Plans Complete            | Status              | Completed  |
 | ---------------------------------- | --------- | ------------------------- | ------------------- | ---------- |
@@ -447,8 +456,9 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 08.1 -> 08.2 -> 08.3 -> 9 -> 9.1
 | 09.3. Settings Architecture Audit  | 1/1       | Complete                  | 2026-02-22          | -          |
 | 09.4. Settings Architecture Impl.  | 3/3       | Complete                  | 2026-02-22          | -          |
 | 09.5. Main View UX & Typography    | 5/7       | In Progress (gap closure) | -                   |
+| 09.6. LLM Providers Settings       | v1.1      | 0/TBD                     | Not started         | -          |
 | 10. LLM Feedback Loop              | v1.1      | 0/TBD                     | Not started         | -          |
 
 ---
 *Roadmap created: 2026-02-14*
-*Last updated: 2026-02-22 -- Phase 09.5 gap closure plans 06 and 07 added*
+*Last updated: 2026-02-24 -- Phase 09.6 inserted after 09.5 (LLM Providers settings refresh)*

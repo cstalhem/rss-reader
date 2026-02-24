@@ -129,6 +129,7 @@ Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase
 - Phase 09.3 inserted (renumbered from 09.4): Settings page architecture research and audit — research-only phase to map settings component hierarchy, identify complexity hotspots, and produce findings for follow-up implementation phase
 - Phase 09.4 placeholder: Settings page architecture implementation — scope TBD from Phase 09.3 findings
 - Phase 09.5 (renumbered from 09.3): Refine main view UX and typography — polish article list page and reader pane across information density, typography, layout, navigation, and visual cohesion
+- Phase 09.6 inserted after Phase 09.5: UI refresh of LLM Providers settings section (URGENT) — separate provider config from model management, multi-provider UI with name/logo, prep for OpenAI/Anthropic/Google/OpenRouter
 
 ### Decisions
 
