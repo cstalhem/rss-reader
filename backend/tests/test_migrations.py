@@ -57,6 +57,103 @@ def _create_pre_feature_schema(db_path: Path) -> None:
         )
 
 
+def _create_category_dup_schema_at_dff(db_path: Path) -> None:
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE categories (
+              id INTEGER PRIMARY KEY,
+              display_name TEXT NOT NULL,
+              slug TEXT NOT NULL,
+              parent_id INTEGER,
+              weight TEXT,
+              is_hidden BOOLEAN NOT NULL DEFAULT 0,
+              is_seen BOOLEAN NOT NULL DEFAULT 0,
+              is_manually_created BOOLEAN NOT NULL DEFAULT 0,
+              created_at TIMESTAMP NOT NULL
+            );
+            CREATE UNIQUE INDEX ix_categories_slug ON categories (slug);
+
+            CREATE TABLE article_category_link (
+              article_id INTEGER NOT NULL,
+              category_id INTEGER NOT NULL,
+              PRIMARY KEY (article_id, category_id)
+            );
+
+            CREATE TABLE alembic_version (
+              version_num VARCHAR(32) NOT NULL,
+              CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+            );
+            INSERT INTO alembic_version (version_num) VALUES ('dff7a4c52b3c');
+            """
+        )
+
+        categories = [
+            # Canonical defaults seeded with title-case slugs.
+            (2, "Business", "Business", None, None, 0, 1, 0, "2026-02-24 00:00:00"),
+            (10, "Finance", "Finance", 2, None, 0, 1, 0, "2026-02-24 00:00:00"),
+            (22, "Technology", "Technology", None, None, 0, 1, 0, "2026-02-24 00:00:00"),
+            (
+                18,
+                "Programming",
+                "Programming",
+                22,
+                None,
+                0,
+                1,
+                0,
+                "2026-02-24 00:00:00",
+            ),
+            # Duplicates created later with lowercase slugify slugs.
+            (23, "Business", "business", None, "boost", 0, 0, 1, "2026-02-24 00:01:00"),
+            (24, "Finance", "finance", 23, None, 0, 0, 0, "2026-02-24 00:01:00"),
+            (
+                25,
+                "Technology",
+                "technology",
+                None,
+                None,
+                0,
+                0,
+                0,
+                "2026-02-24 00:01:00",
+            ),
+            (
+                34,
+                "Programming",
+                "programming",
+                25,
+                None,
+                0,
+                0,
+                0,
+                "2026-02-24 00:01:00",
+            ),
+        ]
+        conn.executemany(
+            """
+            INSERT INTO categories (
+              id, display_name, slug, parent_id, weight, is_hidden, is_seen,
+              is_manually_created, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            categories,
+        )
+
+        links = [
+            (1, 2),
+            (1, 23),
+            (2, 24),
+            (3, 18),
+            (3, 34),
+        ]
+        conn.executemany(
+            "INSERT INTO article_category_link (article_id, category_id) VALUES (?, ?)",
+            links,
+        )
+
+
 def test_upgrade_head_backfills_provider_and_routes() -> None:
     with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
         db_path = Path(tmp.name)
@@ -111,3 +208,51 @@ def test_upgrade_head_is_idempotent_at_head() -> None:
                 "SELECT COUNT(*) FROM llm_provider_configs WHERE provider = 'ollama'"
             ).fetchone()
             assert providers == (1,)
+
+
+def test_upgrade_head_normalizes_and_dedupes_categories() -> None:
+    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
+        db_path = Path(tmp.name)
+        _create_category_dup_schema_at_dff(db_path)
+
+        cfg = _make_alembic_config(db_path)
+        command.upgrade(cfg, "head")
+
+        with sqlite3.connect(db_path) as conn:
+            dupes = conn.execute(
+                """
+                SELECT lower(slug), COUNT(*)
+                FROM categories
+                GROUP BY lower(slug)
+                HAVING COUNT(*) > 1
+                """
+            ).fetchall()
+            assert dupes == []
+
+            non_normalized = conn.execute(
+                "SELECT COUNT(*) FROM categories WHERE slug != lower(slug)"
+            ).fetchone()
+            assert non_normalized == (0,)
+
+            categories = conn.execute(
+                """
+                SELECT id, display_name, slug, parent_id, weight, is_seen, is_manually_created
+                FROM categories
+                ORDER BY id
+                """
+            ).fetchall()
+            assert categories == [
+                (2, "Business", "business", None, "boost", 1, 1),
+                (10, "Finance", "finance", 2, None, 1, 0),
+                (18, "Programming", "programming", 22, None, 1, 0),
+                (22, "Technology", "technology", None, None, 1, 0),
+            ]
+
+            links = conn.execute(
+                """
+                SELECT article_id, category_id
+                FROM article_category_link
+                ORDER BY article_id, category_id
+                """
+            ).fetchall()
+            assert links == [(1, 2), (2, 10), (3, 18)]

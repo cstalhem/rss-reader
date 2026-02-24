@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 
+from slugify import slugify
 from sqlalchemy import event, text
 from sqlmodel import Session, SQLModel, create_engine
 
@@ -133,11 +134,18 @@ def _seed_default_categories(conn):
     hierarchy = DEFAULT_CATEGORY_HIERARCHY
     slug_to_cat: dict[str, Category] = {}
 
-    # Collect all slugs from hierarchy
+    # Collect all normalized slugs from hierarchy values.
+    # This must match runtime category creation (slugify -> lowercase kebab-case)
+    # to avoid case-sensitive duplicate rows in SQLite.
     all_slugs: set[str] = set()
     for parent, children in hierarchy.items():
-        all_slugs.add(parent)
-        all_slugs.update(children)
+        parent_slug = slugify(parent)
+        if parent_slug:
+            all_slugs.add(parent_slug)
+        for child in children:
+            child_slug = slugify(child)
+            if child_slug:
+                all_slugs.add(child_slug)
 
     session = Session(bind=conn)
 
@@ -151,11 +159,13 @@ def _seed_default_categories(conn):
 
     # Second pass: set parent_id
     for parent, children in hierarchy.items():
-        parent_cat = slug_to_cat.get(parent)
+        parent_slug = slugify(parent)
+        parent_cat = slug_to_cat.get(parent_slug)
         if not parent_cat:
             continue
         for child in children:
-            child_cat = slug_to_cat.get(child)
+            child_slug = slugify(child)
+            child_cat = slug_to_cat.get(child_slug)
             if child_cat:
                 child_cat.parent_id = parent_cat.id
 
