@@ -374,9 +374,9 @@ Plans:
 **Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 09.4-01-PLAN.md -- Shared layout primitives (Theme A + D): SettingsPanel, EmptyState, SettingsPageHeader, dead code cleanup
-- [ ] 09.4-02-PLAN.md -- Category section decomposition (Theme B): useCategoryTree, CategoryTreeContext, useCategoryDialogs
-- [ ] 09.4-03-PLAN.md -- Ollama section cleanup + nav/consistency fixes (Themes C + E): ConfirmDialog, progress bars, shared nav array, mobile nav overhaul
+- [x] 09.4-01-PLAN.md -- Shared layout primitives (Theme A + D): SettingsPanel, EmptyState, SettingsPageHeader, dead code cleanup
+- [x] 09.4-02-PLAN.md -- Category section decomposition (Theme B): useCategoryTree, CategoryTreeContext, useCategoryDialogs
+- [x] 09.4-03-PLAN.md -- Ollama section cleanup + nav/consistency fixes (Themes C + E): ConfirmDialog, progress bars, shared nav array, mobile nav overhaul
 
 ### Phase 09.5: Refine main view UX and typography (INSERTED)
 
@@ -399,13 +399,13 @@ Plans:
 **Plans:** 7 plans (5 executed + 2 gap closure)
 
 Plans:
-- [ ] 09.5-01-PLAN.md -- Backend: summary_preview + score_reasoning in list endpoint, per-article rescore, cross-feed mark-all-read
-- [ ] 09.5-02-PLAN.md -- Layout shell: remove Header, restructure Sidebar with logo/feeds/utilities, update AppShell and MobileSidebar
-- [ ] 09.5-03-PLAN.md -- Article row redesign + toolbar overhaul: summary preview, read/unread styling, context menu, filter dropdown, sticky scroll-collapse
-- [ ] 09.5-04-PLAN.md -- Inline reader + content rendering: replace drawer with inline reader, html-react-parser + DOMPurify pipeline
-- [ ] 09.5-05-PLAN.md -- Keyboard shortcuts, typography polish, and visual verification checkpoint
-- [ ] 09.5-06-PLAN.md -- Gap closure: scroll container fix, always-sticky controls bar, accordion reader animation, reader sticky header
-- [ ] 09.5-07-PLAN.md -- Gap closure: sidebar theme toggle alignment, context menu toggle label, filter order/counts, confirm dialog layout, nested anchor fix
+- [x] 09.5-01-PLAN.md -- Backend: summary_preview + score_reasoning in list endpoint, per-article rescore, cross-feed mark-all-read
+- [x] 09.5-02-PLAN.md -- Layout shell: remove Header, restructure Sidebar with logo/feeds/utilities, update AppShell and MobileSidebar
+- [x] 09.5-03-PLAN.md -- Article row redesign + toolbar overhaul: summary preview, read/unread styling, context menu, filter dropdown, sticky scroll-collapse
+- [x] 09.5-04-PLAN.md -- Inline reader + content rendering: replace drawer with inline reader, html-react-parser + DOMPurify pipeline
+- [x] 09.5-05-PLAN.md -- Keyboard shortcuts, typography polish, and visual verification checkpoint
+- [x] 09.5-06-PLAN.md -- Gap closure: scroll container fix, always-sticky controls bar, accordion reader animation, reader sticky header
+- [x] 09.5-07-PLAN.md -- Gap closure: sidebar theme toggle alignment, context menu toggle label, filter order/counts, confirm dialog layout, nested anchor fix
 
 #### Phase 10: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
@@ -428,26 +428,26 @@ Plans:
 **Execution Order:**
 Phases execute in numeric order: 6 -> 7 -> 8 -> 08.1 -> 08.2 -> 08.3 -> 9 -> 9.1 -> 09.2 -> 09.3 -> 09.4 -> 09.5 -> 10
 
-| Phase | Milestone | Plans Complete | Status | Completed |
-|-------|-----------|----------------|--------|-----------|
-| 1. Infrastructure | v1.0 | 4/4 | Complete | 2026-02-05 |
-| 2. Article Reading UI | v1.0 | 5/5 | Complete | 2026-02-07 |
-| 3. Feed Management | v1.0 | 5/5 | Complete | 2026-02-10 |
-| 4. LLM Content Curation | v1.0 | 3/3 | Complete | 2026-02-12 |
-| 5. Interest-Driven UI | v1.0 | 2/2 | Complete | 2026-02-14 |
-| 6. UI & Theme Polish | v1.1 | 3/3 | Complete | 2026-02-15 |
-| 7. Ollama Configuration UI | v1.1 | 6/6 | Complete | 2026-02-15 |
-| 8. Category Grouping | v1.1 | 8/11 | Superseded by 08.1+ | - |
-| 08.1. Categories UI Redesign | v1.1 | 10/10 | Complete | 2026-02-17 |
-| 08.2. Category Data Model Refactor | v1.1 | 7/7 | Complete | 2026-02-18 |
-| 08.3. Group Management Redesign | v1.1 | 6/6 | Complete | 2026-02-19 |
-| 9. Frontend Codebase Evaluation | v1.1 | 4/4 | Complete | 2026-02-19 |
-| 9.1. Backend Codebase Evaluation | v1.1 | 4/4 | Complete | 2026-02-20 |
-| 09.2. DOM Tree Simplification | v1.1 | 3/3 | Complete | 2026-02-20 |
-| 09.3. Settings Architecture Audit | 1/1 | Complete    | 2026-02-22 | - |
-| 09.4. Settings Architecture Impl. | 3/3 | Complete    | 2026-02-22 | - |
-| 09.5. Main View UX & Typography | 5/7 | In Progress (gap closure) | - |
-| 10. LLM Feedback Loop | v1.1 | 0/TBD | Not started | - |
+| Phase                              | Milestone | Plans Complete            | Status              | Completed  |
+| ---------------------------------- | --------- | ------------------------- | ------------------- | ---------- |
+| 1. Infrastructure                  | v1.0      | 4/4                       | Complete            | 2026-02-05 |
+| 2. Article Reading UI              | v1.0      | 5/5                       | Complete            | 2026-02-07 |
+| 3. Feed Management                 | v1.0      | 5/5                       | Complete            | 2026-02-10 |
+| 4. LLM Content Curation            | v1.0      | 3/3                       | Complete            | 2026-02-12 |
+| 5. Interest-Driven UI              | v1.0      | 2/2                       | Complete            | 2026-02-14 |
+| 6. UI & Theme Polish               | v1.1      | 3/3                       | Complete            | 2026-02-15 |
+| 7. Ollama Configuration UI         | v1.1      | 6/6                       | Complete            | 2026-02-15 |
+| 8. Category Grouping               | v1.1      | 8/11                      | Superseded by 08.1+ | -          |
+| 08.1. Categories UI Redesign       | v1.1      | 10/10                     | Complete            | 2026-02-17 |
+| 08.2. Category Data Model Refactor | v1.1      | 7/7                       | Complete            | 2026-02-18 |
+| 08.3. Group Management Redesign    | v1.1      | 6/6                       | Complete            | 2026-02-19 |
+| 9. Frontend Codebase Evaluation    | v1.1      | 4/4                       | Complete            | 2026-02-19 |
+| 9.1. Backend Codebase Evaluation   | v1.1      | 4/4                       | Complete            | 2026-02-20 |
+| 09.2. DOM Tree Simplification      | v1.1      | 3/3                       | Complete            | 2026-02-20 |
+| 09.3. Settings Architecture Audit  | 1/1       | Complete                  | 2026-02-22          | -          |
+| 09.4. Settings Architecture Impl.  | 3/3       | Complete                  | 2026-02-22          | -          |
+| 09.5. Main View UX & Typography    | 5/7       | In Progress (gap closure) | -                   |
+| 10. LLM Feedback Loop              | v1.1      | 0/TBD                     | Not started         | -          |
 
 ---
 *Roadmap created: 2026-02-14*
