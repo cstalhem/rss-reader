@@ -25,8 +25,9 @@ router = APIRouter(prefix="/api/categories", tags=["categories"])
 def _category_article_count(session: Session, category_id: int) -> int:
     """Get article count for a category via junction table."""
     return session.exec(
-        select(func.count(ArticleCategoryLink.article_id))
-        .where(ArticleCategoryLink.category_id == category_id)
+        select(func.count(ArticleCategoryLink.article_id)).where(
+            ArticleCategoryLink.category_id == category_id
+        )
     ).one()
 
 
@@ -51,7 +52,9 @@ def list_categories(
 ):
     """Get flat list of all categories with article counts."""
     statement = (
-        select(Category, func.count(ArticleCategoryLink.article_id).label("article_count"))
+        select(
+            Category, func.count(ArticleCategoryLink.article_id).label("article_count")
+        )
         .outerjoin(ArticleCategoryLink, Category.id == ArticleCategoryLink.category_id)
         .group_by(Category.id)
         .order_by(Category.display_name)
@@ -158,7 +161,9 @@ def merge_categories(
 ):
     """Merge source category into target. Moves article associations, reparents children, deletes source."""
     if body.source_id == body.target_id:
-        raise HTTPException(status_code=400, detail="Source and target must be different")
+        raise HTTPException(
+            status_code=400, detail="Source and target must be different"
+        )
 
     source = session.get(Category, body.source_id)
     if not source:
@@ -169,7 +174,9 @@ def merge_categories(
         raise HTTPException(status_code=404, detail="Target category not found")
 
     source_links = session.exec(
-        select(ArticleCategoryLink).where(ArticleCategoryLink.category_id == body.source_id)
+        select(ArticleCategoryLink).where(
+            ArticleCategoryLink.category_id == body.source_id
+        )
     ).all()
 
     articles_moved = 0
@@ -321,7 +328,9 @@ def update_category(
         if not new_slug:
             raise HTTPException(status_code=400, detail="Invalid category name")
         existing = session.exec(
-            select(Category).where(Category.slug == new_slug).where(Category.id != category_id)
+            select(Category)
+            .where(Category.slug == new_slug)
+            .where(Category.id != category_id)
         ).first()
         if existing:
             raise HTTPException(
@@ -336,10 +345,14 @@ def update_category(
             category.parent_id = None
         else:
             if body.parent_id == category_id:
-                raise HTTPException(status_code=400, detail="Category cannot be its own parent")
+                raise HTTPException(
+                    status_code=400, detail="Category cannot be its own parent"
+                )
             child_ids = {c.id for c in (category.children or [])}
             if body.parent_id in child_ids:
-                raise HTTPException(status_code=400, detail="Cannot parent to own child")
+                raise HTTPException(
+                    status_code=400, detail="Cannot parent to own child"
+                )
             parent = session.get(Category, body.parent_id)
             if not parent:
                 raise HTTPException(status_code=404, detail="Parent category not found")
@@ -396,7 +409,12 @@ def delete_category(
         session.add(child)
 
     from sqlalchemy import delete as sa_delete
-    session.exec(sa_delete(ArticleCategoryLink).where(ArticleCategoryLink.category_id == category_id))
+
+    session.exec(
+        sa_delete(ArticleCategoryLink).where(
+            ArticleCategoryLink.category_id == category_id
+        )
+    )
 
     session.delete(category)
     session.commit()

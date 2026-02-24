@@ -101,7 +101,7 @@ export function SettingsSidebar() {
                 pathname === item.href || pathname.startsWith(item.href + "/");
               const Icon = item.icon;
               const showDownloadIndicator =
-                item.id === "ollama" && isDownloadActive;
+                item.id === "llm-providers" && isDownloadActive;
               const showCategoryBadge =
                 item.id === "categories" && categoryBadgeCount > 0;
 

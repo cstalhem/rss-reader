@@ -118,16 +118,15 @@ def test_get_article_not_found(test_client: TestClient):
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_mark_article_read(test_client: TestClient, sample_articles, test_session: Session):
+def test_mark_article_read(
+    test_client: TestClient, sample_articles, test_session: Session
+):
     """Test marking an article as read."""
     article_id = sample_articles[0].id
     assert sample_articles[0].is_read is False
 
     # Mark as read
-    response = test_client.patch(
-        f"/api/articles/{article_id}",
-        json={"is_read": True}
-    )
+    response = test_client.patch(f"/api/articles/{article_id}", json={"is_read": True})
     assert response.status_code == 200
 
     article = response.json()
@@ -139,16 +138,15 @@ def test_mark_article_read(test_client: TestClient, sample_articles, test_sessio
     assert db_article.is_read is True
 
 
-def test_mark_article_unread(test_client: TestClient, sample_articles, test_session: Session):
+def test_mark_article_unread(
+    test_client: TestClient, sample_articles, test_session: Session
+):
     """Test marking an article as unread."""
     article_id = sample_articles[2].id  # This one is already read
     assert sample_articles[2].is_read is True
 
     # Mark as unread
-    response = test_client.patch(
-        f"/api/articles/{article_id}",
-        json={"is_read": False}
-    )
+    response = test_client.patch(f"/api/articles/{article_id}", json={"is_read": False})
     assert response.status_code == 200
 
     article = response.json()
@@ -162,10 +160,7 @@ def test_mark_article_unread(test_client: TestClient, sample_articles, test_sess
 
 def test_update_article_not_found(test_client: TestClient):
     """Test updating a non-existent article returns 404."""
-    response = test_client.patch(
-        "/api/articles/99999",
-        json={"is_read": True}
-    )
+    response = test_client.patch("/api/articles/99999", json={"is_read": True})
     assert response.status_code == 404
 
 

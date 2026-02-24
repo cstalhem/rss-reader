@@ -1,5 +1,5 @@
-import { OllamaSection } from "@/components/settings/OllamaSection";
+import { redirect } from "next/navigation";
 
 export default function OllamaPage() {
-  return <OllamaSection />;
+  redirect("/settings/llm-providers");
 }

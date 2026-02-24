@@ -7,6 +7,7 @@ import {
   createListCollection,
   Flex,
   Grid,
+  Input,
   Portal,
   Select,
   Stack,
@@ -127,6 +128,15 @@ export function ModelSelector({
     onConfigChange(next);
   };
 
+  const handleBaseUrlChange = (value: string) => {
+    onConfigChange({ ...config, base_url: value });
+  };
+
+  const handlePortChange = (value: string) => {
+    const parsed = Number.parseInt(value, 10);
+    onConfigChange({ ...config, port: Number.isNaN(parsed) ? config.port : parsed });
+  };
+
   const modelCollection = createListCollection({
     items: models.map((m) => ({
       label: modelLabel(m),
@@ -136,6 +146,37 @@ export function ModelSelector({
 
   return (
     <Stack gap={4}>
+      {/* Sub-section heading */}
+      <Text fontSize="sm" fontWeight="medium" color="fg.muted">
+        Endpoint
+      </Text>
+      <Grid templateColumns={{ base: "1fr", md: "2fr 1fr" }} gap={4}>
+        <Box>
+          <Text fontSize="sm" fontWeight="medium" mb={1.5}>
+            Base URL
+          </Text>
+          <Input
+            size="sm"
+            value={config.base_url}
+            placeholder="http://localhost"
+            onChange={(e) => handleBaseUrlChange(e.target.value)}
+          />
+        </Box>
+        <Box>
+          <Text fontSize="sm" fontWeight="medium" mb={1.5}>
+            Port
+          </Text>
+          <Input
+            size="sm"
+            type="number"
+            min={1}
+            max={65535}
+            value={config.port}
+            onChange={(e) => handlePortChange(e.target.value)}
+          />
+        </Box>
+      </Grid>
+
       {/* Sub-section heading */}
       <Text fontSize="sm" fontWeight="medium" color="fg.muted">
         Active Model

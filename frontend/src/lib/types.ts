@@ -88,6 +88,8 @@ export interface OllamaModel {
 }
 
 export interface OllamaConfig {
+  base_url: string;
+  port: number;
   categorization_model: string | null;
   scoring_model: string | null;
   use_separate_models: boolean;
@@ -121,6 +123,10 @@ export interface ScoringStatus {
   blocked: number;
   current_article_id: number | null;
   phase: string;
+  categorization_ready: boolean;
+  categorization_ready_reason: string | null;
+  score_ready: boolean;
+  score_ready_reason: string | null;
   scoring_ready: boolean;
   scoring_ready_reason: string | null;
 }

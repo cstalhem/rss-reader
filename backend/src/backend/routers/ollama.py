@@ -2,16 +2,21 @@
 
 import json
 import logging
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from backend import ollama_service
-from backend.config import get_settings
-from backend.deps import get_session
-from backend.models import UserPreferences
+from backend.deps import (
+    get_ollama_provider_config,
+    get_or_create_preferences,
+    get_session,
+    sync_ollama_task_routes,
+    upsert_ollama_provider_config,
+)
+from backend.llm_providers.ollama import OllamaProviderConfig
+from backend.llm_providers.registry import get_provider
 from backend.schemas import (
     OllamaConfigResponse,
     OllamaConfigUpdate,
@@ -22,22 +27,25 @@ from backend.schemas import (
 )
 
 logger = logging.getLogger(__name__)
-settings = get_settings()
 
 router = APIRouter(prefix="/api/ollama", tags=["ollama"])
 
 
 @router.get("/health", response_model=OllamaHealthResponse)
-async def ollama_health():
+async def ollama_health(session: Session = Depends(get_session)):
     """Check Ollama server connectivity, version, and latency."""
-    result = await ollama_service.check_health(settings.ollama.host)
+    config = get_ollama_provider_config(session)
+    provider = get_provider("ollama")
+    result = await provider.health(config.endpoint)
     return OllamaHealthResponse(**result)
 
 
 @router.get("/models", response_model=list[OllamaModelResponse])
-async def ollama_models():
+async def ollama_models(session: Session = Depends(get_session)):
     """List locally available Ollama models with loaded status."""
-    models = await ollama_service.list_models(settings.ollama.host)
+    config = get_ollama_provider_config(session)
+    provider = get_provider("ollama")
+    models = await provider.list_models(config.endpoint)
     return [OllamaModelResponse(**m) for m in models]
 
 
@@ -45,22 +53,15 @@ async def ollama_models():
 def get_ollama_config(
     session: Session = Depends(get_session),
 ):
-    """Get runtime Ollama model config from UserPreferences."""
-    preferences = session.exec(select(UserPreferences)).first()
-
-    if not preferences:
-        return OllamaConfigResponse(
-            categorization_model=None,
-            scoring_model=None,
-            use_separate_models=False,
-            thinking=False,
-        )
-
+    """Get runtime Ollama config from provider config storage."""
+    config = get_ollama_provider_config(session)
     return OllamaConfigResponse(
-        categorization_model=preferences.ollama_categorization_model,
-        scoring_model=preferences.ollama_scoring_model,
-        use_separate_models=preferences.ollama_use_separate_models,
-        thinking=preferences.ollama_thinking,
+        base_url=config.base_url,
+        port=config.port,
+        categorization_model=config.categorization_model,
+        scoring_model=config.scoring_model,
+        use_separate_models=config.use_separate_models,
+        thinking=config.thinking,
     )
 
 
@@ -69,34 +70,30 @@ def update_ollama_config(
     update: OllamaConfigUpdate,
     session: Session = Depends(get_session),
 ):
-    """Save model choices to UserPreferences. Rescoring is a separate POST /api/scoring."""
-    preferences = session.exec(select(UserPreferences)).first()
+    """Save Ollama provider config. Rescoring is a separate POST /api/scoring."""
+    preferences = get_or_create_preferences(session)
+    config = OllamaProviderConfig(
+        base_url=update.base_url,
+        port=update.port,
+        categorization_model=update.categorization_model,
+        scoring_model=update.scoring_model,
+        use_separate_models=update.use_separate_models,
+        thinking=update.thinking,
+    )
+    upsert_ollama_provider_config(session, config)
+    sync_ollama_task_routes(session, config)
 
-    if not preferences:
-        preferences = UserPreferences(
-            interests="",
-            anti_interests="",
-            updated_at=datetime.now(),
-        )
-        session.add(preferences)
-        session.commit()
-        session.refresh(preferences)
-
-    preferences.ollama_categorization_model = update.categorization_model
-    preferences.ollama_scoring_model = update.scoring_model
-    preferences.ollama_use_separate_models = update.use_separate_models
-    preferences.ollama_thinking = update.thinking
-    preferences.updated_at = datetime.now()
-
+    preferences.active_llm_provider = "ollama"
     session.add(preferences)
     session.commit()
-    session.refresh(preferences)
 
     return OllamaConfigResponse(
-        categorization_model=preferences.ollama_categorization_model,
-        scoring_model=preferences.ollama_scoring_model,
-        use_separate_models=preferences.ollama_use_separate_models,
-        thinking=preferences.ollama_thinking,
+        base_url=config.base_url,
+        port=config.port,
+        categorization_model=config.categorization_model,
+        scoring_model=config.scoring_model,
+        use_separate_models=config.use_separate_models,
+        thinking=config.thinking,
     )
 
 
@@ -122,13 +119,17 @@ def get_ollama_prompts():
 
 
 @router.post("/downloads")
-async def start_download(request: PullModelRequest):
+async def start_download(
+    request: PullModelRequest,
+    session: Session = Depends(get_session),
+):
     """Start downloading a model from Ollama registry. Returns SSE stream."""
+    config = get_ollama_provider_config(session)
 
     async def event_stream():
         try:
             async for chunk in ollama_service.pull_model_stream(
-                settings.ollama.host, request.model
+                config.endpoint, request.model
             ):
                 yield f"data: {json.dumps(chunk)}\n\n"
             yield f"data: {json.dumps({'status': 'complete'})}\n\n"
@@ -152,10 +153,14 @@ async def get_download_status():
 
 
 @router.delete("/models/{name:path}")
-async def ollama_delete_model(name: str):
+async def ollama_delete_model(
+    name: str,
+    session: Session = Depends(get_session),
+):
     """Delete a model from Ollama. Uses path type for names with colons."""
+    config = get_ollama_provider_config(session)
     try:
-        result = await ollama_service.delete_model(settings.ollama.host, name)
+        result = await ollama_service.delete_model(config.endpoint, name)
         return result
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e

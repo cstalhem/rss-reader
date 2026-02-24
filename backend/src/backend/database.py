@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 from sqlalchemy import event, text
 from sqlmodel import Session, SQLModel, create_engine
@@ -163,11 +164,32 @@ def _seed_default_categories(conn):
     logger.info(f"Seeded {len(slug_to_cat)} categories from default hierarchy")
 
 
+def _run_alembic_migrations():
+    """Apply Alembic migrations for schema/data changes after schema_version v2."""
+    from alembic.config import Config
+
+    from alembic import command
+
+    project_root = Path(__file__).resolve().parents[2]
+    alembic_ini = project_root / "alembic.ini"
+    if not alembic_ini.exists():
+        logger.warning("Alembic config not found: %s", alembic_ini)
+        return
+
+    alembic_cfg = Config(str(alembic_ini))
+    alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
+    command.upgrade(alembic_cfg, "head")
+
+
 # --- Startup ---
 
 
 def create_db_and_tables():
-    """Initialize database tables and run versioned migrations."""
+    """Initialize database tables and run migrations.
+
+    Note: `schema_version` remains for historical bootstrap (v1/v2 only).
+    New schema/data changes are managed with Alembic.
+    """
     SQLModel.metadata.create_all(engine)
 
     with engine.begin() as conn:
@@ -199,5 +221,7 @@ def create_db_and_tables():
                     )
                 )
             _set_schema_version(conn, 2)
+
+    _run_alembic_migrations()
 
     logger.info(f"Database ready at schema version {CURRENT_SCHEMA_VERSION}")

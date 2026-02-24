@@ -326,12 +326,12 @@ export function ArticleList({
               <Alert.Title fontSize='xs'>
                 {scoringStatus.scoring_ready_reason}
                 {scoringStatus.scoring_ready_reason.includes(
-                  "Ollama settings",
+                  "LLM Providers",
                 ) && (
                   <>
                     {" "}
                     <Link asChild color='fg.warning' textDecoration='underline'>
-                      <NextLink href='/settings/ollama'>
+                      <NextLink href='/settings/llm-providers'>
                         Configure &rarr;
                       </NextLink>
                     </Link>

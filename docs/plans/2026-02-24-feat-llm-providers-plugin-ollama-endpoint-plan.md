@@ -1,7 +1,7 @@
 ---
 title: "feat: Rename Ollama Settings to LLM Providers with Pluggable Provider Architecture"
 type: feat
-status: active
+status: completed
 date: 2026-02-24
 ---
 
@@ -435,48 +435,48 @@ Readiness status should expose per-task readiness:
 
 ### Functional requirements
 
-- [ ] `frontend/src/lib/constants.ts` exposes `LLM Providers` section label and `llm-providers` route.
-- [ ] `frontend/src/app/settings/llm-providers/page.tsx` exists and renders the existing Ollama configuration experience with updated naming.
-- [ ] `frontend/src/app/settings/ollama/page.tsx` redirects to `/settings/llm-providers`.
-- [ ] `frontend/src/components/article/ArticleList.tsx` warning copy/link references LLM Providers.
-- [ ] `backend/src/backend/models.py` includes `active_llm_provider` in `UserPreferences` and a new `LLMProviderConfig` model/table.
-- [ ] Multiple provider configs can coexist in `llm_provider_configs` while task routes still default to Ollama in this phase.
-- [ ] `backend/src/backend/models.py` includes new `LLMTaskRoute` model/table (`task`, `provider`, `model`).
-- [ ] Alembic migrations backfill Ollama config from legacy `ollama_*` columns into `llm_provider_configs`, seed `llm_task_routes` defaults, and are safe/idempotent for existing installs.
-- [ ] `backend/src/backend/schemas.py` and `backend/src/backend/routers/ollama.py` include endpoint URL + port in config read/write payloads, persisted via `llm_provider_configs`.
-- [ ] `backend/src/backend/scoring_queue.py` and `backend/src/backend/routers/scoring.py` resolve provider/model from `llm_task_routes` + `llm_provider_configs`, not static config host.
-- [ ] Provider registry package exists (`backend/src/backend/llm_providers/*`) with Ollama provider implementation used by orchestration.
-- [ ] Route resolution returns deterministic typed reasons and surfaces per-task readiness in scoring status responses.
-- [ ] DB constraints enforce uniqueness on provider/task rows and prevent orphaned task-route references.
+- [x] `frontend/src/lib/constants.ts` exposes `LLM Providers` section label and `llm-providers` route.
+- [x] `frontend/src/app/settings/llm-providers/page.tsx` exists and renders the existing Ollama configuration experience with updated naming.
+- [x] `frontend/src/app/settings/ollama/page.tsx` redirects to `/settings/llm-providers`.
+- [x] `frontend/src/components/article/ArticleList.tsx` warning copy/link references LLM Providers.
+- [x] `backend/src/backend/models.py` includes `active_llm_provider` in `UserPreferences` and a new `LLMProviderConfig` model/table.
+- [x] Multiple provider configs can coexist in `llm_provider_configs` while task routes still default to Ollama in this phase.
+- [x] `backend/src/backend/models.py` includes new `LLMTaskRoute` model/table (`task`, `provider`, `model`).
+- [x] Alembic migrations backfill Ollama config from legacy `ollama_*` columns into `llm_provider_configs`, seed `llm_task_routes` defaults, and are safe/idempotent for existing installs.
+- [x] `backend/src/backend/schemas.py` and `backend/src/backend/routers/ollama.py` include endpoint URL + port in config read/write payloads, persisted via `llm_provider_configs`.
+- [x] `backend/src/backend/scoring_queue.py` and `backend/src/backend/routers/scoring.py` resolve provider/model from `llm_task_routes` + `llm_provider_configs`, not static config host.
+- [x] Provider registry package exists (`backend/src/backend/llm_providers/*`) with Ollama provider implementation used by orchestration.
+- [x] Route resolution returns deterministic typed reasons and surfaces per-task readiness in scoring status responses.
+- [x] DB constraints enforce uniqueness on provider/task rows and prevent orphaned task-route references.
 
 ### Non-functional requirements
 
-- [ ] Existing Ollama behavior (health check, model list, model download/delete, prompts, rescore flow) remains unchanged.
-- [ ] No new long DB write transactions are introduced around LLM network calls.
-- [ ] Validation errors are deterministic and user-readable.
+- [x] Existing Ollama behavior (health check, model list, model download/delete, prompts, rescore flow) remains unchanged.
+- [x] No new long DB write transactions are introduced around LLM network calls.
+- [x] Validation errors are deterministic and user-readable.
 
 ### Quality gates
 
-- [ ] Backend tests updated/added:
+- [x] Backend tests updated/added:
   - `backend/tests/test_router_smoke.py`
   - new config migration and scoring-readiness endpoint tests.
-- [ ] Migration tests include:
+- [x] Migration tests include:
   - upgrade from pre-feature schema to `head`,
   - repeated `upgrade head` at `head` is a no-op,
   - legacy-column backfill correctness,
   - seeded task-route correctness.
-- [ ] Database changes in this feature are delivered as Alembic revisions (not new startup schema-mutation blocks for these tables/routes).
-- [ ] Alembic `env.py` is wired to SQLModel metadata and model imports so `--autogenerate` sees all tables.
-- [ ] CI (or equivalent local gate) runs:
+- [x] Database changes in this feature are delivered as Alembic revisions (not new startup schema-mutation blocks for these tables/routes).
+- [x] Alembic `env.py` is wired to SQLModel metadata and model imports so `--autogenerate` sees all tables.
+- [x] CI (or equivalent local gate) runs:
   - `alembic upgrade head`,
   - `alembic check`,
   - `alembic current --check-heads`.
-- [ ] Autogenerated revisions are manually reviewed/edited before merge (no blind autogenerate commits).
-- [ ] Per-task route tests include:
+- [x] Autogenerated revisions are manually reviewed/edited before merge (no blind autogenerate commits).
+- [x] Per-task route tests include:
   - provider config missing,
   - provider disabled,
   - model missing/deprecated mapping behavior.
-- [ ] Frontend tests/lint pass for updated routes/types/hooks/components.
+- [x] Frontend tests/lint pass for updated routes/types/hooks/components.
 - [ ] Manual verification via Rodney CLI of settings rename + redirect + save flow.
 
 ## Success Metrics
@@ -538,29 +538,29 @@ Deferring Alembic is possible, but adds avoidable rework:
 
 ## Implementation Suggestions
 
-- [ ] `backend/src/backend/llm_providers/base.py`: define provider protocol.
-- [ ] `backend/src/backend/llm_providers/registry.py`: central provider lookup.
-- [ ] `backend/src/backend/llm_providers/ollama.py`: wrap existing Ollama service/scoring functions.
-- [ ] `backend/src/backend/models.py`: add `active_llm_provider` (UserPreferences) and new `LLMProviderConfig` table model.
-- [ ] `backend/src/backend/models.py`: add `LLMTaskRoute` table model.
-- [ ] `backend/alembic.ini` + `backend/alembic/env.py`: bootstrap Alembic with SQLModel metadata target.
-- [ ] `backend/alembic/env.py`: import model modules and set `target_metadata = SQLModel.metadata`.
-- [ ] `backend/alembic/env.py`: enable `render_as_batch=True` for SQLite autogenerate compatibility.
-- [ ] `backend/alembic/versions/*`: add schema revision for provider config and task route tables + `active_llm_provider`.
-- [ ] `backend/alembic/versions/*`: add data revision for legacy Ollama backfill and task-route seeding.
-- [ ] `backend/src/backend/database.py`: stop adding new startup schema-mutation blocks for this feature and document Alembic as migration path.
-- [ ] `backend/src/backend/schemas.py`: extend `OllamaConfigResponse` + `OllamaConfigUpdate`.
-- [ ] `backend/src/backend/routers/ollama.py`: load/save endpoint/model values via `LLMProviderConfig` (`provider='ollama'`), with legacy fallback read path during transition.
-- [ ] `backend/src/backend/routers/scoring.py`: readiness check resolves provider/model per task route and provider config record.
-- [ ] `backend/src/backend/scoring_queue.py`: queue processing resolves provider/model per task route and provider config record.
-- [ ] `backend/src/backend/routers/ollama.py`: on save, optionally sync Ollama route models (`categorization`, `scoring`) to preserve current UX behavior.
-- [ ] `frontend/src/lib/types.ts`: extend `OllamaConfig` with endpoint fields.
-- [ ] `frontend/src/lib/api.ts`: include new config fields in save/fetch payload use.
-- [ ] `frontend/src/lib/constants.ts`: section id/label/href rename.
-- [ ] `frontend/src/app/settings/llm-providers/page.tsx`: new route entry.
-- [ ] `frontend/src/app/settings/ollama/page.tsx`: compatibility redirect.
-- [ ] `frontend/src/components/settings/OllamaSection.tsx`: heading/copy changes and endpoint fields UI.
-- [ ] `frontend/src/components/article/ArticleList.tsx`: readiness link text/path update.
+- [x] `backend/src/backend/llm_providers/base.py`: define provider protocol.
+- [x] `backend/src/backend/llm_providers/registry.py`: central provider lookup.
+- [x] `backend/src/backend/llm_providers/ollama.py`: wrap existing Ollama service/scoring functions.
+- [x] `backend/src/backend/models.py`: add `active_llm_provider` (UserPreferences) and new `LLMProviderConfig` table model.
+- [x] `backend/src/backend/models.py`: add `LLMTaskRoute` table model.
+- [x] `backend/alembic.ini` + `backend/alembic/env.py`: bootstrap Alembic with SQLModel metadata target.
+- [x] `backend/alembic/env.py`: import model modules and set `target_metadata = SQLModel.metadata`.
+- [x] `backend/alembic/env.py`: enable `render_as_batch=True` for SQLite autogenerate compatibility.
+- [x] `backend/alembic/versions/*`: add schema revision for provider config and task route tables + `active_llm_provider`.
+- [x] `backend/alembic/versions/*`: add data revision for legacy Ollama backfill and task-route seeding.
+- [x] `backend/src/backend/database.py`: stop adding new startup schema-mutation blocks for this feature and document Alembic as migration path.
+- [x] `backend/src/backend/schemas.py`: extend `OllamaConfigResponse` + `OllamaConfigUpdate`.
+- [x] `backend/src/backend/routers/ollama.py`: load/save endpoint/model values via `LLMProviderConfig` (`provider='ollama'`), with legacy fallback read path during transition.
+- [x] `backend/src/backend/routers/scoring.py`: readiness check resolves provider/model per task route and provider config record.
+- [x] `backend/src/backend/scoring_queue.py`: queue processing resolves provider/model per task route and provider config record.
+- [x] `backend/src/backend/routers/ollama.py`: on save, optionally sync Ollama route models (`categorization`, `scoring`) to preserve current UX behavior.
+- [x] `frontend/src/lib/types.ts`: extend `OllamaConfig` with endpoint fields.
+- [x] `frontend/src/lib/api.ts`: include new config fields in save/fetch payload use.
+- [x] `frontend/src/lib/constants.ts`: section id/label/href rename.
+- [x] `frontend/src/app/settings/llm-providers/page.tsx`: new route entry.
+- [x] `frontend/src/app/settings/ollama/page.tsx`: compatibility redirect.
+- [x] `frontend/src/components/settings/OllamaSection.tsx`: heading/copy changes and endpoint fields UI.
+- [x] `frontend/src/components/article/ArticleList.tsx`: readiness link text/path update.
 
 ### Research Insights
 

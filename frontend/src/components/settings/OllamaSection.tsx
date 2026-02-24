@@ -67,7 +67,7 @@ export function OllamaSection() {
             });
           } else {
             toaster.create({
-              title: "Model configuration saved",
+              title: "Provider configuration saved",
               type: "success",
             });
           }
@@ -84,8 +84,8 @@ export function OllamaSection() {
   );
 
   return (
-    <Stack as="section" aria-label="Ollama" gap={6}>
-      <SettingsPageHeader title="Ollama">
+    <Stack as="section" aria-label="LLM Providers" gap={6}>
+      <SettingsPageHeader title="LLM Providers">
         <OllamaHealthBadge health={health} isLoading={healthLoading} />
       </SettingsPageHeader>
 
@@ -96,7 +96,7 @@ export function OllamaSection() {
               <LuServerOff size={40} />
             </EmptyState.Indicator>
             <EmptyState.Description>
-              Ollama is not connected. Start Ollama to configure models and prompts.
+              Ollama provider is not connected. Start Ollama to configure models and prompts.
             </EmptyState.Description>
           </EmptyState.Content>
         </EmptyState.Root>
