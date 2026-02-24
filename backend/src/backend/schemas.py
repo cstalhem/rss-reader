@@ -84,10 +84,12 @@ class FeedCreate(BaseModel):
 class FeedUpdate(BaseModel):
     title: str | None = None
     display_order: int | None = None
+    folder_id: int | None = None
 
 
 class FeedReorder(BaseModel):
     feed_ids: list[int]
+    folder_id: int | None = None
 
 
 class FeedResponse(BaseModel):
@@ -96,6 +98,34 @@ class FeedResponse(BaseModel):
     title: str
     display_order: int
     last_fetched_at: datetime | None
+    unread_count: int
+    folder_id: int | None
+    folder_name: str | None
+
+
+class FeedFolderCreate(BaseModel):
+    name: str
+    feed_ids: list[int] = Field(default_factory=list)
+
+
+class FeedFolderUpdate(BaseModel):
+    name: str | None = None
+    display_order: int | None = None
+
+
+class FeedFolderReorder(BaseModel):
+    folder_ids: list[int]
+
+
+class FeedFolderDeleteRequest(BaseModel):
+    delete_feeds: bool = False
+
+
+class FeedFolderResponse(BaseModel):
+    id: int
+    name: str
+    display_order: int
+    created_at: datetime
     unread_count: int
 
 

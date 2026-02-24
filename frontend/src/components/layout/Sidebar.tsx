@@ -1,79 +1,86 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
+  Badge,
   Box,
+  Circle,
   Flex,
   Heading,
   IconButton,
   Text,
-  Badge,
-  Circle,
 } from "@chakra-ui/react";
 import {
+  LuChevronDown,
   LuChevronLeft,
   LuChevronRight,
+  LuFolder,
+  LuFolderPlus,
+  LuInbox,
   LuPlus,
   LuRss,
-  LuInbox,
 } from "react-icons/lu";
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  arrayMove,
-  sortableKeyboardCoordinates,
-} from "@dnd-kit/sortable";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useFeeds } from "@/hooks/useFeeds";
 import {
-  useReorderFeeds,
   useDeleteFeed,
   useMarkAllRead,
   useUpdateFeed,
 } from "@/hooks/useFeedMutations";
+import { useCreateFeedFolder, useFeedFolders } from "@/hooks/useFeedFolders";
 import { EmptyFeedState } from "@/components/feed/EmptyFeedState";
 import { FeedRow } from "@/components/feed/FeedRow";
+import { MoveToFolderDialog } from "@/components/feed/MoveToFolderDialog";
 import { DeleteFeedDialog } from "@/components/feed/DeleteFeedDialog";
 import { SidebarSettingsTheme } from "@/components/ui/sidebar-settings-theme";
-import { Feed } from "@/lib/types";
+import {
+  ALL_FEEDS_SELECTION,
+  Feed,
+  FeedSelection,
+  isFeedSelected,
+} from "@/lib/types";
 import { fetchNewCategoryCount } from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
-import { SIDEBAR_WIDTH_COLLAPSED, SIDEBAR_WIDTH_EXPANDED, NEW_COUNT_POLL_INTERVAL } from "@/lib/constants";
+import {
+  NEW_COUNT_POLL_INTERVAL,
+  SIDEBAR_WIDTH_COLLAPSED,
+  SIDEBAR_WIDTH_EXPANDED,
+} from "@/lib/constants";
+import { shouldShowFolderUnreadBadge } from "./feedSelection";
+
+type RootItem =
+  | { kind: "folder"; order: number; id: number }
+  | { kind: "feed"; order: number; id: number };
 
 interface SidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
-  selectedFeedId: number | null;
-  onSelectFeed: (feedId: number | null) => void;
+  selection: FeedSelection;
+  onSelect: (selection: FeedSelection) => void;
   onAddFeedClick: () => void;
+  onAddFolderClick: () => void;
 }
 
 export function Sidebar({
   isCollapsed,
   onToggle,
-  selectedFeedId,
-  onSelectFeed,
+  selection,
+  onSelect,
   onAddFeedClick,
+  onAddFolderClick,
 }: SidebarProps) {
-  const { data: feeds, isLoading } = useFeeds();
-  const reorderFeeds = useReorderFeeds();
+  const { data: feeds, isLoading: isFeedsLoading } = useFeeds();
+  const { data: folders, isLoading: isFoldersLoading } = useFeedFolders();
   const deleteFeed = useDeleteFeed();
   const markAllRead = useMarkAllRead();
   const updateFeed = useUpdateFeed();
+  const createFolder = useCreateFeedFolder();
 
   const [feedToDelete, setFeedToDelete] = useState<Feed | null>(null);
+  const [feedToMove, setFeedToMove] = useState<Feed | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Record<number, boolean>>({});
 
-  // New category count for settings dot badge (moved from Header)
   const { data: newCatCount } = useQuery({
     queryKey: queryKeys.categories.newCount,
     queryFn: fetchNewCategoryCount,
@@ -81,53 +88,108 @@ export function Sidebar({
   });
   const hasNewCategories = (newCatCount?.count ?? 0) > 0;
 
-  // Calculate aggregate unread count
   const totalUnread = feeds?.reduce((sum, feed) => sum + feed.unread_count, 0) ?? 0;
 
-  // Configure drag sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
+  const feedsByFolder = useMemo(() => {
+    const grouped = new Map<number, Feed[]>();
+    for (const feed of feeds ?? []) {
+      if (feed.folder_id === null) continue;
+      const list = grouped.get(feed.folder_id) ?? [];
+      list.push(feed);
+      grouped.set(feed.folder_id, list);
+    }
+
+    for (const list of grouped.values()) {
+      list.sort((a, b) => a.display_order - b.display_order || a.id - b.id);
+    }
+
+    return grouped;
+  }, [feeds]);
+
+  const ungroupedFeeds = useMemo(
+    () =>
+      (feeds ?? [])
+        .filter((feed) => feed.folder_id === null)
+        .sort((a, b) => a.display_order - b.display_order || a.id - b.id),
+    [feeds]
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
+  const orderedFolders = useMemo(
+    () =>
+      [...(folders ?? [])].sort(
+        (a, b) => a.display_order - b.display_order || a.id - b.id
+      ),
+    [folders]
+  );
 
-    if (!over || !feeds || active.id === over.id) return;
+  const rootItems = useMemo<RootItem[]>(() => {
+    const items: RootItem[] = [
+      ...orderedFolders.map((folder) => ({
+        kind: "folder" as const,
+        order: folder.display_order,
+        id: folder.id,
+      })),
+      ...ungroupedFeeds.map((feed) => ({
+        kind: "feed" as const,
+        order: feed.display_order,
+        id: feed.id,
+      })),
+    ];
 
-    const oldIndex = feeds.findIndex((f) => f.id === active.id);
-    const newIndex = feeds.findIndex((f) => f.id === over.id);
+    return items.sort((a, b) => {
+      if (a.order !== b.order) return a.order - b.order;
+      if (a.kind !== b.kind) return a.kind === "folder" ? -1 : 1;
+      return a.id - b.id;
+    });
+  }, [orderedFolders, ungroupedFeeds]);
 
-    const reorderedFeeds = arrayMove(feeds, oldIndex, newIndex);
-    const feedIds = reorderedFeeds.map((f) => f.id);
-
-    reorderFeeds.mutate(feedIds);
-  };
-
-  const handleDelete = (feed: Feed) => {
-    setFeedToDelete(feed);
-  };
+  const isLoading = isFeedsLoading || isFoldersLoading;
+  const hasItems = (feeds?.length ?? 0) + (folders?.length ?? 0) > 0;
 
   const handleDeleteConfirm = (feedId: number) => {
     deleteFeed.mutate(feedId);
-    if (selectedFeedId === feedId) {
-      onSelectFeed(null);
+    if (isFeedSelected(selection, feedId)) {
+      onSelect(ALL_FEEDS_SELECTION);
     }
     setFeedToDelete(null);
+  };
+
+  const handleRename = (id: number, title: string) => {
+    updateFeed.mutate({ id, data: { title } });
   };
 
   const handleMarkAllRead = (feedId: number) => {
     markAllRead.mutate(feedId);
   };
 
-  const handleRename = (id: number, title: string) => {
-    updateFeed.mutate({ id, data: { title } });
+  const handleMoveFeed = (folderId: number | null) => {
+    if (!feedToMove) return;
+    updateFeed.mutate({
+      id: feedToMove.id,
+      data: { folder_id: folderId },
+    });
+    setFeedToMove(null);
+  };
+
+  const handleCreateFolderAndMove = async (folderName: string) => {
+    if (!feedToMove) return;
+
+    try {
+      await createFolder.mutateAsync({
+        name: folderName,
+        feedIds: [feedToMove.id],
+      });
+      setFeedToMove(null);
+    } catch {
+      // Global mutation error handling displays feedback.
+    }
+  };
+
+  const toggleFolderExpanded = (folderId: number) => {
+    setExpandedFolders((previous) => ({
+      ...previous,
+      [folderId]: !(previous[folderId] ?? true),
+    }));
   };
 
   return (
@@ -146,7 +208,6 @@ export function Sidebar({
       zIndex={5}
     >
       <Flex direction="column" height="100%">
-        {/* Top: Logo/brand */}
         <Flex
           alignItems="center"
           justifyContent={isCollapsed ? "center" : "flex-start"}
@@ -171,51 +232,75 @@ export function Sidebar({
           )}
         </Flex>
 
-        {/* Middle: Feeds (scrollable) */}
         <Flex direction="column" flex={1} overflow="hidden">
           {isCollapsed ? (
-            /* Collapsed: icon-only feed list */
             <Box overflowY="auto" flex={1} py={2}>
-              {/* All Articles icon */}
               <Flex
                 justifyContent="center"
                 py={2}
                 cursor="pointer"
-                bg={selectedFeedId === null ? "accent.subtle" : "transparent"}
+                bg={selection.kind === "all" ? "accent.subtle" : "transparent"}
                 _hover={{ bg: "bg.muted" }}
-                onClick={() => onSelectFeed(null)}
+                onClick={() => onSelect(ALL_FEEDS_SELECTION)}
                 title="All Articles"
               >
                 <LuInbox size={18} />
               </Flex>
 
-              {/* Feed initials */}
-              {feeds?.map((feed) => (
-                <Flex
-                  key={feed.id}
-                  justifyContent="center"
-                  py={2}
-                  cursor="pointer"
-                  bg={selectedFeedId === feed.id ? "accent.subtle" : "transparent"}
-                  _hover={{ bg: "bg.muted" }}
-                  onClick={() => onSelectFeed(feed.id)}
-                  title={feed.title}
-                >
-                  <Circle
-                    size="7"
-                    bg={feed.unread_count > 0 ? "accent.subtle" : "bg.muted"}
-                    fontSize="xs"
-                    fontWeight="semibold"
+              {rootItems.map((item) => {
+                if (item.kind === "folder") {
+                  const folder = orderedFolders.find((entry) => entry.id === item.id);
+                  if (!folder) return null;
+
+                  return (
+                    <Flex
+                      key={`folder-${folder.id}`}
+                      justifyContent="center"
+                      py={2}
+                      cursor="pointer"
+                      bg={
+                        selection.kind === "folder" &&
+                        selection.folderId === folder.id
+                          ? "accent.subtle"
+                          : "transparent"
+                      }
+                      _hover={{ bg: "bg.muted" }}
+                      onClick={() => onSelect({ kind: "folder", folderId: folder.id })}
+                      title={folder.name}
+                    >
+                      <LuFolder size={16} />
+                    </Flex>
+                  );
+                }
+
+                const feed = ungroupedFeeds.find((entry) => entry.id === item.id);
+                if (!feed) return null;
+
+                return (
+                  <Flex
+                    key={`feed-${feed.id}`}
+                    justifyContent="center"
+                    py={2}
+                    cursor="pointer"
+                    bg={isFeedSelected(selection, feed.id) ? "accent.subtle" : "transparent"}
+                    _hover={{ bg: "bg.muted" }}
+                    onClick={() => onSelect({ kind: "feed", feedId: feed.id })}
+                    title={feed.title}
                   >
-                    {feed.title.charAt(0).toUpperCase()}
-                  </Circle>
-                </Flex>
-              ))}
+                    <Circle
+                      size="7"
+                      bg={feed.unread_count > 0 ? "accent.subtle" : "bg.muted"}
+                      fontSize="xs"
+                      fontWeight="semibold"
+                    >
+                      {feed.title.charAt(0).toUpperCase()}
+                    </Circle>
+                  </Flex>
+                );
+              })}
             </Box>
           ) : (
-            /* Expanded: full feed list */
             <>
-              {/* Header with "Feeds" label and + button */}
               <Flex
                 alignItems="center"
                 justifyContent="space-between"
@@ -227,27 +312,36 @@ export function Sidebar({
                 <Text fontSize="sm" fontWeight="semibold" color="fg.muted">
                   Feeds
                 </Text>
-                <IconButton
-                  aria-label="Add feed"
-                  onClick={onAddFeedClick}
-                  size="sm"
-                  variant="ghost"
-                  colorPalette="accent"
-                >
-                  <LuPlus />
-                </IconButton>
+                <Flex alignItems="center" gap={1}>
+                  <IconButton
+                    aria-label="Create folder"
+                    onClick={onAddFolderClick}
+                    size="sm"
+                    variant="ghost"
+                    colorPalette="accent"
+                  >
+                    <LuFolderPlus />
+                  </IconButton>
+                  <IconButton
+                    aria-label="Add feed"
+                    onClick={onAddFeedClick}
+                    size="sm"
+                    variant="ghost"
+                    colorPalette="accent"
+                  >
+                    <LuPlus />
+                  </IconButton>
+                </Flex>
               </Flex>
 
-              {/* Feed list */}
               {isLoading ? (
                 <Box px={4} py={3}>
                   <Text fontSize="sm" color="fg.muted">
                     Loading...
                   </Text>
                 </Box>
-              ) : feeds && feeds.length > 0 ? (
+              ) : hasItems ? (
                 <Box overflowY="auto" flex={1}>
-                  {/* "All Articles" row */}
                   <Flex
                     colorPalette="accent"
                     alignItems="center"
@@ -255,12 +349,12 @@ export function Sidebar({
                     px={4}
                     py={3}
                     cursor="pointer"
-                    bg={selectedFeedId === null ? "colorPalette.subtle" : "transparent"}
+                    bg={selection.kind === "all" ? "colorPalette.subtle" : "transparent"}
                     _hover={{ bg: "bg.muted" }}
-                    onClick={() => onSelectFeed(null)}
+                    onClick={() => onSelect(ALL_FEEDS_SELECTION)}
                     borderLeftWidth="3px"
                     borderLeftColor={
-                      selectedFeedId === null ? "colorPalette.solid" : "transparent"
+                      selection.kind === "all" ? "colorPalette.solid" : "transparent"
                     }
                   >
                     <Text fontSize="sm" fontWeight="medium">
@@ -273,30 +367,100 @@ export function Sidebar({
                     )}
                   </Flex>
 
-                  {/* Feed rows with drag-to-reorder */}
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <SortableContext
-                      items={feeds.map((f) => f.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {feeds.map((feed) => (
-                        <FeedRow
-                          key={feed.id}
-                          feed={feed}
-                          isSelected={selectedFeedId === feed.id}
-                          onSelect={onSelectFeed}
-                          onDelete={handleDelete}
-                          onMarkAllRead={handleMarkAllRead}
-                          onRename={handleRename}
-                          isDraggable={true}
-                        />
-                      ))}
-                    </SortableContext>
-                  </DndContext>
+                  {rootItems.map((item) => {
+                    if (item.kind === "folder") {
+                      const folder = orderedFolders.find((entry) => entry.id === item.id);
+                      if (!folder) return null;
+
+                      const folderFeeds = feedsByFolder.get(folder.id) ?? [];
+                      const isExpanded = expandedFolders[folder.id] ?? true;
+                      const isSelected =
+                        selection.kind === "folder" && selection.folderId === folder.id;
+
+                      return (
+                        <Box key={`folder-${folder.id}`}>
+                          <Flex
+                            alignItems="center"
+                            gap={2}
+                            px={4}
+                            py={2.5}
+                            cursor="pointer"
+                            bg={isSelected ? "accent.subtle" : "transparent"}
+                            _hover={{ bg: isSelected ? "accent.subtle" : "bg.muted" }}
+                            borderLeftWidth="3px"
+                            borderLeftColor={isSelected ? "accent.solid" : "transparent"}
+                            onClick={() =>
+                              onSelect({ kind: "folder", folderId: folder.id })
+                            }
+                          >
+                            <LuFolder size={15} />
+                            <Text fontSize="sm" fontWeight="medium" flex={1} truncate>
+                              {folder.name}
+                            </Text>
+                            {shouldShowFolderUnreadBadge(folder.unread_count) ? (
+                              <Badge colorPalette="accent" size="sm">
+                                {folder.unread_count}
+                              </Badge>
+                            ) : null}
+                            <IconButton
+                              aria-label={
+                                isExpanded ? "Collapse folder" : "Expand folder"
+                              }
+                              size="xs"
+                              variant="ghost"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                toggleFolderExpanded(folder.id);
+                              }}
+                            >
+                              {isExpanded ? <LuChevronDown /> : <LuChevronRight />}
+                            </IconButton>
+                          </Flex>
+
+                          {isExpanded && (
+                            <Box pl={6}>
+                              {folderFeeds.map((feed) => (
+                                <FeedRow
+                                  key={feed.id}
+                                  feed={feed}
+                                  isSelected={isFeedSelected(selection, feed.id)}
+                                  onSelect={(feedId) =>
+                                    onSelect({ kind: "feed", feedId })
+                                  }
+                                  onDelete={setFeedToDelete}
+                                  onMarkAllRead={handleMarkAllRead}
+                                  onRename={handleRename}
+                                  onMove={setFeedToMove}
+                                  isDraggable={false}
+                                  showDesktopActions={true}
+                                  enableSwipeActions={false}
+                                />
+                              ))}
+                            </Box>
+                          )}
+                        </Box>
+                      );
+                    }
+
+                    const feed = ungroupedFeeds.find((entry) => entry.id === item.id);
+                    if (!feed) return null;
+
+                    return (
+                      <FeedRow
+                        key={`feed-${feed.id}`}
+                        feed={feed}
+                        isSelected={isFeedSelected(selection, feed.id)}
+                        onSelect={(feedId) => onSelect({ kind: "feed", feedId })}
+                        onDelete={setFeedToDelete}
+                        onMarkAllRead={handleMarkAllRead}
+                        onRename={handleRename}
+                        onMove={setFeedToMove}
+                        isDraggable={false}
+                        showDesktopActions={true}
+                        enableSwipeActions={false}
+                      />
+                    );
+                  })}
                 </Box>
               ) : (
                 <EmptyFeedState />
@@ -305,7 +469,6 @@ export function Sidebar({
           )}
         </Flex>
 
-        {/* Bottom: Pinned utilities */}
         <Flex
           direction="column"
           borderTopWidth="1px"
@@ -321,7 +484,6 @@ export function Sidebar({
             rowPx={2}
           />
 
-          {/* Collapse/expand toggle */}
           <Flex
             justifyContent={isCollapsed ? "center" : "flex-end"}
             px={isCollapsed ? 0 : 2}
@@ -338,11 +500,19 @@ export function Sidebar({
         </Flex>
       </Flex>
 
-      {/* Delete confirmation dialog */}
       <DeleteFeedDialog
         feed={feedToDelete}
         onClose={() => setFeedToDelete(null)}
         onConfirm={handleDeleteConfirm}
+      />
+      <MoveToFolderDialog
+        open={!!feedToMove}
+        onOpenChange={(open) => {
+          if (!open) setFeedToMove(null);
+        }}
+        folders={orderedFolders}
+        onMove={handleMoveFeed}
+        onCreateAndMove={handleCreateFolderAndMove}
       />
     </Box>
   );

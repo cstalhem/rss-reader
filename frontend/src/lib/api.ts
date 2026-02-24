@@ -3,6 +3,7 @@ import {
   ArticleListItem,
   Category,
   Feed,
+  FeedFolder,
   UserPreferences,
   OllamaHealth,
   OllamaModel,
@@ -40,6 +41,9 @@ export async function fetchArticles(
   }
   if (params.feed_id !== undefined) {
     searchParams.set("feed_id", params.feed_id.toString());
+  }
+  if (params.folder_id !== undefined) {
+    searchParams.set("folder_id", params.folder_id.toString());
   }
   if (params.sort_by !== undefined) {
     searchParams.set("sort_by", params.sort_by);
@@ -164,7 +168,7 @@ export async function deleteFeed(id: number): Promise<void> {
 
 export async function updateFeed(
   id: number,
-  data: { title?: string; display_order?: number }
+  data: { title?: string; display_order?: number; folder_id?: number | null }
 ): Promise<Feed> {
   const response = await fetch(`${API_BASE_URL}/api/feeds/${id}`, {
     method: "PATCH",
@@ -181,17 +185,101 @@ export async function updateFeed(
   return response.json();
 }
 
-export async function reorderFeeds(feedIds: number[]): Promise<void> {
+export async function reorderFeeds(
+  feedIds: number[],
+  folderId?: number | null
+): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/feeds/order`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ feed_ids: feedIds }),
+    body: JSON.stringify({ feed_ids: feedIds, folder_id: folderId ?? null }),
   });
 
   if (!response.ok) {
     await throwApiError(response, "Failed to reorder feeds");
+  }
+}
+
+export async function fetchFeedFolders(): Promise<FeedFolder[]> {
+  const response = await fetch(`${API_BASE_URL}/api/feed-folders`);
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to fetch feed folders");
+  }
+
+  return response.json();
+}
+
+export async function createFeedFolder(data: {
+  name: string;
+  feed_ids?: number[];
+}): Promise<FeedFolder> {
+  const response = await fetch(`${API_BASE_URL}/api/feed-folders`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: data.name,
+      feed_ids: data.feed_ids ?? [],
+    }),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to create feed folder");
+  }
+
+  return response.json();
+}
+
+export async function updateFeedFolder(
+  id: number,
+  data: { name?: string; display_order?: number }
+): Promise<FeedFolder> {
+  const response = await fetch(`${API_BASE_URL}/api/feed-folders/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to update feed folder");
+  }
+
+  return response.json();
+}
+
+export async function reorderFeedFolders(folderIds: number[]): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/feed-folders/order`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ folder_ids: folderIds }),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to reorder feed folders");
+  }
+}
+
+export async function deleteFeedFolder(
+  id: number,
+  deleteFeeds: boolean
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/feed-folders/${id}?delete_feeds=${deleteFeeds}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to delete feed folder");
   }
 }
 

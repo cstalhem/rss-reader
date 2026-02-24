@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
 from backend.deps import get_session
-from backend.models import Article, Category
+from backend.models import Article, Category, Feed
 from backend.schemas import (
     ArticleCategoryEmbed,
     ArticleListItem,
@@ -110,6 +110,7 @@ def list_articles(
     limit: int = 50,
     is_read: bool | None = None,
     feed_id: int | None = None,
+    folder_id: int | None = None,
     sort_by: Literal["composite_score", "published_at"] = "composite_score",
     order: Literal["asc", "desc"] = "desc",
     scoring_state: str | None = None,
@@ -126,6 +127,11 @@ def list_articles(
 
     if feed_id is not None:
         statement = statement.where(Article.feed_id == feed_id)
+
+    if folder_id is not None:
+        statement = statement.join(Feed, Feed.id == Article.feed_id).where(
+            Feed.folder_id == folder_id
+        )
 
     if scoring_state == "pending":
         statement = statement.where(

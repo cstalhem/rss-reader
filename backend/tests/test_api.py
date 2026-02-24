@@ -22,7 +22,7 @@ def test_list_articles_empty(test_client: TestClient):
 
 def test_list_articles_with_data(test_client: TestClient, sample_articles):
     """Test listing articles returns them sorted by published_at desc."""
-    response = test_client.get("/api/articles")
+    response = test_client.get("/api/articles?sort_by=published_at&order=desc")
     assert response.status_code == 200
 
     articles = response.json()
@@ -41,14 +41,16 @@ def test_list_articles_with_data(test_client: TestClient, sample_articles):
 def test_list_articles_pagination(test_client: TestClient, sample_articles):
     """Test pagination parameters."""
     # Get first article only
-    response = test_client.get("/api/articles?limit=1")
+    response = test_client.get("/api/articles?limit=1&sort_by=published_at&order=desc")
     assert response.status_code == 200
     articles = response.json()
     assert len(articles) == 1
     assert articles[0]["title"] == "Recent Article"
 
     # Skip first article
-    response = test_client.get("/api/articles?skip=1&limit=1")
+    response = test_client.get(
+        "/api/articles?skip=1&limit=1&sort_by=published_at&order=desc"
+    )
     assert response.status_code == 200
     articles = response.json()
     assert len(articles) == 1
@@ -57,7 +59,9 @@ def test_list_articles_pagination(test_client: TestClient, sample_articles):
 
 def test_list_articles_filter_unread(test_client: TestClient, sample_articles):
     """Test filtering articles by is_read=false (unread only)."""
-    response = test_client.get("/api/articles?is_read=false")
+    response = test_client.get(
+        "/api/articles?is_read=false&sort_by=published_at&order=desc"
+    )
     assert response.status_code == 200
 
     articles = response.json()

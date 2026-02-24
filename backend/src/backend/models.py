@@ -5,6 +5,21 @@ from sqlalchemy import CheckConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
 
+class FeedFolder(SQLModel, table=True):
+    """Folder grouping for RSS feeds."""
+
+    __tablename__ = "feed_folders"
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    display_order: int = Field(default=0)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    feeds: list["Feed"] = Relationship(  # noqa: UP037
+        back_populates="folder"
+    )
+
+
 class Feed(SQLModel, table=True):
     """RSS feed source."""
 
@@ -15,6 +30,14 @@ class Feed(SQLModel, table=True):
     title: str
     display_order: int = Field(default=0)
     last_fetched_at: datetime | None = None
+    folder_id: int | None = Field(
+        default=None,
+        foreign_key="feed_folders.id",
+        ondelete="SET NULL",
+        index=True,
+    )
+
+    folder: FeedFolder | None = Relationship(back_populates="feeds")
 
 
 class ArticleCategoryLink(SQLModel, table=True):

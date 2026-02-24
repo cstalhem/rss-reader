@@ -12,6 +12,7 @@ const SCORING_TAB_POLL_INTERVAL = 5_000;
 interface UseArticlesOptions {
   showAll?: boolean;
   feedId?: number;
+  folderId?: number;
   sortBy?: string;
   order?: string;
   scoringState?: string;
@@ -20,13 +21,23 @@ interface UseArticlesOptions {
 }
 
 export function useArticles(options: UseArticlesOptions = {}) {
-  const { showAll = false, feedId, sortBy, order, scoringState, excludeBlocked = true, scoringActive = false } = options;
+  const {
+    showAll = false,
+    feedId,
+    folderId,
+    sortBy,
+    order,
+    scoringState,
+    excludeBlocked = true,
+    scoringActive = false,
+  } = options;
   const [limit, setLimit] = useState(PAGE_SIZE);
 
   const filters = {
     is_read: showAll ? undefined : false,
     limit,
     feed_id: feedId,
+    folder_id: folderId,
     sort_by: sortBy,
     order: order,
     scoring_state: scoringState,

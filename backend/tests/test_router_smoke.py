@@ -24,6 +24,13 @@ def test_feeds_list(test_client: TestClient):
     assert isinstance(response.json(), list)
 
 
+def test_feed_folders_list(test_client: TestClient):
+    """GET /api/feed-folders -> 200, returns list."""
+    response = test_client.get("/api/feed-folders")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
 def test_categories_list(test_client: TestClient):
     """GET /api/categories -> 200, returns list."""
     response = test_client.get("/api/categories")
