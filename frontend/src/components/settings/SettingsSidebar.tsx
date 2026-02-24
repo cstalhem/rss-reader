@@ -2,16 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Box, Flex, Heading, Stack, Text } from "@chakra-ui/react";
+import { Box, Flex, Heading, IconButton, Stack, Text } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { useQuery } from "@tanstack/react-query";
-import { LuArrowLeft, LuDownload } from "react-icons/lu";
-import { ThemeToggle } from "@/components/ui/color-mode";
+import {
+  LuArrowLeft,
+  LuChevronLeft,
+  LuChevronRight,
+  LuDownload,
+  LuRss,
+} from "react-icons/lu";
 import { fetchDownloadStatus, fetchNewCategoryCount } from "@/lib/api";
+import { SidebarSettingsTheme } from "@/components/ui/sidebar-settings-theme";
 import { queryKeys } from "@/lib/queryKeys";
 import {
   NEW_COUNT_POLL_INTERVAL,
   SETTINGS_SECTIONS,
+  SIDEBAR_WIDTH_COLLAPSED,
   SIDEBAR_WIDTH_EXPANDED,
 } from "@/lib/constants";
 import { DownloadStatus } from "@/lib/types";
@@ -23,7 +30,15 @@ const pulse = keyframes`
   50% { opacity: 1; }
 `;
 
-export function SettingsSidebar() {
+interface SettingsSidebarProps {
+  isCollapsed: boolean;
+  onToggle: () => void;
+}
+
+export function SettingsSidebar({
+  isCollapsed,
+  onToggle,
+}: SettingsSidebarProps) {
   const pathname = usePathname();
 
   const { data: downloadStatus } = useQuery<DownloadStatus>({
@@ -53,42 +68,54 @@ export function SettingsSidebar() {
       top="0"
       left={0}
       bottom={0}
-      width={SIDEBAR_WIDTH_EXPANDED}
+      width={isCollapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED}
       bg="bg.subtle"
       borderRightWidth="1px"
       borderRightColor="border.subtle"
       display={{ base: "none", md: "block" }}
       zIndex={5}
+      transition="width 0.2s ease"
     >
       <Flex direction="column" height="100%">
         {/* Top zone: brand + back link */}
         <Box>
           <Flex
             alignItems="center"
-            px={4}
+            justifyContent={isCollapsed ? "center" : "flex-start"}
+            px={isCollapsed ? 0 : 4}
             py={3}
             borderBottomWidth="1px"
             borderBottomColor="border.subtle"
             minHeight="48px"
           >
-            <Link href="/">
-              <Heading size="md" fontWeight="semibold">
-                RSS Reader
-              </Heading>
-            </Link>
+            {isCollapsed ? (
+              <Link href="/" title="RSS Reader">
+                <Box color="fg.muted" display="inline-flex">
+                  <LuRss size={16} />
+                </Box>
+              </Link>
+            ) : (
+              <Link href="/">
+                <Heading size="md" fontWeight="semibold">
+                  RSS Reader
+                </Heading>
+              </Link>
+            )}
           </Flex>
           <Link href="/" style={{ textDecoration: "none" }}>
             <Flex
               alignItems="center"
-              gap={2}
-              px={4}
+              justifyContent={isCollapsed ? "center" : "flex-start"}
+              gap={isCollapsed ? 0 : 2}
+              px={isCollapsed ? 0 : 4}
               py={2}
               color="fg.muted"
               fontSize="sm"
               _hover={{ color: "fg.default" }}
+              title={isCollapsed ? "Back to reader" : undefined}
             >
               <LuArrowLeft size={14} />
-              <Text>Back to reader</Text>
+              {!isCollapsed && <Text>Back to reader</Text>}
             </Flex>
           </Link>
         </Box>
@@ -113,8 +140,9 @@ export function SettingsSidebar() {
                 >
                   <Flex
                     alignItems="center"
+                    justifyContent={isCollapsed ? "center" : "flex-start"}
                     gap={3}
-                    px={4}
+                    px={isCollapsed ? 2 : 4}
                     py={2.5}
                     borderRadius="md"
                     cursor="pointer"
@@ -126,18 +154,20 @@ export function SettingsSidebar() {
                     position="relative"
                   >
                     <Icon size={18} />
-                    <Box flex={1} minW={0}>
-                      <Text fontSize="sm" fontWeight="medium">
-                        {item.label}
-                      </Text>
-                      {showDownloadIndicator && downloadModel && (
-                        <Text fontSize="xs" color="fg.muted" truncate>
-                          {downloadModel}
-                          {downloadPct != null && ` ${downloadPct}%`}
+                    {!isCollapsed && (
+                      <Box flex={1} minW={0}>
+                        <Text fontSize="sm" fontWeight="medium">
+                          {item.label}
                         </Text>
-                      )}
-                    </Box>
-                    {showCategoryBadge && (
+                        {showDownloadIndicator && downloadModel && (
+                          <Text fontSize="xs" color="fg.muted" truncate>
+                            {downloadModel}
+                            {downloadPct != null && ` ${downloadPct}%`}
+                          </Text>
+                        )}
+                      </Box>
+                    )}
+                    {!isCollapsed && showCategoryBadge && (
                       <Box
                         ml="auto"
                         bg="accent.solid"
@@ -154,7 +184,7 @@ export function SettingsSidebar() {
                         {categoryBadgeCount}
                       </Box>
                     )}
-                    {showDownloadIndicator && (
+                    {!isCollapsed && showDownloadIndicator && (
                       <Box
                         ml={showCategoryBadge ? undefined : "auto"}
                         css={{
@@ -173,18 +203,30 @@ export function SettingsSidebar() {
           </Stack>
         </Box>
 
-        {/* Bottom zone: theme toggle */}
+        {/* Bottom zone: theme toggle (disabled until light theme is complete) */}
         <Flex
           borderTopWidth="1px"
           borderTopColor="border.subtle"
           py={2}
-          px={2}
+          direction="column"
+          gap={1}
+          px={isCollapsed ? 0 : 2}
         >
-          <Flex alignItems="center" gap={3} px={2} py={0}>
-            <ThemeToggle colorPalette="accent" />
-            <Text fontSize="sm" color="fg.muted">
-              Theme
-            </Text>
+          <SidebarSettingsTheme
+            isCollapsed={isCollapsed}
+            showSettings={false}
+            containerPx={isCollapsed ? 0 : 2}
+            rowPx={0}
+          />
+          <Flex justifyContent={isCollapsed ? "center" : "flex-end"}>
+            <IconButton
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              onClick={onToggle}
+              size="sm"
+              variant="ghost"
+            >
+              {isCollapsed ? <LuChevronRight /> : <LuChevronLeft />}
+            </IconButton>
           </Flex>
         </Flex>
       </Flex>

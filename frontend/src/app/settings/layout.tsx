@@ -1,23 +1,43 @@
+"use client";
+
 import { Box, Flex, Heading } from "@chakra-ui/react";
 import Link from "next/link";
 import { LuArrowLeft } from "react-icons/lu";
 import { SettingsSidebar } from "@/components/settings/SettingsSidebar";
 import { SettingsMobileNav } from "@/components/settings/SettingsMobileNav";
-import { SIDEBAR_WIDTH_EXPANDED } from "@/lib/constants";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import {
+  SIDEBAR_WIDTH_COLLAPSED,
+  SIDEBAR_WIDTH_EXPANDED,
+} from "@/lib/constants";
 
 export default function SettingsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useLocalStorage(
+    "sidebar-collapsed",
+    false
+  );
+
   return (
     <Box minHeight="100vh" bg="bg">
-      <SettingsSidebar />
+      <SettingsSidebar
+        isCollapsed={isSidebarCollapsed}
+        onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+      />
       <Box
         as="main"
-        ml={{ base: 0, md: SIDEBAR_WIDTH_EXPANDED }}
+        ml={{
+          base: 0,
+          md: isSidebarCollapsed
+            ? SIDEBAR_WIDTH_COLLAPSED
+            : SIDEBAR_WIDTH_EXPANDED,
+        }}
         px={{ base: 4, md: 8 }}
         py={8}
+        transition="margin-left 0.2s ease"
       >
         <Box maxW="4xl" mx="auto" w="full">
           {/* Mobile heading row */}

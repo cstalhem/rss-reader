@@ -1,14 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Box, Flex, Heading, IconButton, Text, Badge, Circle } from "@chakra-ui/react";
+import {
+  Box,
+  Flex,
+  Heading,
+  IconButton,
+  Text,
+  Badge,
+  Circle,
+} from "@chakra-ui/react";
 import {
   LuChevronLeft,
   LuChevronRight,
   LuPlus,
   LuRss,
   LuInbox,
-  LuSettings,
 } from "react-icons/lu";
 import {
   DndContext,
@@ -37,7 +44,7 @@ import {
 import { EmptyFeedState } from "@/components/feed/EmptyFeedState";
 import { FeedRow } from "@/components/feed/FeedRow";
 import { DeleteFeedDialog } from "@/components/feed/DeleteFeedDialog";
-import { ThemeToggle } from "@/components/ui/color-mode";
+import { SidebarSettingsTheme } from "@/components/ui/sidebar-settings-theme";
 import { Feed } from "@/lib/types";
 import { fetchNewCategoryCount } from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
@@ -304,59 +311,15 @@ export function Sidebar({
           borderTopWidth="1px"
           borderTopColor="border.subtle"
           py={2}
-          px={isCollapsed ? 0 : 2}
           gap={1}
         >
-          {/* Settings link with dot badge */}
-          <Link href="/settings">
-            <Flex
-              alignItems="center"
-              justifyContent={isCollapsed ? "center" : "flex-start"}
-              gap={3}
-              px={isCollapsed ? 0 : 2}
-              py={1.5}
-              borderRadius="md"
-              _hover={{ bg: "bg.muted" }}
-              position="relative"
-            >
-              <Box position="relative">
-                <LuSettings size={18} />
-                {hasNewCategories && (
-                  <Box
-                    position="absolute"
-                    top="-2px"
-                    right="-2px"
-                    width="8px"
-                    height="8px"
-                    borderRadius="full"
-                    bg="accent.solid"
-                    pointerEvents="none"
-                  />
-                )}
-              </Box>
-              {!isCollapsed && (
-                <Text fontSize="sm" color="fg.muted">
-                  Settings
-                </Text>
-              )}
-            </Flex>
-          </Link>
-
-          {/* Theme toggle */}
-          <Flex
-            alignItems="center"
-            justifyContent={isCollapsed ? "center" : "flex-start"}
-            gap={3}
-            px={isCollapsed ? 0 : 2}
-            py={0}
-          >
-            <ThemeToggle colorPalette="accent" />
-            {!isCollapsed && (
-              <Text fontSize="sm" color="fg.muted">
-                Theme
-              </Text>
-            )}
-          </Flex>
+          <SidebarSettingsTheme
+            isCollapsed={isCollapsed}
+            showSettings={true}
+            hasNewCategories={hasNewCategories}
+            containerPx={isCollapsed ? 0 : 2}
+            rowPx={2}
+          />
 
           {/* Collapse/expand toggle */}
           <Flex
