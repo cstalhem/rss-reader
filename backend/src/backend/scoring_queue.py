@@ -1,5 +1,6 @@
 """Queue manager for processing article scoring in background."""
 
+import asyncio
 import logging
 from datetime import datetime, timedelta
 
@@ -327,6 +328,15 @@ class ScoringQueue:
                 session.commit()
                 processed += 1
 
+            except asyncio.CancelledError:
+                logger.info(
+                    "Scoring cancelled for article %s; re-queueing", article.id
+                )
+                session.rollback()
+                article.scoring_state = "queued"
+                session.add(article)
+                session.commit()
+                raise
             except Exception as e:
                 logger.error(
                     f"Failed to score article {article.id}: {e}", exc_info=True

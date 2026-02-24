@@ -197,7 +197,6 @@ def create_db_and_tables():
 
         if version < 1:
             _seed_default_categories(conn)
-            _recover_stuck_scoring(conn)
             _set_schema_version(conn, 1)
 
         if version < 2:
@@ -221,6 +220,10 @@ def create_db_and_tables():
                     )
                 )
             _set_schema_version(conn, 2)
+
+        # Always recover orphaned "scoring" rows at startup in case the process
+        # was interrupted mid-stream.
+        _recover_stuck_scoring(conn)
 
     _run_alembic_migrations()
 
