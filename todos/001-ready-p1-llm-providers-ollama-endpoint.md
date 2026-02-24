@@ -1,5 +1,5 @@
 ---
-status: ready
+status: complete
 priority: p1
 issue_id: "001"
 tags: [backend, frontend, migrations, llm]
@@ -27,7 +27,7 @@ Implement all acceptance criteria in one focused delivery and validate via tests
 - [x] Frontend renamed to LLM Providers with redirect compatibility
 - [x] Tests and lint pass
 - [x] Plan checkboxes updated
-- [ ] Commit created
+- [x] Commit created
 
 ## Work Log
 ### 2026-02-24 - Execution Start
@@ -67,3 +67,10 @@ Implement all acceptance criteria in one focused delivery and validate via tests
 
 **Learnings:**
 - Existing historical drift in the project DB can make `alembic check` fail locally even when the new migration chain is correct; temp-DB gate avoids false negatives while preserving drift detection.
+
+### 2026-02-24 - Commit Created
+
+**By:** Codex
+
+**Actions:**
+- Created commit `555006c` with backend provider architecture, Alembic migration bootstrap, scoring/readiness routing cutover, frontend LLM Providers route rename, and test coverage additions.
