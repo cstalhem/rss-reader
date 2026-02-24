@@ -411,10 +411,12 @@ Plans:
 
 **Goal:** Redesign the LLM Providers settings section — separate provider configuration from model management, introduce a multi-provider UI with name/logo selection and per-provider settings surfaces, and prepare the architecture for additional providers (OpenAI, Anthropic, Google, OpenRouter) without implementing them yet
 **Depends on:** Phase 09.5
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 09.6 to break down)
+- [ ] 09.6-01-PLAN.md -- Backend provider endpoints + frontend data layer (types, API, hook, catalog, logos)
+- [ ] 09.6-02-PLAN.md -- Provider UI: pill bar, Add Provider dialog, Ollama provider panel, page wiring
+- [ ] 09.6-03-PLAN.md -- Top-level grouped model selector (Combobox), dead code cleanup, visual verification
 
 #### Phase 10: LLM Feedback Loop
 **Goal**: User feedback improves scoring over time via category weight adjustments and interest suggestions
@@ -456,7 +458,7 @@ Phases execute in numeric order: 6 -> 7 -> 8 -> 08.1 -> 08.2 -> 08.3 -> 9 -> 9.1
 | 09.3. Settings Architecture Audit  | 1/1       | Complete                  | 2026-02-22          | -          |
 | 09.4. Settings Architecture Impl.  | 3/3       | Complete                  | 2026-02-22          | -          |
 | 09.5. Main View UX & Typography    | 5/7       | In Progress (gap closure) | -                   |
-| 09.6. LLM Providers Settings       | v1.1      | 0/TBD                     | Not started         | -          |
+| 09.6. LLM Providers Settings       | v1.1      | 0/3                       | Planned             | -          |
 | 10. LLM Feedback Loop              | v1.1      | 0/TBD                     | Not started         | -          |
 
 ---
