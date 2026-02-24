@@ -98,7 +98,7 @@ def _build_legacy_ollama_config(session: Session) -> OllamaProviderConfig:
         categorization_model=preferences.ollama_categorization_model,
         scoring_model=preferences.ollama_scoring_model,
         use_separate_models=preferences.ollama_use_separate_models,
-        thinking=preferences.ollama_thinking,
+        thinking=False,
     )
 
 
@@ -116,7 +116,8 @@ def get_ollama_provider_config(session: Session) -> OllamaProviderConfig:
     row = get_provider_config_row(session, OLLAMA_PROVIDER)
     if row:
         try:
-            return OllamaProviderConfig.model_validate_json(row.config_json)
+            config = OllamaProviderConfig.model_validate_json(row.config_json)
+            return config.model_copy(update={"thinking": False})
         except Exception:
             logger.exception("Invalid Ollama provider config JSON")
 

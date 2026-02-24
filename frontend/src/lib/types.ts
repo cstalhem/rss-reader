@@ -93,7 +93,6 @@ export interface OllamaConfig {
   categorization_model: string | null;
   scoring_model: string | null;
   use_separate_models: boolean;
-  thinking: boolean;
 }
 
 export interface RefreshStatus {

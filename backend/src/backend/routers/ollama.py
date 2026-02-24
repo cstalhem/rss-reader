@@ -61,7 +61,6 @@ def get_ollama_config(
         categorization_model=config.categorization_model,
         scoring_model=config.scoring_model,
         use_separate_models=config.use_separate_models,
-        thinking=config.thinking,
     )
 
 
@@ -78,7 +77,7 @@ def update_ollama_config(
         categorization_model=update.categorization_model,
         scoring_model=update.scoring_model,
         use_separate_models=update.use_separate_models,
-        thinking=update.thinking,
+        thinking=False,
     )
     upsert_ollama_provider_config(session, config)
     sync_ollama_task_routes(session, config)
@@ -93,7 +92,6 @@ def update_ollama_config(
         categorization_model=config.categorization_model,
         scoring_model=config.scoring_model,
         use_separate_models=config.use_separate_models,
-        thinking=config.thinking,
     )
 
 

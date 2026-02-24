@@ -190,7 +190,6 @@ class OllamaConfigResponse(BaseModel):
     categorization_model: str | None
     scoring_model: str | None
     use_separate_models: bool
-    thinking: bool
 
 
 class OllamaConfigUpdate(BaseModel):
@@ -199,7 +198,6 @@ class OllamaConfigUpdate(BaseModel):
     categorization_model: str | None
     scoring_model: str | None
     use_separate_models: bool
-    thinking: bool
 
 
 class OllamaPromptsResponse(BaseModel):

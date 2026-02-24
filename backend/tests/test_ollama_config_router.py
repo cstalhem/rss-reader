@@ -18,7 +18,6 @@ def test_get_ollama_config_defaults(test_client: TestClient):
     assert data["categorization_model"] is None
     assert data["scoring_model"] is None
     assert data["use_separate_models"] is False
-    assert data["thinking"] is False
 
 
 def test_update_ollama_config_persists_provider_config_and_routes(
@@ -31,7 +30,6 @@ def test_update_ollama_config_persists_provider_config_and_routes(
         "categorization_model": "qwen3:4b",
         "scoring_model": "qwen3:8b",
         "use_separate_models": True,
-        "thinking": True,
     }
 
     response = test_client.put("/api/ollama/config", json=payload)
@@ -44,7 +42,12 @@ def test_update_ollama_config_persists_provider_config_and_routes(
     assert provider_row is not None
 
     config_json = json.loads(provider_row.config_json)
-    assert config_json == payload
+    assert config_json["base_url"] == payload["base_url"]
+    assert config_json["port"] == payload["port"]
+    assert config_json["categorization_model"] == payload["categorization_model"]
+    assert config_json["scoring_model"] == payload["scoring_model"]
+    assert config_json["use_separate_models"] is payload["use_separate_models"]
+    assert config_json["thinking"] is False
 
     task_routes = test_session.exec(
         select(LLMTaskRoute).order_by(LLMTaskRoute.task)

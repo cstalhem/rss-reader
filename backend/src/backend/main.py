@@ -15,9 +15,10 @@ from backend.scheduler import shutdown_scheduler, start_scheduler
 from backend.schemas import HealthResponse
 
 settings = get_settings()
+log_level = getattr(logging, settings.logging.level.upper(), logging.INFO)
 
 logging.basicConfig(
-    level=getattr(logging, settings.logging.level),
+    level=log_level,
     format="%(levelname)s [%(name)s] %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -33,6 +34,9 @@ async def lifespan(app: FastAPI):
         os.makedirs(data_dir, exist_ok=True)
 
     create_db_and_tables()
+    # Alembic logging config can raise root level to WARNING during startup.
+    # Re-assert app logger level so scoring/categorization INFO logs stay visible.
+    logging.getLogger("backend").setLevel(log_level)
     start_scheduler()
 
     yield

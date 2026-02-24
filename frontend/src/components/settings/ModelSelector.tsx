@@ -249,20 +249,6 @@ export function ModelSelector({
         </Box>
       )}
 
-      {/* Extended thinking toggle */}
-      <Switch.Root
-        checked={config.thinking}
-        onCheckedChange={(e) => onConfigChange({ ...config, thinking: e.checked })}
-      >
-        <Switch.HiddenInput />
-        <Switch.Control>
-          <Switch.Thumb />
-        </Switch.Control>
-        <Switch.Label>
-          <Text fontSize="sm">Enable extended thinking</Text>
-        </Switch.Label>
-      </Switch.Root>
-
       {/* Actions — separated from form fields */}
       <Box borderTopWidth="1px" borderColor="border.subtle" pt={4} mt={1}>
         <Flex gap={3} alignItems="center">

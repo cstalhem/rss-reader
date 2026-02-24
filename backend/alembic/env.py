@@ -11,7 +11,7 @@ from backend import models as _models  # noqa: F401 - ensure model imports
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = SQLModel.metadata
 
