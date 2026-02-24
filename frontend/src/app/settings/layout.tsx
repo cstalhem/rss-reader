@@ -18,40 +18,41 @@ export default function SettingsLayout({
         ml={{ base: 0, md: SIDEBAR_WIDTH_EXPANDED }}
         px={{ base: 4, md: 8 }}
         py={8}
-        maxW="4xl"
       >
-        {/* Mobile heading row */}
-        <Flex
-          display={{ base: "flex", md: "none" }}
-          alignItems="center"
-          gap={2}
-          mb={2}
-        >
-          <Link href="/">
-            <Flex
-              as="span"
-              alignItems="center"
-              justifyContent="center"
-              w={8}
-              h={8}
-              borderRadius="md"
-              color="fg.muted"
-              _hover={{ bg: "bg.muted" }}
-            >
-              <LuArrowLeft size={18} />
-            </Flex>
-          </Link>
-          <Heading fontSize="2xl" fontWeight="bold">
-            Settings
-          </Heading>
-        </Flex>
+        <Box maxW="4xl" mx="auto" w="full">
+          {/* Mobile heading row */}
+          <Flex
+            display={{ base: "flex", md: "none" }}
+            alignItems="center"
+            gap={2}
+            mb={2}
+          >
+            <Link href="/">
+              <Flex
+                as="span"
+                alignItems="center"
+                justifyContent="center"
+                w={8}
+                h={8}
+                borderRadius="md"
+                color="fg.muted"
+                _hover={{ bg: "bg.muted" }}
+              >
+                <LuArrowLeft size={18} />
+              </Flex>
+            </Link>
+            <Heading fontSize="2xl" fontWeight="bold">
+              Settings
+            </Heading>
+          </Flex>
 
-        {/* Mobile dropdown nav */}
-        <Box display={{ base: "block", md: "none" }} mb={4}>
-          <SettingsMobileNav />
+          {/* Mobile dropdown nav */}
+          <Box display={{ base: "block", md: "none" }} mb={4}>
+            <SettingsMobileNav />
+          </Box>
+
+          {children}
         </Box>
-
-        {children}
       </Box>
     </Box>
   );
