@@ -31,9 +31,9 @@ export function ConfirmDialog({
           </Dialog.Header>
           <Dialog.Body>{body}</Dialog.Body>
           <Dialog.Footer>
-            <Dialog.CloseTrigger asChild>
+            <Dialog.ActionTrigger asChild>
               <Button variant="ghost">Cancel</Button>
-            </Dialog.CloseTrigger>
+            </Dialog.ActionTrigger>
             <Button colorPalette={confirmColorPalette} onClick={onConfirm}>
               {confirmLabel}
             </Button>

@@ -74,6 +74,7 @@ def disconnect_provider(provider: str, session: Session = Depends(get_session)):
     ).all()
     for route in routes:
         session.delete(route)
+    session.flush()  # Flush child deletions before parent to satisfy FK constraint
 
     session.delete(row)
     session.commit()

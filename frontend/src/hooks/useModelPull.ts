@@ -102,9 +102,11 @@ export function useModelPull() {
         status: null,
       });
       queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
+      queryClient.invalidateQueries({ queryKey: queryKeys.models.available });
       // Safety follow-up: Ollama may need extra time to register the model
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
+      queryClient.invalidateQueries({ queryKey: queryKeys.models.available });
       }, DOWNLOAD_STATUS_POLL_INTERVAL);
     }
   }, [downloadStatus, isDownloading, queryClient]);
@@ -243,10 +245,12 @@ export function useModelPull() {
             status: null,
           });
           queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
+      queryClient.invalidateQueries({ queryKey: queryKeys.models.available });
         }, SCORE_100_PERCENT_DELAY);
         // Safety follow-up: Ollama may need extra time to register the model
         setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
+      queryClient.invalidateQueries({ queryKey: queryKeys.models.available });
         }, MODEL_REGISTRATION_SAFETY_DELAY);
       } catch (err: unknown) {
         abortRef.current = null;
