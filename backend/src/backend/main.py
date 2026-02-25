@@ -10,7 +10,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.config import get_settings
 from backend.database import create_db_and_tables
 from backend.ollama_client import close_ollama_client
-from backend.routers import articles, categories, feeds, ollama, preferences, scoring
+from backend.routers import (
+    articles,
+    categories,
+    feed_folders,
+    feeds,
+    ollama,
+    preferences,
+    scoring,
+)
 from backend.scheduler import shutdown_scheduler, start_scheduler
 from backend.schemas import HealthResponse
 
@@ -63,6 +71,7 @@ app.add_middleware(
 # Register routers
 app.include_router(articles.router)
 app.include_router(feeds.router)
+app.include_router(feed_folders.router)
 app.include_router(categories.router)
 app.include_router(preferences.router)
 app.include_router(ollama.router)
@@ -73,3 +82,9 @@ app.include_router(scoring.router)
 def health_check():
     """Health check endpoint for monitoring and container orchestration."""
     return HealthResponse(status="healthy")
+
+
+@app.get("/", status_code=200)
+def root():
+    """Legacy root health probe used by existing tests/scripts."""
+    return {"status": "ok"}

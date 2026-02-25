@@ -10,7 +10,7 @@ from sqlmodel import Session, func, select
 
 from backend.deps import get_session
 from backend.feeds import fetch_feed, refresh_feed, save_articles
-from backend.models import Article, Feed
+from backend.models import Article, Feed, FeedFolder
 from backend.schemas import (
     FeedCreate,
     FeedReorder,
@@ -35,8 +35,10 @@ def list_feeds(
     statement = (
         select(
             Feed,
+            FeedFolder.name.label("folder_name"),
             func.count(Article.id).label("unread_count"),
         )
+        .outerjoin(FeedFolder, FeedFolder.id == Feed.folder_id)
         .outerjoin(
             Article,
             (Article.feed_id == Feed.id)
@@ -44,8 +46,8 @@ def list_feeds(
             & (Article.scoring_state == "scored")
             & (Article.composite_score > 0),
         )
-        .group_by(Feed.id)
-        .order_by(Feed.display_order, Feed.id)
+        .group_by(Feed.id, FeedFolder.name)
+        .order_by(Feed.folder_id, Feed.display_order, Feed.id)
     )
     results = session.exec(statement).all()
 
@@ -57,8 +59,10 @@ def list_feeds(
             display_order=feed.display_order,
             last_fetched_at=feed.last_fetched_at,
             unread_count=unread_count,
+            folder_id=feed.folder_id,
+            folder_name=folder_name,
         )
-        for feed, unread_count in results
+        for feed, folder_name, unread_count in results
     ]
 
 
@@ -102,7 +106,9 @@ async def create_feed(
             detail=f"Failed to fetch feed: {str(e)}",
         ) from e
 
-    max_order_result = session.exec(select(func.max(Feed.display_order))).one()
+    max_order_result = session.exec(
+        select(func.max(Feed.display_order)).where(Feed.folder_id.is_(None))
+    ).one()
     next_order = (max_order_result or 0) + 1
 
     feed_title = parsed_feed.feed.get("title", "Untitled Feed")
@@ -133,6 +139,8 @@ async def create_feed(
         display_order=feed.display_order,
         last_fetched_at=feed.last_fetched_at,
         unread_count=article_count,
+        folder_id=feed.folder_id,
+        folder_name=None,
     )
 
 
@@ -141,10 +149,36 @@ def reorder_feeds(
     feed_reorder: FeedReorder,
     session: Session = Depends(get_session),
 ):
-    """Reorder feeds by updating display_order based on provided feed_ids order."""
+    """Reorder feeds within a folder bucket (or root if folder_id is null)."""
+    if len(feed_reorder.feed_ids) != len(set(feed_reorder.feed_ids)):
+        raise HTTPException(
+            status_code=400, detail="Duplicate feed IDs are not allowed"
+        )
+
+    if feed_reorder.folder_id is not None:
+        folder = session.get(FeedFolder, feed_reorder.folder_id)
+        if not folder:
+            raise HTTPException(status_code=404, detail="Folder not found")
+
+    bucket_statement = select(Feed.id)
+    if feed_reorder.folder_id is None:
+        bucket_statement = bucket_statement.where(Feed.folder_id.is_(None))
+    else:
+        bucket_statement = bucket_statement.where(
+            Feed.folder_id == feed_reorder.folder_id
+        )
+
+    bucket_feed_ids = set(session.exec(bucket_statement).all())
+    requested_feed_ids = set(feed_reorder.feed_ids)
+    if requested_feed_ids != bucket_feed_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="Feed reorder must include all feeds in the selected folder bucket",
+        )
+
     for index, feed_id in enumerate(feed_reorder.feed_ids):
         feed = session.get(Feed, feed_id)
-        if feed:
+        if feed is not None:
             feed.display_order = index
             session.add(feed)
 
@@ -215,7 +249,7 @@ def update_feed(
     feed_update: FeedUpdate,
     session: Session = Depends(get_session),
 ):
-    """Update feed title and/or display_order."""
+    """Update feed title, display_order, and/or folder assignment."""
     feed = session.get(Feed, feed_id)
 
     if not feed:
@@ -227,6 +261,32 @@ def update_feed(
     if feed_update.display_order is not None:
         feed.display_order = feed_update.display_order
 
+    if "folder_id" in feed_update.model_fields_set:
+        if feed_update.folder_id is not None:
+            folder = session.get(FeedFolder, feed_update.folder_id)
+            if not folder:
+                raise HTTPException(status_code=404, detail="Folder not found")
+
+        if feed.folder_id != feed_update.folder_id:
+            target_bucket_max_order_statement = select(func.max(Feed.display_order))
+            if feed_update.folder_id is None:
+                target_bucket_max_order_statement = (
+                    target_bucket_max_order_statement.where(Feed.folder_id.is_(None))
+                )
+            else:
+                target_bucket_max_order_statement = (
+                    target_bucket_max_order_statement.where(
+                        Feed.folder_id == feed_update.folder_id
+                    )
+                )
+
+            target_bucket_max_order = session.exec(
+                target_bucket_max_order_statement
+            ).one()
+
+            feed.folder_id = feed_update.folder_id
+            feed.display_order = (target_bucket_max_order or 0) + 1
+
     session.add(feed)
     session.commit()
     session.refresh(feed)
@@ -235,7 +295,14 @@ def update_feed(
         select(func.count(Article.id))
         .where(Article.feed_id == feed.id)
         .where(Article.is_read.is_(False))
+        .where(Article.scoring_state == "scored")
+        .where(Article.composite_score > 0)
     ).one()
+
+    folder_name = None
+    if feed.folder_id is not None:
+        folder = session.get(FeedFolder, feed.folder_id)
+        folder_name = folder.name if folder else None
 
     return FeedResponse(
         id=feed.id,
@@ -244,6 +311,8 @@ def update_feed(
         display_order=feed.display_order,
         last_fetched_at=feed.last_fetched_at,
         unread_count=unread_count,
+        folder_id=feed.folder_id,
+        folder_name=folder_name,
     )
 
 

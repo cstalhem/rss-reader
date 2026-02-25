@@ -8,6 +8,9 @@ export const queryKeys = {
     all: ["feeds"] as const,
     refreshStatus: ["feeds", "refresh-status"] as const,
   },
+  feedFolders: {
+    all: ["feed-folders"] as const,
+  },
   categories: {
     all: ["categories"] as const,
     newCount: ["categories", "new-count"] as const,

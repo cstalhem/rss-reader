@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Box, Flex, Text, Badge, IconButton, Input } from "@chakra-ui/react";
-import { LuGripVertical, LuTrash2, LuCheckCheck } from "react-icons/lu";
+import { LuCheckCheck, LuFolderInput, LuGripVertical, LuTrash2 } from "react-icons/lu";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useSwipeable } from "react-swipeable";
@@ -16,7 +16,10 @@ interface FeedRowProps {
   onDelete: (feed: Feed) => void;
   onMarkAllRead: (feedId: number) => void;
   onRename: (id: number, title: string) => void;
+  onMove?: (feed: Feed) => void;
   isDraggable?: boolean;
+  showDesktopActions?: boolean;
+  enableSwipeActions?: boolean;
 }
 
 export function FeedRow({
@@ -26,7 +29,10 @@ export function FeedRow({
   onDelete,
   onMarkAllRead,
   onRename,
+  onMove,
   isDraggable = true,
+  showDesktopActions = true,
+  enableSwipeActions = !isDraggable,
 }: FeedRowProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isRevealed, setIsRevealed] = useState(false);
@@ -57,6 +63,8 @@ export function FeedRow({
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const swipeOffset = onMove ? 120 : 80;
+
   const swipeHandlers = useSwipeable({
     onSwipedLeft: () => setIsRevealed(true),
     onSwipedRight: () => setIsRevealed(false),
@@ -64,7 +72,6 @@ export function FeedRow({
   });
 
   const handleDoubleClick = () => {
-    if (!isDraggable) return; // Only on desktop
     startRename();
   };
 
@@ -93,9 +100,9 @@ export function FeedRow({
   // Merge refs for dnd-kit and swipeable
   const mergedRef = (el: HTMLDivElement | null) => {
     setNodeRef(el);
-    if (swipeHandlers.ref) {
-      (swipeHandlers.ref as any)(el);
-    }
+    const swipeRef =
+      swipeHandlers.ref as ((node: HTMLElement | null) => void) | undefined;
+    swipeRef?.(el);
   };
 
   return (
@@ -118,7 +125,7 @@ export function FeedRow({
         onClick={() => !isRenaming && onSelect(feed.id)}
         borderLeftWidth="3px"
         borderLeftColor={isSelected ? "colorPalette.solid" : "transparent"}
-        transform={isRevealed ? "translateX(-80px)" : "translateX(0)"}
+        transform={isRevealed ? `translateX(-${swipeOffset}px)` : "translateX(0)"}
         transition="transform 0.2s ease"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -175,7 +182,7 @@ export function FeedRow({
             <Badge
               colorPalette="accent"
               size="sm"
-              opacity={isHovered && isDraggable ? 0 : 1}
+              opacity={isHovered && showDesktopActions ? 0 : 1}
               transition="opacity 0.2s ease"
             >
               {feed.unread_count}
@@ -183,7 +190,7 @@ export function FeedRow({
           )}
 
           {/* Desktop hover actions */}
-          {isDraggable && isHovered && (
+          {showDesktopActions && isHovered && (
             <Flex
               position="absolute"
               right={0}
@@ -207,6 +214,19 @@ export function FeedRow({
                 <LuCheckCheck size={14} />
               </IconButton>
               <IconButton
+                aria-label="Move to folder"
+                size="xs"
+                variant="ghost"
+                onClick={(e) => {
+                  if (!onMove) return;
+                  e.stopPropagation();
+                  onMove(feed);
+                }}
+                display={onMove ? "inline-flex" : "none"}
+              >
+                <LuFolderInput size={14} />
+              </IconButton>
+              <IconButton
                 aria-label="Remove feed"
                 size="xs"
                 variant="ghost"
@@ -224,19 +244,33 @@ export function FeedRow({
       </Flex>
 
       {/* Mobile swipe actions */}
-      {!isDraggable && (
+      {enableSwipeActions && (
         <Flex
           position="absolute"
           right={0}
           top={0}
           bottom={0}
-          width="80px"
+          width={onMove ? "120px" : "80px"}
           bg="bg.subtle"
           alignItems="center"
           justifyContent="flex-end"
           gap={1}
           pr={2}
         >
+          {onMove && (
+            <IconButton
+              aria-label="Move to folder"
+              size="sm"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMove(feed);
+                setIsRevealed(false);
+              }}
+            >
+              <LuFolderInput size={16} />
+            </IconButton>
+          )}
           <IconButton
             aria-label="Mark all as read"
             size="sm"

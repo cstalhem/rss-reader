@@ -92,7 +92,17 @@ def _create_category_dup_schema_at_dff(db_path: Path) -> None:
             # Canonical defaults seeded with title-case slugs.
             (2, "Business", "Business", None, None, 0, 1, 0, "2026-02-24 00:00:00"),
             (10, "Finance", "Finance", 2, None, 0, 1, 0, "2026-02-24 00:00:00"),
-            (22, "Technology", "Technology", None, None, 0, 1, 0, "2026-02-24 00:00:00"),
+            (
+                22,
+                "Technology",
+                "Technology",
+                None,
+                None,
+                0,
+                1,
+                0,
+                "2026-02-24 00:00:00",
+            ),
             (
                 18,
                 "Programming",
@@ -151,6 +161,27 @@ def _create_category_dup_schema_at_dff(db_path: Path) -> None:
         conn.executemany(
             "INSERT INTO article_category_link (article_id, category_id) VALUES (?, ?)",
             links,
+        )
+
+
+def _create_schema_at_8c6f_without_feed_folders(db_path: Path) -> None:
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            CREATE TABLE feeds (
+              id INTEGER PRIMARY KEY,
+              url TEXT NOT NULL UNIQUE,
+              title TEXT NOT NULL,
+              display_order INTEGER NOT NULL DEFAULT 0,
+              last_fetched_at TIMESTAMP
+            );
+
+            CREATE TABLE alembic_version (
+              version_num VARCHAR(32) NOT NULL,
+              CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+            );
+            INSERT INTO alembic_version (version_num) VALUES ('8c6f3c9b8f70');
+            """
         )
 
 
@@ -256,3 +287,58 @@ def test_upgrade_head_normalizes_and_dedupes_categories() -> None:
                 """
             ).fetchall()
             assert links == [(1, 2), (2, 10), (3, 18)]
+
+
+def test_upgrade_head_adds_feed_folder_schema() -> None:
+    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
+        db_path = Path(tmp.name)
+        _create_schema_at_8c6f_without_feed_folders(db_path)
+
+        cfg = _make_alembic_config(db_path)
+        command.upgrade(cfg, "head")
+
+        with sqlite3.connect(db_path) as conn:
+            tables = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+            ).fetchall()
+            assert ("feed_folders",) in tables
+
+            feed_columns = conn.execute("PRAGMA table_info(feeds)").fetchall()
+            feed_column_names = {column[1] for column in feed_columns}
+            assert "folder_id" in feed_column_names
+
+            indexes = conn.execute(
+                "SELECT name, sql FROM sqlite_master WHERE type='index' ORDER BY name"
+            ).fetchall()
+            index_names = {index[0] for index in indexes}
+            assert "ix_feeds_folder_id" in index_names
+            assert "ix_feeds_folder_id_display_order" in index_names
+            assert "ix_feed_folders_display_order" in index_names
+            assert "ux_feed_folders_name_lower" in index_names
+
+            expression_index_sql = next(
+                index_sql
+                for index_name, index_sql in indexes
+                if index_name == "ux_feed_folders_name_lower"
+            )
+            assert "lower(name)" in (expression_index_sql or "")
+
+
+def test_upgrade_head_feed_folder_migration_is_idempotent() -> None:
+    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
+        db_path = Path(tmp.name)
+        _create_schema_at_8c6f_without_feed_folders(db_path)
+
+        cfg = _make_alembic_config(db_path)
+        command.upgrade(cfg, "head")
+        command.upgrade(cfg, "head")
+
+        with sqlite3.connect(db_path) as conn:
+            unique_lower_indexes = conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM sqlite_master
+                WHERE type = 'index' AND name = 'ux_feed_folders_name_lower'
+                """
+            ).fetchone()
+            assert unique_lower_indexes == (1,)

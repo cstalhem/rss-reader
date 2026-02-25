@@ -64,6 +64,30 @@ export interface Feed {
   last_fetched_at: string | null;
   display_order: number;
   unread_count: number;
+  folder_id: number | null;
+  folder_name: string | null;
+}
+
+export interface FeedFolder {
+  id: number;
+  name: string;
+  display_order: number;
+  created_at: string;
+  unread_count: number;
+}
+
+export type FeedSelection =
+  | { kind: "all" }
+  | { kind: "feed"; feedId: number }
+  | { kind: "folder"; folderId: number };
+
+export const ALL_FEEDS_SELECTION: FeedSelection = { kind: "all" };
+
+export function isFeedSelected(
+  selection: FeedSelection,
+  feedId: number
+): boolean {
+  return selection.kind === "feed" && selection.feedId === feedId;
 }
 
 export interface UserPreferences {
@@ -143,6 +167,7 @@ export interface FetchArticlesParams {
   limit?: number;
   is_read?: boolean;
   feed_id?: number;
+  folder_id?: number;
   sort_by?: string;
   order?: string;
   scoring_state?: string;

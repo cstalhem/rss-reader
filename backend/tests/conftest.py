@@ -81,6 +81,8 @@ def sample_articles_fixture(test_session: Session, sample_feed: Feed):
             summary="A recent article summary",
             content="Full content of recent article",
             is_read=False,
+            scoring_state="scored",
+            composite_score=1.0,
         ),
         Article(
             feed_id=sample_feed.id,
@@ -91,6 +93,8 @@ def sample_articles_fixture(test_session: Session, sample_feed: Feed):
             summary="An older article summary",
             content="Full content of older article",
             is_read=False,
+            scoring_state="scored",
+            composite_score=1.0,
         ),
         Article(
             feed_id=sample_feed.id,
@@ -101,6 +105,8 @@ def sample_articles_fixture(test_session: Session, sample_feed: Feed):
             summary="A read article summary",
             content="Full content of read article",
             is_read=True,
+            scoring_state="scored",
+            composite_score=1.0,
         ),
     ]
 

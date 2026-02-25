@@ -38,6 +38,7 @@ import {
   useMarkAllArticlesRead,
 } from "@/hooks/useFeedMutations";
 import { useFeeds } from "@/hooks/useFeeds";
+import { useFeedFolders } from "@/hooks/useFeedFolders";
 import { useSortPreference } from "@/hooks/useSortPreference";
 import { useScoringStatus } from "@/hooks/useScoringStatus";
 import { useCompletingArticles } from "@/hooks/useCompletingArticles";
@@ -48,11 +49,11 @@ import { ArticleRowSkeleton } from "./ArticleRowSkeleton";
 import { ArticleReader } from "./ArticleReader";
 import { SortSelect } from "./SortSelect";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { ArticleListItem } from "@/lib/types";
+import { ArticleListItem, FeedSelection } from "@/lib/types";
 import { parseSortOption } from "@/lib/utils";
 
 interface ArticleListProps {
-  selectedFeedId?: number | null;
+  selection: FeedSelection;
   onOpenMobileSidebar?: () => void;
   mainRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -60,7 +61,7 @@ interface ArticleListProps {
 type FilterTab = "unread" | "all" | "scoring" | "blocked";
 
 export function ArticleList({
-  selectedFeedId,
+  selection,
   onOpenMobileSidebar,
   mainRef,
 }: ArticleListProps) {
@@ -104,7 +105,8 @@ export function ArticleList({
     hasMore,
   } = useArticles({
     showAll,
-    feedId: selectedFeedId ?? undefined,
+    feedId: selection.kind === "feed" ? selection.feedId : undefined,
+    folderId: selection.kind === "folder" ? selection.folderId : undefined,
     sortBy: sort_by,
     order: order,
     scoringState: scoringState,
@@ -119,6 +121,7 @@ export function ArticleList({
   );
 
   const { data: feeds } = useFeeds();
+  const { data: folders } = useFeedFolders();
   const markAsRead = useMarkAsRead();
   const markAllRead = useMarkAllRead();
   const markAllArticlesRead = useMarkAllArticlesRead();
@@ -145,9 +148,13 @@ export function ArticleList({
   }, [feeds]);
 
   // Current feed name for heading
-  const feedName = selectedFeedId
-    ? (feedNames[selectedFeedId] ?? "Feed")
-    : "Articles";
+  const feedName =
+    selection.kind === "feed"
+      ? (feedNames[selection.feedId] ?? "Feed")
+      : selection.kind === "folder"
+        ? (folders?.find((folder) => folder.id === selection.folderId)?.name ??
+          "Folder")
+        : "Articles";
 
   // IntersectionObserver for sticky scroll-collapse
   useEffect(() => {
@@ -250,8 +257,8 @@ export function ArticleList({
   };
 
   const handleMarkAllAsRead = () => {
-    if (selectedFeedId) {
-      markAllRead.mutate(selectedFeedId);
+    if (selection.kind === "feed") {
+      markAllRead.mutate(selection.feedId);
     } else {
       // All Articles view: show confirmation
       setIsConfirmMarkAllOpen(true);
@@ -474,7 +481,9 @@ export function ArticleList({
                     }}
                     article={article}
                     feedName={
-                      selectedFeedId ? undefined : feedNames[article.feed_id]
+                      selection.kind === "feed"
+                        ? undefined
+                        : feedNames[article.feed_id]
                     }
                     onSelect={handleSelect}
                     onToggleRead={handleToggleRead}
