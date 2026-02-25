@@ -11,8 +11,8 @@ Requirements for milestone v1.1 — Configuration, Feedback & Polish. Each maps 
 
 - [x] **OLLAMA-01**: User can see Ollama connection health status (connected/disconnected indicator)
 - [x] **OLLAMA-02**: User can select categorization and scoring models from list of locally available models
-- [ ] **OLLAMA-03**: User can download new Ollama models from within the UI with progress indication
-- [ ] **OLLAMA-04**: User can view current system prompts used for categorization and scoring (read-only)
+- [x] **OLLAMA-03**: User can download new Ollama models from within the UI with progress indication
+- [x] **OLLAMA-04**: User can view current system prompts used for categorization and scoring (read-only)
 - [ ] **OLLAMA-05**: User can trigger batch re-scoring of recent articles after changing model or config
 
 ### LLM Feedback Loop
@@ -95,8 +95,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | POLISH-06 | Phase 6 | Pending |
 | OLLAMA-01 | Phase 7 | Complete |
 | OLLAMA-02 | Phase 7 | Complete |
-| OLLAMA-03 | Phase 7 | Pending |
-| OLLAMA-04 | Phase 7 | Pending |
+| OLLAMA-03 | Phase 7 | Complete |
+| OLLAMA-04 | Phase 7 | Complete |
 | OLLAMA-05 | Phase 7 | Pending |
 | CATGRP-01 | Phase 8 | Complete |
 | CATGRP-02 | Phase 8 | Complete |

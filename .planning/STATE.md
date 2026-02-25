@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: Configuration, Feedback & Polish
 status: unknown
-last_updated: "2026-02-25T21:58:10.557Z"
+last_updated: "2026-02-25T22:04:35.481Z"
 progress:
   total_phases: 13
   completed_phases: 11
   total_plans: 68
-  completed_plans: 64
+  completed_plans: 65
 ---
 
 # Project State
@@ -23,9 +23,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Milestone: v1.1 Configuration, Feedback & Polish
-Phase: 09.6 in progress (1 of 3 plans complete)
-Status: Plan 01 complete. Data layer foundation: backend provider/task-route/models endpoints, frontend ProviderPlugin module structure with 5 providers, provider-agnostic hooks.
-Last activity: 2026-02-25 - Phase 09.6 Plan 01 complete: Backend provider/task-route/models endpoints, frontend ProviderPlugin modules, useProviders/useModelAssignments/useAvailableModels hooks
+Phase: 09.6 in progress (2 of 3 plans complete)
+Status: Plan 02 complete. Multi-provider UI: LLMProvidersSection orchestrator, provider pill bar, add dialog, OllamaProviderPanel with setup/edit/disconnect lifecycle.
+Last activity: 2026-02-25 - Phase 09.6 Plan 02 complete: Provider-agnostic orchestrator, pill bar, add dialog, self-contained OllamaProviderPanel
 
 Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase 10 remaining)
 
@@ -132,6 +132,7 @@ Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase
 | Phase 09.5 P03 | 4.9 | 2 tasks | 4 files |
 | Phase 09.5 P04 | 6.9 | 2 tasks | 5 files |
 | Phase 09.6 P01 | 10 | 2 tasks | 27 files |
+| Phase 09.6 P02 | 3 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -301,6 +302,9 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 09.6-01]: use_separate_models in UserPreferences (provider-agnostic), accessed via /api/task-routes
 - [Phase 09.6-01]: GET /api/models aggregates from all configured providers, skips failing ones
 - [Phase 09.6-01]: ProviderPlugin interface: per-provider directory with Logo + index.ts, PROVIDER_REGISTRY array
+- [Phase 09.6]: Adding provider is frontend-only state (pending Set) until user saves -- no backend call on Add
+- [Phase 09.6]: Provider-agnostic orchestrator resolves panels dynamically from PROVIDER_REGISTRY -- zero provider-specific imports
+- [Phase 09.6]: Self-contained provider panels: isNew prop drives setup vs edit mode, panel calls own hooks
 
 ### Pending Todos
 
@@ -347,9 +351,9 @@ Key architectural decisions carrying forward to v1.1:
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 09.6-01-PLAN.md
-Resume file: .planning/phases/09.6-llm-providers-settings-refresh/09.6-01-SUMMARY.md
+Stopped at: Completed 09.6-02-PLAN.md
+Resume file: .planning/phases/09.6-llm-providers-settings-refresh/09.6-02-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-25 after Phase 09.6 Plan 01 complete*
+*Last updated: 2026-02-25 after Phase 09.6 Plan 02 complete*
