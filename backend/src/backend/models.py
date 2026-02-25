@@ -106,14 +106,8 @@ class UserPreferences(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     interests: str = Field(default="")
     anti_interests: str = Field(default="")
-    active_llm_provider: str = Field(default="ollama")
+    use_separate_models: bool = Field(default=False)
     updated_at: datetime = Field(default_factory=datetime.now)
-
-    # Ollama model configuration
-    ollama_categorization_model: str | None = Field(default=None)
-    ollama_scoring_model: str | None = Field(default=None)
-    ollama_use_separate_models: bool = Field(default=False)
-    ollama_thinking: bool = Field(default=False)
 
     # Scheduler configuration
     feed_refresh_interval: int = Field(default=1800)  # seconds

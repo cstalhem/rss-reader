@@ -203,3 +203,41 @@ class OllamaConfigUpdate(BaseModel):
 class OllamaPromptsResponse(BaseModel):
     categorization_prompt: str
     scoring_prompt: str
+
+
+# --- Providers ---
+
+
+class ProviderListItem(BaseModel):
+    provider: str
+
+
+class AvailableModel(BaseModel):
+    provider: str
+    name: str
+    size: int | None = None
+    parameter_size: str | None = None
+    quantization_level: str | None = None
+    is_loaded: bool | None = None
+
+
+class TaskRouteItem(BaseModel):
+    task: str
+    provider: str
+    model: str | None = None
+
+
+class TaskRoutesResponse(BaseModel):
+    routes: list[TaskRouteItem]
+    use_separate_models: bool
+
+
+class TaskRouteAssignment(BaseModel):
+    provider: str
+    model: str
+
+
+class TaskRoutesUpdate(BaseModel):
+    categorization: TaskRouteAssignment
+    scoring: TaskRouteAssignment
+    use_separate_models: bool

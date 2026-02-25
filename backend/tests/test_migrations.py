@@ -185,10 +185,15 @@ def test_upgrade_head_backfills_provider_and_routes() -> None:
                 ("scoring", "ollama", "qwen3:8b"),
             ]
 
-            active_provider = conn.execute(
-                "SELECT active_llm_provider FROM user_preferences LIMIT 1"
-            ).fetchone()
-            assert active_provider == ("ollama",)
+            # Verify legacy columns are removed by the final migration
+            col_names = [
+                row[1] for row in conn.execute("PRAGMA table_info(user_preferences)")
+            ]
+            assert "active_llm_provider" not in col_names
+            assert "ollama_categorization_model" not in col_names
+            assert "ollama_scoring_model" not in col_names
+            assert "ollama_thinking" not in col_names
+            assert "use_separate_models" in col_names
 
 
 def test_upgrade_head_is_idempotent_at_head() -> None:
