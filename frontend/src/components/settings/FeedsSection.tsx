@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Badge,
   Box,
@@ -55,11 +55,12 @@ import {
   useDeleteFeedFolder,
   useFeedFolders,
   useReorderFeedFolders,
-  useUpdateFeedFolder,
 } from "@/hooks/useFeedFolders";
 import { AddFeedDialog } from "@/components/feed/AddFeedDialog";
 import { CreateFolderDialog } from "@/components/feed/CreateFolderDialog";
 import { DeleteFeedDialog } from "@/components/feed/DeleteFeedDialog";
+import { EditFeedDialog } from "@/components/feed/EditFeedDialog";
+import { EditFolderDialog } from "@/components/feed/EditFolderDialog";
 import { MoveToFolderDialog } from "@/components/feed/MoveToFolderDialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toaster } from "@/components/ui/toaster";
@@ -70,9 +71,18 @@ interface SortableFeedRowProps {
   feed: Feed;
   onDelete: (feed: Feed) => void;
   onMove: (feed: Feed) => void;
+  onRename: (feed: Feed) => void;
+  showRenameAction?: boolean;
 }
 
-function SortableFeedRow({ dragId, feed, onDelete, onMove }: SortableFeedRowProps) {
+function SortableFeedRow({
+  dragId,
+  feed,
+  onDelete,
+  onMove,
+  onRename,
+  showRenameAction = false,
+}: SortableFeedRowProps) {
   const {
     attributes,
     listeners,
@@ -106,6 +116,7 @@ function SortableFeedRow({ dragId, feed, onDelete, onMove }: SortableFeedRowProp
         color="fg.muted"
         display="flex"
         alignItems="center"
+        title="Drag to reorder feed"
       >
         <LuGripVertical size={18} />
       </Box>
@@ -127,14 +138,27 @@ function SortableFeedRow({ dragId, feed, onDelete, onMove }: SortableFeedRowProp
 
       <IconButton
         aria-label="Move feed to folder"
+        title="Move feed to folder"
         size="sm"
         variant="ghost"
         onClick={() => onMove(feed)}
       >
         <LuFolderInput size={16} />
       </IconButton>
+      {showRenameAction && (
+        <IconButton
+          aria-label="Rename feed"
+          title="Rename feed"
+          size="sm"
+          variant="ghost"
+          onClick={() => onRename(feed)}
+        >
+          <LuPencil size={16} />
+        </IconButton>
+      )}
       <IconButton
         aria-label="Remove feed"
+        title="Remove feed"
         size="sm"
         variant="ghost"
         colorPalette="red"
@@ -192,6 +216,7 @@ function SortableFolderHeader({
         color="fg.muted"
         display="flex"
         alignItems="center"
+        title="Drag to reorder folder"
       >
         <LuGripVertical size={18} />
       </Box>
@@ -206,6 +231,7 @@ function SortableFolderHeader({
       )}
       <IconButton
         aria-label="Rename folder"
+        title="Rename folder"
         size="sm"
         variant="ghost"
         onClick={() => onRename(folder)}
@@ -214,6 +240,7 @@ function SortableFolderHeader({
       </IconButton>
       <IconButton
         aria-label="Delete folder"
+        title="Delete folder"
         size="sm"
         variant="ghost"
         colorPalette="red"
@@ -231,7 +258,6 @@ export function FeedsSection() {
   const reorderFeeds = useReorderFeeds();
   const reorderFolders = useReorderFeedFolders();
   const updateFeed = useUpdateFeed();
-  const updateFolder = useUpdateFeedFolder();
   const createFolder = useCreateFeedFolder();
   const deleteFeed = useDeleteFeed();
   const deleteFolder = useDeleteFeedFolder();
@@ -240,8 +266,10 @@ export function FeedsSection() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
   const [feedToDelete, setFeedToDelete] = useState<Feed | null>(null);
+  const [feedToRename, setFeedToRename] = useState<Feed | null>(null);
   const [feedToMove, setFeedToMove] = useState<Feed | null>(null);
   const [folderToDelete, setFolderToDelete] = useState<FeedFolder | null>(null);
+  const [folderToRename, setFolderToRename] = useState<FeedFolder | null>(null);
   const [deleteFolderFeedsToo, setDeleteFolderFeedsToo] = useState(false);
 
   const sensors = useSensors(
@@ -287,20 +315,44 @@ export function FeedsSection() {
     return { byFolder, rootFeeds };
   }, [feeds]);
 
-  const filteredRootFeeds = useMemo(
-    () =>
-      groupedFeeds.rootFeeds.filter((feed) =>
-        feed.title.toLowerCase().includes(searchQuery.toLowerCase())
-      ),
-    [groupedFeeds.rootFeeds, searchQuery]
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
+  const feedMatchesSearch = useCallback(
+    (feed: Feed) => {
+      if (!normalizedQuery) return true;
+      return (
+        feed.title.toLowerCase().includes(normalizedQuery) ||
+        feed.url.toLowerCase().includes(normalizedQuery)
+      );
+    },
+    [normalizedQuery]
   );
 
-  const filteredFolders = useMemo(
+  const filteredRootFeeds = useMemo(
+    () => groupedFeeds.rootFeeds.filter((feed) => feedMatchesSearch(feed)),
+    [groupedFeeds.rootFeeds, feedMatchesSearch]
+  );
+
+  const filteredFolderBlocks = useMemo(
     () =>
-      orderedFolders.filter((folder) =>
-        folder.name.toLowerCase().includes(searchQuery.toLowerCase())
-      ),
-    [orderedFolders, searchQuery]
+      orderedFolders
+        .map((folder) => {
+          const folderFeeds = groupedFeeds.byFolder.get(folder.id) ?? [];
+          const folderMatches = folder.name
+            .toLowerCase()
+            .includes(normalizedQuery);
+
+          const visibleFeeds = normalizedQuery
+            ? folderMatches
+              ? folderFeeds
+              : folderFeeds.filter((feed) => feedMatchesSearch(feed))
+            : folderFeeds;
+
+          if (!folderMatches && visibleFeeds.length === 0) return null;
+          return { folder, feeds: visibleFeeds };
+        })
+        .filter((entry): entry is { folder: FeedFolder; feeds: Feed[] } => entry !== null),
+    [orderedFolders, groupedFeeds.byFolder, feedMatchesSearch, normalizedQuery]
   );
 
   const isLoading = isFeedsLoading || isFoldersLoading;
@@ -329,16 +381,16 @@ export function FeedsSection() {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const oldIndex = filteredFolders.findIndex(
-      (folder) => `folder-${folder.id}` === active.id
+    const oldIndex = filteredFolderBlocks.findIndex(
+      (entry) => `folder-${entry.folder.id}` === active.id
     );
-    const newIndex = filteredFolders.findIndex(
-      (folder) => `folder-${folder.id}` === over.id
+    const newIndex = filteredFolderBlocks.findIndex(
+      (entry) => `folder-${entry.folder.id}` === over.id
     );
     if (oldIndex < 0 || newIndex < 0) return;
 
-    const reordered = arrayMove(filteredFolders, oldIndex, newIndex);
-    reorderFolders.mutate(reordered.map((folder) => folder.id));
+    const reordered = arrayMove(filteredFolderBlocks, oldIndex, newIndex);
+    reorderFolders.mutate(reordered.map((entry) => entry.folder.id));
   };
 
   const handleFolderFeedDragEnd = (folderId: number, event: DragEndEvent) => {
@@ -363,13 +415,11 @@ export function FeedsSection() {
   };
 
   const handleRenameFolder = (folder: FeedFolder) => {
-    const nextName = window.prompt("Folder name", folder.name);
-    if (!nextName) return;
+    setFolderToRename(folder);
+  };
 
-    const trimmed = nextName.trim();
-    if (!trimmed || trimmed === folder.name) return;
-
-    updateFolder.mutate({ id: folder.id, data: { name: trimmed } });
+  const handleRenameFeed = (feed: Feed) => {
+    setFeedToRename(feed);
   };
 
   const handleDeleteFeedConfirm = (feedId: number) => {
@@ -432,6 +482,9 @@ export function FeedsSection() {
     setDeleteFolderFeedsToo(false);
   };
 
+  const hasVisibleRows =
+    filteredFolderBlocks.length > 0 || filteredRootFeeds.length > 0;
+
   return (
     <Stack as="section" aria-label="Feeds" gap={6}>
       <SettingsPageHeader title="Feeds">
@@ -474,13 +527,80 @@ export function FeedsSection() {
               onChange={(event) => setSearchQuery(event.target.value)}
             />
 
-            <Stack gap={4}>
-              <Box>
-                <Text fontSize="sm" fontWeight="semibold" color="fg.muted" mb={2}>
-                  Root level feeds
-                </Text>
+            {hasVisibleRows ? (
+              <Stack gap={3}>
+                {filteredFolderBlocks.length > 0 && (
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleFolderDragEnd}
+                  >
+                    <SortableContext
+                      items={filteredFolderBlocks.map(
+                        ({ folder }) => `folder-${folder.id}`
+                      )}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <Stack gap={3}>
+                        {filteredFolderBlocks.map(
+                          ({ folder, feeds: visibleFeeds }) => (
+                            <Stack key={`folder-block-${folder.id}`} gap={2}>
+                              <SortableFolderHeader
+                                dragId={`folder-${folder.id}`}
+                                folder={folder}
+                                onRename={handleRenameFolder}
+                                onDelete={(nextFolder) => {
+                                  setFolderToDelete(nextFolder);
+                                  setDeleteFolderFeedsToo(false);
+                                }}
+                              />
 
-                {filteredRootFeeds.length > 0 ? (
+                              <Box pl={4}>
+                                {visibleFeeds.length > 0 ? (
+                                  <DndContext
+                                    sensors={sensors}
+                                    collisionDetection={closestCenter}
+                                    onDragEnd={(event) =>
+                                      handleFolderFeedDragEnd(folder.id, event)
+                                    }
+                                  >
+                                    <SortableContext
+                                      items={visibleFeeds.map(
+                                        (feed) =>
+                                          `folder-${folder.id}-feed-${feed.id}`
+                                      )}
+                                      strategy={verticalListSortingStrategy}
+                                    >
+                                      <Stack gap={2}>
+                                        {visibleFeeds.map((feed) => (
+                                          <SortableFeedRow
+                                            key={`folder-${folder.id}-feed-${feed.id}`}
+                                            dragId={`folder-${folder.id}-feed-${feed.id}`}
+                                            feed={feed}
+                                            onDelete={setFeedToDelete}
+                                            onMove={setFeedToMove}
+                                            onRename={handleRenameFeed}
+                                            showRenameAction={true}
+                                          />
+                                        ))}
+                                      </Stack>
+                                    </SortableContext>
+                                  </DndContext>
+                                ) : (
+                                  <Text fontSize="sm" color="fg.muted" py={2}>
+                                    No feeds in this folder
+                                  </Text>
+                                )}
+                              </Box>
+                            </Stack>
+                          )
+                        )}
+                      </Stack>
+                    </SortableContext>
+                  </DndContext>
+                )}
+
+                {filteredRootFeeds.length > 0 && (
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
@@ -498,102 +618,19 @@ export function FeedsSection() {
                             feed={feed}
                             onDelete={setFeedToDelete}
                             onMove={setFeedToMove}
+                            onRename={handleRenameFeed}
                           />
                         ))}
                       </Stack>
                     </SortableContext>
                   </DndContext>
-                ) : (
-                  <Text fontSize="sm" color="fg.muted">
-                    No root-level feeds
-                  </Text>
                 )}
-              </Box>
-
-              <Box>
-                <Text fontSize="sm" fontWeight="semibold" color="fg.muted" mb={2}>
-                  Folders
-                </Text>
-
-                {filteredFolders.length > 0 ? (
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleFolderDragEnd}
-                  >
-                    <SortableContext
-                      items={filteredFolders.map((folder) => `folder-${folder.id}`)}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      <Stack gap={3}>
-                        {filteredFolders.map((folder) => {
-                          const folderFeeds = groupedFeeds.byFolder.get(folder.id) ?? [];
-                          const filteredFolderFeeds = folderFeeds.filter((feed) =>
-                            feed.title
-                              .toLowerCase()
-                              .includes(searchQuery.toLowerCase())
-                          );
-
-                          return (
-                            <Stack key={`folder-block-${folder.id}`} gap={2}>
-                              <SortableFolderHeader
-                                dragId={`folder-${folder.id}`}
-                                folder={folder}
-                                onRename={handleRenameFolder}
-                                onDelete={(nextFolder) => {
-                                  setFolderToDelete(nextFolder);
-                                  setDeleteFolderFeedsToo(false);
-                                }}
-                              />
-
-                              <Box pl={4}>
-                                {filteredFolderFeeds.length > 0 ? (
-                                  <DndContext
-                                    sensors={sensors}
-                                    collisionDetection={closestCenter}
-                                    onDragEnd={(event) =>
-                                      handleFolderFeedDragEnd(folder.id, event)
-                                    }
-                                  >
-                                    <SortableContext
-                                      items={filteredFolderFeeds.map(
-                                        (feed) =>
-                                          `folder-${folder.id}-feed-${feed.id}`
-                                      )}
-                                      strategy={verticalListSortingStrategy}
-                                    >
-                                      <Stack gap={2}>
-                                        {filteredFolderFeeds.map((feed) => (
-                                          <SortableFeedRow
-                                            key={`folder-${folder.id}-feed-${feed.id}`}
-                                            dragId={`folder-${folder.id}-feed-${feed.id}`}
-                                            feed={feed}
-                                            onDelete={setFeedToDelete}
-                                            onMove={setFeedToMove}
-                                          />
-                                        ))}
-                                      </Stack>
-                                    </SortableContext>
-                                  </DndContext>
-                                ) : (
-                                  <Text fontSize="sm" color="fg.muted" py={2}>
-                                    No feeds in this folder
-                                  </Text>
-                                )}
-                              </Box>
-                            </Stack>
-                          );
-                        })}
-                      </Stack>
-                    </SortableContext>
-                  </DndContext>
-                ) : (
-                  <Text fontSize="sm" color="fg.muted">
-                    No folders
-                  </Text>
-                )}
-              </Box>
-            </Stack>
+              </Stack>
+            ) : (
+              <Text fontSize="sm" color="fg.muted">
+                No folders or feeds match your filter
+              </Text>
+            )}
           </Stack>
         </SettingsPanel>
       ) : (
@@ -640,6 +677,20 @@ export function FeedsSection() {
         onClose={() => setFeedToDelete(null)}
         onConfirm={handleDeleteFeedConfirm}
       />
+      {feedToRename && (
+        <EditFeedDialog
+          key={feedToRename.id}
+          feed={feedToRename}
+          onClose={() => setFeedToRename(null)}
+        />
+      )}
+      {folderToRename && (
+        <EditFolderDialog
+          key={folderToRename.id}
+          folder={folderToRename}
+          onClose={() => setFolderToRename(null)}
+        />
+      )}
 
       <ConfirmDialog
         open={!!folderToDelete}
