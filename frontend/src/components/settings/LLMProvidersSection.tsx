@@ -12,6 +12,7 @@ import { SystemPrompts } from "./SystemPrompts";
 import { SettingsPanel } from "./SettingsPanel";
 import { SettingsPageHeader } from "./SettingsPageHeader";
 import { SettingsPanelHeading } from "./SettingsPanelHeading";
+import { TopLevelModelSelector } from "./TopLevelModelSelector";
 
 export function LLMProvidersSection() {
   const { providers, disconnectMutation } = useProviders();
@@ -123,6 +124,11 @@ export function LLMProvidersSection() {
         </EmptyState.Root>
       ) : (
         <>
+          <SettingsPanel>
+            <SettingsPanelHeading>Model Configuration</SettingsPanelHeading>
+            <TopLevelModelSelector />
+          </SettingsPanel>
+
           <ProviderPillBar
             providers={providers ?? []}
             pendingProviders={pendingProviders}
