@@ -54,7 +54,9 @@ async def test_process_next_batch_requeues_cancelled_article(
             raise asyncio.CancelledError()
 
     monkeypatch.setattr(scoring_queue_module, "evaluate_task_readiness", fake_readiness)
-    monkeypatch.setattr(scoring_queue_module, "get_provider", lambda _name: FakeProvider())
+    monkeypatch.setattr(
+        scoring_queue_module, "get_provider", lambda _name: FakeProvider()
+    )
 
     queue = ScoringQueue()
     with pytest.raises(asyncio.CancelledError):

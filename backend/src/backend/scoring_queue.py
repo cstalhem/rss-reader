@@ -329,9 +329,7 @@ class ScoringQueue:
                 processed += 1
 
             except asyncio.CancelledError:
-                logger.info(
-                    "Scoring cancelled for article %s; re-queueing", article.id
-                )
+                logger.info("Scoring cancelled for article %s; re-queueing", article.id)
                 session.rollback()
                 article.scoring_state = "queued"
                 session.add(article)
