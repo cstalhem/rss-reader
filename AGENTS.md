@@ -10,17 +10,17 @@ A personal RSS reader with LLM-powered relevance scoring. Local-first, simple, m
 
 ## Directory Structure
 
-| Directory            | Contents                                                      |
-| -------------------- | ------------------------------------------------------------- |
-| `backend/`           | Python/FastAPI API server with SQLModel models                |
-| `frontend/`          | Next.js App Router with Chakra UI v3 components               |
-| `config/`            | Production YAML configuration (`app.yaml`)                    |
-| `spec/`              | PRD and milestone implementation plans                        |
-| `.planning/`         | GSD workflow: roadmap, phase plans, research, state tracking  |
-| `.claude/rules/`     | Concise do/don't rules, loaded by file path context           |
-| `.claude/skills/`    | Deep reference: examples, anti-patterns, decision aids        |
-| `.github/workflows/` | CI/CD: Docker image builds pushed to GHCR                     |
-| `data/`              | SQLite database (gitignored)                                  |
+| Directory            | Contents                                                     |
+| -------------------- | ------------------------------------------------------------ |
+| `backend/`           | Python/FastAPI API server with SQLModel models               |
+| `frontend/`          | Next.js App Router with Chakra UI v3 components              |
+| `config/`            | Production YAML configuration (`app.yaml`)                   |
+| `spec/`              | PRD and milestone implementation plans                       |
+| `.planning/`         | GSD workflow: roadmap, phase plans, research, state tracking |
+| `.claude/rules/`     | Concise do/don't rules, loaded by file path context          |
+| `.claude/skills/`    | Deep reference: examples, anti-patterns, decision aids       |
+| `.github/workflows/` | CI/CD: Docker image builds pushed to GHCR                    |
+| `data/`              | SQLite database (gitignored)                                 |
 
 ---
 
@@ -73,12 +73,13 @@ The frontend image is built with relative API URLs — a reverse proxy routes `P
 
 ## Testing Principles
 
-1. **Integration over unit tests** — Test real workflows, not implementation details
-2. **Real databases** — Use SQLite test databases via fixtures, avoid mocking
-3. **Async-first** — Use `pytest-asyncio` for FastAPI endpoints
-4. **Test important paths** — Feed fetching, article display, read/unread state
-5. **Don't over-invest** — Skip exhaustive CRUD unit tests and UI snapshots
-6. **Use the Rodney-cli** — Always verify UI implementations with `uvx rodney --help` interactively
+1. **Use red/green testing** - Always follow this convention when working
+2. **Integration over unit tests** — Test real workflows, not implementation details
+3. **Real databases** — Use SQLite test databases via fixtures, avoid mocking
+4. **Async-first** — Use `pytest-asyncio` for FastAPI endpoints
+5. **Test important paths** — Feed fetching, article display, read/unread state
+6. **Don't over-invest** — Skip exhaustive CRUD unit tests and UI snapshots
+7. **Use the Rodney-cli** — Always verify UI implementations with `uvx rodney --help` interactively
 
 ---
 
@@ -86,11 +87,11 @@ The frontend image is built with relative API URLs — a reverse proxy routes `P
 
 Project knowledge lives in three tiers. Each has a distinct purpose and update trigger.
 
-| Tier | Location | Loads | Contains |
-|------|----------|-------|----------|
-| Orientation | `AGENTS.md` (this file) | Always | Project structure, commands, design assumptions |
-| Rules | `.claude/rules/` | Always (path-scoped) | Concise do/don't rules |
-| Skills | `.claude/skills/` | On demand | Deep reference: examples, anti-patterns, decision aids |
+| Tier        | Location                | Loads                | Contains                                               |
+| ----------- | ----------------------- | -------------------- | ------------------------------------------------------ |
+| Orientation | `AGENTS.md` (this file) | Always               | Project structure, commands, design assumptions        |
+| Rules       | `.claude/rules/`        | Always (path-scoped) | Concise do/don't rules                                 |
+| Skills      | `.claude/skills/`       | On demand            | Deep reference: examples, anti-patterns, decision aids |
 
 **Auto memory** (`MEMORY.md`) is a staging area for learnings discovered during work.
 
