@@ -18,6 +18,15 @@ export const queryKeys = {
   scoringStatus: {
     all: ["scoring-status"] as const,
   },
+  providers: {
+    all: ["providers"] as const,
+  },
+  models: {
+    available: ["models", "available"] as const,
+  },
+  taskRoutes: {
+    all: ["task-routes"] as const,
+  },
   ollama: {
     health: ["ollama-health"] as const,
     models: ["ollama-models"] as const,

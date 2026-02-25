@@ -1,18 +1,22 @@
 import {
   Article,
   ArticleListItem,
+  AvailableModel,
   Category,
+  DownloadStatus,
   Feed,
-  UserPreferences,
+  FetchArticlesParams,
+  OllamaConfig,
   OllamaHealth,
   OllamaModel,
-  OllamaConfig,
-  RescoreResult,
   OllamaPrompts,
-  ScoringStatus,
-  DownloadStatus,
-  FetchArticlesParams,
+  ProviderListItem,
   RefreshStatus,
+  RescoreResult,
+  ScoringStatus,
+  TaskRoutesResponse,
+  TaskRoutesUpdate,
+  UserPreferences,
 } from "./types";
 
 export const API_BASE_URL =
@@ -323,6 +327,65 @@ export async function fetchScoringStatus(): Promise<ScoringStatus> {
   return response.json();
 }
 
+// --- Provider API ---
+
+export async function fetchProviders(): Promise<ProviderListItem[]> {
+  const response = await fetch(`${API_BASE_URL}/api/providers`);
+  if (!response.ok) await throwApiError(response, "Failed to fetch providers");
+  return response.json();
+}
+
+export async function disconnectProvider(
+  provider: string
+): Promise<{ ok: boolean }> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/providers/${encodeURIComponent(provider)}`,
+    { method: "DELETE" }
+  );
+  if (!response.ok) await throwApiError(response, "Failed to disconnect provider");
+  return response.json();
+}
+
+export async function saveProviderConfig(
+  provider: string,
+  config: unknown
+): Promise<OllamaConfig> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/providers/${encodeURIComponent(provider)}/config`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config),
+    }
+  );
+  if (!response.ok) await throwApiError(response, "Failed to save provider config");
+  return response.json();
+}
+
+export async function fetchAvailableModels(): Promise<AvailableModel[]> {
+  const response = await fetch(`${API_BASE_URL}/api/models`);
+  if (!response.ok) await throwApiError(response, "Failed to fetch available models");
+  return response.json();
+}
+
+export async function fetchTaskRoutes(): Promise<TaskRoutesResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/task-routes`);
+  if (!response.ok) await throwApiError(response, "Failed to fetch task routes");
+  return response.json();
+}
+
+export async function saveTaskRoutes(
+  data: TaskRoutesUpdate
+): Promise<{ ok: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/api/task-routes`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) await throwApiError(response, "Failed to save task routes");
+  return response.json();
+}
+
 // --- Ollama Configuration API ---
 
 export async function fetchOllamaHealth(): Promise<OllamaHealth> {
@@ -358,13 +421,16 @@ export async function fetchOllamaConfig(): Promise<OllamaConfig> {
 export async function saveOllamaConfig(
   data: OllamaConfig
 ): Promise<OllamaConfig> {
-  const response = await fetch(`${API_BASE_URL}/api/ollama/config`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/api/providers/ollama/config`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    }
+  );
 
   if (!response.ok) {
     await throwApiError(response, "Failed to save Ollama config");

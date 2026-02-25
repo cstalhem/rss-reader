@@ -95,6 +95,36 @@ export interface OllamaConfig {
   use_separate_models: boolean;
 }
 
+export interface ProviderListItem {
+  provider: string;
+}
+
+export interface AvailableModel {
+  provider: string;
+  name: string;
+  size: number | null;
+  parameter_size: string | null;
+  quantization_level: string | null;
+  is_loaded: boolean | null;
+}
+
+export interface TaskRouteItem {
+  task: string;
+  provider: string;
+  model: string | null;
+}
+
+export interface TaskRoutesResponse {
+  routes: TaskRouteItem[];
+  use_separate_models: boolean;
+}
+
+export interface TaskRoutesUpdate {
+  categorization: { provider: string; model: string };
+  scoring: { provider: string; model: string };
+  use_separate_models: boolean;
+}
+
 export interface RefreshStatus {
   next_refresh_at: string | null;
 }
