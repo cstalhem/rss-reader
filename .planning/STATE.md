@@ -1,3 +1,16 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: Configuration, Feedback & Polish
+status: unknown
+last_updated: "2026-02-25T21:58:10.557Z"
+progress:
+  total_phases: 13
+  completed_phases: 11
+  total_plans: 68
+  completed_plans: 64
+---
+
 # Project State
 
 ## Project Reference
@@ -10,9 +23,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Milestone: v1.1 Configuration, Feedback & Polish
-Phase: 09.5 in progress (4 of 5 plans complete)
-Status: Plan 04 complete. Inline reader replaces drawer, content rendered via html-react-parser + DOMPurify.
-Last activity: 2026-02-22 - Phase 09.5 Plan 04 complete: Replaced drawer-based reader with inline reader, added ArticleContent with html-react-parser + DOMPurify sanitization
+Phase: 09.6 in progress (1 of 3 plans complete)
+Status: Plan 01 complete. Data layer foundation: backend provider/task-route/models endpoints, frontend ProviderPlugin module structure with 5 providers, provider-agnostic hooks.
+Last activity: 2026-02-25 - Phase 09.6 Plan 01 complete: Backend provider/task-route/models endpoints, frontend ProviderPlugin modules, useProviders/useModelAssignments/useAvailableModels hooks
 
 Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase 10 remaining)
 
@@ -118,6 +131,7 @@ Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase
 | Phase 09.5 P02 | 4.1 | 2 tasks | 7 files |
 | Phase 09.5 P03 | 4.9 | 2 tasks | 4 files |
 | Phase 09.5 P04 | 6.9 | 2 tasks | 5 files |
+| Phase 09.6 P01 | 10 | 2 tasks | 27 files |
 
 ## Accumulated Context
 
@@ -282,6 +296,11 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 09.5]: READER_CONTENT_STYLES as exported constant in typography.ts (defineTextStyles can't handle deeply nested selectors)
 - [Phase 09.5]: Conditional early return in ArticleList for reader view (simpler than dual JSX branches)
 - [Phase 09.5]: requestAnimationFrame for scroll restore to ensure DOM has rendered list before scrolling
+- [Phase 09.6-01]: Provider-agnostic URL PUT /api/providers/{provider}/config replaces PUT /api/ollama/config
+- [Phase 09.6-01]: Disconnect deletes LLMProviderConfig + LLMTaskRoute rows atomically -- re-add starts fresh
+- [Phase 09.6-01]: use_separate_models in UserPreferences (provider-agnostic), accessed via /api/task-routes
+- [Phase 09.6-01]: GET /api/models aggregates from all configured providers, skips failing ones
+- [Phase 09.6-01]: ProviderPlugin interface: per-provider directory with Logo + index.ts, PROVIDER_REGISTRY array
 
 ### Pending Todos
 
@@ -327,10 +346,10 @@ Key architectural decisions carrying forward to v1.1:
 
 ## Session Continuity
 
-Last session: 2026-02-24
-Stopped at: Phase 09.6 context gathered
-Resume file: .planning/phases/09.6-llm-providers-settings-refresh/09.6-CONTEXT.md
+Last session: 2026-02-25
+Stopped at: Completed 09.6-01-PLAN.md
+Resume file: .planning/phases/09.6-llm-providers-settings-refresh/09.6-01-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-24 after Phase 09.6 context gathered*
+*Last updated: 2026-02-25 after Phase 09.6 Plan 01 complete*
