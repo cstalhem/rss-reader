@@ -59,6 +59,41 @@ bun run build         # Production build
 - **`dev`** — Development. All day-to-day work (GSD phases, bug fixes, features) happens here.
 - Merge `dev` → `main` when ready to deploy. Pushes to `dev` trigger CI builds (validation only, no image push).
 
+## Pull Requests
+
+When creating PRs, use this body template:
+
+```
+# <Short title, max 72 chars>
+
+## What is this PR about?
+
+1-2 sentences. What changed in plain language.
+
+## Why is this change needed?
+
+1-2 sentences. Problem/user impact.
+
+## How is this change implemented?
+
+3-5 bullets max. High-level only, no deep technical details.
+
+## How to test this change?
+
+Non-technical, step-by-step.
+
+1. ...
+2. ...
+3. ...
+
+## Notes
+
+For example:
+- Reviewer focus/risk areas
+- Any migration/seed/env prerequisite
+- Known limitation (if any)
+```
+
 ## Deployment
 
 Two Docker images published to GHCR via GitHub Actions (`.github/workflows/docker-publish.yml`):
