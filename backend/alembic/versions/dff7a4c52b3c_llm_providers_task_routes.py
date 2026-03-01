@@ -249,7 +249,7 @@ def upgrade() -> None:
               SELECT 1 FROM llm_provider_configs WHERE provider = :provider
             )
             """
-        ),
+        ).bindparams(sa.bindparam("updated_at", type_=sa.DateTime())),
         {
             "provider": "ollama",
             "enabled": True,
@@ -281,7 +281,7 @@ def upgrade() -> None:
               SELECT 1 FROM llm_task_routes WHERE task = :task
             )
             """
-        ),
+        ).bindparams(sa.bindparam("updated_at", type_=sa.DateTime())),
         {
             "task": "categorization",
             "provider": "ollama",
@@ -299,7 +299,7 @@ def upgrade() -> None:
               SELECT 1 FROM llm_task_routes WHERE task = :task
             )
             """
-        ),
+        ).bindparams(sa.bindparam("updated_at", type_=sa.DateTime())),
         {
             "task": "scoring",
             "provider": "ollama",
