@@ -4,7 +4,6 @@ import { useCallback, useState } from "react";
 import {
   Box,
   Button,
-  Flex,
   Grid,
   Input,
   Stack,
@@ -25,7 +24,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import type { OllamaConfig } from "@/lib/types";
 import type { ProviderPanelProps } from "../types";
 
-const DEFAULT_HOST = "localhost";
+const DEFAULT_HOST = "http://localhost";
 const DEFAULT_PORT = 11434;
 
 export function OllamaProviderPanel({
@@ -48,6 +47,14 @@ export function OllamaProviderPanel({
     isNew ? DEFAULT_PORT : (serverConfig?.port ?? DEFAULT_PORT)
   );
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+
+  const hostEmpty = localHost.trim() === "";
+  const hostError =
+    !hostEmpty &&
+    !localHost.startsWith("http://") &&
+    !localHost.startsWith("https://")
+      ? "URL must start with http:// or https://"
+      : null;
 
   const isDirty =
     !isNew &&
@@ -95,20 +102,6 @@ export function OllamaProviderPanel({
     onCancelSetup,
   ]);
 
-  const handleConfigChange = useCallback((config: OllamaConfig) => {
-    // Used by ModelManagement when deleting an active model
-    setLocalHost(config.base_url);
-    setLocalPort(config.port);
-  }, []);
-
-  const effectiveConfig: OllamaConfig | undefined = serverConfig
-    ? {
-        ...serverConfig,
-        base_url: localHost,
-        port: localPort,
-      }
-    : undefined;
-
   return (
     <SettingsPanel>
       {/* Connection section */}
@@ -134,8 +127,13 @@ export function OllamaProviderPanel({
             size="sm"
             value={localHost}
             onChange={(e) => setLocalHost(e.target.value)}
-            placeholder="localhost"
+            placeholder="http://localhost"
           />
+          {hostError && (
+            <Text fontSize="xs" color="fg.error" mt={1}>
+              {hostError}
+            </Text>
+          )}
         </Box>
         <Box>
           <Text fontSize="xs" color="fg.muted" mb={1}>
@@ -157,9 +155,7 @@ export function OllamaProviderPanel({
           <SettingsPanelHeading>Model Library</SettingsPanelHeading>
           <ModelManagement
             models={models ?? []}
-            config={effectiveConfig}
             pullHook={pullHook}
-            onConfigChange={handleConfigChange}
           />
         </>
       )}
@@ -173,6 +169,7 @@ export function OllamaProviderPanel({
               colorPalette="accent"
               onClick={handleSave}
               loading={saveMutation.isPending}
+              disabled={hostEmpty || !!hostError}
             >
               Save
             </Button>
@@ -187,7 +184,7 @@ export function OllamaProviderPanel({
               colorPalette="accent"
               onClick={handleSave}
               loading={saveMutation.isPending}
-              disabled={!isDirty}
+              disabled={!isDirty || hostEmpty || !!hostError}
             >
               Save
             </Button>

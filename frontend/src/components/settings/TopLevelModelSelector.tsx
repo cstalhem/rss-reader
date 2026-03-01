@@ -8,6 +8,7 @@ import {
   Flex,
   Grid,
   Portal,
+  Skeleton,
   Stack,
   Switch,
   Text,
@@ -148,10 +149,12 @@ export function TopLevelModelSelector() {
   const {
     taskRoutes,
     useSeparateModels,
+    isLoading: routesLoading,
     saveMutation,
     rescoreMutation,
   } = useModelAssignments();
-  const { models } = useAvailableModels();
+  const { models, isLoading: modelsLoading } = useAvailableModels();
+  const dataReady = !routesLoading && !modelsLoading;
   const { data: scoringStatus } = useScoringStatus();
 
   // Derive server values
@@ -165,6 +168,12 @@ export function TopLevelModelSelector() {
   }, [taskRoutes]);
   const serverSeparate = useSeparateModels ?? false;
 
+  // Set of valid model value keys — used to detect deleted models
+  const validModelValues = useMemo(() => {
+    if (!models) return new Set<string>();
+    return new Set(buildModelItems(models).map((i) => i.value));
+  }, [models]);
+
   // Local edits overlay: null = no user edits yet, falls back to server state
   interface LocalEdits {
     cat: string | null;
@@ -176,9 +185,12 @@ export function TopLevelModelSelector() {
     null
   );
 
-  // Effective values: local edits if user has touched, otherwise server
-  const localCat = localEdits?.cat ?? serverCat;
-  const localScore = localEdits?.score ?? serverScore;
+  // Effective values: local edits if user has touched, otherwise server.
+  // Null out selections that reference deleted models.
+  const rawCat = localEdits?.cat ?? serverCat;
+  const rawScore = localEdits?.score ?? serverScore;
+  const localCat = rawCat && validModelValues.has(rawCat) ? rawCat : null;
+  const localScore = rawScore && validModelValues.has(rawScore) ? rawScore : null;
   const localSeparate = localEdits?.separate ?? serverSeparate;
 
   const isDirty =
@@ -296,8 +308,11 @@ export function TopLevelModelSelector() {
         </Switch.Root>
       )}
 
-      {/* Model Combobox(es) */}
-      {localSeparate ? (
+      {/* Model Combobox(es) — deferred until both queries resolve so zag-js
+          initializes inputValue from a populated collection + correct value */}
+      {!dataReady ? (
+        <Skeleton variant="shine" height="36px" borderRadius="md" />
+      ) : localSeparate ? (
         <>
           <Grid templateColumns={{ base: "1fr", md: "1fr 1fr" }} gap={4}>
             <ModelCombobox

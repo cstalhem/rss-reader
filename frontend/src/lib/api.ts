@@ -25,7 +25,13 @@ export const API_BASE_URL =
 /** Throw an error with the backend's `detail` message if available, otherwise fall back to a generic message. */
 async function throwApiError(response: Response, fallback: string): Promise<never> {
   const body = await response.json().catch(() => null);
-  throw new Error(body?.detail ?? `${fallback}: ${response.statusText}`);
+  const detail = body?.detail;
+  const message = Array.isArray(detail)
+    ? detail.map((e: { msg?: string }) => e.msg ?? JSON.stringify(e)).join("; ")
+    : typeof detail === "string"
+      ? detail
+      : `${fallback}: ${response.statusText}`;
+  throw new Error(message);
 }
 
 export async function fetchArticles(

@@ -13,6 +13,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import ValidationError
 from sqlmodel import Session, select
 
 from backend import ollama_service
@@ -91,14 +92,17 @@ def save_provider_config(
     if provider != OLLAMA_PROVIDER:
         raise HTTPException(status_code=404, detail=f"Unknown provider: {provider}")
 
-    config = OllamaProviderConfig(
-        base_url=update.base_url,
-        port=update.port,
-        categorization_model=update.categorization_model,
-        scoring_model=update.scoring_model,
-        use_separate_models=update.use_separate_models,
-        thinking=False,
-    )
+    try:
+        config = OllamaProviderConfig(
+            base_url=update.base_url,
+            port=update.port,
+            categorization_model=update.categorization_model,
+            scoring_model=update.scoring_model,
+            use_separate_models=update.use_separate_models,
+            thinking=False,
+        )
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
     upsert_ollama_provider_config(session, config)
     sync_ollama_task_routes(session, config)
     session.commit()
