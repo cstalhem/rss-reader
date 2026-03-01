@@ -32,7 +32,7 @@ def test_update_ollama_config_persists_provider_config_and_routes(
         "use_separate_models": True,
     }
 
-    response = test_client.put("/api/ollama/config", json=payload)
+    response = test_client.put("/api/providers/ollama/config", json=payload)
     assert response.status_code == 200
     assert response.json() == payload
 

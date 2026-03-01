@@ -215,13 +215,8 @@ def create_db_and_tables():
                 row[1]
                 for row in conn.execute(text("PRAGMA table_info(user_preferences)"))
             }
-            if "ollama_thinking" not in existing:
-                conn.execute(
-                    text(
-                        "ALTER TABLE user_preferences "
-                        "ADD COLUMN ollama_thinking BOOLEAN NOT NULL DEFAULT 0"
-                    )
-                )
+            # Note: ollama_thinking was added here historically but is now
+            # removed by Alembic migration. Skip adding it on fresh installs.
             if "feed_refresh_interval" not in existing:
                 conn.execute(
                     text(

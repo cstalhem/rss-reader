@@ -96,8 +96,13 @@ def upgrade() -> None:
                 unique=False,
             )
 
-    if _table_exists(inspector, "user_preferences") and not _column_exists(
-        inspector, "user_preferences", "active_llm_provider"
+    # Guard: skip adding active_llm_provider on fresh installs where the model
+    # no longer defines it (removed in Phase 09.6). The column will be dropped
+    # by a later migration anyway.
+    if (
+        _table_exists(inspector, "user_preferences")
+        and not _column_exists(inspector, "user_preferences", "active_llm_provider")
+        and _column_exists(inspector, "user_preferences", "ollama_categorization_model")
     ):
         with op.batch_alter_table("user_preferences") as batch_op:
             batch_op.add_column(
@@ -199,24 +204,32 @@ def upgrade() -> None:
     if not port:
         port = DEFAULT_OLLAMA_PORT
 
-    legacy = (
-        bind.execute(
-            sa.text(
+    # Guard: legacy columns may not exist on fresh installs where models.py
+    # no longer defines them (removed in Phase 09.6).
+    inspector = sa.inspect(bind)
+    has_legacy_cols = _column_exists(inspector, "user_preferences", "ollama_categorization_model")
+
+    if has_legacy_cols:
+        legacy = (
+            bind.execute(
+                sa.text(
+                    """
+                SELECT
+                  ollama_categorization_model AS categorization_model,
+                  ollama_scoring_model AS scoring_model,
+                  ollama_use_separate_models AS use_separate_models,
+                  ollama_thinking AS thinking
+                FROM user_preferences
+                ORDER BY id
+                LIMIT 1
                 """
-            SELECT
-              ollama_categorization_model AS categorization_model,
-              ollama_scoring_model AS scoring_model,
-              ollama_use_separate_models AS use_separate_models,
-              ollama_thinking AS thinking
-            FROM user_preferences
-            ORDER BY id
-            LIMIT 1
-            """
+                )
             )
+            .mappings()
+            .first()
         )
-        .mappings()
-        .first()
-    )
+    else:
+        legacy = None
 
     if legacy:
         categorization_model = legacy["categorization_model"]
@@ -258,15 +271,18 @@ def upgrade() -> None:
         },
     )
 
-    bind.execute(
-        sa.text(
-            """
-            UPDATE user_preferences
-            SET active_llm_provider = 'ollama'
-            WHERE active_llm_provider IS NULL OR active_llm_provider = ''
-            """
+    # Guard: active_llm_provider may not exist on fresh installs.
+    inspector = sa.inspect(bind)
+    if _column_exists(inspector, "user_preferences", "active_llm_provider"):
+        bind.execute(
+            sa.text(
+                """
+                UPDATE user_preferences
+                SET active_llm_provider = 'ollama'
+                WHERE active_llm_provider IS NULL OR active_llm_provider = ''
+                """
+            )
         )
-    )
 
     scoring_route_model = (
         scoring_model if use_separate_models and scoring_model else categorization_model

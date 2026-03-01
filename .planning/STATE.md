@@ -1,3 +1,16 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: Configuration, Feedback & Polish
+status: unknown
+last_updated: "2026-03-01"
+progress:
+  total_phases: 13
+  completed_phases: 12
+  total_plans: 68
+  completed_plans: 68
+---
+
 # Project State
 
 ## Project Reference
@@ -10,9 +23,9 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Milestone: v1.1 Configuration, Feedback & Polish
-Phase: 09.5 in progress (4 of 5 plans complete)
-Status: Plan 04 complete. Inline reader replaces drawer, content rendered via html-react-parser + DOMPurify.
-Last activity: 2026-02-22 - Phase 09.5 Plan 04 complete: Replaced drawer-based reader with inline reader, added ArticleContent with html-react-parser + DOMPurify sanitization
+Phase: 09.6 complete. Phase 10 next (LLM Feedback Loop).
+Status: Phase 09.6 complete. Multi-provider LLM settings: provider pill bar, add dialog, Ollama panel, grouped model selector, brand logos.
+Last activity: 2026-03-01 - Phase 09.6 complete: All 3 plans done, checkpoint verification passed
 
 Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase 10 remaining)
 
@@ -118,6 +131,8 @@ Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase
 | Phase 09.5 P02 | 4.1 | 2 tasks | 7 files |
 | Phase 09.5 P03 | 4.9 | 2 tasks | 4 files |
 | Phase 09.5 P04 | 6.9 | 2 tasks | 5 files |
+| Phase 09.6 P01 | 10 | 2 tasks | 27 files |
+| Phase 09.6 P02 | 3 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -129,6 +144,7 @@ Progress: [█████████░] 90% (9/10 v1.1 phases complete, Phase
 - Phase 09.3 inserted (renumbered from 09.4): Settings page architecture research and audit — research-only phase to map settings component hierarchy, identify complexity hotspots, and produce findings for follow-up implementation phase
 - Phase 09.4 placeholder: Settings page architecture implementation — scope TBD from Phase 09.3 findings
 - Phase 09.5 (renumbered from 09.3): Refine main view UX and typography — polish article list page and reader pane across information density, typography, layout, navigation, and visual cohesion
+- Phase 09.6 inserted after Phase 09.5: UI refresh of LLM Providers settings section (URGENT) — separate provider config from model management, multi-provider UI with name/logo, prep for OpenAI/Anthropic/Google/OpenRouter
 
 ### Decisions
 
@@ -281,6 +297,14 @@ Key architectural decisions carrying forward to v1.1:
 - [Phase 09.5]: READER_CONTENT_STYLES as exported constant in typography.ts (defineTextStyles can't handle deeply nested selectors)
 - [Phase 09.5]: Conditional early return in ArticleList for reader view (simpler than dual JSX branches)
 - [Phase 09.5]: requestAnimationFrame for scroll restore to ensure DOM has rendered list before scrolling
+- [Phase 09.6-01]: Provider-agnostic URL PUT /api/providers/{provider}/config replaces PUT /api/ollama/config
+- [Phase 09.6-01]: Disconnect deletes LLMProviderConfig + LLMTaskRoute rows atomically -- re-add starts fresh
+- [Phase 09.6-01]: use_separate_models in UserPreferences (provider-agnostic), accessed via /api/task-routes
+- [Phase 09.6-01]: GET /api/models aggregates from all configured providers, skips failing ones
+- [Phase 09.6-01]: ProviderPlugin interface: per-provider directory with Logo + index.ts, PROVIDER_REGISTRY array
+- [Phase 09.6]: Adding provider is frontend-only state (pending Set) until user saves -- no backend call on Add
+- [Phase 09.6]: Provider-agnostic orchestrator resolves panels dynamically from PROVIDER_REGISTRY -- zero provider-specific imports
+- [Phase 09.6]: Self-contained provider panels: isNew prop drives setup vs edit mode, panel calls own hooks
 
 ### Pending Todos
 
@@ -326,9 +350,10 @@ Key architectural decisions carrying forward to v1.1:
 
 ## Session Continuity
 
-Last session: 2026-02-22
-Stopped at: Completed 09.5-04-PLAN.md (inline reader with html-react-parser + DOMPurify)
+Last session: 2026-03-01
+Stopped at: Completed Phase 09.6 (all 3 plans)
+Resume file: .planning/phases/09.6-llm-providers-settings-refresh/09.6-03-SUMMARY.md
 
 ---
 *State initialized: 2026-02-14*
-*Last updated: 2026-02-22 after Phase 09.5 Plan 04*
+*Last updated: 2026-02-25 after Phase 09.6 Plan 02 complete*

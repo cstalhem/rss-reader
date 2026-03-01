@@ -1,5 +1,5 @@
-import { OllamaSection } from "@/components/settings/OllamaSection";
+import { LLMProvidersSection } from "@/components/settings/LLMProvidersSection";
 
 export default function LLMProvidersPage() {
-  return <OllamaSection />;
+  return <LLMProvidersSection />;
 }

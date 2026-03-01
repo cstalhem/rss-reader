@@ -7,9 +7,8 @@ from typing import Literal
 
 from sqlmodel import Session, select
 
-from backend.config import get_settings
 from backend.database import engine
-from backend.llm_providers.ollama import OllamaProviderConfig, split_ollama_host
+from backend.llm_providers.ollama import OllamaProviderConfig
 from backend.llm_providers.registry import get_provider
 from backend.models import LLMProviderConfig, LLMTaskRoute, UserPreferences
 
@@ -64,44 +63,6 @@ def get_or_create_preferences(session: Session) -> UserPreferences:
     return preferences
 
 
-def resolve_ollama_models(
-    preferences: UserPreferences,
-) -> tuple[str | None, str | None]:
-    """Resolve categorization and scoring model names from preferences."""
-    categorization_model = preferences.ollama_categorization_model
-    if preferences.ollama_use_separate_models:
-        scoring_model = preferences.ollama_scoring_model
-    else:
-        scoring_model = categorization_model
-    return categorization_model, scoring_model
-
-
-def _build_legacy_ollama_config(session: Session) -> OllamaProviderConfig:
-    """Build an Ollama config from legacy preferences + static settings."""
-    settings = get_settings()
-    preferences = session.exec(select(UserPreferences)).first()
-    base_url, port = split_ollama_host(settings.ollama.host)
-
-    if not preferences:
-        return OllamaProviderConfig(
-            base_url=base_url,
-            port=port,
-            categorization_model=None,
-            scoring_model=None,
-            use_separate_models=False,
-            thinking=False,
-        )
-
-    return OllamaProviderConfig(
-        base_url=base_url,
-        port=port,
-        categorization_model=preferences.ollama_categorization_model,
-        scoring_model=preferences.ollama_scoring_model,
-        use_separate_models=preferences.ollama_use_separate_models,
-        thinking=False,
-    )
-
-
 def get_provider_config_row(
     session: Session, provider: str
 ) -> LLMProviderConfig | None:
@@ -112,7 +73,7 @@ def get_provider_config_row(
 
 
 def get_ollama_provider_config(session: Session) -> OllamaProviderConfig:
-    """Get validated Ollama config with legacy fallback."""
+    """Get validated Ollama config from LLMProviderConfig table."""
     row = get_provider_config_row(session, OLLAMA_PROVIDER)
     if row:
         try:
@@ -121,7 +82,8 @@ def get_ollama_provider_config(session: Session) -> OllamaProviderConfig:
         except Exception:
             logger.exception("Invalid Ollama provider config JSON")
 
-    return _build_legacy_ollama_config(session)
+    # No row means provider not configured -- return defaults
+    return OllamaProviderConfig()
 
 
 def upsert_ollama_provider_config(
@@ -187,7 +149,7 @@ def resolve_task_runtime(session: Session, task: TaskName) -> TaskRuntimeResolut
     """Resolve provider/model/endpoint for a task without network calls."""
     route = get_task_route(session, task)
 
-    # Compatibility fallback while legacy prefs columns still exist.
+    # Fallback when no task route exists (provider not yet configured).
     if route is None:
         legacy_config = get_ollama_provider_config(session)
         fallback_model = legacy_config.default_model_for_task(task)
