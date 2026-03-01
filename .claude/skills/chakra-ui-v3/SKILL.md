@@ -140,6 +140,30 @@ Chakra UI v3 uses `@zag-js` state machines under the hood. Each machine allocate
 
 **The principle:** Push per-item overhead out of the render loop. This applies to Zag machines, MQL listeners, responsive duplication (`display:none/block`), and `Collapsible.Content` (mounts children when closed — use conditional rendering instead for lists).
 
+### `CloseTrigger` for Dialog Cancel Buttons
+
+`Dialog.CloseTrigger` renders as an absolutely-positioned `IconButton` in the top-right corner — it's the X icon. Using `asChild` on it replaces the icon but keeps the corner positioning. For a labeled "Cancel" button in `Dialog.Footer`, use `Dialog.ActionTrigger`:
+
+```tsx
+// BAD — CloseTrigger renders in the corner, not in the footer flow
+<Dialog.Footer>
+  <Dialog.CloseTrigger asChild>
+    <Box as="button" cursor="pointer">
+      <Text fontSize="sm" color="fg.muted">Cancel</Text>
+    </Box>
+  </Dialog.CloseTrigger>
+</Dialog.Footer>
+
+// GOOD — ActionTrigger closes via state machine, lives in normal flow
+<Dialog.Footer>
+  <Dialog.ActionTrigger asChild>
+    <Button variant="ghost">Cancel</Button>
+  </Dialog.ActionTrigger>
+</Dialog.Footer>
+```
+
+**Reference implementation:** `components/ui/confirm-dialog.tsx` uses this pattern. All dialogs with a labeled cancel/close action should follow it.
+
 ### Fighting Variants with `color` and `_hover`
 
 Chakra v3 variants (`ghost`, `subtle`, `solid`, etc.) own all state styling — base, hover, active, focus — derived from `colorPalette`. Setting `color` or `_hover` on a variant-powered component fights the variant's generated CSS, causing specificity conflicts where your overrides either don't apply on hover or can't be overridden back.
