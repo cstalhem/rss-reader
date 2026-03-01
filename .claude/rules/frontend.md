@@ -63,3 +63,13 @@ paths: ["frontend/**"]
 - Unread-first default view, sorted by composite score descending.
 - 12-second auto-mark-as-read in the reader drawer.
 - Full opacity + accent dot for unread, 0.6 opacity + hollow dot for read.
+
+## Testing
+
+- Use `renderWithProviders` from `@/test/utils` for components, `createWrapper` for hooks.
+- Fresh `QueryClient` per test — never import the singleton from `lib/queryClient.ts`.
+- Use MSW handlers for API mocking — never mock `fetch` or hook internals directly.
+- Use `waitFor` for all async assertions — never assert synchronously on query results.
+- Add `next/navigation` and `next-themes` mocks per-file, not in global setup.
+- Co-locate tests as siblings (e.g. `Foo.test.tsx` next to `Foo.tsx`).
+- No snapshot tests for Chakra components (dynamic class names make them noisy).

@@ -11,7 +11,27 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: bun install
+
+      - name: Run tests
+        working-directory: frontend
+        run: bun run test
+
   build-and-push:
+    needs: [test]
     runs-on: ubuntu-latest
     strategy:
       matrix:

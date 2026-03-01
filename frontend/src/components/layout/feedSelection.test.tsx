@@ -1,10 +1,10 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import {
   parseStoredFeedSelection,
   shouldShowFolderUnreadBadge,
   validateFeedSelection,
-} from "../feedSelection";
-import { ALL_FEEDS_SELECTION, Feed, FeedFolder } from "../../../lib/types";
+} from "./feedSelection";
+import { ALL_FEEDS_SELECTION, Feed, FeedFolder } from "@/lib/types";
 
 function makeFeed(id: number): Feed {
   return {
