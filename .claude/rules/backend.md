@@ -20,6 +20,7 @@ paths: ["backend/**"]
 - Schema versioning via `schema_version` table in `database.py` — version-gated migrations run once per version bump, not every startup.
 - In Alembic migrations using `sa.text()` on SQLite, bind datetime params explicitly with `sa.bindparam(..., type_=sa.DateTime())` — never pass untyped Python datetime values.
 - Don't use raw SQL to INSERT into ORM-modeled tables — bypasses Python-level defaults (`Field(default=...)`) and breaks when new NOT NULL columns are added. Use `Session(bind=conn)` + ORM objects instead.
+- After merging branches with Alembic migrations, run `alembic heads` — if multiple heads exist, run `alembic merge heads -m "merge_<description>"` before committing.
 - Never hold a write transaction open across slow I/O (LLM calls, network requests). Use short atomic commits and `session.no_autoflush` to prevent SELECTs from triggering implicit flushes.
 
 ## Dependencies & Background Jobs

@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge, Box, Dialog, Grid, Text } from "@chakra-ui/react";
+import { Badge, Box, Button, Dialog, Grid, Text } from "@chakra-ui/react";
 import { PROVIDER_REGISTRY } from "./providers/registry";
 
 interface AddProviderDialogProps {
@@ -73,13 +73,9 @@ export function AddProviderDialog({
             </Grid>
           </Dialog.Body>
           <Dialog.Footer>
-            <Dialog.CloseTrigger asChild>
-              <Box as="button" cursor="pointer">
-                <Text fontSize="sm" color="fg.muted">
-                  Cancel
-                </Text>
-              </Box>
-            </Dialog.CloseTrigger>
+            <Dialog.ActionTrigger asChild>
+              <Button variant="ghost">Cancel</Button>
+            </Dialog.ActionTrigger>
           </Dialog.Footer>
         </Dialog.Content>
       </Dialog.Positioner>

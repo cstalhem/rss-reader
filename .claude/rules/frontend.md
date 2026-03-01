@@ -9,6 +9,7 @@ paths: ["frontend/**"]
 - Select, Menu, Tooltip, Popover MUST use `Portal > Positioner > Content`. Dialog handles portalling internally — do NOT wrap in Portal.
 - Always use `@/components/ui/tooltip` wrapper — never raw `Tooltip.Root`.
 - Use `ConfirmDialog` from `@/components/ui/confirm-dialog` for all confirmation flows. Do not inline `Dialog.Root` for confirm/cancel.
+- Dialog cancel buttons: use `Dialog.ActionTrigger asChild` + `<Button variant="ghost">` in `Dialog.Footer`. `CloseTrigger` is only for the corner X icon.
 - Set `color` on the nearest Chakra parent for react-icons — CSS inheritance flows to SVG `currentColor`. Do NOT use `var(--chakra-colors-*)` on icon props.
 - Semantic tokens only — never hardcode color values or raw palette refs. Missing token → create in `theme/colors.ts`.
 - `colorPalette="accent"` per-component on CTAs. Do NOT set as global default.
