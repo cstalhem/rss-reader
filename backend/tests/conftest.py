@@ -1,30 +1,25 @@
-import tempfile
 from datetime import datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
 from backend.deps import get_session
 from backend.main import app
-from backend.models import Article, Feed
+from backend.models import Article, Category, Feed
 
 
 @pytest.fixture(name="test_engine")
 def test_engine_fixture():
-    """Create a test database engine using a temporary SQLite file."""
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
-        database_url = f"sqlite:///{tmp.name}"
-
+    """Create an in-memory test database engine."""
     engine = create_engine(
-        database_url,
+        "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
     )
-
     SQLModel.metadata.create_all(engine)
-
     yield engine
-
     engine.dispose()
 
 
@@ -35,9 +30,94 @@ def test_session_fixture(test_engine):
         yield session
 
 
+@pytest.fixture(name="make_feed")
+def make_feed_fixture(test_session: Session):
+    """Factory fixture for creating feeds with sensible defaults."""
+    _counter = 0
+
+    def _make(**overrides) -> Feed:
+        nonlocal _counter
+        _counter += 1
+        defaults = {
+            "url": f"https://example.com/feed-{_counter}.xml",
+            "title": f"Test Feed {_counter}",
+            "last_fetched_at": datetime.now(),
+        }
+        defaults.update(overrides)
+        feed = Feed(**defaults)
+        test_session.add(feed)
+        test_session.commit()
+        test_session.refresh(feed)
+        return feed
+
+    return _make
+
+
+@pytest.fixture(name="make_article")
+def make_article_fixture(test_session: Session):
+    """Factory fixture for creating articles with sensible defaults."""
+    _counter = 0
+
+    def _make(feed_id: int, **overrides) -> Article:
+        nonlocal _counter
+        _counter += 1
+        defaults = {
+            "feed_id": feed_id,
+            "title": f"Test Article {_counter}",
+            "url": f"https://example.com/article-{_counter}",
+            "published_at": datetime.now(),
+            "is_read": False,
+            "scoring_state": "scored",
+            "composite_score": 1.0,
+        }
+        defaults.update(overrides)
+        article = Article(**defaults)
+        test_session.add(article)
+        test_session.commit()
+        test_session.refresh(article)
+        return article
+
+    return _make
+
+
+@pytest.fixture(name="make_category")
+def make_category_fixture(test_session: Session):
+    """Factory fixture for creating categories with sensible defaults."""
+    _counter = 0
+
+    def _make(**overrides) -> Category:
+        nonlocal _counter
+        _counter += 1
+        defaults = {
+            "display_name": f"Category {_counter}",
+            "slug": f"category-{_counter}",
+            "is_seen": True,
+        }
+        defaults.update(overrides)
+        category = Category(**defaults)
+        test_session.add(category)
+        test_session.commit()
+        test_session.refresh(category)
+        return category
+
+    return _make
+
+
 @pytest.fixture(name="test_client")
-def test_client_fixture(test_engine):
-    """Create a TestClient with dependency override for database session."""
+def test_client_fixture(test_engine, monkeypatch):
+    """Create a TestClient with dependency override for database session.
+
+    Patches lifespan side-effects (production DB, scheduler, Ollama client)
+    to no-ops so TestClient startup doesn't touch real resources.
+    """
+    monkeypatch.setattr("backend.main.create_db_and_tables", lambda: None)
+    monkeypatch.setattr("backend.main.start_scheduler", lambda: None)
+    monkeypatch.setattr("backend.main.shutdown_scheduler", lambda: None)
+
+    async def _noop_close():
+        pass
+
+    monkeypatch.setattr("backend.main.close_ollama_client", _noop_close)
 
     def get_test_session():
         with Session(test_engine) as session:

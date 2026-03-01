@@ -12,7 +12,6 @@ paths: ["backend/**"]
 - Categories are kebab-case, lowercase, English-only — normalized on storage.
 - REST naming: nouns in URLs, HTTP methods as verbs. Action endpoints use POST with a noun (`POST /downloads` not `POST /pull`). Singleton resources skip IDs (`/api/preferences`, `/api/ollama/downloads`).
 - Don't mix CRUD with actions — saving config and triggering rescore are separate endpoints, not one overloaded call.
-- FastAPI `dependency_overrides` keys by function object — tests must import `get_session` from the same module as routers (`deps.py`).
 
 ## SQLAlchemy / SQLite
 
@@ -34,3 +33,13 @@ paths: ["backend/**"]
 - Config priority: env vars > `.env` file > YAML config (`CONFIG_FILE`) > defaults in `config.py`.
 - Nested env vars use double-underscore notation (e.g., `OLLAMA__HOST`).
 - Settings cached via `@lru_cache` — requires restart to pick up changes.
+
+## Testing
+
+- FastAPI `dependency_overrides` keys by function object — tests must import `get_session` from the same module as routers (`deps.py`).
+- Use `test_session.expire_all()` after API writes to see fresh DB state in test assertions.
+- Use `@pytest.mark.asyncio` only on `async def` test functions — not on sync functions using TestClient.
+- Don't mock database calls — use real SQLite test databases via fixtures.
+- Don't use `:memory:` SQLite without `StaticPool` — tables are invisible across connections without it.
+- Factory fixtures (`make_feed`, `make_article`, `make_category`) go in `conftest.py` — per-file helpers only when no factory covers the need.
+- Patch lifespan side-effects in `test_client` fixture — don't let TestClient hit production DB or start scheduler.

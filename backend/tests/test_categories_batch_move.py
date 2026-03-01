@@ -1,36 +1,21 @@
 """Tests for category batch-move safety constraints."""
 
+from typing import Callable
+
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from backend.models import Category
 
 
-def _create_category(
-    session: Session,
-    display_name: str,
-    slug: str,
-    parent_id: int | None = None,
-) -> Category:
-    category = Category(
-        display_name=display_name,
-        slug=slug,
-        parent_id=parent_id,
-        is_seen=True,
-    )
-    session.add(category)
-    session.commit()
-    session.refresh(category)
-    return category
-
-
 def test_batch_move_skips_self_parent_id(
     test_client: TestClient,
     test_session: Session,
+    make_category: Callable[..., Category],
 ):
     """Including target parent in category_ids should skip it and move the rest."""
-    parent = _create_category(test_session, "Parent", "parent")
-    child = _create_category(test_session, "Child", "child")
+    parent = make_category(display_name="Parent", slug="parent")
+    child = make_category(display_name="Child", slug="child")
 
     response = test_client.post(
         "/api/categories/batch-move",
@@ -51,16 +36,16 @@ def test_batch_move_skips_self_parent_id(
 def test_batch_move_rejects_non_root_target(
     test_client: TestClient,
     test_session: Session,
+    make_category: Callable[..., Category],
 ):
     """Target must remain root-only for move operations."""
-    root = _create_category(test_session, "Root", "root")
-    nested_target = _create_category(
-        test_session,
-        "Nested Target",
-        "nested-target",
+    root = make_category(display_name="Root", slug="root")
+    nested_target = make_category(
+        display_name="Nested Target",
+        slug="nested-target",
         parent_id=root.id,
     )
-    source = _create_category(test_session, "Source", "source")
+    source = make_category(display_name="Source", slug="source")
 
     response = test_client.post(
         "/api/categories/batch-move",
