@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xml:lang="en-us" xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/">
+  <title>Technology | The Atlantic</title>
+  <link href="https://www.theatlantic.com/technology/" rel="alternate"/>
+  <link href="https://www.theatlantic.com/feed/channel/technology/" rel="self"/>
+  <id>https://www.theatlantic.com/technology/</id>
+  <updated>2026-02-28T11:00:00-05:00</updated>
+  <rights>Copyright 2026 by The Atlantic Monthly Group. All Rights Reserved.</rights>
+  <entry>
+    <id>tag:theatlantic.com,2026:50-686200</id>
+    <title type="html">What the Pentagon Really Wanted From Anthropic</title>
+    <published>2026-02-28T15:52:56-05:00</published>
+    <updated>2026-02-28T16:30:00-05:00</updated>
+    <author>
+      <name>Matt Schiavenza</name>
+      <uri>http://www.theatlantic.com/author/matt-schiavenza/?utm_source=feed</uri>
+    </author>
+    <summary type="html">The company believed it was close to a deal with the Defense Department.</summary>
+    <content type="html">&lt;p&gt;Right up until the moment, its leaders believed they were still on track for a deal.&lt;/p&gt;</content>
+    <link href="https://www.theatlantic.com/technology/2026/02/pentagon-anthropic-contract/686200/?utm_source=feed" rel="alternate" type="text/html"/>
+    <media:content url="https://cdn.theatlantic.com/thumbor/example/original.jpg">
+      <media:credit>Kevin Dietsch / Getty</media:credit>
+    </media:content>
+  </entry>
+  <entry>
+    <id>tag:theatlantic.com,2026:50-685913</id>
+    <title type="html">AI Regulation Moves to the States</title>
+    <published>2026-02-06T16:27:05-05:00</published>
+    <updated>2026-02-06T17:13:42-05:00</updated>
+    <author>
+      <name>Hana Kiros</name>
+      <uri>http://www.theatlantic.com/author/hana-kiros/?utm_source=feed</uri>
+    </author>
+    <summary type="html">As federal oversight stalls, state legislatures step in with their own AI bills.</summary>
+    <link href="https://www.theatlantic.com/technology/2026/02/ai-regulation-states/685913/?utm_source=feed" rel="alternate" type="text/html"/>
+    <media:content url="https://cdn.theatlantic.com/thumbor/example2/original.jpg">
+      <media:credit>AP Photo</media:credit>
+    </media:content>
+  </entry>
+</feed>
