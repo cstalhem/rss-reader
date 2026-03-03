@@ -88,7 +88,6 @@ def get_or_create_category(
             category.parent_id = parent.id
 
     session.add(category)
-    session.flush()
     return category
 
 

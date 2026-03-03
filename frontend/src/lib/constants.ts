@@ -12,7 +12,13 @@ export const HIGH_SCORE_THRESHOLD = 15;
 /** Default page size for article list pagination */
 export const ARTICLE_LIST_PAGE_SIZE = 50;
 
-export type SettingsSection = "general" | "feeds" | "interests" | "categories" | "ollama" | "feedback";
+export type SettingsSection =
+  | "general"
+  | "feeds"
+  | "interests"
+  | "categories"
+  | "llm-providers"
+  | "feedback";
 
 export interface SettingsSectionItem {
   id: SettingsSection;
@@ -26,6 +32,11 @@ export const SETTINGS_SECTIONS: SettingsSectionItem[] = [
   { id: "feeds", href: "/settings/feeds", icon: LuRss, label: "Feeds" },
   { id: "interests", href: "/settings/interests", icon: LuHeart, label: "Interests" },
   { id: "categories", href: "/settings/categories", icon: LuTag, label: "Categories" },
-  { id: "ollama", href: "/settings/ollama", icon: LuBot, label: "Ollama" },
+  {
+    id: "llm-providers",
+    href: "/settings/llm-providers",
+    icon: LuBot,
+    label: "LLM Providers",
+  },
   { id: "feedback", href: "/settings/feedback", icon: LuMessageSquare, label: "Feedback" },
 ];

@@ -16,15 +16,14 @@ import { queryKeys } from "@/lib/queryKeys";
 import { formatSize } from "@/lib/utils";
 import { toaster } from "@/components/ui/toaster";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useModelAssignments } from "@/hooks/useModelAssignments";
 import { ModelPullProgress } from "./ModelPullProgress";
-import type { OllamaModel, OllamaConfig } from "@/lib/types";
+import type { OllamaModel } from "@/lib/types";
 import type { useModelPull } from "@/hooks/useModelPull";
 
 interface ModelManagementProps {
   models: OllamaModel[];
-  config: OllamaConfig | undefined;
   pullHook: ReturnType<typeof useModelPull>;
-  onConfigChange: (config: OllamaConfig) => void;
 }
 
 interface InstalledModelRowProps {
@@ -102,25 +101,25 @@ const CURATED_MODELS = [
 
 export function ModelManagement({
   models,
-  config,
   pullHook,
-  onConfigChange,
 }: ModelManagementProps) {
   const [customModel, setCustomModel] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const { taskRoutes } = useModelAssignments();
   const pullingModel = pullHook.modelName;
 
   const installedNames = new Set(models.map((m) => m.name));
 
   const activeModels = useMemo(() => {
     const set = new Set<string>();
-    if (config) {
-      if (config.categorization_model) set.add(config.categorization_model);
-      if (config.scoring_model) set.add(config.scoring_model);
+    if (taskRoutes) {
+      for (const route of taskRoutes) {
+        if (route.model) set.add(route.model);
+      }
     }
     return set;
-  }, [config]);
+  }, [taskRoutes]);
 
   const handlePull = useCallback(
     (name: string) => {
@@ -138,15 +137,12 @@ export function ModelManagement({
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteTarget) return;
-    const isActive = activeModels.has(deleteTarget);
     try {
       await deleteOllamaModel(deleteTarget);
       queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
-      if (isActive && config) {
-        const nextConfig = { ...config };
-        if (nextConfig.categorization_model === deleteTarget) nextConfig.categorization_model = null;
-        if (nextConfig.scoring_model === deleteTarget) nextConfig.scoring_model = null;
-        onConfigChange(nextConfig);
+      queryClient.invalidateQueries({ queryKey: queryKeys.models.available });
+      if (activeModels.has(deleteTarget)) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.taskRoutes.all });
       }
       toaster.create({ title: `Deleted ${deleteTarget}`, type: "success" });
     } catch {
@@ -156,7 +152,7 @@ export function ModelManagement({
       });
     }
     setDeleteTarget(null);
-  }, [deleteTarget, activeModels, config, queryClient, onConfigChange]);
+  }, [deleteTarget, activeModels, queryClient]);
 
   const installedCurated = CURATED_MODELS.filter((c) => installedNames.has(c.name));
   const nonCuratedInstalled = models.filter(

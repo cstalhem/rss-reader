@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { Category } from "@/lib/types";
 import { toaster } from "@/components/ui/toaster";
+import { normalizeCategoryName } from "@/lib/utils";
 
 interface DeleteDialogState {
   open: boolean;
@@ -115,7 +116,18 @@ export function useCategoryDialogs({
   // Move to group (from dialog)
   const handleMoveToGroup = useCallback(
     (targetParentId: number) => {
-      batchMoveMutate({ categoryIds: Array.from(selectedIds), targetParentId });
+      const categoryIds = Array.from(selectedIds).filter((id) => id !== targetParentId);
+      if (categoryIds.length === 0) {
+        toaster.create({
+          title: "Nothing to move",
+          description: "Selected category is already the target group.",
+          type: "info",
+        });
+        setMoveDialogOpen(false);
+        return;
+      }
+
+      batchMoveMutate({ categoryIds, targetParentId });
       clearSelection();
       setMoveDialogOpen(false);
     },
@@ -125,12 +137,57 @@ export function useCategoryDialogs({
   // Create new group and move selected into it
   const handleCreateAndMove = useCallback(
     async (groupName: string) => {
-      const created = await createCategoryMutateAsync({ displayName: groupName });
-      batchMoveMutate({ categoryIds: Array.from(selectedIds), targetParentId: created.id });
+      const normalized = normalizeCategoryName(groupName);
+      if (!normalized) return;
+
+      const matchingCategory = categories.find(
+        (c) => normalizeCategoryName(c.display_name) === normalized
+      );
+
+      if (matchingCategory?.is_hidden) {
+        toaster.create({
+          title: "Cannot use hidden category as a group target",
+          description: "Unhide it first.",
+          type: "error",
+        });
+        return;
+      }
+
+      if (matchingCategory && matchingCategory.parent_id !== null) {
+        toaster.create({
+          title: "Only root categories can be group targets",
+          description: "Ungroup the category first.",
+          type: "error",
+        });
+        return;
+      }
+
+      const targetParentId =
+        matchingCategory?.id ??
+        (await createCategoryMutateAsync({ displayName: groupName })).id;
+
+      const categoryIds = Array.from(selectedIds).filter((id) => id !== targetParentId);
+      if (categoryIds.length === 0) {
+        toaster.create({
+          title: "Nothing to move",
+          description: "Selected category is already the target group.",
+          type: "info",
+        });
+        setMoveDialogOpen(false);
+        return;
+      }
+
+      batchMoveMutate({ categoryIds, targetParentId });
       clearSelection();
       setMoveDialogOpen(false);
     },
-    [selectedIds, createCategoryMutateAsync, batchMoveMutate, clearSelection]
+    [
+      categories,
+      selectedIds,
+      createCategoryMutateAsync,
+      batchMoveMutate,
+      clearSelection,
+    ]
   );
 
   // Action bar: open ungroup confirm

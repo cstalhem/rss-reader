@@ -1,5 +1,7 @@
 import logging
+from pathlib import Path
 
+from slugify import slugify
 from sqlalchemy import event, text
 from sqlmodel import Session, SQLModel, create_engine
 
@@ -132,11 +134,18 @@ def _seed_default_categories(conn):
     hierarchy = DEFAULT_CATEGORY_HIERARCHY
     slug_to_cat: dict[str, Category] = {}
 
-    # Collect all slugs from hierarchy
+    # Collect all normalized slugs from hierarchy values.
+    # This must match runtime category creation (slugify -> lowercase kebab-case)
+    # to avoid case-sensitive duplicate rows in SQLite.
     all_slugs: set[str] = set()
     for parent, children in hierarchy.items():
-        all_slugs.add(parent)
-        all_slugs.update(children)
+        parent_slug = slugify(parent)
+        if parent_slug:
+            all_slugs.add(parent_slug)
+        for child in children:
+            child_slug = slugify(child)
+            if child_slug:
+                all_slugs.add(child_slug)
 
     session = Session(bind=conn)
 
@@ -150,11 +159,13 @@ def _seed_default_categories(conn):
 
     # Second pass: set parent_id
     for parent, children in hierarchy.items():
-        parent_cat = slug_to_cat.get(parent)
+        parent_slug = slugify(parent)
+        parent_cat = slug_to_cat.get(parent_slug)
         if not parent_cat:
             continue
         for child in children:
-            child_cat = slug_to_cat.get(child)
+            child_slug = slugify(child)
+            child_cat = slug_to_cat.get(child_slug)
             if child_cat:
                 child_cat.parent_id = parent_cat.id
 
@@ -163,11 +174,32 @@ def _seed_default_categories(conn):
     logger.info(f"Seeded {len(slug_to_cat)} categories from default hierarchy")
 
 
+def _run_alembic_migrations():
+    """Apply Alembic migrations for schema/data changes after schema_version v2."""
+    from alembic.config import Config
+
+    from alembic import command
+
+    project_root = Path(__file__).resolve().parents[2]
+    alembic_ini = project_root / "alembic.ini"
+    if not alembic_ini.exists():
+        logger.warning("Alembic config not found: %s", alembic_ini)
+        return
+
+    alembic_cfg = Config(str(alembic_ini))
+    alembic_cfg.set_main_option("sqlalchemy.url", DATABASE_URL)
+    command.upgrade(alembic_cfg, "head")
+
+
 # --- Startup ---
 
 
 def create_db_and_tables():
-    """Initialize database tables and run versioned migrations."""
+    """Initialize database tables and run migrations.
+
+    Note: `schema_version` remains for historical bootstrap (v1/v2 only).
+    New schema/data changes are managed with Alembic.
+    """
     SQLModel.metadata.create_all(engine)
 
     with engine.begin() as conn:
@@ -175,7 +207,6 @@ def create_db_and_tables():
 
         if version < 1:
             _seed_default_categories(conn)
-            _recover_stuck_scoring(conn)
             _set_schema_version(conn, 1)
 
         if version < 2:
@@ -184,13 +215,8 @@ def create_db_and_tables():
                 row[1]
                 for row in conn.execute(text("PRAGMA table_info(user_preferences)"))
             }
-            if "ollama_thinking" not in existing:
-                conn.execute(
-                    text(
-                        "ALTER TABLE user_preferences "
-                        "ADD COLUMN ollama_thinking BOOLEAN NOT NULL DEFAULT 0"
-                    )
-                )
+            # Note: ollama_thinking was added here historically but is now
+            # removed by Alembic migration. Skip adding it on fresh installs.
             if "feed_refresh_interval" not in existing:
                 conn.execute(
                     text(
@@ -199,5 +225,11 @@ def create_db_and_tables():
                     )
                 )
             _set_schema_version(conn, 2)
+
+        # Always recover orphaned "scoring" rows at startup in case the process
+        # was interrupted mid-stream.
+        _recover_stuck_scoring(conn)
+
+    _run_alembic_migrations()
 
     logger.info(f"Database ready at schema version {CURRENT_SCHEMA_VERSION}")

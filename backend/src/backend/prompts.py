@@ -36,15 +36,9 @@ class CategoryResponse(BaseModel):
 class ScoringResponse(BaseModel):
     """Response schema for article interest scoring."""
 
-    interest_score: int = Field(
-        ge=0, le=10, description="Interest match score 0-10"
-    )
-    quality_score: int = Field(
-        ge=0, le=10, description="Content quality score 0-10"
-    )
-    reasoning: str = Field(
-        description="1-2 sentence explanation of scores"
-    )
+    interest_score: int = Field(ge=0, le=10, description="Interest match score 0-10")
+    quality_score: int = Field(ge=0, le=10, description="Content quality score 0-10")
+    reasoning: str = Field(description="1-2 sentence explanation of scores")
 
 
 def build_categorization_prompt(

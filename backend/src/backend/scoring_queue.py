@@ -1,25 +1,29 @@
 """Queue manager for processing article scoring in background."""
 
+import asyncio
 import logging
 from datetime import datetime, timedelta
 
+from slugify import slugify
 from sqlmodel import Session, select
 
-from backend.config import get_settings
+from backend.deps import (
+    TASK_CATEGORIZATION,
+    TASK_SCORING,
+    evaluate_task_readiness,
+    format_readiness_reason,
+)
+from backend.llm_providers.registry import get_provider
 from backend.models import Article, ArticleCategoryLink, Category, UserPreferences
-from backend.ollama_service import check_health, list_models
 from backend.scoring import (
-    categorize_article,
     compute_composite_score,
     get_active_categories,
     get_or_create_category,
     is_blocked,
-    score_article,
     set_scoring_context,
 )
 
 logger = logging.getLogger(__name__)
-settings = get_settings()
 
 RESCORE_LOOKBACK_DAYS = 7
 RESCORE_MAX_ARTICLES = 100
@@ -96,8 +100,7 @@ class ScoringQueue:
         1. Categorize article (skip if rescore_mode == "score_only")
         2. Score article (skip if blocked)
 
-        Model names and thinking flag are read from UserPreferences (DB).
-        Infrastructure settings (host) come from Pydantic Settings.
+        Task provider/model/endpoint are resolved from task routes and provider configs.
 
         Args:
             session: Database session
@@ -106,44 +109,29 @@ class ScoringQueue:
         Returns:
             Number of articles processed
         """
-        ollama_host = settings.ollama.host
+        categorization_runtime = await evaluate_task_readiness(
+            session, TASK_CATEGORIZATION
+        )
+        if not categorization_runtime.ready:
+            logger.warning(
+                "Scoring skipped: categorization not ready (%s)",
+                format_readiness_reason(categorization_runtime),
+            )
+            return 0
 
-        # Guard: skip batch if Ollama is down or required models missing
-        health = await check_health(ollama_host)
-        if not health["connected"]:
-            logger.warning("Scoring skipped: Ollama not connected")
+        scoring_runtime = await evaluate_task_readiness(session, TASK_SCORING)
+        if not scoring_runtime.ready:
+            logger.warning(
+                "Scoring skipped: scoring not ready (%s)",
+                format_readiness_reason(scoring_runtime),
+            )
             return 0
 
         try:
-            models_resp = await list_models(ollama_host)
-            installed_names = {m["name"] for m in models_resp}
-        except Exception:
-            logger.exception("Could not list Ollama models, treating as no models")
-            installed_names = set()
-
-        if not installed_names:
-            logger.warning("Scoring skipped: no models available in Ollama")
-            return 0
-
-        # Resolve required model names from preferences
-        preferences_for_guard = session.exec(select(UserPreferences)).first()
-        cat_model = (
-            preferences_for_guard.ollama_categorization_model
-            if preferences_for_guard
-            else None
-        )
-        if not cat_model:
-            logger.warning("Scoring skipped: no model configured")
-            return 0
-
-        if preferences_for_guard and preferences_for_guard.ollama_use_separate_models:
-            score_model = preferences_for_guard.ollama_scoring_model or cat_model
-        else:
-            score_model = cat_model
-
-        missing = [m for m in {cat_model, score_model} if m not in installed_names]
-        if missing:
-            logger.warning("Scoring skipped: configured model no longer available")
+            categorization_provider = get_provider(categorization_runtime.provider)
+            scoring_provider = get_provider(scoring_runtime.provider)
+        except KeyError:
+            logger.warning("Scoring skipped: unsupported configured provider")
             return 0
 
         # Get next batch -- priority articles first, then oldest
@@ -168,18 +156,20 @@ class ScoringQueue:
             session.add(preferences)
             session.commit()
 
-        # Resolve model names from preferences (DB is sole source of truth)
-        categorization_model = preferences.ollama_categorization_model
-        if not categorization_model:
-            logger.warning("Scoring skipped: no model configured")
+        categorization_model = categorization_runtime.model
+        scoring_model = scoring_runtime.model
+        categorization_endpoint = categorization_runtime.endpoint
+        scoring_endpoint = scoring_runtime.endpoint
+        categorization_thinking = categorization_runtime.thinking
+        scoring_thinking = scoring_runtime.thinking
+        if (
+            categorization_model is None
+            or scoring_model is None
+            or categorization_endpoint is None
+            or scoring_endpoint is None
+        ):
+            logger.warning("Scoring skipped: unresolved provider runtime configuration")
             return 0
-
-        if preferences.ollama_use_separate_models:
-            scoring_model = preferences.ollama_scoring_model or categorization_model
-        else:
-            scoring_model = categorization_model
-
-        use_thinking = preferences.ollama_thinking
 
         # Get active categories list, hierarchy, and hidden categories
         active_categories, category_hierarchy, hidden_categories = (
@@ -217,31 +207,43 @@ class ScoringQueue:
                         )
 
                 if not skip_categorization or not article_categories:
-                    categorization = await categorize_article(
+                    categorization = await categorization_provider.categorize(
                         article.title,
                         article_text,
                         active_categories,
-                        host=ollama_host,
+                        endpoint=categorization_endpoint,
                         model=categorization_model,
-                        thinking=use_thinking,
+                        thinking=categorization_thinking,
                         category_hierarchy=category_hierarchy,
                         hidden_categories=hidden_categories or None,
                     )
 
-                    # Create/find categories and write junction table links
-                    for cat_name in categorization.categories:
-                        category = get_or_create_category(session, cat_name)
-                        article_categories.append(category)
+                    # Phase A: Resolve categories, then commit to get IDs
+                    # Use no_autoflush to prevent SELECTs from starting
+                    # implicit write transactions during category lookup.
+                    seen_slugs: dict[str, Category] = {}
+                    with session.no_autoflush:
+                        for cat_name in categorization.categories:
+                            slug = slugify(cat_name)
+                            if slug not in seen_slugs:
+                                category = get_or_create_category(session, cat_name)
+                                seen_slugs[slug] = category
+                            article_categories.append(seen_slugs[slug])
 
-                    for cat_name in categorization.suggested_new:
-                        category = get_or_create_category(
-                            session,
-                            cat_name,
-                            suggested_parent=categorization.suggested_parent,
-                        )
-                        article_categories.append(category)
+                        for cat_name in categorization.suggested_new:
+                            slug = slugify(cat_name)
+                            if slug not in seen_slugs:
+                                category = get_or_create_category(
+                                    session,
+                                    cat_name,
+                                    suggested_parent=categorization.suggested_parent,
+                                )
+                                seen_slugs[slug] = category
+                            article_categories.append(seen_slugs[slug])
 
-                    # Write ArticleCategoryLink rows (skip if already exists)
+                    session.commit()  # ~1ms: persist new categories, get IDs
+
+                    # Phase B: Write links + unhide, then commit
                     for category in article_categories:
                         existing_link = session.exec(
                             select(ArticleCategoryLink).where(
@@ -256,21 +258,19 @@ class ScoringQueue:
                             )
                             session.add(link)
 
-                    session.flush()
+                    if not skip_categorization:
+                        for cat in article_categories:
+                            if cat.is_hidden:
+                                cat.is_hidden = False
+                                cat.is_seen = False
+                                session.add(cat)
+                                logger.info(
+                                    f"Article {article.id}: unhid returned category '{cat.display_name}'"
+                                )
 
-                # Step 1.5: Handle returned hidden categories
-                if not skip_categorization and article_categories:
-                    for cat in article_categories:
-                        if cat.is_hidden:
-                            # Category reappeared -- unhide it and mark unseen
-                            cat.is_hidden = False
-                            cat.is_seen = False
-                            session.add(cat)
-                            logger.info(
-                                f"Article {article.id}: unhid returned category '{cat.display_name}'"
-                            )
-                    session.flush()
+                    session.commit()  # ~1ms: persist links + unhide mutations
 
+                # Phase C: Score with no write lock held
                 # Step 2: Check if blocked
                 if is_blocked(article_categories):
                     # Auto-score 0 for blocked articles
@@ -289,14 +289,14 @@ class ScoringQueue:
                     )
                 else:
                     # Step 3: Score non-blocked articles
-                    scoring = await score_article(
+                    scoring = await scoring_provider.score(
                         article.title,
                         article_text,
                         preferences.interests,
                         preferences.anti_interests,
-                        host=ollama_host,
+                        endpoint=scoring_endpoint,
                         model=scoring_model,
-                        thinking=use_thinking,
+                        thinking=scoring_thinking,
                     )
 
                     article.interest_score = scoring.interest_score
@@ -328,6 +328,13 @@ class ScoringQueue:
                 session.commit()
                 processed += 1
 
+            except asyncio.CancelledError:
+                logger.info("Scoring cancelled for article %s; re-queueing", article.id)
+                session.rollback()
+                article.scoring_state = "queued"
+                session.add(article)
+                session.commit()
+                raise
             except Exception as e:
                 logger.error(
                     f"Failed to score article {article.id}: {e}", exc_info=True

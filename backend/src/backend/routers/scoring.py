@@ -1,16 +1,16 @@
 """Scoring status and trigger endpoints."""
 
-import logging
-
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, func, select
 
-from backend.config import get_settings
-from backend.deps import get_session, resolve_ollama_models
-from backend.models import Article, UserPreferences
-from backend.ollama_service import check_health, list_models
-
-logger = logging.getLogger(__name__)
+from backend.deps import (
+    TASK_CATEGORIZATION,
+    TASK_SCORING,
+    evaluate_task_readiness,
+    format_readiness_reason,
+    get_session,
+)
+from backend.models import Article
 
 router = APIRouter(prefix="/api/scoring", tags=["scoring"])
 
@@ -32,8 +32,6 @@ async def get_scoring_status(
 ):
     """Get counts of articles by scoring state, plus live activity and readiness."""
     from backend.scoring import get_scoring_activity
-
-    settings = get_settings()
 
     # Single GROUP BY query replaces 5 separate COUNT queries
     state_rows = session.exec(
@@ -65,45 +63,21 @@ async def get_scoring_status(
     counts["current_article_id"] = activity["article_id"]
     counts["phase"] = activity["phase"]
 
-    # Readiness check: Ollama connected + required models available
-    scoring_ready = False
-    scoring_ready_reason: str | None = None
+    categorization_runtime = await evaluate_task_readiness(session, TASK_CATEGORIZATION)
+    scoring_runtime = await evaluate_task_readiness(session, TASK_SCORING)
 
-    health = await check_health(settings.ollama.host)
-    if not health["connected"]:
-        scoring_ready_reason = "Scoring paused — Ollama is not running"
-    else:
-        try:
-            models_resp = await list_models(settings.ollama.host)
-            installed_names = {m["name"] for m in models_resp}
-        except Exception:
-            logger.exception("Could not list Ollama models")
-            installed_names = set()
+    counts["categorization_ready"] = categorization_runtime.ready
+    counts["categorization_ready_reason"] = format_readiness_reason(
+        categorization_runtime
+    )
+    counts["score_ready"] = scoring_runtime.ready
+    counts["score_ready_reason"] = format_readiness_reason(scoring_runtime)
 
-        # Resolve required model names from DB (no config fallback)
-        prefs = session.exec(select(UserPreferences)).first()
-        if not prefs:
-            cat_model = None
-            score_model = None
-        else:
-            cat_model, score_model = resolve_ollama_models(prefs)
-
-        if cat_model is None:
-            scoring_ready_reason = (
-                "No model selected — configure one in Ollama settings"
-            )
-        elif not installed_names:
-            scoring_ready_reason = "Scoring paused — no models available in Ollama"
-        else:
-            missing = [m for m in {cat_model, score_model} if m not in installed_names]
-            if missing:
-                scoring_ready_reason = (
-                    "Scoring paused — configured model no longer available"
-                )
-            else:
-                scoring_ready = True
-
-    counts["scoring_ready"] = scoring_ready
-    counts["scoring_ready_reason"] = scoring_ready_reason
+    counts["scoring_ready"] = categorization_runtime.ready and scoring_runtime.ready
+    counts["scoring_ready_reason"] = (
+        None
+        if counts["scoring_ready"]
+        else (counts["categorization_ready_reason"] or counts["score_ready_reason"])
+    )
 
     return counts

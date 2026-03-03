@@ -22,7 +22,7 @@ def test_list_articles_empty(test_client: TestClient):
 
 def test_list_articles_with_data(test_client: TestClient, sample_articles):
     """Test listing articles returns them sorted by published_at desc."""
-    response = test_client.get("/api/articles")
+    response = test_client.get("/api/articles?sort_by=published_at&order=desc")
     assert response.status_code == 200
 
     articles = response.json()
@@ -41,14 +41,16 @@ def test_list_articles_with_data(test_client: TestClient, sample_articles):
 def test_list_articles_pagination(test_client: TestClient, sample_articles):
     """Test pagination parameters."""
     # Get first article only
-    response = test_client.get("/api/articles?limit=1")
+    response = test_client.get("/api/articles?limit=1&sort_by=published_at&order=desc")
     assert response.status_code == 200
     articles = response.json()
     assert len(articles) == 1
     assert articles[0]["title"] == "Recent Article"
 
     # Skip first article
-    response = test_client.get("/api/articles?skip=1&limit=1")
+    response = test_client.get(
+        "/api/articles?skip=1&limit=1&sort_by=published_at&order=desc"
+    )
     assert response.status_code == 200
     articles = response.json()
     assert len(articles) == 1
@@ -57,7 +59,9 @@ def test_list_articles_pagination(test_client: TestClient, sample_articles):
 
 def test_list_articles_filter_unread(test_client: TestClient, sample_articles):
     """Test filtering articles by is_read=false (unread only)."""
-    response = test_client.get("/api/articles?is_read=false")
+    response = test_client.get(
+        "/api/articles?is_read=false&sort_by=published_at&order=desc"
+    )
     assert response.status_code == 200
 
     articles = response.json()
@@ -118,16 +122,15 @@ def test_get_article_not_found(test_client: TestClient):
     assert "not found" in response.json()["detail"].lower()
 
 
-def test_mark_article_read(test_client: TestClient, sample_articles, test_session: Session):
+def test_mark_article_read(
+    test_client: TestClient, sample_articles, test_session: Session
+):
     """Test marking an article as read."""
     article_id = sample_articles[0].id
     assert sample_articles[0].is_read is False
 
     # Mark as read
-    response = test_client.patch(
-        f"/api/articles/{article_id}",
-        json={"is_read": True}
-    )
+    response = test_client.patch(f"/api/articles/{article_id}", json={"is_read": True})
     assert response.status_code == 200
 
     article = response.json()
@@ -139,16 +142,15 @@ def test_mark_article_read(test_client: TestClient, sample_articles, test_sessio
     assert db_article.is_read is True
 
 
-def test_mark_article_unread(test_client: TestClient, sample_articles, test_session: Session):
+def test_mark_article_unread(
+    test_client: TestClient, sample_articles, test_session: Session
+):
     """Test marking an article as unread."""
     article_id = sample_articles[2].id  # This one is already read
     assert sample_articles[2].is_read is True
 
     # Mark as unread
-    response = test_client.patch(
-        f"/api/articles/{article_id}",
-        json={"is_read": False}
-    )
+    response = test_client.patch(f"/api/articles/{article_id}", json={"is_read": False})
     assert response.status_code == 200
 
     article = response.json()
@@ -162,10 +164,7 @@ def test_mark_article_unread(test_client: TestClient, sample_articles, test_sess
 
 def test_update_article_not_found(test_client: TestClient):
     """Test updating a non-existent article returns 404."""
-    response = test_client.patch(
-        "/api/articles/99999",
-        json={"is_read": True}
-    )
+    response = test_client.patch("/api/articles/99999", json={"is_read": True})
     assert response.status_code == 404
 
 
@@ -191,3 +190,34 @@ def test_refresh_feed_no_feeds(test_client: TestClient):
     data = response.json()
     assert data["message"] == "No feeds configured"
     assert data["new_articles"] == 0
+
+
+def test_create_feed_includes_folder_fields_in_response(
+    test_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Creating a feed should always return folder fields (null for root feeds)."""
+
+    class _ParsedFeed:
+        bozo = False
+        entries = [{"link": "https://example.com/article-1", "title": "Article 1"}]
+        feed = {"title": "Patched Feed"}
+
+    async def fake_fetch_feed(_url: str):
+        return _ParsedFeed()
+
+    def fake_save_articles(_session, _feed_id: int, _entries: list[dict]):
+        return (1, [])
+
+    monkeypatch.setattr("backend.routers.feeds.fetch_feed", fake_fetch_feed)
+    monkeypatch.setattr("backend.routers.feeds.save_articles", fake_save_articles)
+
+    response = test_client.post(
+        "/api/feeds", json={"url": "https://example.com/patched-feed.xml"}
+    )
+    assert response.status_code == 201
+
+    data = response.json()
+    assert data["title"] == "Patched Feed"
+    assert data["folder_id"] is None
+    assert data["folder_name"] is None

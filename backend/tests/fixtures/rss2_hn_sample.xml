@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Hacker News: Front Page</title>
+    <link>https://news.ycombinator.com/</link>
+    <description>Hacker News RSS</description>
+    <docs>https://hnrss.org/</docs>
+    <generator>hnrss v2.1.1</generator>
+    <lastBuildDate>Mon, 02 Mar 2026 21:04:47 +0000</lastBuildDate>
+    <atom:link href="https://hnrss.org/frontpage" rel="self" type="application/rss+xml"/>
+    <item>
+      <title><![CDATA[Packaging a Gleam app into a single executable]]></title>
+      <description><![CDATA[
+        <p>Article URL: <a href="https://www.dhzdhd.dev/blog/gleam-executable">https://www.dhzdhd.dev/blog/gleam-executable</a></p>
+        <p>Comments URL: <a href="https://news.ycombinator.com/item?id=47220020">https://news.ycombinator.com/item?id=47220020</a></p>
+        <p>Points: 59</p>
+        <p># Comments: 3</p>
+      ]]></description>
+      <pubDate>Mon, 02 Mar 2026 16:20:18 +0000</pubDate>
+      <link>https://www.dhzdhd.dev/blog/gleam-executable</link>
+      <dc:creator>todsacerdoti</dc:creator>
+      <comments>https://news.ycombinator.com/item?id=47220020</comments>
+      <guid isPermaLink="false">https://news.ycombinator.com/item?id=47220020</guid>
+    </item>
+    <item>
+      <title><![CDATA[Notes on Lagrange Interpolating Polynomials]]></title>
+      <description><![CDATA[
+        <p>Article URL: <a href="https://eli.thegreenplace.net/2026/notes-on-lagrange-interpolating-polynomials/">https://eli.thegreenplace.net/2026/notes-on-lagrange-interpolating-polynomials/</a></p>
+        <p>Comments URL: <a href="https://news.ycombinator.com/item?id=47219688">https://news.ycombinator.com/item?id=47219688</a></p>
+        <p>Points: 32</p>
+        <p># Comments: 9</p>
+      ]]></description>
+      <pubDate>Mon, 02 Mar 2026 16:01:20 +0000</pubDate>
+      <link>https://eli.thegreenplace.net/2026/notes-on-lagrange-interpolating-polynomials/</link>
+      <dc:creator>ibobev</dc:creator>
+      <comments>https://news.ycombinator.com/item?id=47219688</comments>
+      <guid isPermaLink="false">https://news.ycombinator.com/item?id=47219688</guid>
+    </item>
+  </channel>
+</rss>

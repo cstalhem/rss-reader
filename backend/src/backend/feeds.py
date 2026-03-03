@@ -50,7 +50,9 @@ async def fetch_feed(url: str) -> feedparser.FeedParserDict:
     return feed
 
 
-def save_articles(session: Session, feed_id: int, entries: list[dict]) -> tuple[int, list[int]]:
+def save_articles(
+    session: Session, feed_id: int, entries: list[dict]
+) -> tuple[int, list[int]]:
     """
     Save articles from feed entries, deduplicating by URL.
 
@@ -69,13 +71,13 @@ def save_articles(session: Session, feed_id: int, entries: list[dict]) -> tuple[
         # Skip entries without a link (URL)
         url = entry.get("link")
         if not url:
-            logger.warning(f"Entry missing link, skipping: {entry.get('title', 'Untitled')}")
+            logger.warning(
+                f"Entry missing link, skipping: {entry.get('title', 'Untitled')}"
+            )
             continue
 
         # Check if article already exists
-        existing = session.exec(
-            select(Article).where(Article.url == url)
-        ).first()
+        existing = session.exec(select(Article).where(Article.url == url)).first()
 
         if existing:
             continue
@@ -88,7 +90,9 @@ def save_articles(session: Session, feed_id: int, entries: list[dict]) -> tuple[
             author=entry.get("author"),
             published_at=_parse_published_date(entry),
             summary=entry.get("summary"),
-            content=entry.get("content", [{}])[0].get("value") if entry.get("content") else None,
+            content=entry.get("content", [{}])[0].get("value")
+            if entry.get("content")
+            else None,
             is_read=False,
         )
 
@@ -125,12 +129,15 @@ async def refresh_feed(session: Session, feed: Feed) -> int:
         session.commit()
 
         # Save articles and enqueue for scoring
-        new_count, new_article_ids = save_articles(session, feed.id, parsed_feed.entries)
+        new_count, new_article_ids = save_articles(
+            session, feed.id, parsed_feed.entries
+        )
 
         # Enqueue new articles for scoring
         if new_article_ids:
             # Import here to avoid circular dependency
             from backend.scheduler import scoring_queue
+
             scoring_queue.enqueue_articles(session, new_article_ids)
 
         return new_count

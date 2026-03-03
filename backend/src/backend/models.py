@@ -1,7 +1,23 @@
 from datetime import datetime
 from typing import Optional
 
+from sqlalchemy import CheckConstraint
 from sqlmodel import Field, Relationship, SQLModel
+
+
+class FeedFolder(SQLModel, table=True):
+    """Folder grouping for RSS feeds."""
+
+    __tablename__ = "feed_folders"
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(index=True, unique=True)
+    display_order: int = Field(default=0)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    feeds: list["Feed"] = Relationship(  # noqa: UP037
+        back_populates="folder"
+    )
 
 
 class Feed(SQLModel, table=True):
@@ -14,6 +30,14 @@ class Feed(SQLModel, table=True):
     title: str
     display_order: int = Field(default=0)
     last_fetched_at: datetime | None = None
+    folder_id: int | None = Field(
+        default=None,
+        foreign_key="feed_folders.id",
+        ondelete="SET NULL",
+        index=True,
+    )
+
+    folder: FeedFolder | None = Relationship(back_populates="feeds")
 
 
 class ArticleCategoryLink(SQLModel, table=True):
@@ -45,17 +69,17 @@ class Category(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.now)
 
     # Relationships
-    articles: list["Article"] = Relationship(
+    articles: list["Article"] = Relationship(  # noqa: UP037
         back_populates="categories_rel",
         link_model=ArticleCategoryLink,
     )
-    parent: Optional["Category"] = Relationship(
+    parent: Optional["Category"] = Relationship(  # noqa: UP045, UP037
         sa_relationship_kwargs={
             "remote_side": "Category.id",
             "foreign_keys": "[Category.parent_id]",
         }
     )
-    children: list["Category"] = Relationship(
+    children: list["Category"] = Relationship(  # noqa: UP037
         sa_relationship_kwargs={
             "foreign_keys": "[Category.parent_id]",
             "overlaps": "parent",
@@ -105,13 +129,36 @@ class UserPreferences(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     interests: str = Field(default="")
     anti_interests: str = Field(default="")
+    use_separate_models: bool = Field(default=False)
     updated_at: datetime = Field(default_factory=datetime.now)
-
-    # Ollama model configuration
-    ollama_categorization_model: str | None = Field(default=None)
-    ollama_scoring_model: str | None = Field(default=None)
-    ollama_use_separate_models: bool = Field(default=False)
-    ollama_thinking: bool = Field(default=False)
 
     # Scheduler configuration
     feed_refresh_interval: int = Field(default=1800)  # seconds
+
+
+class LLMProviderConfig(SQLModel, table=True):
+    """Provider-specific runtime configuration."""
+
+    __tablename__ = "llm_provider_configs"
+    __table_args__ = (CheckConstraint("json_valid(config_json)"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    provider: str = Field(unique=True, index=True)
+    enabled: bool = Field(default=True)
+    config_json: str
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+
+class LLMTaskRoute(SQLModel, table=True):
+    """Route each LLM task to a specific provider and model."""
+
+    __tablename__ = "llm_task_routes"
+
+    id: int | None = Field(default=None, primary_key=True)
+    task: str = Field(unique=True, index=True)
+    provider: str = Field(
+        foreign_key="llm_provider_configs.provider",
+        index=True,
+    )
+    model: str | None = Field(default=None)
+    updated_at: datetime = Field(default_factory=datetime.now)

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # --- General ---
 
@@ -84,10 +84,12 @@ class FeedCreate(BaseModel):
 class FeedUpdate(BaseModel):
     title: str | None = None
     display_order: int | None = None
+    folder_id: int | None = None
 
 
 class FeedReorder(BaseModel):
     feed_ids: list[int]
+    folder_id: int | None = None
 
 
 class FeedResponse(BaseModel):
@@ -96,6 +98,34 @@ class FeedResponse(BaseModel):
     title: str
     display_order: int
     last_fetched_at: datetime | None
+    unread_count: int
+    folder_id: int | None = None
+    folder_name: str | None = None
+
+
+class FeedFolderCreate(BaseModel):
+    name: str
+    feed_ids: list[int] = Field(default_factory=list)
+
+
+class FeedFolderUpdate(BaseModel):
+    name: str | None = None
+    display_order: int | None = None
+
+
+class FeedFolderReorder(BaseModel):
+    folder_ids: list[int]
+
+
+class FeedFolderDeleteRequest(BaseModel):
+    delete_feeds: bool = False
+
+
+class FeedFolderResponse(BaseModel):
+    id: int
+    name: str
+    display_order: int
+    created_at: datetime
     unread_count: int
 
 
@@ -185,19 +215,59 @@ class PullModelRequest(BaseModel):
 
 
 class OllamaConfigResponse(BaseModel):
+    base_url: str
+    port: int = Field(ge=1, le=65535)
     categorization_model: str | None
     scoring_model: str | None
     use_separate_models: bool
-    thinking: bool
 
 
 class OllamaConfigUpdate(BaseModel):
+    base_url: str
+    port: int = Field(ge=1, le=65535)
     categorization_model: str | None
     scoring_model: str | None
     use_separate_models: bool
-    thinking: bool
 
 
 class OllamaPromptsResponse(BaseModel):
     categorization_prompt: str
     scoring_prompt: str
+
+
+# --- Providers ---
+
+
+class ProviderListItem(BaseModel):
+    provider: str
+
+
+class AvailableModel(BaseModel):
+    provider: str
+    name: str
+    size: int | None = None
+    parameter_size: str | None = None
+    quantization_level: str | None = None
+    is_loaded: bool | None = None
+
+
+class TaskRouteItem(BaseModel):
+    task: str
+    provider: str
+    model: str | None = None
+
+
+class TaskRoutesResponse(BaseModel):
+    routes: list[TaskRouteItem]
+    use_separate_models: bool
+
+
+class TaskRouteAssignment(BaseModel):
+    provider: str
+    model: str
+
+
+class TaskRoutesUpdate(BaseModel):
+    categorization: TaskRouteAssignment
+    scoring: TaskRouteAssignment
+    use_separate_models: bool

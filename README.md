@@ -7,9 +7,11 @@ A personal RSS reader with LLM-powered content curation. Surfaces interesting ar
 - **LLM-Powered Scoring** — Articles are automatically scored by interest and quality using a local Ollama model
 - **Smart Categorization** — Auto-generated topic tags with configurable weights (blocked, low, neutral, medium, high)
 - **Score-Based Sorting** — Sort by relevance, date, or score with high-interest articles surfaced first
-- **Filter Tabs** — Unread, All, Scoring (in-progress), and Blocked views
+- **Filter & Sort** — Unread, All, Scoring, and Blocked views with score or date sorting
 - **Feed Management** — Add, remove, rename, and reorder RSS feed subscriptions
+- **Feed Folders** — Organize subscriptions into collapsible folder groups
 - **Reading Experience** — Clean reader view with auto-mark-as-read, keyboard navigation, and Lora serif typography
+- **Dark & Light Theme** — Toggle between dark and light modes
 - **Fully Local** — No external APIs, no tracking. SQLite database, Ollama LLM, runs on your hardware
 
 ### Screenshots
@@ -29,6 +31,10 @@ A personal RSS reader with LLM-powered content curation. Surfaces interesting ar
 **Topic categories** — Auto-generated categories with configurable weights that influence scoring.
 
 ![Topic categories](docs/settings-categories.png)
+
+**LLM Providers** — Configure model provider, select models for categorization and scoring, and view system prompts.
+
+![LLM Providers](docs/settings-llm-providers.png)
 
 ---
 
@@ -143,7 +149,7 @@ Environment variables use double-underscore notation for nested config:
 | `OLLAMA__HOST` | Ollama API URL | `http://localhost:11434` |
 | `CONFIG_FILE` | Path to YAML config file | *(none)* |
 
-> **Note:** Model selection, extended thinking, and feed refresh interval are configured through the Settings UI and stored in the database.
+> **Note:** Model selection and feed refresh interval are configured through the Settings UI and stored in the database.
 
 ---
 
@@ -245,6 +251,8 @@ rss-reader/
 │   └── Dockerfile
 ├── config/
 │   └── app.yaml           # Example configuration
+├── docs/
+│   └── *.png              # README screenshots
 └── spec/                   # Product requirements and milestone plans
 ```
 

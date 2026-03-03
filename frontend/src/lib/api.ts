@@ -1,18 +1,23 @@
 import {
   Article,
   ArticleListItem,
+  AvailableModel,
   Category,
+  DownloadStatus,
   Feed,
-  UserPreferences,
+  FeedFolder,
+  FetchArticlesParams,
+  OllamaConfig,
   OllamaHealth,
   OllamaModel,
-  OllamaConfig,
-  RescoreResult,
   OllamaPrompts,
-  ScoringStatus,
-  DownloadStatus,
-  FetchArticlesParams,
+  ProviderListItem,
   RefreshStatus,
+  RescoreResult,
+  ScoringStatus,
+  TaskRoutesResponse,
+  TaskRoutesUpdate,
+  UserPreferences,
 } from "./types";
 
 export const API_BASE_URL =
@@ -21,7 +26,13 @@ export const API_BASE_URL =
 /** Throw an error with the backend's `detail` message if available, otherwise fall back to a generic message. */
 async function throwApiError(response: Response, fallback: string): Promise<never> {
   const body = await response.json().catch(() => null);
-  throw new Error(body?.detail ?? `${fallback}: ${response.statusText}`);
+  const detail = body?.detail;
+  const message = Array.isArray(detail)
+    ? detail.map((e: { msg?: string }) => e.msg ?? JSON.stringify(e)).join("; ")
+    : typeof detail === "string"
+      ? detail
+      : `${fallback}: ${response.statusText}`;
+  throw new Error(message);
 }
 
 export async function fetchArticles(
@@ -40,6 +51,9 @@ export async function fetchArticles(
   }
   if (params.feed_id !== undefined) {
     searchParams.set("feed_id", params.feed_id.toString());
+  }
+  if (params.folder_id !== undefined) {
+    searchParams.set("folder_id", params.folder_id.toString());
   }
   if (params.sort_by !== undefined) {
     searchParams.set("sort_by", params.sort_by);
@@ -164,7 +178,7 @@ export async function deleteFeed(id: number): Promise<void> {
 
 export async function updateFeed(
   id: number,
-  data: { title?: string; display_order?: number }
+  data: { title?: string; display_order?: number; folder_id?: number | null }
 ): Promise<Feed> {
   const response = await fetch(`${API_BASE_URL}/api/feeds/${id}`, {
     method: "PATCH",
@@ -181,17 +195,101 @@ export async function updateFeed(
   return response.json();
 }
 
-export async function reorderFeeds(feedIds: number[]): Promise<void> {
+export async function reorderFeeds(
+  feedIds: number[],
+  folderId?: number | null
+): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/api/feeds/order`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ feed_ids: feedIds }),
+    body: JSON.stringify({ feed_ids: feedIds, folder_id: folderId ?? null }),
   });
 
   if (!response.ok) {
     await throwApiError(response, "Failed to reorder feeds");
+  }
+}
+
+export async function fetchFeedFolders(): Promise<FeedFolder[]> {
+  const response = await fetch(`${API_BASE_URL}/api/feed-folders`);
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to fetch feed folders");
+  }
+
+  return response.json();
+}
+
+export async function createFeedFolder(data: {
+  name: string;
+  feed_ids?: number[];
+}): Promise<FeedFolder> {
+  const response = await fetch(`${API_BASE_URL}/api/feed-folders`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: data.name,
+      feed_ids: data.feed_ids ?? [],
+    }),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to create feed folder");
+  }
+
+  return response.json();
+}
+
+export async function updateFeedFolder(
+  id: number,
+  data: { name?: string; display_order?: number }
+): Promise<FeedFolder> {
+  const response = await fetch(`${API_BASE_URL}/api/feed-folders/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to update feed folder");
+  }
+
+  return response.json();
+}
+
+export async function reorderFeedFolders(folderIds: number[]): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/feed-folders/order`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ folder_ids: folderIds }),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to reorder feed folders");
+  }
+}
+
+export async function deleteFeedFolder(
+  id: number,
+  deleteFeeds: boolean
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/feed-folders/${id}?delete_feeds=${deleteFeeds}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to delete feed folder");
   }
 }
 
@@ -323,6 +421,65 @@ export async function fetchScoringStatus(): Promise<ScoringStatus> {
   return response.json();
 }
 
+// --- Provider API ---
+
+export async function fetchProviders(): Promise<ProviderListItem[]> {
+  const response = await fetch(`${API_BASE_URL}/api/providers`);
+  if (!response.ok) await throwApiError(response, "Failed to fetch providers");
+  return response.json();
+}
+
+export async function disconnectProvider(
+  provider: string
+): Promise<{ ok: boolean }> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/providers/${encodeURIComponent(provider)}`,
+    { method: "DELETE" }
+  );
+  if (!response.ok) await throwApiError(response, "Failed to disconnect provider");
+  return response.json();
+}
+
+export async function saveProviderConfig(
+  provider: string,
+  config: unknown
+): Promise<OllamaConfig> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/providers/${encodeURIComponent(provider)}/config`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config),
+    }
+  );
+  if (!response.ok) await throwApiError(response, "Failed to save provider config");
+  return response.json();
+}
+
+export async function fetchAvailableModels(): Promise<AvailableModel[]> {
+  const response = await fetch(`${API_BASE_URL}/api/models`);
+  if (!response.ok) await throwApiError(response, "Failed to fetch available models");
+  return response.json();
+}
+
+export async function fetchTaskRoutes(): Promise<TaskRoutesResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/task-routes`);
+  if (!response.ok) await throwApiError(response, "Failed to fetch task routes");
+  return response.json();
+}
+
+export async function saveTaskRoutes(
+  data: TaskRoutesUpdate
+): Promise<{ ok: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/api/task-routes`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) await throwApiError(response, "Failed to save task routes");
+  return response.json();
+}
+
 // --- Ollama Configuration API ---
 
 export async function fetchOllamaHealth(): Promise<OllamaHealth> {
@@ -358,13 +515,16 @@ export async function fetchOllamaConfig(): Promise<OllamaConfig> {
 export async function saveOllamaConfig(
   data: OllamaConfig
 ): Promise<OllamaConfig> {
-  const response = await fetch(`${API_BASE_URL}/api/ollama/config`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/api/providers/ollama/config`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    }
+  );
 
   if (!response.ok) {
     await throwApiError(response, "Failed to save Ollama config");

@@ -64,6 +64,30 @@ export interface Feed {
   last_fetched_at: string | null;
   display_order: number;
   unread_count: number;
+  folder_id: number | null;
+  folder_name: string | null;
+}
+
+export interface FeedFolder {
+  id: number;
+  name: string;
+  display_order: number;
+  created_at: string;
+  unread_count: number;
+}
+
+export type FeedSelection =
+  | { kind: "all" }
+  | { kind: "feed"; feedId: number }
+  | { kind: "folder"; folderId: number };
+
+export const ALL_FEEDS_SELECTION: FeedSelection = { kind: "all" };
+
+export function isFeedSelected(
+  selection: FeedSelection,
+  feedId: number
+): boolean {
+  return selection.kind === "feed" && selection.feedId === feedId;
 }
 
 export interface UserPreferences {
@@ -88,10 +112,41 @@ export interface OllamaModel {
 }
 
 export interface OllamaConfig {
+  base_url: string;
+  port: number;
   categorization_model: string | null;
   scoring_model: string | null;
   use_separate_models: boolean;
-  thinking: boolean;
+}
+
+export interface ProviderListItem {
+  provider: string;
+}
+
+export interface AvailableModel {
+  provider: string;
+  name: string;
+  size: number | null;
+  parameter_size: string | null;
+  quantization_level: string | null;
+  is_loaded: boolean | null;
+}
+
+export interface TaskRouteItem {
+  task: string;
+  provider: string;
+  model: string | null;
+}
+
+export interface TaskRoutesResponse {
+  routes: TaskRouteItem[];
+  use_separate_models: boolean;
+}
+
+export interface TaskRoutesUpdate {
+  categorization: { provider: string; model: string };
+  scoring: { provider: string; model: string };
+  use_separate_models: boolean;
 }
 
 export interface RefreshStatus {
@@ -121,6 +176,10 @@ export interface ScoringStatus {
   blocked: number;
   current_article_id: number | null;
   phase: string;
+  categorization_ready: boolean;
+  categorization_ready_reason: string | null;
+  score_ready: boolean;
+  score_ready_reason: string | null;
   scoring_ready: boolean;
   scoring_ready_reason: string | null;
 }
@@ -138,6 +197,7 @@ export interface FetchArticlesParams {
   limit?: number;
   is_read?: boolean;
   feed_id?: number;
+  folder_id?: number;
   sort_by?: string;
   order?: string;
   scoring_state?: string;

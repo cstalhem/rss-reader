@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -59,6 +60,8 @@ async def process_scoring_queue():
             )
             if settings.scheduler.log_job_execution and processed > 0:
                 logger.info(f"Processed {processed} articles from scoring queue")
+        except asyncio.CancelledError:
+            logger.info("Scoring queue processing cancelled")
         except Exception as e:
             logger.error(f"Failed to process scoring queue: {e}")
 

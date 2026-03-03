@@ -70,6 +70,13 @@ export function CategoriesSection() {
   // Tree building + search
   const { parents, childrenMap, ungroupedCategories, newCategoryIds, hiddenCategories, searchQuery, setSearchQuery } =
     useCategoryTree(categories);
+  const rootMoveTargets = useMemo(
+    () =>
+      categories
+        .filter((c) => c.parent_id === null && !c.is_hidden)
+        .sort((a, b) => a.display_name.localeCompare(b.display_name)),
+    [categories]
+  );
 
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -252,7 +259,7 @@ export function CategoriesSection() {
         <MoveToGroupDialog
           open={dialogs.moveDialogOpen}
           onOpenChange={dialogs.setMoveDialogOpen}
-          parentCategories={parents}
+          rootCategories={rootMoveTargets}
           childrenMap={childrenMap}
           selectedCount={selectedIds.size}
           onMove={dialogs.handleMoveToGroup}

@@ -9,6 +9,7 @@ paths: ["frontend/**"]
 - Select, Menu, Tooltip, Popover MUST use `Portal > Positioner > Content`. Dialog handles portalling internally — do NOT wrap in Portal.
 - Always use `@/components/ui/tooltip` wrapper — never raw `Tooltip.Root`.
 - Use `ConfirmDialog` from `@/components/ui/confirm-dialog` for all confirmation flows. Do not inline `Dialog.Root` for confirm/cancel.
+- Dialog cancel buttons: use `Dialog.ActionTrigger asChild` + `<Button variant="ghost">` in `Dialog.Footer`. `CloseTrigger` is only for the corner X icon.
 - Set `color` on the nearest Chakra parent for react-icons — CSS inheritance flows to SVG `currentColor`. Do NOT use `var(--chakra-colors-*)` on icon props.
 - Semantic tokens only — never hardcode color values or raw palette refs. Missing token → create in `theme/colors.ts`.
 - `colorPalette="accent"` per-component on CTAs. Do NOT set as global default.
@@ -22,6 +23,7 @@ paths: ["frontend/**"]
 
 ## Next.js
 
+- After creating a new worktree, run `cd frontend && bun install` — `node_modules` is not shared across worktrees.
 - Dev and build scripts use `--webpack` flag — Turbopack breaks Emotion SSR. Do NOT remove.
 - `suppressHydrationWarning` on `<html>` in `layout.tsx` is required. Do NOT remove.
 - Never read `localStorage` in `useState` initializer — causes hydration mismatch. Use the `useLocalStorage` hook.
@@ -63,3 +65,13 @@ paths: ["frontend/**"]
 - Unread-first default view, sorted by composite score descending.
 - 12-second auto-mark-as-read in the reader drawer.
 - Full opacity + accent dot for unread, 0.6 opacity + hollow dot for read.
+
+## Testing
+
+- Use `renderWithProviders` from `@/test/utils` for components, `createWrapper` for hooks.
+- Fresh `QueryClient` per test — never import the singleton from `lib/queryClient.ts`.
+- Use MSW handlers for API mocking — never mock `fetch` or hook internals directly.
+- Use `waitFor` for all async assertions — never assert synchronously on query results.
+- Add `next/navigation` and `next-themes` mocks per-file, not in global setup.
+- Co-locate tests as siblings (e.g. `Foo.test.tsx` next to `Foo.tsx`).
+- No snapshot tests for Chakra components (dynamic class names make them noisy).
