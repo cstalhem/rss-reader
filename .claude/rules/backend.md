@@ -21,6 +21,7 @@ paths: ["backend/**"]
 - Don't use raw SQL to INSERT into ORM-modeled tables — bypasses Python-level defaults (`Field(default=...)`) and breaks when new NOT NULL columns are added. Use `Session(bind=conn)` + ORM objects instead.
 - After merging branches with Alembic migrations, run `alembic heads` — if multiple heads exist, run `alembic merge heads -m "merge_<description>"` before committing.
 - Never hold a write transaction open across slow I/O (LLM calls, network requests). Use short atomic commits and `session.no_autoflush` to prevent SELECTs from triggering implicit flushes.
+- When modifying the Dockerfile runtime stage, ensure `alembic.ini` and `alembic/` are copied — migrations silently skip if missing (see skill: backend-reference).
 
 ## Dependencies & Background Jobs
 
