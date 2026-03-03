@@ -75,7 +75,9 @@ export function MobileSidebar({
 
   const [feedToDelete, setFeedToDelete] = useState<Feed | null>(null);
   const [feedToMove, setFeedToMove] = useState<Feed | null>(null);
-  const [expandedFolders, setExpandedFolders] = useState<Record<number, boolean>>({});
+  const [expandedFolders, setExpandedFolders] = useState<
+    Record<number, boolean>
+  >({});
 
   const { data: newCatCount } = useQuery({
     queryKey: queryKeys.categories.newCount,
@@ -105,15 +107,15 @@ export function MobileSidebar({
       (feeds ?? [])
         .filter((feed) => feed.folder_id === null)
         .sort((a, b) => a.display_order - b.display_order || a.id - b.id),
-    [feeds]
+    [feeds],
   );
 
   const orderedFolders = useMemo(
     () =>
       [...(folders ?? [])].sort(
-        (a, b) => a.display_order - b.display_order || a.id - b.id
+        (a, b) => a.display_order - b.display_order || a.id - b.id,
       ),
-    [folders]
+    [folders],
   );
 
   const rootItems = useMemo<RootItem[]>(() => {
@@ -137,7 +139,8 @@ export function MobileSidebar({
     });
   }, [orderedFolders, ungroupedFeeds]);
 
-  const totalUnread = feeds?.reduce((sum, feed) => sum + feed.unread_count, 0) ?? 0;
+  const totalUnread =
+    feeds?.reduce((sum, feed) => sum + feed.unread_count, 0) ?? 0;
 
   const isLoading = isFeedsLoading || isFoldersLoading;
   const hasItems = (feeds?.length ?? 0) + (folders?.length ?? 0) > 0;
@@ -197,7 +200,7 @@ export function MobileSidebar({
     <Drawer.Root
       open={isOpen}
       onOpenChange={({ open }) => !open && onClose()}
-      placement="start"
+      placement='start'
       size={{ base: "full", sm: "xs" }}
     >
       <Drawer.Backdrop />
@@ -205,45 +208,50 @@ export function MobileSidebar({
         <Drawer.Content>
           <Drawer.Header>
             <Drawer.Title>
-              <Link href="/">
-                <Heading size="md" fontWeight="semibold">
+              <Link href='/'>
+                <Heading size='md' fontWeight='semibold'>
                   RSS Reader
                 </Heading>
               </Link>
             </Drawer.Title>
           </Drawer.Header>
           <Drawer.CloseTrigger asChild>
-            <CloseButton size="sm" />
+            <CloseButton size='sm' />
           </Drawer.CloseTrigger>
 
           <Drawer.Body>
             {isLoading ? (
               <Box px={4} py={3}>
-                <Text fontSize="sm" color="fg.muted">
+                <Text fontSize='sm' color='fg.muted'>
                   Loading...
                 </Text>
               </Box>
             ) : hasItems ? (
               <Box>
                 <Flex
-                  alignItems="center"
-                  justifyContent="space-between"
-                  px={4}
+                  alignItems='center'
+                  justifyContent='space-between'
                   py={3}
-                  cursor="pointer"
-                  bg={selection.kind === "all" ? "colorPalette.subtle" : "transparent"}
+                  cursor='pointer'
+                  bg={
+                    selection.kind === "all"
+                      ? "colorPalette.subtle"
+                      : "transparent"
+                  }
                   _hover={{ bg: "bg.muted" }}
                   onClick={() => handleSelect(ALL_FEEDS_SELECTION)}
-                  borderLeftWidth="3px"
+                  borderLeftWidth='3px'
                   borderLeftColor={
-                    selection.kind === "all" ? "colorPalette.solid" : "transparent"
+                    selection.kind === "all"
+                      ? "colorPalette.solid"
+                      : "transparent"
                   }
                 >
-                  <Text fontSize="sm" fontWeight="medium">
+                  <Text fontSize='sm' fontWeight='medium'>
                     All Articles
                   </Text>
                   {totalUnread > 0 && (
-                    <Badge colorPalette="accent" size="sm">
+                    <Badge colorPalette='accent' size='sm'>
                       {totalUnread}
                     </Badge>
                   )}
@@ -251,58 +259,82 @@ export function MobileSidebar({
 
                 {rootItems.map((item) => {
                   if (item.kind === "folder") {
-                    const folder = orderedFolders.find((entry) => entry.id === item.id);
+                    const folder = orderedFolders.find(
+                      (entry) => entry.id === item.id,
+                    );
                     if (!folder) return null;
 
                     const folderFeeds = feedsByFolder.get(folder.id) ?? [];
                     const isExpanded = expandedFolders[folder.id] ?? true;
                     const isSelected =
-                      selection.kind === "folder" && selection.folderId === folder.id;
+                      selection.kind === "folder" &&
+                      selection.folderId === folder.id;
 
                     return (
                       <Box key={`folder-${folder.id}`}>
                         <Flex
-                          alignItems="center"
+                          alignItems='center'
                           gap={2}
-                          px={4}
                           py={2.5}
-                          cursor="pointer"
+                          cursor='pointer'
                           bg={isSelected ? "accent.subtle" : "transparent"}
-                          _hover={{ bg: isSelected ? "accent.subtle" : "bg.muted" }}
-                          borderLeftWidth="3px"
-                          borderLeftColor={isSelected ? "accent.solid" : "transparent"}
-                          onClick={() => handleSelect({ kind: "folder", folderId: folder.id })}
+                          _hover={{
+                            bg: isSelected ? "accent.subtle" : "bg.muted",
+                          }}
+                          borderLeftWidth='3px'
+                          borderLeftColor={
+                            isSelected ? "accent.solid" : "transparent"
+                          }
+                          onClick={() =>
+                            handleSelect({
+                              kind: "folder",
+                              folderId: folder.id,
+                            })
+                          }
                         >
                           <LuFolder size={15} />
-                          <Text fontSize="sm" fontWeight="medium" flex={1} truncate>
+                          <Text
+                            fontSize='sm'
+                            fontWeight='medium'
+                            flex={1}
+                            truncate
+                          >
                             {folder.name}
                           </Text>
                           {shouldShowFolderUnreadBadge(folder.unread_count) ? (
-                            <Badge colorPalette="accent" size="sm">
+                            <Badge colorPalette='accent' size='sm'>
                               {folder.unread_count}
                             </Badge>
                           ) : null}
                           <IconButton
-                            aria-label={isExpanded ? "Collapse folder" : "Expand folder"}
-                            size="xs"
-                            variant="ghost"
+                            aria-label={
+                              isExpanded ? "Collapse folder" : "Expand folder"
+                            }
+                            size='xs'
+                            variant='ghost'
                             onClick={(event) => {
                               event.stopPropagation();
                               toggleFolderExpanded(folder.id);
                             }}
                           >
-                            {isExpanded ? <LuChevronDown /> : <LuChevronRight />}
+                            {isExpanded ? (
+                              <LuChevronDown />
+                            ) : (
+                              <LuChevronRight />
+                            )}
                           </IconButton>
                         </Flex>
 
                         {isExpanded && (
-                          <Box pl={6}>
+                          <Box>
                             {folderFeeds.map((feed) => (
                               <FeedRow
                                 key={feed.id}
                                 feed={feed}
                                 isSelected={isFeedSelected(selection, feed.id)}
-                                onSelect={(feedId) => handleSelect({ kind: "feed", feedId })}
+                                onSelect={(feedId) =>
+                                  handleSelect({ kind: "feed", feedId })
+                                }
                                 onDelete={setFeedToDelete}
                                 onMarkAllRead={handleMarkAllRead}
                                 onRename={handleRename}
@@ -318,7 +350,9 @@ export function MobileSidebar({
                     );
                   }
 
-                  const feed = ungroupedFeeds.find((entry) => entry.id === item.id);
+                  const feed = ungroupedFeeds.find(
+                    (entry) => entry.id === item.id,
+                  );
                   if (!feed) return null;
 
                   return (
@@ -326,7 +360,9 @@ export function MobileSidebar({
                       key={`feed-${feed.id}`}
                       feed={feed}
                       isSelected={isFeedSelected(selection, feed.id)}
-                      onSelect={(feedId) => handleSelect({ kind: "feed", feedId })}
+                      onSelect={(feedId) =>
+                        handleSelect({ kind: "feed", feedId })
+                      }
                       onDelete={setFeedToDelete}
                       onMarkAllRead={handleMarkAllRead}
                       onRename={handleRename}
@@ -343,47 +379,47 @@ export function MobileSidebar({
             )}
           </Drawer.Body>
           <Drawer.Footer>
-            <Flex direction="column" width="100%" gap={2}>
-              <Flex alignItems="center" justifyContent="space-between">
-                <Link href="/settings" onClick={onClose}>
-                  <Flex alignItems="center" gap={2} position="relative">
-                    <IconButton aria-label="Settings" size="sm" variant="ghost">
+            <Flex direction='column' width='100%' gap={2}>
+              <Flex alignItems='center' justifyContent='space-between'>
+                <Link href='/settings' onClick={onClose}>
+                  <Flex alignItems='center' gap={2} position='relative'>
+                    <IconButton aria-label='Settings' size='sm' variant='ghost'>
                       <LuSettings />
                     </IconButton>
-                    <Text fontSize="sm" color="fg.muted">
+                    <Text fontSize='sm' color='fg.muted'>
                       Settings
                     </Text>
                     {hasNewCategories && (
                       <Box
-                        position="absolute"
-                        top="4px"
-                        left="28px"
-                        width="8px"
-                        height="8px"
-                        borderRadius="full"
-                        bg="accent.solid"
-                        pointerEvents="none"
+                        position='absolute'
+                        top='4px'
+                        left='28px'
+                        width='8px'
+                        height='8px'
+                        borderRadius='full'
+                        bg='accent.solid'
+                        pointerEvents='none'
                       />
                     )}
                   </Flex>
                 </Link>
-                <ThemeToggle colorPalette="accent" />
+                <ThemeToggle colorPalette='accent' />
               </Flex>
 
               <Flex gap={2}>
                 <Button
-                  variant="outline"
-                  width="100%"
+                  variant='outline'
+                  width='100%'
                   onClick={onAddFolderClick}
-                  colorPalette="accent"
+                  colorPalette='accent'
                 >
                   <LuFolderPlus /> Create folder
                 </Button>
                 <Button
-                  variant="outline"
-                  width="100%"
+                  variant='outline'
+                  width='100%'
                   onClick={onAddFeedClick}
-                  colorPalette="accent"
+                  colorPalette='accent'
                 >
                   <LuPlus /> Add feed
                 </Button>
