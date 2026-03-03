@@ -57,7 +57,7 @@ bun run build         # Production build
 
 - **`main`** — Production. Always deployable. Docker images are built and pushed to GHCR on every push here.
 - **`dev`** — Development. All day-to-day work (GSD phases, bug fixes, features) happens here.
-- Merge `dev` → `main` when ready to deploy. Pushes to `dev` trigger CI builds (validation only, no image push).
+- Merge `dev` → `main` when ready to deploy. **Always use "Create a merge commit"** (never squash or rebase) to preserve shared history between branches. Pushes to `dev` trigger CI builds (validation only, no image push).
 
 ## Pull Requests
 

@@ -29,3 +29,21 @@ code or command that avoids the problem
 
 Why: One-line explanation of the root cause.
 -->
+
+## Multi-stage Docker build must include Alembic files
+
+WRONG:
+```dockerfile
+# Runtime stage — only copies source
+COPY --from=builder /app/src /app/src
+```
+
+CORRECT:
+```dockerfile
+# Runtime stage — copies source AND migration infrastructure
+COPY --from=builder /app/src /app/src
+COPY --from=builder /app/alembic.ini /app/alembic.ini
+COPY --from=builder /app/alembic /app/alembic
+```
+
+Why: Alembic migrations silently skip when config is missing, causing schema drift that crashes at first ORM query.
