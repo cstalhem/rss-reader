@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchArticles, updateArticleReadStatus } from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
+import type { ArticleListItem } from "@/lib/types";
 
 const PAGE_SIZE = 50;
 const SCORING_ACTIVE_POLL_INTERVAL = 10_000;
@@ -86,8 +87,24 @@ export function useMarkAsRead() {
       isRead: boolean;
     }) => updateArticleReadStatus(articleId, isRead),
     meta: { errorTitle: "Failed to update article" },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
+    onSuccess: (_, { articleId, isRead }) => {
+      // Update is_read in cached article lists without removing the article.
+      queryClient.setQueriesData<ArticleListItem[]>(
+        { queryKey: queryKeys.articles.all },
+        (oldData) => {
+          if (!oldData || !Array.isArray(oldData)) return oldData;
+          return oldData.map((a) =>
+            a.id === articleId ? { ...a, is_read: isRead } : a
+          );
+        }
+      );
+      // Mark all article queries as invalid so they refetch on next observe
+      // (tab switch, feed switch) — but don't refetch the active query now,
+      // so the article stays visible in the current view.
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.articles.all,
+        refetchType: "none",
+      });
     },
   });
 }
