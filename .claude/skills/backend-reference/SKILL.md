@@ -50,9 +50,15 @@ unscored -> queued -> scoring -> scored (or failed)
 - Articles with score 0 (all categories blocked) appear only in the Blocked tab
 - `database.py` resets articles stuck in `scoring_state='scoring'` back to `queued` on startup, handling cases where the process was killed mid-scoring
 
-## Schema Versioning
+## Schema Versioning (Dual-Layer)
 
-`database.py` uses a `schema_version` table with a `CURRENT_SCHEMA_VERSION` constant. Version-gated migrations run on startup -- each version check runs once, not every startup.
+Migrations run in two layers during `create_db_and_tables()` in `database.py`:
+
+**Layer 1 — schema_version bootstrap:** A hand-rolled `schema_version` table gates v0→v1→v2 migrations (seed default categories, add `feed_refresh_interval`). Each version check runs once, not every startup. This layer is frozen — no new versions will be added.
+
+**Layer 2 — Alembic:** All schema changes after v2 are managed by Alembic (`_run_alembic_migrations()`). The function locates `alembic.ini` via `Path(__file__).resolve().parents[2]` (project root) and runs `alembic upgrade head`.
+
+**Docker caveat:** The Dockerfile runtime stage must explicitly COPY `alembic.ini` and `alembic/` from the builder — if missing, `_run_alembic_migrations()` logs a warning and silently skips, leaving the database schema behind the ORM models.
 
 ## SQLite Configuration
 
