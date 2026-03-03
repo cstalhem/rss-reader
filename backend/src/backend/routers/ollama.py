@@ -127,7 +127,8 @@ def get_task_routes(session: Session = Depends(get_session)):
     preferences = get_or_create_preferences(session)
     return TaskRoutesResponse(
         routes=[
-            TaskRouteItem(task=r.task, provider=r.provider, model=r.model) for r in routes
+            TaskRouteItem(task=r.task, provider=r.provider, model=r.model)
+            for r in routes
         ],
         use_separate_models=preferences.use_separate_models,
     )
@@ -140,11 +141,12 @@ def save_task_routes(
 ):
     """Save model assignments and use_separate_models preference."""
     upsert_task_route(
-        session, TASK_CATEGORIZATION, data.categorization.provider, data.categorization.model
+        session,
+        TASK_CATEGORIZATION,
+        data.categorization.provider,
+        data.categorization.model,
     )
-    upsert_task_route(
-        session, TASK_SCORING, data.scoring.provider, data.scoring.model
-    )
+    upsert_task_route(session, TASK_SCORING, data.scoring.provider, data.scoring.model)
 
     preferences = get_or_create_preferences(session)
     preferences.use_separate_models = data.use_separate_models
@@ -171,13 +173,19 @@ async def list_available_models(session: Session = Depends(get_session)):
             continue
 
         try:
-            config = get_ollama_provider_config(session) if row.provider == OLLAMA_PROVIDER else None
+            config = (
+                get_ollama_provider_config(session)
+                if row.provider == OLLAMA_PROVIDER
+                else None
+            )
             endpoint = config.endpoint if config else None
             if endpoint is None:
                 continue
             models = await provider.list_models(endpoint)
         except Exception:
-            logger.warning("Failed to list models for provider: %s", row.provider, exc_info=True)
+            logger.warning(
+                "Failed to list models for provider: %s", row.provider, exc_info=True
+            )
             continue
 
         for m in models:

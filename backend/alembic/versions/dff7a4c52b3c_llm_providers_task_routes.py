@@ -207,7 +207,9 @@ def upgrade() -> None:
     # Guard: legacy columns may not exist on fresh installs where models.py
     # no longer defines them (removed in Phase 09.6).
     inspector = sa.inspect(bind)
-    has_legacy_cols = _column_exists(inspector, "user_preferences", "ollama_categorization_model")
+    has_legacy_cols = _column_exists(
+        inspector, "user_preferences", "ollama_categorization_model"
+    )
 
     if has_legacy_cols:
         legacy = (

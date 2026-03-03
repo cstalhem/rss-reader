@@ -1,6 +1,6 @@
 """Tests for category batch-move safety constraints."""
 
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi.testclient import TestClient
 from sqlmodel import Session

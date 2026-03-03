@@ -39,12 +39,12 @@ def upgrade() -> None:
     bind = op.get_bind()
     inspector = sa.inspect(bind)
 
-    if not any(
-        t == "user_preferences" for t in inspector.get_table_names()
-    ):
+    if not any(t == "user_preferences" for t in inspector.get_table_names()):
         return
 
-    has_old = _column_exists(inspector, "user_preferences", "ollama_use_separate_models")
+    has_old = _column_exists(
+        inspector, "user_preferences", "ollama_use_separate_models"
+    )
     has_new = _column_exists(inspector, "user_preferences", "use_separate_models")
 
     # SQLite doesn't support ALTER COLUMN RENAME directly -- use batch mode
@@ -78,9 +78,7 @@ def downgrade() -> None:
     bind = op.get_bind()
     inspector = sa.inspect(bind)
 
-    if not any(
-        t == "user_preferences" for t in inspector.get_table_names()
-    ):
+    if not any(t == "user_preferences" for t in inspector.get_table_names()):
         return
 
     with op.batch_alter_table("user_preferences") as batch_op:

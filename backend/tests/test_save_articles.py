@@ -112,9 +112,7 @@ def test_save_field_fallbacks(test_session: Session, make_feed: Callable[..., Fe
     assert article.is_read is False
 
 
-def test_save_content_extraction(
-    test_session: Session, make_feed: Callable[..., Feed]
-):
+def test_save_content_extraction(test_session: Session, make_feed: Callable[..., Feed]):
     feed = make_feed()
     entries = [
         {
