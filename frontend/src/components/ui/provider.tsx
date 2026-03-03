@@ -7,12 +7,15 @@ import {
 } from "./color-mode"
 import { system } from "@/theme"
 import { Toaster } from "./toaster"
+import { EmotionRegistry } from "./emotion-registry"
 
 export function Provider(props: ColorModeProviderProps) {
   return (
-    <ChakraProvider value={system}>
-      <ColorModeProvider {...props} />
-      <Toaster />
-    </ChakraProvider>
+    <EmotionRegistry>
+      <ChakraProvider value={system}>
+        <ColorModeProvider {...props} />
+        <Toaster />
+      </ChakraProvider>
+    </EmotionRegistry>
   )
 }
