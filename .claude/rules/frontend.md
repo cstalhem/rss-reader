@@ -23,6 +23,7 @@ paths: ["frontend/**"]
 
 ## Next.js
 
+- After creating a new worktree, run `cd frontend && bun install` — `node_modules` is not shared across worktrees.
 - Dev and build scripts use `--webpack` flag — Turbopack breaks Emotion SSR. Do NOT remove.
 - `suppressHydrationWarning` on `<html>` in `layout.tsx` is required. Do NOT remove.
 - Never read `localStorage` in `useState` initializer — causes hydration mismatch. Use the `useLocalStorage` hook.
