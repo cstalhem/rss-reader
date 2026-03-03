@@ -1,6 +1,6 @@
 """Integration tests for feed folder endpoints and folder-aware feed/article behavior."""
 
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
