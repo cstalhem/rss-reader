@@ -26,7 +26,7 @@ export function AddProviderDialog({
           </Dialog.Header>
           <Dialog.Body>
             <Grid
-              templateColumns="repeat(auto-fill, minmax(180px, 1fr))"
+              templateColumns={{ base: "1fr", sm: "repeat(2, 1fr)" }}
               gap={3}
             >
               {PROVIDER_REGISTRY.map((plugin) => {
@@ -38,12 +38,14 @@ export function AddProviderDialog({
                   <Box
                     key={plugin.id}
                     position="relative"
-                    borderWidth="1px"
-                    borderColor="border.subtle"
+                    display="flex"
+                    alignItems="center"
+                    borderWidth={alreadyAdded ? "1.5px" : "1px"}
+                    borderColor={alreadyAdded ? "orange.500" : "border.subtle"}
                     borderRadius="md"
                     p={4}
                     cursor={canAdd ? "pointer" : "default"}
-                    opacity={canAdd ? 1 : 0.5}
+                    opacity={canAdd || alreadyAdded ? 1 : 0.5}
                     _hover={canAdd ? { borderColor: "border" } : undefined}
                     onClick={canAdd ? () => onAdd(plugin.id) : undefined}
                   >
@@ -58,15 +60,33 @@ export function AddProviderDialog({
                         Coming soon
                       </Badge>
                     )}
-                    <Box color="fg.muted" mb={2}>
+                    {alreadyAdded && (
+                      <Badge
+                        position="absolute"
+                        top={2}
+                        right={2}
+                        size="sm"
+                        variant="subtle"
+                        colorPalette="orange"
+                      >
+                        ✓ Configured
+                      </Badge>
+                    )}
+                    <Box
+                      color="fg.default"
+                      flexShrink={0}
+                      mr={4}
+                    >
                       <plugin.Logo width="24" height="24" />
                     </Box>
-                    <Text fontSize="sm" fontWeight="medium">
-                      {plugin.label}
-                    </Text>
-                    <Text fontSize="xs" color="fg.muted">
-                      {alreadyAdded ? "Already added" : plugin.hint}
-                    </Text>
+                    <Box>
+                      <Text fontSize="md" fontWeight="medium" color="fg.default">
+                        {plugin.label}
+                      </Text>
+                      <Text fontSize="xs" color="fg.muted">
+                        {alreadyAdded ? "Already added" : plugin.hint}
+                      </Text>
+                    </Box>
                   </Box>
                 );
               })}
