@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from backend.database import engine
 from backend.llm_providers.ollama import OllamaProviderConfig
@@ -20,6 +20,7 @@ TASK_SCORING = "scoring"
 
 TaskName = Literal["categorization", "scoring"]
 ReadinessReason = Literal[
+    "no_provider",
     "provider_unconfigured",
     "provider_disabled",
     "provider_unknown",
@@ -151,6 +152,19 @@ def resolve_task_runtime(session: Session, task: TaskName) -> TaskRuntimeResolut
 
     # Fallback when no task route exists (provider not yet configured).
     if route is None:
+        provider_count = session.exec(
+            select(func.count(LLMProviderConfig.id))
+        ).one()
+        if provider_count == 0:
+            return TaskRuntimeResolution(
+                task=task,
+                provider="",
+                model=None,
+                endpoint=None,
+                thinking=False,
+                ready=False,
+                reason="no_provider",
+            )
         legacy_config = get_ollama_provider_config(session)
         fallback_model = legacy_config.default_model_for_task(task)
         return TaskRuntimeResolution(
@@ -309,8 +323,10 @@ def format_readiness_reason(runtime: TaskRuntimeResolution) -> str | None:
     if runtime.reason is None:
         return None
 
+    if runtime.reason == "no_provider":
+        return "No LLM provider configured \u2014 set one up in LLM Providers"
     if runtime.reason == "provider_unconfigured":
-        return "Scoring paused — provider is not configured"
+        return "Scoring paused \u2014 provider is not configured"
     if runtime.reason == "provider_disabled":
         return "Scoring paused — provider is disabled"
     if runtime.reason == "provider_unknown":

@@ -233,16 +233,15 @@ def upgrade() -> None:
     else:
         legacy = None
 
-    if legacy:
-        categorization_model = legacy["categorization_model"]
-        scoring_model = legacy["scoring_model"]
-        use_separate_models = bool(legacy["use_separate_models"])
-        thinking = bool(legacy["thinking"])
-    else:
-        categorization_model = None
-        scoring_model = None
-        use_separate_models = False
-        thinking = False
+    # Only seed Ollama provider when migrating from legacy schema.
+    # Fresh installs (no legacy columns) start with no providers configured.
+    if not legacy:
+        return
+
+    categorization_model = legacy["categorization_model"]
+    scoring_model = legacy["scoring_model"]
+    use_separate_models = bool(legacy["use_separate_models"])
+    thinking = bool(legacy["thinking"])
 
     config_json = json.dumps(
         {
