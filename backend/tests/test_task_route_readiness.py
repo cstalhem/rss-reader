@@ -27,6 +27,14 @@ def _ollama_config_json(model: str = "qwen3:4b") -> str:
     )
 
 
+def test_resolve_task_runtime_no_providers(test_session: Session):
+    """Fresh install: no provider rows, no task routes → reason is no_provider."""
+    runtime = resolve_task_runtime(test_session, TASK_CATEGORIZATION)
+    assert runtime.ready is False
+    assert runtime.reason == "no_provider"
+    assert runtime.provider == ""
+
+
 def test_resolve_task_runtime_provider_config_missing(test_session: Session):
     test_session.add(
         LLMTaskRoute(
