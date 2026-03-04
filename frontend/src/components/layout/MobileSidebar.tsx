@@ -76,7 +76,9 @@ export function MobileSidebar({
 
   const [feedToDelete, setFeedToDelete] = useState<Feed | null>(null);
   const [feedToMove, setFeedToMove] = useState<Feed | null>(null);
-  const [expandedFolders, setExpandedFolders] = useLocalStorage<Record<number, boolean>>("expanded-folders", {});
+  const [expandedFolders, setExpandedFolders] = useLocalStorage<
+    Record<number, boolean>
+  >("expanded-folders", {});
 
   const { data: newCatCount } = useQuery({
     queryKey: queryKeys.categories.newCount,
@@ -230,6 +232,7 @@ export function MobileSidebar({
                 <Flex
                   alignItems='center'
                   justifyContent='space-between'
+                  px={4}
                   py={3}
                   cursor='pointer'
                   bg={
@@ -405,7 +408,7 @@ export function MobileSidebar({
                 <ThemeToggle colorPalette='accent' />
               </Flex>
 
-              <Flex gap={2}>
+              <Flex direction='column' gap={2}>
                 <Button
                   variant='outline'
                   width='100%'
@@ -415,7 +418,6 @@ export function MobileSidebar({
                   <LuFolderPlus /> Create folder
                 </Button>
                 <Button
-                  variant='outline'
                   width='100%'
                   onClick={onAddFeedClick}
                   colorPalette='accent'

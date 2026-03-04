@@ -73,13 +73,9 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
         css: isCompleting ? { animation: `${scoreReveal} 3s ease-out forwards` } : undefined,
       })}
     >
-      {/* Read/unread toggle dot - only render for unread articles */}
-      {!article.is_read && (
-        <Box
-          overflow="hidden"
-          transition="max-height 0.2s ease, opacity 0.15s ease"
-          {...(isExpanded ? { maxH: 0, opacity: 0 } : { maxH: "10", opacity: 1 })}
-        >
+      {/* Read/unread toggle dot - hidden in expanded/sticky header to prevent layout shift */}
+      {!isExpanded && !article.is_read && (
+        <Box>
           <Box
             flexShrink={0}
             alignSelf="center"
