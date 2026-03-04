@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type SetStateAction } from "react";
 
 export function useLocalStorage<T>(
   key: string,
   initialValue: T
-): [T, (value: T) => void] {
+): [T, (value: SetStateAction<T>) => void] {
   const [storedValue, setStoredValue] = useState<T>(initialValue);
 
   // Sync from localStorage after hydration to avoid SSR mismatch
@@ -20,13 +20,16 @@ export function useLocalStorage<T>(
     }
   }, [key]);
 
-  const setValue = (value: T) => {
-    setStoredValue(value);
-    try {
-      window.localStorage.setItem(key, JSON.stringify(value));
-    } catch {
-      // Ignore write errors (e.g., quota exceeded)
-    }
+  const setValue = (value: SetStateAction<T>) => {
+    setStoredValue((prev) => {
+      const newValue = value instanceof Function ? value(prev) : value;
+      try {
+        window.localStorage.setItem(key, JSON.stringify(newValue));
+      } catch {
+        // Ignore write errors (e.g., quota exceeded)
+      }
+      return newValue;
+    });
   };
 
   return [storedValue, setValue];
