@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import {
   Badge,
   Box,
@@ -75,9 +76,7 @@ export function MobileSidebar({
 
   const [feedToDelete, setFeedToDelete] = useState<Feed | null>(null);
   const [feedToMove, setFeedToMove] = useState<Feed | null>(null);
-  const [expandedFolders, setExpandedFolders] = useState<
-    Record<number, boolean>
-  >({});
+  const [expandedFolders, setExpandedFolders] = useLocalStorage<Record<number, boolean>>("expanded-folders", {});
 
   const { data: newCatCount } = useQuery({
     queryKey: queryKeys.categories.newCount,
