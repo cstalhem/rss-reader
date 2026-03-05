@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchDownloadStatus, API_BASE_URL } from "@/lib/api";
 import { DownloadStatus } from "@/lib/types";
-import { queryKeys } from "@/lib/queryKeys";
+import { queryKeys, invalidateModelDependents } from "@/lib/queryKeys";
 
 const DOWNLOAD_STATUS_POLL_INTERVAL = 1_000;
 const SCORE_100_PERCENT_DELAY = 500;
@@ -102,11 +102,11 @@ export function useModelPull() {
         status: null,
       });
       queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
-      queryClient.invalidateQueries({ queryKey: queryKeys.models.available });
+      invalidateModelDependents(queryClient);
       // Safety follow-up: Ollama may need extra time to register the model
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
-      queryClient.invalidateQueries({ queryKey: queryKeys.models.available });
+        invalidateModelDependents(queryClient);
       }, DOWNLOAD_STATUS_POLL_INTERVAL);
     }
   }, [downloadStatus, isDownloading, queryClient]);
@@ -245,12 +245,12 @@ export function useModelPull() {
             status: null,
           });
           queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
-      queryClient.invalidateQueries({ queryKey: queryKeys.models.available });
+          invalidateModelDependents(queryClient);
         }, SCORE_100_PERCENT_DELAY);
         // Safety follow-up: Ollama may need extra time to register the model
         setTimeout(() => {
           queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
-      queryClient.invalidateQueries({ queryKey: queryKeys.models.available });
+          invalidateModelDependents(queryClient);
         }, MODEL_REGISTRATION_SAFETY_DELAY);
       } catch (err: unknown) {
         abortRef.current = null;
