@@ -92,6 +92,11 @@ class OllamaHealthResponse(BaseModel):
     latency_ms: int | None
 
 
+class TestConnectionRequest(BaseModel):
+    base_url: str
+    port: int = Field(ge=1, le=65535)
+
+
 class OllamaModelResponse(BaseModel):
     name: str
     size: int
@@ -289,6 +294,14 @@ async def ollama_health(session: Session = Depends(get_session)):
     config = get_ollama_provider_config(session)
     provider = get_provider("ollama")
     result = await provider.health(config.endpoint)
+    return OllamaHealthResponse(**result)
+
+
+@router.post("/ollama/test-connection", response_model=OllamaHealthResponse)
+async def test_ollama_connection(request: TestConnectionRequest):
+    """Test Ollama connectivity with arbitrary host/port (no DB dependency)."""
+    endpoint = f"{request.base_url}:{request.port}"
+    result = await ollama_service.check_health(endpoint)
     return OllamaHealthResponse(**result)
 
 

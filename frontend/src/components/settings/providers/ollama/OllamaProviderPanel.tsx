@@ -9,13 +9,16 @@ import {
   Stack,
   Text,
 } from "@chakra-ui/react";
-import { useQueryClient } from "@tanstack/react-query";
+import { keyframes } from "@emotion/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { LuCheck } from "react-icons/lu";
 import {
   useOllamaHealth,
   useOllamaModels,
   useOllamaConfig,
   useOllamaModelPull,
 } from "@/hooks/providers/ollama";
+import { testOllamaConnection } from "@/lib/api";
 import { toaster } from "@/components/ui/toaster";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SettingsPanel } from "@/components/settings/SettingsPanel";
@@ -28,6 +31,12 @@ import type { ProviderPanelProps } from "../types";
 
 const DEFAULT_HOST = "http://localhost";
 const DEFAULT_PORT = 11434;
+
+const checkReveal = keyframes`
+  0% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+`;
 
 export function OllamaProviderPanel({
   onDisconnect,
@@ -49,6 +58,35 @@ export function OllamaProviderPanel({
     isNew ? DEFAULT_PORT : (serverConfig?.port ?? DEFAULT_PORT)
   );
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+  const [showCheck, setShowCheck] = useState(false);
+
+  const testMutation = useMutation({
+    mutationFn: () => testOllamaConnection(localHost, localPort),
+    meta: { handlesOwnErrors: true },
+    onSuccess: (data) => {
+      if (data.connected) {
+        setShowCheck(true);
+        toaster.create({
+          title: `Connection successful (v${data.version}, ${data.latency_ms}ms)`,
+          type: "success",
+        });
+        setTimeout(() => setShowCheck(false), 2000);
+      } else {
+        toaster.create({
+          title: "Connection failed",
+          description: `Could not reach Ollama at ${localHost}:${localPort}`,
+          type: "error",
+        });
+      }
+    },
+    onError: (error) => {
+      toaster.create({
+        title: "Connection test failed",
+        description: error instanceof Error ? error.message : "Unexpected error",
+        type: "error",
+      });
+    },
+  });
 
   // Sync local state when server config loads (useState initializer misses async data)
   useEffect(() => {
@@ -124,7 +162,7 @@ export function OllamaProviderPanel({
       )}
       {isNew && (
         <Text fontSize="sm" color="fg.muted" mb={4}>
-          Not connected -- save to test connection
+          Not connected -- use &ldquo;Test Connection&rdquo; or save to connect
         </Text>
       )}
 
@@ -183,6 +221,21 @@ export function OllamaProviderPanel({
             >
               Save
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => testMutation.mutate()}
+              loading={testMutation.isPending}
+              disabled={hostEmpty || !!hostError}
+            >
+              {showCheck ? (
+                <Box as="span" color="green.400" css={{ animation: `${checkReveal} 0.3s ease-out` }}>
+                  <LuCheck />
+                </Box>
+              ) : (
+                "Test Connection"
+              )}
+            </Button>
             <Button size="sm" variant="ghost" onClick={onCancelSetup}>
               Cancel
             </Button>
@@ -197,6 +250,21 @@ export function OllamaProviderPanel({
               disabled={!isDirty || hostEmpty || !!hostError}
             >
               Save
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => testMutation.mutate()}
+              loading={testMutation.isPending}
+              disabled={hostEmpty || !!hostError}
+            >
+              {showCheck ? (
+                <Box as="span" color="green.400" css={{ animation: `${checkReveal} 0.3s ease-out` }}>
+                  <LuCheck />
+                </Box>
+              ) : (
+                "Test Connection"
+              )}
             </Button>
             <Button
               size="sm"

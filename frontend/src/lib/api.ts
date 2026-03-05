@@ -482,6 +482,23 @@ export async function saveTaskRoutes(
 
 // --- Ollama Configuration API ---
 
+export async function testOllamaConnection(
+  baseUrl: string,
+  port: number
+): Promise<OllamaHealth> {
+  const response = await fetch(`${API_BASE_URL}/api/ollama/test-connection`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ base_url: baseUrl, port }),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to test connection");
+  }
+
+  return response.json();
+}
+
 export async function fetchOllamaHealth(): Promise<OllamaHealth> {
   const response = await fetch(`${API_BASE_URL}/api/ollama/health`);
 
