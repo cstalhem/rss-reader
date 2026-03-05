@@ -13,12 +13,6 @@ from datetime import datetime
 import sqlalchemy as sa
 
 from alembic import op
-from backend.config import get_settings
-from backend.llm_providers.ollama import (
-    DEFAULT_OLLAMA_BASE_URL,
-    DEFAULT_OLLAMA_PORT,
-    split_ollama_host,
-)
 
 # revision identifiers, used by Alembic.
 revision: str = "dff7a4c52b3c"
@@ -196,16 +190,7 @@ def upgrade() -> None:
             unique=True,
         )
 
-    # Backfill provider config and task routes from legacy UserPreferences fields.
-    settings = get_settings()
-    base_url, port = split_ollama_host(settings.ollama.host)
-    if not base_url:
-        base_url = DEFAULT_OLLAMA_BASE_URL
-    if not port:
-        port = DEFAULT_OLLAMA_PORT
-
-    # Guard: legacy columns may not exist on fresh installs where models.py
-    # no longer defines them (removed in Phase 09.6).
+    # --- Backfill provider config and task routes from legacy columns ---
     inspector = sa.inspect(bind)
     has_legacy_cols = _column_exists(
         inspector, "user_preferences", "ollama_categorization_model"
@@ -242,6 +227,10 @@ def upgrade() -> None:
     scoring_model = legacy["scoring_model"]
     use_separate_models = bool(legacy["use_separate_models"])
     thinking = bool(legacy["thinking"])
+
+    # Use defaults -- migration is self-contained, no app imports.
+    base_url = "http://localhost"
+    port = 11434
 
     config_json = json.dumps(
         {
