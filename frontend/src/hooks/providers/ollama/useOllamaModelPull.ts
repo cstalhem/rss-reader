@@ -51,7 +51,7 @@ function setCachedDownloadStatus(
   );
 }
 
-export function useModelPull() {
+export function useOllamaModelPull() {
   const [progress, setProgress] = useState<PullProgress | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);

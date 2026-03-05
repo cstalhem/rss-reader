@@ -10,10 +10,12 @@ import {
   Text,
 } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useOllamaHealth } from "@/hooks/useOllamaHealth";
-import { useOllamaModels } from "@/hooks/useOllamaModels";
-import { useOllamaConfig } from "@/hooks/useOllamaConfig";
-import { useModelPull } from "@/hooks/useModelPull";
+import {
+  useOllamaHealth,
+  useOllamaModels,
+  useOllamaConfig,
+  useOllamaModelPull,
+} from "@/hooks/providers/ollama";
 import { toaster } from "@/components/ui/toaster";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SettingsPanel } from "@/components/settings/SettingsPanel";
@@ -37,7 +39,7 @@ export function OllamaProviderPanel({
   const { data: health, isLoading: healthLoading } = useOllamaHealth(!isNew);
   const isConnected = health?.connected ?? false;
   const { data: models } = useOllamaModels(!isNew && isConnected);
-  const pullHook = useModelPull();
+  const pullHook = useOllamaModelPull();
 
   // Local form state -- defaults for setup, server config for edit
   const [localHost, setLocalHost] = useState(
