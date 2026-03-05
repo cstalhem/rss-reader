@@ -117,7 +117,7 @@ def test_client_fixture(test_engine, monkeypatch):
     async def _noop_close():
         pass
 
-    monkeypatch.setattr("backend.main.close_ollama_client", _noop_close)
+    monkeypatch.setattr("backend.main.close_all_providers", _noop_close)
 
     def get_test_session():
         with Session(test_engine) as session:
