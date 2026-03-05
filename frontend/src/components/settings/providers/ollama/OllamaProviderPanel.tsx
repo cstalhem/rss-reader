@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -47,6 +47,14 @@ export function OllamaProviderPanel({
     isNew ? DEFAULT_PORT : (serverConfig?.port ?? DEFAULT_PORT)
   );
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+
+  // Sync local state when server config loads (useState initializer misses async data)
+  useEffect(() => {
+    if (!isNew && serverConfig) {
+      setLocalHost(serverConfig.base_url);
+      setLocalPort(serverConfig.port);
+    }
+  }, [isNew, serverConfig]);
 
   const hostEmpty = localHost.trim() === "";
   const hostError =
