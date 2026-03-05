@@ -20,20 +20,29 @@ const parserOptions: HTMLReactParserOptions = {
     if (domNode.name === "img") {
       const src = domNode.attribs.src;
       const alt = domNode.attribs.alt || "";
+      const parentIsLink =
+        domNode.parent instanceof Element && domNode.parent.name === "a";
+
+      const img = (
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          style={{
+            maxWidth: "100%",
+            height: "auto",
+            borderRadius: "8px",
+            marginTop: "1rem",
+            marginBottom: "1rem",
+          }}
+        />
+      );
+
+      if (parentIsLink) return img;
+
       return (
         <a href={src} target="_blank" rel="noopener noreferrer">
-          <img
-            src={src}
-            alt={alt}
-            loading="lazy"
-            style={{
-              maxWidth: "100%",
-              height: "auto",
-              borderRadius: "8px",
-              marginTop: "1rem",
-              marginBottom: "1rem",
-            }}
-          />
+          {img}
         </a>
       );
     }
