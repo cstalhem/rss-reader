@@ -6,9 +6,13 @@ import time
 
 import httpx
 
-from backend.ollama_client import get_ollama_client
-
 logger = logging.getLogger(__name__)
+
+
+def _get_ollama_client(host: str):
+    from backend.llm_providers.ollama import get_ollama_client
+
+    return get_ollama_client(host)
 
 # Module-level state for download tracking.
 # Safe in single-worker asyncio -- no threading concerns.
@@ -57,7 +61,7 @@ async def list_models(host: str) -> list[dict]:
         List of model dicts with name, size, parameter_size,
         quantization_level, and is_loaded fields.
     """
-    client = get_ollama_client(host)
+    client = _get_ollama_client(host)
     models_resp = await client.list()
     ps_resp = await client.ps()
 
@@ -101,7 +105,7 @@ async def pull_model_stream(host: str, model: str):
     )
 
     try:
-        client = get_ollama_client(host)
+        client = _get_ollama_client(host)
         async for chunk in await client.pull(model, stream=True):
             if _cancel_requested:
                 _cancel_requested = False
@@ -168,6 +172,6 @@ async def delete_model(host: str, model: str) -> dict:
     Returns:
         Dict with status "success".
     """
-    client = get_ollama_client(host)
+    client = _get_ollama_client(host)
     await client.delete(model)
     return {"status": "success"}

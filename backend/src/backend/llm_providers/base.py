@@ -1,14 +1,24 @@
 """Provider contracts for pluggable LLM integrations."""
 
+from dataclasses import dataclass
 from typing import Protocol
 
 from backend.prompts import CategoryResponse, ScoringResponse
+
+
+@dataclass
+class ProviderTaskConfig:
+    endpoint: str | None
+    model: str | None
+    thinking: bool
 
 
 class LLMProvider(Protocol):
     """Minimal provider contract for scoring orchestration."""
 
     name: str
+
+    def parse_config(self, config_json: str, task: str) -> ProviderTaskConfig: ...
 
     async def health(self, endpoint: str) -> dict: ...
 
@@ -36,3 +46,5 @@ class LLMProvider(Protocol):
         model: str,
         thinking: bool,
     ) -> ScoringResponse: ...
+
+    async def close(self) -> None: ...

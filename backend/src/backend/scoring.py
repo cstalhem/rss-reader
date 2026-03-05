@@ -2,37 +2,15 @@
 
 import logging
 
-import httpx
 from slugify import slugify
 from sqlmodel import Session, select
-from tenacity import (
-    retry,
-    retry_if_exception_type,
-    stop_after_attempt,
-    wait_exponential,
-)
 
 from backend.database import smart_case
 from backend.models import Category
-from backend.ollama_client import get_ollama_client
-from backend.prompts import (
-    CategoryResponse,
-    ScoringResponse,
-    build_categorization_prompt,
-    build_scoring_prompt,
-)
 
 logger = logging.getLogger(__name__)
 
 MAX_COMPOSITE_SCORE = 20.0
-
-TRANSIENT_ERRORS = (
-    ConnectionError,
-    TimeoutError,
-    httpx.ConnectError,
-    httpx.ReadTimeout,
-    httpx.ConnectTimeout,
-)
 
 # Ephemeral in-memory state for real-time scoring phase tracking.
 # Safe in single-worker asyncio — no threading concerns.
@@ -89,138 +67,6 @@ def get_or_create_category(
 
     session.add(category)
     return category
-
-
-@retry(
-    retry=retry_if_exception_type(TRANSIENT_ERRORS),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-)
-async def categorize_article(
-    article_title: str,
-    article_text: str,
-    existing_categories: list[str],
-    host: str,
-    model: str,
-    thinking: bool = False,
-    category_hierarchy: dict[str, list[str]] | None = None,
-    hidden_categories: list[str] | None = None,
-) -> CategoryResponse:
-    """Categorize an article using Ollama LLM.
-
-    Args:
-        article_title: Article title
-        article_text: Article content
-        existing_categories: List of existing categories to reuse
-        host: Ollama server URL
-        model: Ollama model name to use for categorization
-        thinking: Whether to enable extended thinking mode
-        category_hierarchy: Optional parent-child hierarchy to guide categorization
-        hidden_categories: Optional list of hidden category names to avoid
-
-    Returns:
-        CategoryResponse with assigned categories and suggestions
-
-    Raises:
-        Exception: On LLM call failure after retries
-    """
-    prompt = build_categorization_prompt(
-        article_title,
-        article_text,
-        existing_categories,
-        category_hierarchy,
-        hidden_categories=hidden_categories,
-    )
-
-    client = get_ollama_client(host)
-    # Use streaming to prevent httpx.ReadTimeout on slower models
-    content = ""
-    async for chunk in await client.chat(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        format=CategoryResponse.model_json_schema(),
-        options={"temperature": 0},
-        stream=True,
-        think=True if thinking else None,
-    ):
-        if chunk["message"].get("thinking"):
-            _scoring_activity["phase"] = "thinking"
-        if chunk["message"].get("content"):
-            _scoring_activity["phase"] = "categorizing"
-        content += chunk["message"].get("content") or ""
-
-    # Parse accumulated structured response
-    result = CategoryResponse.model_validate_json(content)
-
-    logger.info(
-        f"Categorized article: {len(result.categories)} categories, "
-        f"{len(result.suggested_new)} suggestions"
-    )
-
-    return result
-
-
-@retry(
-    retry=retry_if_exception_type(TRANSIENT_ERRORS),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
-)
-async def score_article(
-    article_title: str,
-    article_text: str,
-    interests: str,
-    anti_interests: str,
-    host: str,
-    model: str,
-    thinking: bool = False,
-) -> ScoringResponse:
-    """Score an article's interest and quality using Ollama LLM.
-
-    Args:
-        article_title: Article title
-        article_text: Article content
-        interests: User's interest preferences
-        anti_interests: User's anti-interest preferences
-        host: Ollama server URL
-        model: Ollama model name to use for scoring
-        thinking: Whether to enable extended thinking mode
-
-    Returns:
-        ScoringResponse with interest/quality scores and reasoning
-
-    Raises:
-        Exception: On LLM call failure after retries
-    """
-    prompt = build_scoring_prompt(
-        article_title, article_text, interests, anti_interests
-    )
-
-    client = get_ollama_client(host)
-    # Use streaming to prevent httpx.ReadTimeout on slower models
-    content = ""
-    async for chunk in await client.chat(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        format=ScoringResponse.model_json_schema(),
-        options={"temperature": 0},
-        stream=True,
-        think=True if thinking else None,
-    ):
-        if chunk["message"].get("thinking"):
-            _scoring_activity["phase"] = "thinking"
-        if chunk["message"].get("content"):
-            _scoring_activity["phase"] = "scoring"
-        content += chunk["message"].get("content") or ""
-
-    # Parse accumulated structured response
-    result = ScoringResponse.model_validate_json(content)
-
-    logger.info(
-        f"Scored article: interest={result.interest_score}, "
-        f"quality={result.quality_score}"
-    )
-
-    return result
 
 
 def get_effective_weight(category: Category) -> str:
