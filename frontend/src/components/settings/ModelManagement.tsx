@@ -19,11 +19,11 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useModelAssignments } from "@/hooks/useModelAssignments";
 import { ModelPullProgress } from "./ModelPullProgress";
 import type { OllamaModel } from "@/lib/types";
-import type { useModelPull } from "@/hooks/useModelPull";
+import type { useOllamaModelPull } from "@/hooks/providers/ollama";
 
 interface ModelManagementProps {
   models: OllamaModel[];
-  pullHook: ReturnType<typeof useModelPull>;
+  pullHook: ReturnType<typeof useOllamaModelPull>;
 }
 
 interface InstalledModelRowProps {
@@ -31,7 +31,7 @@ interface InstalledModelRowProps {
   sizeLabel?: string;
   onDelete: () => void;
   isPulling: boolean;
-  progress: ReturnType<typeof useModelPull>["progress"];
+  progress: ReturnType<typeof useOllamaModelPull>["progress"];
   onCancelPull: () => void;
 }
 

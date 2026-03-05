@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Button, Flex, Text } from "@chakra-ui/react";
-import type { PullProgress } from "@/hooks/useModelPull";
+import type { PullProgress } from "@/hooks/providers/ollama";
 
 interface ModelPullProgressProps {
   progress: PullProgress;
