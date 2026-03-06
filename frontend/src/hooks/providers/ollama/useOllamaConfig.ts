@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchOllamaConfig, saveOllamaConfig, triggerRescore } from "@/lib/api";
+import { saveProviderConfig, triggerRescore } from "@/lib/api";
+import { fetchOllamaConfig } from "@/lib/providers/ollama";
 import type { OllamaConfig } from "@/lib/types";
 import { queryKeys, invalidateModelDependents } from "@/lib/queryKeys";
 
@@ -15,7 +16,7 @@ export function useOllamaConfig() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: (data: OllamaConfig) => saveOllamaConfig(data),
+    mutationFn: (data: OllamaConfig) => saveProviderConfig("ollama", data),
     meta: { errorTitle: "Failed to save Ollama config" },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.ollama.config });

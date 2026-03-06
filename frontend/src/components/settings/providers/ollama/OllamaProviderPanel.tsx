@@ -18,7 +18,7 @@ import {
   useOllamaConfig,
   useOllamaModelPull,
 } from "@/hooks/providers/ollama";
-import { testOllamaConnection } from "@/lib/api";
+import { testOllamaConnection } from "@/lib/providers/ollama";
 import { toaster } from "@/components/ui/toaster";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SettingsPanel } from "@/components/settings/SettingsPanel";

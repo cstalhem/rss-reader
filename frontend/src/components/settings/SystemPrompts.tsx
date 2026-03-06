@@ -3,7 +3,7 @@
 import { Box, Collapsible, Flex, Spinner, Stack, Text } from "@chakra-ui/react";
 import { LuChevronRight } from "react-icons/lu";
 import { useQuery } from "@tanstack/react-query";
-import { fetchOllamaPrompts } from "@/lib/api";
+import { fetchOllamaPrompts } from "@/lib/providers/ollama";
 import { queryKeys } from "@/lib/queryKeys";
 
 function PromptSection({ title, content }: { title: string; content: string }) {

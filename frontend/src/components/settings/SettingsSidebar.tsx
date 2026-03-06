@@ -12,7 +12,8 @@ import {
   LuDownload,
   LuRss,
 } from "react-icons/lu";
-import { fetchDownloadStatus, fetchNewCategoryCount } from "@/lib/api";
+import { fetchNewCategoryCount } from "@/lib/api";
+import { fetchDownloadStatus } from "@/lib/providers/ollama";
 import { SidebarSettingsTheme } from "@/components/ui/sidebar-settings-theme";
 import { queryKeys } from "@/lib/queryKeys";
 import {
