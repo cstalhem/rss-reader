@@ -2,7 +2,8 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchDownloadStatus, API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/api";
+import { fetchDownloadStatus } from "@/lib/providers/ollama";
 import { DownloadStatus } from "@/lib/types";
 import { queryKeys, invalidateModelDependents } from "@/lib/queryKeys";
 

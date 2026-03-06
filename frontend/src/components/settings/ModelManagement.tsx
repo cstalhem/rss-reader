@@ -11,7 +11,7 @@ import {
 } from "@chakra-ui/react";
 import { LuDownload, LuTrash2 } from "react-icons/lu";
 import { useQueryClient } from "@tanstack/react-query";
-import { deleteOllamaModel } from "@/lib/api";
+import { deleteOllamaModel } from "@/lib/providers/ollama";
 import { queryKeys, invalidateModelDependents } from "@/lib/queryKeys";
 import { formatSize } from "@/lib/utils";
 import { toaster } from "@/components/ui/toaster";
