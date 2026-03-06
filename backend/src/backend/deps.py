@@ -99,31 +99,47 @@ def resolve_task_runtime(session: Session, task: TaskName) -> TaskRuntimeResolut
     route = get_task_route(session, task)
 
     if route is None:
-        provider_count = session.exec(
-            select(func.count(LLMProviderConfig.id))
-        ).one()
+        provider_count = session.exec(select(func.count(LLMProviderConfig.id))).one()
         if provider_count == 0:
             return TaskRuntimeResolution(
-                task=task, provider="", model=None, endpoint=None,
-                thinking=False, ready=False, reason="no_provider",
+                task=task,
+                provider="",
+                model=None,
+                endpoint=None,
+                thinking=False,
+                ready=False,
+                reason="no_provider",
             )
         return TaskRuntimeResolution(
-            task=task, provider="", model=None, endpoint=None,
-            thinking=False, ready=False, reason="model_unconfigured",
+            task=task,
+            provider="",
+            model=None,
+            endpoint=None,
+            thinking=False,
+            ready=False,
+            reason="model_unconfigured",
         )
 
     provider_name = route.provider
     provider_row = get_provider_config_row(session, provider_name)
     if provider_row is None:
         return TaskRuntimeResolution(
-            task=task, provider=provider_name, model=route.model,
-            endpoint=None, thinking=False, ready=False,
+            task=task,
+            provider=provider_name,
+            model=route.model,
+            endpoint=None,
+            thinking=False,
+            ready=False,
             reason="provider_unconfigured",
         )
     if not provider_row.enabled:
         return TaskRuntimeResolution(
-            task=task, provider=provider_name, model=route.model,
-            endpoint=None, thinking=False, ready=False,
+            task=task,
+            provider=provider_name,
+            model=route.model,
+            endpoint=None,
+            thinking=False,
+            ready=False,
             reason="provider_disabled",
         )
 
@@ -131,8 +147,12 @@ def resolve_task_runtime(session: Session, task: TaskName) -> TaskRuntimeResolut
         provider = get_provider(provider_name)
     except KeyError:
         return TaskRuntimeResolution(
-            task=task, provider=provider_name, model=route.model,
-            endpoint=None, thinking=False, ready=False,
+            task=task,
+            provider=provider_name,
+            model=route.model,
+            endpoint=None,
+            thinking=False,
+            ready=False,
             reason="provider_unknown",
         )
 
@@ -140,15 +160,23 @@ def resolve_task_runtime(session: Session, task: TaskName) -> TaskRuntimeResolut
     model = route.model or parsed.model
     if model is None:
         return TaskRuntimeResolution(
-            task=task, provider=provider_name, model=None,
-            endpoint=parsed.endpoint, thinking=parsed.thinking,
-            ready=False, reason="model_unconfigured",
+            task=task,
+            provider=provider_name,
+            model=None,
+            endpoint=parsed.endpoint,
+            thinking=parsed.thinking,
+            ready=False,
+            reason="model_unconfigured",
         )
 
     return TaskRuntimeResolution(
-        task=task, provider=provider_name, model=model,
-        endpoint=parsed.endpoint, thinking=parsed.thinking,
-        ready=True, reason=None,
+        task=task,
+        provider=provider_name,
+        model=model,
+        endpoint=parsed.endpoint,
+        thinking=parsed.thinking,
+        ready=True,
+        reason=None,
     )
 
 

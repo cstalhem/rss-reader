@@ -14,6 +14,7 @@ def _get_ollama_client(host: str):
 
     return get_ollama_client(host)
 
+
 # Module-level state for download tracking.
 # Safe in single-worker asyncio -- no threading concerns.
 _download_state: dict = {
@@ -47,7 +48,7 @@ async def check_health(host: str) -> dict:
                 "version": data.get("version"),
                 "latency_ms": latency_ms,
             }
-    except (httpx.HTTPError, httpx.TimeoutException, ConnectionError, OSError):
+    except httpx.HTTPError, httpx.TimeoutException, ConnectionError, OSError:
         return {"connected": False, "version": None, "latency_ms": None}
 
 
