@@ -47,8 +47,12 @@ export function useBufferedArticles(
       }
     }
   }
-  prevLimitRef.current = limit;
-  prevArticleIdsRef.current = articles ? new Set(articles.map((a) => a.id)) : null;
+  // Only update prev-tracking refs when articles are loaded — an intermediate
+  // undefined render (TanStack Query key change) would swallow the limit bump.
+  if (articles) {
+    prevLimitRef.current = limit;
+    prevArticleIdsRef.current = new Set(articles.map((a) => a.id));
+  }
 
   if (justDeactivated) {
     snapshotRef.current = null;
