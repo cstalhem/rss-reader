@@ -10,6 +10,7 @@ import React, {
 import NextLink from "next/link";
 import {
   Alert,
+  Badge,
   Box,
   createListCollection,
   Flex,
@@ -49,7 +50,8 @@ import { ArticleRowSkeleton } from "./ArticleRowSkeleton";
 import { ArticleReader } from "./ArticleReader";
 import { SortSelect } from "./SortSelect";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { ArticleListItem, FeedSelection } from "@/lib/types";
+import { MobileArticleActionBar } from "./MobileArticleActionBar";
+import { ArticleListItem, FeedSelection, FilterTab } from "@/lib/types";
 import { parseSortOption } from "@/lib/utils";
 
 interface ArticleListProps {
@@ -57,8 +59,6 @@ interface ArticleListProps {
   onOpenMobileSidebar?: () => void;
   mainRef: React.RefObject<HTMLDivElement | null>;
 }
-
-type FilterTab = "unread" | "all" | "scoring" | "blocked";
 
 export function ArticleList({
   selection,
@@ -155,6 +155,14 @@ export function ArticleList({
         ? (folders?.find((folder) => folder.id === selection.folderId)?.name ??
           "Folder")
         : "Articles";
+
+  // Unread count for heading badge
+  const unreadCount =
+    selection.kind === "feed"
+      ? (feeds?.find((f) => f.id === selection.feedId)?.unread_count ?? 0)
+      : selection.kind === "folder"
+        ? (folders?.find((f) => f.id === selection.folderId)?.unread_count ?? 0)
+        : (feeds?.reduce((sum, f) => sum + f.unread_count, 0) ?? 0);
 
   // IntersectionObserver for sticky scroll-collapse
   useEffect(() => {
@@ -321,7 +329,7 @@ export function ArticleList({
           : LuBan;
 
   return (
-    <Box>
+    <Box pb={{ base: 16, md: 0 }}>
       {/* Scoring readiness warning */}
       {scoringStatus?.scoring_ready === false &&
         scoringStatus.scoring_ready_reason && (
@@ -364,10 +372,17 @@ export function ArticleList({
         <Heading ref={headingRef} fontSize='2xl' fontWeight='bold'>
           {feedName}
         </Heading>
+        <Box flex={1} />
+        {unreadCount > 0 && (
+          <Badge colorPalette='accent' variant='solid' size='sm'>
+            {unreadCount}
+          </Badge>
+        )}
       </Flex>
 
-      {/* Controls bar */}
+      {/* Controls bar (desktop only) */}
       <Flex
+        display={{ base: "none", md: "flex" }}
         px={4}
         py={2}
         borderBottom='1px solid'
@@ -576,6 +591,19 @@ export function ArticleList({
           )}
         </Flex>
       )}
+
+      {/* Mobile action bar */}
+      <MobileArticleActionBar
+        filter={filter}
+        onFilterChange={setFilter}
+        sortOption={sortOption}
+        onSortChange={setSortOption}
+        onMarkAllRead={handleMarkAllAsRead}
+        canMarkAllRead={filter === "unread" && articleCount > 0}
+        isMarkingRead={markAllRead.isPending || markAllArticlesRead.isPending}
+        scoringCount={scoringCount}
+        blockedCount={blockedCount}
+      />
 
       {/* Confirm mark all articles read dialog */}
       <ConfirmDialog
