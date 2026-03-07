@@ -27,9 +27,13 @@ export function useBufferedArticles(
   prevBufferingRef.current = isBuffering;
   prevResetKeyRef.current = resetKey;
 
-  // Take or reset snapshot
+  // Take or reset snapshot (only when articles are loaded — avoid empty snapshot)
   if (justActivated || resetKeyChanged) {
-    snapshotRef.current = new Set(articles?.map((a) => a.id));
+    snapshotRef.current = articles ? new Set(articles.map((a) => a.id)) : null;
+  }
+  // Deferred snapshot: buffering activated before articles loaded, take snapshot now
+  if (isBuffering && !snapshotRef.current && articles) {
+    snapshotRef.current = new Set(articles.map((a) => a.id));
   }
   if (justDeactivated) {
     snapshotRef.current = null;

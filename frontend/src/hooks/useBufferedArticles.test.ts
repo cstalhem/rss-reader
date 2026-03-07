@@ -181,6 +181,29 @@ describe("useBufferedArticles", () => {
     expect(result.current.newCount).toBe(0);
   });
 
+  it("does not treat first load as all-new when buffering activates before articles load", () => {
+    // Scoring status arrives before article query resolves
+    const { result, rerender } = renderBufferedArticles({
+      articles: undefined,
+      isBuffering: true,
+      resetKey: 0,
+    });
+
+    // Articles load — should pass through, not be counted as new
+    const articles = [makeArticle(1), makeArticle(2)];
+    rerender({ articles, isBuffering: true, resetKey: 0 });
+
+    expect(result.current.displayArticles).toEqual(articles);
+    expect(result.current.newCount).toBe(0);
+
+    // Subsequent poll adds a new article — should now buffer correctly
+    const updated = [makeArticle(3), makeArticle(1), makeArticle(2)];
+    rerender({ articles: updated, isBuffering: true, resetKey: 0 });
+
+    expect(result.current.newCount).toBe(1);
+    expect(result.current.displayArticles?.map((a) => a.id)).toEqual([1, 2]);
+  });
+
   it("resumes passthrough and resets newCount when buffering deactivates", () => {
     const initial = [makeArticle(1)];
     const { result, rerender } = renderBufferedArticles({
