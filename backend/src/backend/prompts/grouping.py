@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 class GroupSuggestion(BaseModel):
     parent: str = Field(description="Existing category name to use as group parent")
     children: list[str] = Field(
-        description="Existing category names to place under this parent", min_length=1
+        description="Existing category names to place under this parent", min_length=2
     )
 
 
@@ -51,7 +51,7 @@ def build_grouping_prompt(
 **Rules (follow strictly):**
 1. ONLY use the provided category names exactly as written. Do NOT create new categories.
 2. Use broader categories as parents and narrower ones as children.
-3. Each group must have at least one child.
+3. Each group must have at least TWO children. Never create a group with only one child — leave those categories ungrouped instead.
 4. Categories that do not fit any group should remain unparented — do NOT force groupings.
 5. No nested groups — only one level of parent-child.
 
