@@ -23,7 +23,7 @@ class CategoryResponse(BaseModel):
         max_length=4,
     )
     suggested_new: list[str] = Field(
-        default=[],
+        default_factory=list,
         description="New human-readable display name categories only if nothing existing fits a primary topic",
         max_length=2,
     )
