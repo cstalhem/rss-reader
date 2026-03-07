@@ -238,13 +238,14 @@ class TestAutoGroupSuggest:
         """Suggest endpoint calls provider and returns filtered groups."""
         make_category(display_name="Technology", slug="technology")
         make_category(display_name="AI", slug="ai")
+        make_category(display_name="Machine Learning", slug="machine-learning")
         make_category(display_name="Science", slug="science")
 
         mock_response = GroupingResponse(
             groups=[
-                GroupSuggestion(parent="Technology", children=["AI"]),
-                # This one references non-existent "Physics" - should be filtered
-                GroupSuggestion(parent="Science", children=["Physics"]),
+                GroupSuggestion(parent="Technology", children=["AI", "Machine Learning"]),
+                # This one references non-existent categories - should be filtered out
+                GroupSuggestion(parent="Science", children=["Physics", "Biology"]),
             ]
         )
 
@@ -268,10 +269,11 @@ class TestAutoGroupSuggest:
 
         assert response.status_code == 200
         body = response.json()
-        # Only valid group returned (Technology -> AI)
+        # Only valid group returned (Technology -> AI, Machine Learning)
+        # Science group filtered because its children don't exist
         assert len(body["groups"]) == 1
         assert body["groups"][0]["parent"] == "Technology"
-        assert body["groups"][0]["children"] == ["AI"]
+        assert body["groups"][0]["children"] == ["AI", "Machine Learning"]
 
     # --- Cycle 5: <2 categories → 400 ---
 
