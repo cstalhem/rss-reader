@@ -32,8 +32,7 @@ export function AutoGroupButton({ onClick, disabled }: AutoGroupButtonProps) {
         },
       }}
     >
-      {/* SVG paint server for Lucide icon stroke gradient */}
-      <svg width="0" height="0" aria-hidden style={{ position: "absolute" }}>
+      <svg width={0} height={0} style={{ position: "absolute" }}>
         <defs>
           <linearGradient id={GRADIENT_ID} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="var(--chakra-colors-pink-400)" />
@@ -41,7 +40,15 @@ export function AutoGroupButton({ onClick, disabled }: AutoGroupButtonProps) {
           </linearGradient>
         </defs>
       </svg>
-      <Box asChild css={{ "& path": { stroke: `url(#${GRADIENT_ID})` } }}>
+      <Box
+        asChild
+        css={{
+          "& path": {
+            stroke: `url(#${GRADIENT_ID})`,
+            fill: `url(#${GRADIENT_ID})`,
+          },
+        }}
+      >
         <LuSparkles size={16} />
       </Box>
       <Box

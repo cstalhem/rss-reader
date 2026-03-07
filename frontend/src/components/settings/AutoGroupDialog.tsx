@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Badge,
   Button,
@@ -10,11 +10,19 @@ import {
   Stack,
   Text,
 } from "@chakra-ui/react";
-import { LuFolder } from "react-icons/lu";
+import { keyframes } from "@emotion/react";
+import { LuCheck, LuFolder } from "react-icons/lu";
 import { useProviders } from "@/hooks/useProviders";
 import { useModelAssignments } from "@/hooks/useModelAssignments";
 import { useAvailableModels } from "@/hooks/useAvailableModels";
 import type { Category, GroupSuggestion } from "@/lib/types";
+
+const COMPLETE_DELAY_MS = 2000;
+
+const scaleIn = keyframes`
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+`;
 
 interface AutoGroupDialogProps {
   open: boolean;
@@ -44,6 +52,8 @@ export function AutoGroupDialog({
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [hasTriggered, setHasTriggered] = useState(false);
+  const [showComplete, setShowComplete] = useState(false);
+  const completeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const multipleProviders = (providers?.length ?? 0) > 1;
 
@@ -58,12 +68,24 @@ export function AutoGroupDialog({
     }
   }, [open, multipleProviders, hasTriggered, suggestions, isSuggesting, onSuggest]);
 
+  // Show "complete" phase for 2s when suggestions arrive
+  const prevSuggesting = useRef(false);
+  useEffect(() => {
+    if (prevSuggesting.current && !isSuggesting && suggestions !== null && suggestions.length > 0) {
+      setShowComplete(true);
+      completeTimer.current = setTimeout(() => setShowComplete(false), COMPLETE_DELAY_MS);
+    }
+    prevSuggesting.current = isSuggesting;
+  }, [isSuggesting, suggestions]);
+
   // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
       setSelectedProvider(null);
       setSelectedModel(null);
       setHasTriggered(false);
+      setShowComplete(false);
+      if (completeTimer.current) clearTimeout(completeTimer.current);
     }
   }, [open]);
 
@@ -101,6 +123,10 @@ export function AutoGroupDialog({
 
   const handleClose = () => {
     onOpenChange(false);
+  };
+
+  const handleRegroup = () => {
+    onSuggest();
   };
 
   // --- Render phases ---
@@ -170,6 +196,15 @@ export function AutoGroupDialog({
     </Flex>
   );
 
+  const renderComplete = () => (
+    <Flex direction="column" alignItems="center" justifyContent="center" py={8} gap={3}>
+      <Flex color="accent.fg" css={{ animation: `${scaleIn} 0.3s ease-out` }}>
+        <LuCheck size={32} />
+      </Flex>
+      <Text fontSize="sm" color="fg.muted">Grouping complete</Text>
+    </Flex>
+  );
+
   const renderPreview = () => (
     <Stack gap={3}>
       <Text fontSize="sm" color="fg.muted">
@@ -198,24 +233,30 @@ export function AutoGroupDialog({
         ))}
 
         {ungroupedCategories.length > 0 && (
-          <>
+          <Stack gap={0}>
             <Flex
+              alignItems="center"
+              gap={2}
+              px={3}
+              py={2}
               borderTopWidth="1px"
               borderColor="border.subtle"
               mt={2}
               pt={2}
-              px={3}
             >
+              <Text fontSize="sm" fontWeight="semibold" color="fg.muted">
+                Ungrouped
+              </Text>
               <Text fontSize="xs" color="fg.muted">
-                Ungrouped ({ungroupedCategories.length})
+                {ungroupedCategories.length}
               </Text>
             </Flex>
             {ungroupedCategories.map((cat) => (
-              <Text key={cat.id} fontSize="sm" px={3} py={1} color="fg.muted">
+              <Text key={cat.id} fontSize="sm" px={3} py={1}>
                 {cat.display_name}
               </Text>
             ))}
-          </>
+          </Stack>
         )}
       </Stack>
     </Stack>
@@ -229,22 +270,24 @@ export function AutoGroupDialog({
     </Flex>
   );
 
-  // Determine which phase to render
+  // Determine which phase to render — phases are mutually exclusive
   const showProviderPicker = multipleProviders && !hasTriggered;
   const showLoading = isSuggesting;
-  const showPreview = suggestions !== null && suggestions.length > 0;
-  const showEmpty = suggestions !== null && suggestions.length === 0;
+  const hasResults = !isSuggesting && suggestions !== null && suggestions.length > 0;
+  const showPreview = hasResults && !showComplete;
+  const showEmpty = !isSuggesting && suggestions !== null && suggestions.length === 0;
 
   return (
     <Dialog.Root
       open={open}
+      placement="center"
       onOpenChange={(e) => {
         if (!e.open) handleClose();
       }}
     >
       <Dialog.Backdrop />
       <Dialog.Positioner>
-        <Dialog.Content>
+        <Dialog.Content mx={4}>
           <Dialog.Header>
             <Dialog.Title>
               {showPreview ? "Suggested Groupings" : "Auto-Group Categories"}
@@ -253,33 +296,55 @@ export function AutoGroupDialog({
           <Dialog.Body>
             {showProviderPicker && renderProviderPicker()}
             {showLoading && renderLoading()}
+            {showComplete && renderComplete()}
             {showPreview && renderPreview()}
             {showEmpty && !showLoading && renderEmpty()}
           </Dialog.Body>
           <Dialog.Footer>
             {showProviderPicker && (
-              <Button
-                colorPalette="accent"
-                size="sm"
-                onClick={handleGenerate}
-                disabled={needsModelPicker ? !selectedModel : !selectedProvider}
-              >
-                Generate
-              </Button>
+              <>
+                <Button
+                  colorPalette="accent"
+                  size="sm"
+                  onClick={handleGenerate}
+                  disabled={needsModelPicker ? !selectedModel : !selectedProvider}
+                >
+                  Generate
+                </Button>
+                <Dialog.ActionTrigger asChild>
+                  <Button variant="surface" size="sm">Close</Button>
+                </Dialog.ActionTrigger>
+              </>
             )}
             {showPreview && (
-              <Button
-                colorPalette="accent"
-                size="sm"
-                onClick={() => onApply(suggestions!)}
-                loading={isApplying}
-              >
-                Apply
-              </Button>
+              <>
+                <Dialog.ActionTrigger asChild>
+                  <Button colorPalette="red" variant="ghost" size="sm">Cancel</Button>
+                </Dialog.ActionTrigger>
+                <Button
+                  variant="outline"
+                  colorPalette="accent"
+                  size="sm"
+                  onClick={handleRegroup}
+                  disabled={isApplying}
+                >
+                  Re-group
+                </Button>
+                <Button
+                  colorPalette="accent"
+                  size="sm"
+                  onClick={() => onApply(suggestions!)}
+                  loading={isApplying}
+                >
+                  Apply
+                </Button>
+              </>
             )}
-            <Button variant="ghost" size="sm" onClick={handleClose}>
-              {showPreview ? "Cancel" : "Close"}
-            </Button>
+            {!showProviderPicker && !showPreview && (
+              <Dialog.ActionTrigger asChild>
+                <Button variant="surface" size="sm">Close</Button>
+              </Dialog.ActionTrigger>
+            )}
           </Dialog.Footer>
           <Dialog.CloseTrigger />
         </Dialog.Content>

@@ -13,7 +13,7 @@ paths: ["frontend/**"]
 - Set `color` on the nearest Chakra parent for react-icons — CSS inheritance flows to SVG `currentColor`. Do NOT use `var(--chakra-colors-*)` on icon props.
 - Semantic tokens only — never hardcode color values or raw palette refs. Missing token → create in `theme/colors.ts`.
 - `colorPalette="accent"` per-component on CTAs. Do NOT set as global default.
-- `colorPalette` requires `solid`, `contrast`, and `focusRing` semantic tokens to resolve.
+- `colorPalette` requires all 8 semantic tokens to resolve across variants: `solid`, `contrast`, `fg`, `subtle`, `muted`, `emphasized`, `focusRing`, `border`.
 - Theme built with `createSystem(defaultConfig, {...})` in `frontend/src/theme/index.ts`.
 - Emotion `keyframes` cannot be defined inline in `css` prop — use `keyframes` tagged template from `@emotion/react`.
 - Don't fight variants with `color`/`_hover` — set `colorPalette` and pick the right variant. The variant owns all state styling.

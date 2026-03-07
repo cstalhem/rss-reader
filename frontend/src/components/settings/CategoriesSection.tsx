@@ -212,7 +212,7 @@ export function CategoriesSection() {
   return (
     <CategoryTreeContext.Provider value={contextValue}>
       <Stack as="section" aria-label="Categories" gap={6} pb={{ base: selectedIds.size > 0 ? 16 : 0, sm: 0 }}>
-        <Flex wrap="wrap" alignItems="center" gap={2} minH={8}>
+        <Flex wrap="wrap" alignItems="center" columnGap={2} rowGap={4} minH={8}>
           <Text fontSize="xl" fontWeight="semibold">Topic Categories</Text>
           {newCount > 0 && (
             <Badge colorPalette="accent" size="sm">
