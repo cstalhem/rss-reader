@@ -105,6 +105,7 @@ export function ArticleList({
     isLoading,
     loadMore,
     hasMore,
+    limit,
   } = useArticles({
     showAll,
     feedId: selection.kind === "feed" ? selection.feedId : undefined,
@@ -123,6 +124,7 @@ export function ArticleList({
     articles,
     isBuffering,
     resetKey,
+    limit,
   );
 
   // Track articles completing scoring (for animation in Scoring tab)

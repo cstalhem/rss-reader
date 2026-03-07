@@ -7,6 +7,7 @@ export function useBufferedArticles(
   articles: ArticleListItem[] | undefined,
   isBuffering: boolean,
   resetKey: unknown,
+  limit: number,
 ): {
   displayArticles: ArticleListItem[] | undefined;
   newCount: number;
@@ -15,6 +16,8 @@ export function useBufferedArticles(
   const snapshotRef = useRef<Set<number> | null>(null);
   const prevBufferingRef = useRef(false);
   const prevResetKeyRef = useRef(resetKey);
+  const prevLimitRef = useRef(limit);
+  const prevArticleIdsRef = useRef<Set<number> | null>(null);
   const articlesRef = useRef(articles);
   articlesRef.current = articles;
   const [, setFlushCounter] = useState(0);
@@ -35,6 +38,18 @@ export function useBufferedArticles(
   if (isBuffering && !snapshotRef.current && articles) {
     snapshotRef.current = new Set(articles.map((a) => a.id));
   }
+  // Pagination: limit increased while buffering — add only the newly paginated IDs
+  if (isBuffering && snapshotRef.current && limit > prevLimitRef.current && articles) {
+    const prev = prevArticleIdsRef.current;
+    for (const a of articles) {
+      if (prev && !prev.has(a.id)) {
+        snapshotRef.current.add(a.id);
+      }
+    }
+  }
+  prevLimitRef.current = limit;
+  prevArticleIdsRef.current = articles ? new Set(articles.map((a) => a.id)) : null;
+
   if (justDeactivated) {
     snapshotRef.current = null;
   }
