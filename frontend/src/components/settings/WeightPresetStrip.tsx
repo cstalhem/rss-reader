@@ -3,7 +3,7 @@
 import React from "react";
 import { Flex, Box, Button, IconButton } from "@chakra-ui/react";
 import {
-  LuCircleOff,
+  LuShieldBan,
   LuChevronDown,
   LuMinus,
   LuChevronUp,
@@ -12,7 +12,7 @@ import {
 } from "react-icons/lu";
 
 const WEIGHT_OPTIONS = [
-  { value: "block", icon: LuCircleOff, label: "Block", color: "red" },
+  { value: "block", icon: LuShieldBan, label: "Block", color: "red", separated: true },
   { value: "reduce", icon: LuChevronDown, label: "Reduce", color: "orange" },
   { value: "normal", icon: LuMinus, label: "Normal", color: "gray" },
   { value: "boost", icon: LuChevronUp, label: "Boost", color: "green" },
@@ -53,30 +53,38 @@ const WeightPresetStripComponent = ({
           };
 
           return (
-            <Box
-              key={option.value}
-              overflow={{ md: isActive ? undefined : "hidden" }}
-              maxW={{ md: isActive ? undefined : isExpanded ? "8" : "0" }}
-              transition={{ md: isActive ? undefined : "max-width 0.2s ease-out" }}
-            >
-              <Button
-                size="2xs"
-                variant={isActive ? "outline" : "subtle"}
-                colorPalette={isActive ? "accent" : undefined}
-                borderColor={isActive ? "accent.solid" : undefined}
-                color={isActive ? "accent.solid" : undefined}
-                aria-label={option.label}
-                title={option.label}
-                onClick={handleClick}
-                px={{ base: "6px", md: "4px" }}
-                minW={{ md: "24px" }}
+            <React.Fragment key={option.value}>
+              <Box
+                overflow={{ md: isActive ? undefined : "hidden" }}
+                maxW={{ md: isActive ? undefined : isExpanded ? "8" : "0" }}
+                transition={{ md: isActive ? undefined : "max-width 0.2s ease-out" }}
               >
-                <Icon size={8} />
-                <Box as="span" display={{ base: "inline", md: "none" }}>
-                  {option.label}
-                </Box>
-              </Button>
-            </Box>
+                <Button
+                  size="2xs"
+                  variant={isActive ? "outline" : "subtle"}
+                  colorPalette={isActive ? "accent" : undefined}
+                  borderColor={isActive ? "accent.solid" : undefined}
+                  color={isActive ? "accent.solid" : undefined}
+                  aria-label={option.label}
+                  title={option.label}
+                  onClick={handleClick}
+                  px={{ base: "6px", md: "4px" }}
+                  minW={{ base: "28px", md: "24px" }}
+                  minH={{ base: "28px" }}
+                >
+                  <Icon size={12} />
+                </Button>
+              </Box>
+              {option.separated && (
+                <Box
+                  h={4}
+                  borderLeftWidth="1px"
+                  borderColor="border.subtle"
+                  mx={1}
+                  display={{ base: "block", md: isExpanded ? "block" : "none" }}
+                />
+              )}
+            </React.Fragment>
           );
         })}
       </Flex>

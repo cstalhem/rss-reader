@@ -101,6 +101,8 @@ export function CategoryRowShell({
         <Box
           width={{ base: "100%", sm: "auto" }}
           order={{ base: 99, sm: 0 }}
+          display="flex"
+          justifyContent="flex-end"
         >
           <WeightPresetStrip
             value={weight}
