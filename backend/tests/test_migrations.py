@@ -1,7 +1,6 @@
 """Alembic migration tests for LLM provider schema rollout."""
 
 import json
-import os
 import sqlite3
 import tempfile
 from pathlib import Path
