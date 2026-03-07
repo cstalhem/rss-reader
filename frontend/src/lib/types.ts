@@ -167,6 +167,8 @@ export type TimeUnit = "seconds" | "minutes" | "hours";
 
 export type SortOption = "score_desc" | "score_asc" | "date_desc" | "date_asc";
 
+export type FilterTab = "unread" | "all" | "scoring" | "blocked";
+
 export interface ScoringStatus {
   unscored: number;
   queued: number;
