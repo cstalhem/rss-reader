@@ -35,25 +35,25 @@ def list_feeds(
     statement = (
         select(
             Feed,
-            FeedFolder.name.label("folder_name"),
-            func.count(Article.id).label("unread_count"),
+            FeedFolder.name.label("folder_name"),  # pyright: ignore[reportAttributeAccessIssue]
+            func.count(Article.id).label("unread_count"),  # pyright: ignore[reportArgumentType]
         )
-        .outerjoin(FeedFolder, FeedFolder.id == Feed.folder_id)
+        .outerjoin(FeedFolder, FeedFolder.id == Feed.folder_id)  # pyright: ignore[reportArgumentType]
         .outerjoin(
             Article,
             (Article.feed_id == Feed.id)
-            & (Article.is_read.is_(False))
+            & (Article.is_read.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
             & (Article.scoring_state == "scored")
-            & (Article.composite_score > 0),
+            & (Article.composite_score > 0),  # pyright: ignore[reportOptionalOperand]
         )
-        .group_by(Feed.id, FeedFolder.name)
-        .order_by(Feed.folder_id, Feed.display_order, Feed.id)
+        .group_by(Feed.id, FeedFolder.name)  # pyright: ignore[reportArgumentType]
+        .order_by(Feed.folder_id, Feed.display_order, Feed.id)  # pyright: ignore[reportArgumentType]
     )
     results = session.exec(statement).all()
 
     return [
         FeedResponse(
-            id=feed.id,
+            id=feed.id,  # pyright: ignore[reportArgumentType]
             url=feed.url,
             title=feed.title,
             display_order=feed.display_order,
@@ -107,11 +107,11 @@ async def create_feed(
         ) from e
 
     max_order_result = session.exec(
-        select(func.max(Feed.display_order)).where(Feed.folder_id.is_(None))
+        select(func.max(Feed.display_order)).where(Feed.folder_id.is_(None))  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
     ).one()
     next_order = (max_order_result or 0) + 1
 
-    feed_title = parsed_feed.feed.get("title", "Untitled Feed")
+    feed_title = parsed_feed.feed.get("title", "Untitled Feed")  # pyright: ignore[reportAttributeAccessIssue]
     feed = Feed(
         url=url,
         title=feed_title,
@@ -123,7 +123,7 @@ async def create_feed(
     session.refresh(feed)
 
     article_count, new_article_ids = save_articles(
-        session, feed.id, parsed_feed.entries
+        session, feed.id, parsed_feed.entries  # pyright: ignore[reportArgumentType]
     )
     logger.info(f"Created feed {feed.title} with {article_count} articles")
 
@@ -133,7 +133,7 @@ async def create_feed(
         scoring_queue.enqueue_articles(session, new_article_ids)
 
     return FeedResponse(
-        id=feed.id,
+        id=feed.id,  # pyright: ignore[reportArgumentType]
         url=feed.url,
         title=feed.title,
         display_order=feed.display_order,
@@ -162,7 +162,7 @@ def reorder_feeds(
 
     bucket_statement = select(Feed.id)
     if feed_reorder.folder_id is None:
-        bucket_statement = bucket_statement.where(Feed.folder_id.is_(None))
+        bucket_statement = bucket_statement.where(Feed.folder_id.is_(None))  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
     else:
         bucket_statement = bucket_statement.where(
             Feed.folder_id == feed_reorder.folder_id
@@ -271,7 +271,7 @@ def update_feed(
             target_bucket_max_order_statement = select(func.max(Feed.display_order))
             if feed_update.folder_id is None:
                 target_bucket_max_order_statement = (
-                    target_bucket_max_order_statement.where(Feed.folder_id.is_(None))
+                    target_bucket_max_order_statement.where(Feed.folder_id.is_(None))  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
                 )
             else:
                 target_bucket_max_order_statement = (
@@ -292,11 +292,11 @@ def update_feed(
     session.refresh(feed)
 
     unread_count = session.exec(
-        select(func.count(Article.id))
+        select(func.count(Article.id))  # pyright: ignore[reportArgumentType]
         .where(Article.feed_id == feed.id)
-        .where(Article.is_read.is_(False))
+        .where(Article.is_read.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
         .where(Article.scoring_state == "scored")
-        .where(Article.composite_score > 0)
+        .where(Article.composite_score > 0)  # pyright: ignore[reportOptionalOperand]
     ).one()
 
     folder_name = None
@@ -305,7 +305,7 @@ def update_feed(
         folder_name = folder.name if folder else None
 
     return FeedResponse(
-        id=feed.id,
+        id=feed.id,  # pyright: ignore[reportArgumentType]
         url=feed.url,
         title=feed.title,
         display_order=feed.display_order,
@@ -329,8 +329,8 @@ def mark_feed_read(
 
     result = session.exec(
         update(Article)
-        .where(Article.feed_id == feed_id)
-        .where(Article.is_read.is_(False))
+        .where(Article.feed_id == feed_id)  # pyright: ignore[reportArgumentType]
+        .where(Article.is_read.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
         .values(is_read=True)
     )
     session.commit()

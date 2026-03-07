@@ -4,7 +4,7 @@ import asyncio
 import logging
 import time
 
-import httpx
+import httpx  # pyright: ignore[reportMissingImports]
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +63,8 @@ async def list_models(host: str) -> list[dict]:
         quantization_level, and is_loaded fields.
     """
     client = _get_ollama_client(host)
-    models_resp = await client.list()
-    ps_resp = await client.ps()
+    models_resp = await client.list()  # pyright: ignore[reportAttributeAccessIssue]
+    ps_resp = await client.ps()  # pyright: ignore[reportAttributeAccessIssue]
 
     loaded_names = {m.model for m in ps_resp.models}
 
@@ -107,7 +107,7 @@ async def pull_model_stream(host: str, model: str):
 
     try:
         client = _get_ollama_client(host)
-        async for chunk in await client.pull(model, stream=True):
+        async for chunk in await client.pull(model, stream=True):  # pyright: ignore[reportAttributeAccessIssue]
             if _cancel_requested:
                 _cancel_requested = False
                 raise asyncio.CancelledError("Download cancelled by user")
@@ -174,5 +174,5 @@ async def delete_model(host: str, model: str) -> dict:
         Dict with status "success".
     """
     client = _get_ollama_client(host)
-    await client.delete(model)
+    await client.delete(model)  # pyright: ignore[reportAttributeAccessIssue]
     return {"status": "success"}

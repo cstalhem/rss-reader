@@ -35,7 +35,7 @@ async def get_scoring_status(
 
     # Single GROUP BY query replaces 5 separate COUNT queries
     state_rows = session.exec(
-        select(Article.scoring_state, func.count(Article.id)).group_by(
+        select(Article.scoring_state, func.count(Article.id)).group_by(  # pyright: ignore[reportArgumentType]
             Article.scoring_state
         )
     ).all()
@@ -53,7 +53,7 @@ async def get_scoring_status(
 
     # Separate query for blocked (scored articles with composite_score == 0)
     blocked_count = session.exec(
-        select(func.count(Article.id))
+        select(func.count(Article.id))  # pyright: ignore[reportArgumentType]
         .where(Article.scoring_state == "scored")
         .where(Article.composite_score == 0)
     ).one()

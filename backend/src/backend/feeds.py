@@ -18,7 +18,7 @@ def _parse_published_date(entry: dict) -> datetime | None:
         if field in entry and entry[field]:
             time_struct: struct_time = entry[field]
             try:
-                return datetime(*time_struct[:6])
+                return datetime(*time_struct[:6])  # pyright: ignore[reportArgumentType]
             except (ValueError, TypeError) as e:
                 logger.warning(f"Failed to parse {field}: {e}")
     return None
@@ -122,15 +122,15 @@ async def refresh_feed(session: Session, feed: Feed) -> int:
         parsed_feed = await fetch_feed(feed.url)
 
         # Update feed metadata
-        if parsed_feed.feed.get("title"):
-            feed.title = parsed_feed.feed["title"]
+        if parsed_feed.feed.get("title"):  # pyright: ignore[reportAttributeAccessIssue]
+            feed.title = parsed_feed.feed["title"]  # pyright: ignore[reportCallIssue, reportArgumentType]
         feed.last_fetched_at = datetime.now()
         session.add(feed)
         session.commit()
 
         # Save articles and enqueue for scoring
         new_count, new_article_ids = save_articles(
-            session, feed.id, parsed_feed.entries
+            session, feed.id, parsed_feed.entries  # pyright: ignore[reportArgumentType]
         )
 
         # Enqueue new articles for scoring

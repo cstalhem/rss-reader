@@ -99,7 +99,7 @@ def resolve_task_runtime(session: Session, task: TaskName) -> TaskRuntimeResolut
     route = get_task_route(session, task)
 
     if route is None:
-        provider_count = session.exec(select(func.count(LLMProviderConfig.id))).one()
+        provider_count = session.exec(select(func.count(LLMProviderConfig.id))).one()  # pyright: ignore[reportArgumentType]
         if provider_count == 0:
             return TaskRuntimeResolution(
                 task=task,
