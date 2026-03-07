@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchOllamaHealth } from "@/lib/api";
+import { fetchOllamaHealth } from "@/lib/providers/ollama";
 import { queryKeys } from "@/lib/queryKeys";
 
 const HEALTH_POLL_INTERVAL = 20_000;

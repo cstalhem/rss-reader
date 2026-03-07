@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/categories", tags=["categories"])
 def _category_article_count(session: Session, category_id: int) -> int:
     """Get article count for a category via junction table."""
     return session.exec(
-        select(func.count(ArticleCategoryLink.article_id)).where(
+        select(func.count(ArticleCategoryLink.article_id)).where(  # pyright: ignore[reportArgumentType]
             ArticleCategoryLink.category_id == category_id
         )
     ).one()
@@ -34,7 +34,7 @@ def _category_article_count(session: Session, category_id: int) -> int:
 def _category_to_response(session: Session, category: Category) -> CategoryResponse:
     """Convert a Category model to a CategoryResponse with article_count."""
     return CategoryResponse(
-        id=category.id,
+        id=category.id,  # pyright: ignore[reportArgumentType]
         display_name=category.display_name,
         slug=category.slug,
         weight=category.weight,
@@ -42,7 +42,7 @@ def _category_to_response(session: Session, category: Category) -> CategoryRespo
         is_hidden=category.is_hidden,
         is_seen=category.is_seen,
         is_manually_created=category.is_manually_created,
-        article_count=_category_article_count(session, category.id),
+        article_count=_category_article_count(session, category.id),  # pyright: ignore[reportArgumentType]
     )
 
 
@@ -53,17 +53,17 @@ def list_categories(
     """Get flat list of all categories with article counts."""
     statement = (
         select(
-            Category, func.count(ArticleCategoryLink.article_id).label("article_count")
+            Category, func.count(ArticleCategoryLink.article_id).label("article_count")  # pyright: ignore[reportArgumentType]
         )
-        .outerjoin(ArticleCategoryLink, Category.id == ArticleCategoryLink.category_id)
-        .group_by(Category.id)
+        .outerjoin(ArticleCategoryLink, Category.id == ArticleCategoryLink.category_id)  # pyright: ignore[reportArgumentType]
+        .group_by(Category.id)  # pyright: ignore[reportArgumentType]
         .order_by(Category.display_name)
     )
     results = session.exec(statement).all()
 
     return [
         CategoryResponse(
-            id=cat.id,
+            id=cat.id,  # pyright: ignore[reportArgumentType]
             display_name=cat.display_name,
             slug=cat.slug,
             weight=cat.weight,
@@ -111,7 +111,7 @@ def create_category(
     session.refresh(category)
 
     return CategoryResponse(
-        id=category.id,
+        id=category.id,  # pyright: ignore[reportArgumentType]
         display_name=category.display_name,
         slug=category.slug,
         weight=category.weight,
@@ -129,9 +129,9 @@ def get_unseen_count(
 ):
     """Get count of unseen, non-hidden categories (for badges)."""
     count = session.exec(
-        select(func.count(Category.id))
-        .where(Category.is_seen.is_(False))
-        .where(Category.is_hidden.is_(False))
+        select(func.count(Category.id))  # pyright: ignore[reportArgumentType]
+        .where(Category.is_seen.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
+        .where(Category.is_hidden.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
     ).one()
 
     return {"count": count}
@@ -304,7 +304,7 @@ def batch_delete_categories(
             session.add(child)
         session.exec(
             sa_delete(ArticleCategoryLink).where(
-                ArticleCategoryLink.category_id == cat_id
+                ArticleCategoryLink.category_id == cat_id  # pyright: ignore[reportArgumentType]
             )
         )
         session.delete(category)
@@ -414,7 +414,7 @@ def delete_category(
 
     session.exec(
         sa_delete(ArticleCategoryLink).where(
-            ArticleCategoryLink.category_id == category_id
+            ArticleCategoryLink.category_id == category_id  # pyright: ignore[reportArgumentType]
         )
     )
 

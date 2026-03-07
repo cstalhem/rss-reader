@@ -77,9 +77,9 @@ class ScoringQueue:
         # Find unread articles from last N days
         articles = session.exec(
             select(Article)
-            .where(~Article.is_read)
-            .where(Article.published_at >= cutoff_date)
-            .order_by(Article.published_at.desc())
+            .where(~Article.is_read)  # pyright: ignore[reportArgumentType]
+            .where(Article.published_at >= cutoff_date)  # pyright: ignore[reportOptionalOperand]
+            .order_by(Article.published_at.desc())  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
             .limit(max_articles)
         ).all()
 
@@ -138,7 +138,7 @@ class ScoringQueue:
         articles = session.exec(
             select(Article)
             .where(Article.scoring_state == "queued")
-            .order_by(Article.scoring_priority.desc(), Article.published_at.asc())
+            .order_by(Article.scoring_priority.desc(), Article.published_at.asc())  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
             .limit(batch_size)
         ).all()
 
@@ -253,8 +253,8 @@ class ScoringQueue:
                         ).first()
                         if not existing_link:
                             link = ArticleCategoryLink(
-                                article_id=article.id,
-                                category_id=category.id,
+                                article_id=article.id,  # pyright: ignore[reportArgumentType]
+                                category_id=category.id,  # pyright: ignore[reportArgumentType]
                             )
                             session.add(link)
 

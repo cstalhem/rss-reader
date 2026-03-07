@@ -50,6 +50,8 @@ export function TagChip({
       py={0.5}
       borderRadius="md"
       fontWeight="medium"
+      maxW="40"
+      truncate
       {...colorProps}
       cursor={interactive ? "pointer" : "default"}
       _hover={interactive ? { opacity: 0.8 } : undefined}

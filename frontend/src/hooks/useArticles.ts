@@ -72,6 +72,7 @@ export function useArticles(options: UseArticlesOptions = {}) {
     ...query,
     loadMore,
     hasMore,
+    limit,
   };
 }
 

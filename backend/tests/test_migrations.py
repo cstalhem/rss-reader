@@ -347,3 +347,26 @@ def test_upgrade_head_feed_folder_migration_is_idempotent() -> None:
                 """
             ).fetchone()
             assert unique_lower_indexes == (1,)
+
+
+def test_upgrade_preserves_custom_ollama_host_from_env(monkeypatch) -> None:
+    """Migration should read OLLAMA__HOST env var instead of hardcoding localhost."""
+    monkeypatch.setenv("OLLAMA__HOST", "http://ollama-server:11434")
+
+    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
+        db_path = Path(tmp.name)
+        _create_pre_feature_schema(db_path)
+
+        cfg = _make_alembic_config(db_path)
+        command.upgrade(cfg, "head")
+
+        with sqlite3.connect(db_path) as conn:
+            provider_row = conn.execute(
+                "SELECT config_json FROM llm_provider_configs "
+                "WHERE provider = 'ollama'"
+            ).fetchone()
+            assert provider_row is not None
+
+            config = json.loads(provider_row[0])
+            assert config["base_url"] == "http://ollama-server"
+            assert config["port"] == 11434

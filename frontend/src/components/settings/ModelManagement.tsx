@@ -11,19 +11,19 @@ import {
 } from "@chakra-ui/react";
 import { LuDownload, LuTrash2 } from "react-icons/lu";
 import { useQueryClient } from "@tanstack/react-query";
-import { deleteOllamaModel } from "@/lib/api";
-import { queryKeys } from "@/lib/queryKeys";
+import { deleteOllamaModel } from "@/lib/providers/ollama";
+import { queryKeys, invalidateModelDependents } from "@/lib/queryKeys";
 import { formatSize } from "@/lib/utils";
 import { toaster } from "@/components/ui/toaster";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useModelAssignments } from "@/hooks/useModelAssignments";
 import { ModelPullProgress } from "./ModelPullProgress";
 import type { OllamaModel } from "@/lib/types";
-import type { useModelPull } from "@/hooks/useModelPull";
+import type { useOllamaModelPull } from "@/hooks/providers/ollama";
 
 interface ModelManagementProps {
   models: OllamaModel[];
-  pullHook: ReturnType<typeof useModelPull>;
+  pullHook: ReturnType<typeof useOllamaModelPull>;
 }
 
 interface InstalledModelRowProps {
@@ -31,7 +31,7 @@ interface InstalledModelRowProps {
   sizeLabel?: string;
   onDelete: () => void;
   isPulling: boolean;
-  progress: ReturnType<typeof useModelPull>["progress"];
+  progress: ReturnType<typeof useOllamaModelPull>["progress"];
   onCancelPull: () => void;
 }
 
@@ -140,10 +140,7 @@ export function ModelManagement({
     try {
       await deleteOllamaModel(deleteTarget);
       queryClient.invalidateQueries({ queryKey: queryKeys.ollama.models });
-      queryClient.invalidateQueries({ queryKey: queryKeys.models.available });
-      if (activeModels.has(deleteTarget)) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.taskRoutes.all });
-      }
+      invalidateModelDependents(queryClient);
       toaster.create({ title: `Deleted ${deleteTarget}`, type: "success" });
     } catch {
       toaster.create({
@@ -152,7 +149,7 @@ export function ModelManagement({
       });
     }
     setDeleteTarget(null);
-  }, [deleteTarget, activeModels, queryClient]);
+  }, [deleteTarget, queryClient]);
 
   const installedCurated = CURATED_MODELS.filter((c) => installedNames.has(c.name));
   const nonCuratedInstalled = models.filter(

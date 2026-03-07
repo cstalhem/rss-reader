@@ -47,3 +47,19 @@ COPY --from=builder /app/alembic /app/alembic
 ```
 
 Why: Alembic migrations silently skip when config is missing, causing schema drift that crashes at first ORM query.
+
+## Ruff py314 strips parentheses from multi-exception except clauses
+
+WRONG:
+```python
+except ValueError, TypeError, OSError:
+    pass
+```
+
+CORRECT:
+```python
+except (ValueError, TypeError, OSError):  # fmt: skip  # parens required for <3.14 compat; ruff py314 strips them (PEP 758)
+    pass
+```
+
+Why: Ruff with `target-version = "py314"` applies PEP 758 and removes parens. The unparenthesized form is a SyntaxError on Python < 3.14 and visually ambiguous with the old Py2 `except Type, name:` pattern. Use `# fmt: skip` to preserve parens.

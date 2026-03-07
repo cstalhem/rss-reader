@@ -132,17 +132,6 @@ def build_scoring_prompt(
 
     prompt = f"""Score this article based on user preferences.
 
-**User Interests:**
-{interests if interests else "Not specified"}
-
-**User Anti-Interests:**
-{anti_interests if anti_interests else "Not specified"}
-
-**Article:**
-Title: {article_title}
-
-Content: {truncated_text}
-
 **Scoring Instructions:**
 - Interest Score (0-10): How well does this match the user's interests?
   - 0-2: Strongly misaligned or explicitly avoided topic
@@ -162,6 +151,17 @@ Provide:
 1. Interest score (0-10)
 2. Quality score (0-10)
 3. Brief reasoning (1-2 sentences explaining your scores)
+
+**User Interests:**
+{interests if interests else "Not specified"}
+
+**User Anti-Interests:**
+{anti_interests if anti_interests else "Not specified"}
+
+**Article:**
+Title: {article_title}
+
+Content: {truncated_text}
 
 Score this article now."""
 

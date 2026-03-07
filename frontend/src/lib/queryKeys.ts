@@ -1,3 +1,5 @@
+import type { QueryClient } from "@tanstack/react-query";
+
 export const queryKeys = {
   articles: {
     all: ["articles"] as const,
@@ -38,3 +40,10 @@ export const queryKeys = {
     downloadStatus: ["download-status"] as const,
   },
 };
+
+/** Invalidate caches that depend on which models are available.
+ *  Call after any mutation that changes provider config, model list, or task routes. */
+export function invalidateModelDependents(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: queryKeys.models.available });
+  queryClient.invalidateQueries({ queryKey: queryKeys.taskRoutes.all });
+}

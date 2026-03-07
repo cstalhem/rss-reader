@@ -26,7 +26,7 @@ def _normalize_folder_name(name: str) -> tuple[str, str]:
 
 def _folder_to_response(folder: FeedFolder, unread_count: int) -> FeedFolderResponse:
     return FeedFolderResponse(
-        id=folder.id,
+        id=folder.id,  # pyright: ignore[reportArgumentType]
         name=folder.name,
         display_order=folder.display_order,
         created_at=folder.created_at,
@@ -36,12 +36,12 @@ def _folder_to_response(folder: FeedFolder, unread_count: int) -> FeedFolderResp
 
 def _folder_unread_count(session: Session, folder_id: int) -> int:
     return session.exec(
-        select(func.count(Article.id))
-        .join(Feed, Feed.id == Article.feed_id)
+        select(func.count(Article.id))  # pyright: ignore[reportArgumentType]
+        .join(Feed, Feed.id == Article.feed_id)  # pyright: ignore[reportArgumentType]
         .where(Feed.folder_id == folder_id)
-        .where(Article.is_read.is_(False))
+        .where(Article.is_read.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
         .where(Article.scoring_state == "scored")
-        .where(Article.composite_score > 0)
+        .where(Article.composite_score > 0)  # pyright: ignore[reportOptionalOperand]
     ).one()
 
 
@@ -53,18 +53,18 @@ def list_feed_folders(
     statement = (
         select(
             FeedFolder,
-            func.count(Article.id).label("unread_count"),
+            func.count(Article.id).label("unread_count"),  # pyright: ignore[reportArgumentType]
         )
-        .outerjoin(Feed, Feed.folder_id == FeedFolder.id)
+        .outerjoin(Feed, Feed.folder_id == FeedFolder.id)  # pyright: ignore[reportArgumentType]
         .outerjoin(
             Article,
             (Article.feed_id == Feed.id)
-            & (Article.is_read.is_(False))
+            & (Article.is_read.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
             & (Article.scoring_state == "scored")
-            & (Article.composite_score > 0),
+            & (Article.composite_score > 0),  # pyright: ignore[reportOptionalOperand]
         )
-        .group_by(FeedFolder.id)
-        .order_by(FeedFolder.display_order, FeedFolder.id)
+        .group_by(FeedFolder.id)  # pyright: ignore[reportArgumentType]
+        .order_by(FeedFolder.display_order, FeedFolder.id)  # pyright: ignore[reportArgumentType]
     )
     results = session.exec(statement).all()
 
@@ -93,7 +93,7 @@ def create_feed_folder(
 
     selected_feeds: list[Feed] = []
     if feed_ids:
-        selected_feeds = session.exec(select(Feed).where(Feed.id.in_(feed_ids))).all()
+        selected_feeds = session.exec(select(Feed).where(Feed.id.in_(feed_ids))).all()  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess, reportAssignmentType]
         if len(selected_feeds) != len(feed_ids):
             raise HTTPException(
                 status_code=404, detail="One or more feeds were not found"
@@ -134,7 +134,7 @@ def create_feed_folder(
 
     session.refresh(folder)
 
-    return _folder_to_response(folder, _folder_unread_count(session, folder.id))
+    return _folder_to_response(folder, _folder_unread_count(session, folder.id))  # pyright: ignore[reportArgumentType]
 
 
 @router.patch("/{folder_id}", response_model=FeedFolderResponse)
@@ -178,7 +178,7 @@ def update_feed_folder(
         ) from exc
 
     session.refresh(folder)
-    return _folder_to_response(folder, _folder_unread_count(session, folder.id))
+    return _folder_to_response(folder, _folder_unread_count(session, folder.id))  # pyright: ignore[reportArgumentType]
 
 
 @router.put("/order")
@@ -225,18 +225,18 @@ def delete_feed_folder(
     feeds_in_folder = session.exec(
         select(Feed)
         .where(Feed.folder_id == folder_id)
-        .order_by(Feed.display_order, Feed.id)
+        .order_by(Feed.display_order, Feed.id)  # pyright: ignore[reportArgumentType]
     ).all()
 
     if delete_feeds:
         feed_ids = [feed.id for feed in feeds_in_folder]
         if feed_ids:
-            session.exec(delete(Article).where(Article.feed_id.in_(feed_ids)))
+            session.exec(delete(Article).where(Article.feed_id.in_(feed_ids)))  # pyright: ignore[reportAttributeAccessIssue]
         for feed in feeds_in_folder:
             session.delete(feed)
     else:
         max_root_order = session.exec(
-            select(func.max(Feed.display_order)).where(Feed.folder_id.is_(None))
+            select(func.max(Feed.display_order)).where(Feed.folder_id.is_(None))  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
         ).one()
         next_root_order = (max_root_order or 0) + 1
 

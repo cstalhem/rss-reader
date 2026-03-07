@@ -39,7 +39,7 @@ def _article_to_response(article: Article) -> ArticleResponse:
     if article.categories_rel:
         categories = [
             ArticleCategoryEmbed(
-                id=cat.id,
+                id=cat.id,  # pyright: ignore[reportArgumentType]
                 display_name=cat.display_name,
                 slug=cat.slug,
                 effective_weight=get_effective_weight(cat),
@@ -49,7 +49,7 @@ def _article_to_response(article: Article) -> ArticleResponse:
         ]
 
     return ArticleResponse(
-        id=article.id,
+        id=article.id,  # pyright: ignore[reportArgumentType]
         feed_id=article.feed_id,
         title=article.title,
         url=article.url,
@@ -76,7 +76,7 @@ def _article_to_list_item(article: Article) -> ArticleListItem:
     if article.categories_rel:
         categories = [
             ArticleCategoryEmbed(
-                id=cat.id,
+                id=cat.id,  # pyright: ignore[reportArgumentType]
                 display_name=cat.display_name,
                 slug=cat.slug,
                 effective_weight=get_effective_weight(cat),
@@ -86,7 +86,7 @@ def _article_to_list_item(article: Article) -> ArticleListItem:
         ]
 
     return ArticleListItem(
-        id=article.id,
+        id=article.id,  # pyright: ignore[reportArgumentType]
         feed_id=article.feed_id,
         title=article.title,
         url=article.url,
@@ -119,7 +119,7 @@ def list_articles(
 ):
     """List articles, paginated and sorted by composite_score or published_at."""
     statement = select(Article).options(
-        selectinload(Article.categories_rel).joinedload(Category.parent)
+        selectinload(Article.categories_rel).joinedload(Category.parent)  # pyright: ignore[reportArgumentType]
     )
 
     if is_read is not None:
@@ -129,13 +129,13 @@ def list_articles(
         statement = statement.where(Article.feed_id == feed_id)
 
     if folder_id is not None:
-        statement = statement.join(Feed, Feed.id == Article.feed_id).where(
+        statement = statement.join(Feed, Feed.id == Article.feed_id).where(  # pyright: ignore[reportArgumentType]
             Feed.folder_id == folder_id
         )
 
     if scoring_state == "pending":
         statement = statement.where(
-            Article.scoring_state.in_(["unscored", "queued", "scoring"])
+            Article.scoring_state.in_(["unscored", "queued", "scoring"])  # pyright: ignore[reportAttributeAccessIssue]
         )
     elif scoring_state == "blocked":
         statement = statement.where(Article.scoring_state == "scored").where(
@@ -157,17 +157,17 @@ def list_articles(
     if sort_by == "composite_score":
         if order == "desc":
             statement = statement.order_by(
-                nulls_last(desc(Article.composite_score)), Article.published_at.asc()
+                nulls_last(desc(Article.composite_score)), Article.published_at.asc()  # pyright: ignore[reportArgumentType, reportAttributeAccessIssue, reportOptionalMemberAccess]
             )
         else:
             statement = statement.order_by(
-                nulls_last(Article.composite_score), Article.published_at.asc()
+                nulls_last(Article.composite_score), Article.published_at.asc()  # pyright: ignore[reportArgumentType, reportAttributeAccessIssue, reportOptionalMemberAccess]
             )
     elif sort_by == "published_at":
         if order == "desc":
-            statement = statement.order_by(Article.published_at.desc(), Article.id)
+            statement = statement.order_by(Article.published_at.desc(), Article.id)  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess, reportArgumentType]
         else:
-            statement = statement.order_by(Article.published_at.asc(), Article.id)
+            statement = statement.order_by(Article.published_at.asc(), Article.id)  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess, reportArgumentType]
 
     statement = statement.offset(skip).limit(limit)
     articles = session.exec(statement).all()
@@ -179,9 +179,9 @@ def mark_all_read(session: Session = Depends(get_session)):
     """Mark all unread scored non-blocked articles as read."""
     result = session.exec(
         update(Article)
-        .where(Article.is_read.is_(False))
-        .where(Article.scoring_state == "scored")
-        .where(Article.composite_score != 0)
+        .where(Article.is_read.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
+        .where(Article.scoring_state == "scored")  # pyright: ignore[reportArgumentType]
+        .where(Article.composite_score != 0)  # pyright: ignore[reportArgumentType]
         .values(is_read=True)
     )
     session.commit()
@@ -210,7 +210,7 @@ def get_article(
     article = session.exec(
         select(Article)
         .where(Article.id == article_id)
-        .options(selectinload(Article.categories_rel).joinedload(Category.parent))
+        .options(selectinload(Article.categories_rel).joinedload(Category.parent))  # pyright: ignore[reportArgumentType]
     ).first()
 
     if not article:
@@ -229,7 +229,7 @@ def update_article(
     article = session.exec(
         select(Article)
         .where(Article.id == article_id)
-        .options(selectinload(Article.categories_rel).joinedload(Category.parent))
+        .options(selectinload(Article.categories_rel).joinedload(Category.parent))  # pyright: ignore[reportArgumentType]
     ).first()
 
     if not article:

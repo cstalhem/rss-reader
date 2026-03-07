@@ -4,11 +4,16 @@ import asyncio
 import logging
 import time
 
-import httpx
-
-from backend.ollama_client import get_ollama_client
+import httpx  # pyright: ignore[reportMissingImports]
 
 logger = logging.getLogger(__name__)
+
+
+def _get_ollama_client(host: str):
+    from backend.llm_providers.ollama import get_ollama_client
+
+    return get_ollama_client(host)
+
 
 # Module-level state for download tracking.
 # Safe in single-worker asyncio -- no threading concerns.
@@ -43,7 +48,7 @@ async def check_health(host: str) -> dict:
                 "version": data.get("version"),
                 "latency_ms": latency_ms,
             }
-    except httpx.HTTPError, httpx.TimeoutException, ConnectionError, OSError:
+    except (httpx.HTTPError, httpx.TimeoutException, ConnectionError, OSError):  # fmt: skip  # parens required for <3.14 compat; ruff py314 strips them (PEP 758)
         return {"connected": False, "version": None, "latency_ms": None}
 
 
@@ -57,9 +62,9 @@ async def list_models(host: str) -> list[dict]:
         List of model dicts with name, size, parameter_size,
         quantization_level, and is_loaded fields.
     """
-    client = get_ollama_client(host)
-    models_resp = await client.list()
-    ps_resp = await client.ps()
+    client = _get_ollama_client(host)
+    models_resp = await client.list()  # pyright: ignore[reportAttributeAccessIssue]
+    ps_resp = await client.ps()  # pyright: ignore[reportAttributeAccessIssue]
 
     loaded_names = {m.model for m in ps_resp.models}
 
@@ -101,8 +106,8 @@ async def pull_model_stream(host: str, model: str):
     )
 
     try:
-        client = get_ollama_client(host)
-        async for chunk in await client.pull(model, stream=True):
+        client = _get_ollama_client(host)
+        async for chunk in await client.pull(model, stream=True):  # pyright: ignore[reportAttributeAccessIssue]
             if _cancel_requested:
                 _cancel_requested = False
                 raise asyncio.CancelledError("Download cancelled by user")
@@ -168,6 +173,6 @@ async def delete_model(host: str, model: str) -> dict:
     Returns:
         Dict with status "success".
     """
-    client = get_ollama_client(host)
-    await client.delete(model)
+    client = _get_ollama_client(host)
+    await client.delete(model)  # pyright: ignore[reportAttributeAccessIssue]
     return {"status": "success"}

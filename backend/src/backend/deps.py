@@ -5,21 +5,20 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from backend.database import engine
-from backend.llm_providers.ollama import OllamaProviderConfig
 from backend.llm_providers.registry import get_provider
 from backend.models import LLMProviderConfig, LLMTaskRoute, UserPreferences
 
 logger = logging.getLogger(__name__)
 
-OLLAMA_PROVIDER = "ollama"
 TASK_CATEGORIZATION = "categorization"
 TASK_SCORING = "scoring"
 
 TaskName = Literal["categorization", "scoring"]
 ReadinessReason = Literal[
+    "no_provider",
     "provider_unconfigured",
     "provider_disabled",
     "provider_unknown",
@@ -72,37 +71,6 @@ def get_provider_config_row(
     ).first()
 
 
-def get_ollama_provider_config(session: Session) -> OllamaProviderConfig:
-    """Get validated Ollama config from LLMProviderConfig table."""
-    row = get_provider_config_row(session, OLLAMA_PROVIDER)
-    if row:
-        try:
-            config = OllamaProviderConfig.model_validate_json(row.config_json)
-            return config.model_copy(update={"thinking": False})
-        except Exception:
-            logger.exception("Invalid Ollama provider config JSON")
-
-    # No row means provider not configured -- return defaults
-    return OllamaProviderConfig()
-
-
-def upsert_ollama_provider_config(
-    session: Session,
-    config: OllamaProviderConfig,
-) -> LLMProviderConfig:
-    """Create or update Ollama provider config row."""
-    row = get_provider_config_row(session, OLLAMA_PROVIDER)
-    if not row:
-        row = LLMProviderConfig(
-            provider=OLLAMA_PROVIDER, enabled=True, config_json="{}"
-        )
-
-    row.config_json = config.model_dump_json()
-    row.updated_at = datetime.now()
-    session.add(row)
-    return row
-
-
 def get_task_route(session: Session, task: TaskName) -> LLMTaskRoute | None:
     """Load routing row for a specific LLM task."""
     return session.exec(select(LLMTaskRoute).where(LLMTaskRoute.task == task)).first()
@@ -126,66 +94,58 @@ def upsert_task_route(
     return route
 
 
-def sync_ollama_task_routes(
-    session: Session,
-    config: OllamaProviderConfig,
-) -> None:
-    """Keep Ollama task-route defaults aligned with saved config."""
-    upsert_task_route(
-        session,
-        TASK_CATEGORIZATION,
-        OLLAMA_PROVIDER,
-        config.default_model_for_task(TASK_CATEGORIZATION),
-    )
-    upsert_task_route(
-        session,
-        TASK_SCORING,
-        OLLAMA_PROVIDER,
-        config.default_model_for_task(TASK_SCORING),
-    )
-
-
 def resolve_task_runtime(session: Session, task: TaskName) -> TaskRuntimeResolution:
     """Resolve provider/model/endpoint for a task without network calls."""
     route = get_task_route(session, task)
 
-    # Fallback when no task route exists (provider not yet configured).
     if route is None:
-        legacy_config = get_ollama_provider_config(session)
-        fallback_model = legacy_config.default_model_for_task(task)
+        provider_count = session.exec(select(func.count(LLMProviderConfig.id))).one()  # pyright: ignore[reportArgumentType]
+        if provider_count == 0:
+            return TaskRuntimeResolution(
+                task=task,
+                provider="",
+                model=None,
+                endpoint=None,
+                thinking=False,
+                ready=False,
+                reason="no_provider",
+            )
         return TaskRuntimeResolution(
             task=task,
-            provider=OLLAMA_PROVIDER,
-            model=fallback_model,
-            endpoint=legacy_config.endpoint,
-            thinking=legacy_config.thinking,
-            ready=fallback_model is not None,
-            reason=None if fallback_model else "model_unconfigured",
+            provider="",
+            model=None,
+            endpoint=None,
+            thinking=False,
+            ready=False,
+            reason="model_unconfigured",
         )
 
     provider_name = route.provider
-    if provider_name != OLLAMA_PROVIDER:
-        provider_row = get_provider_config_row(session, provider_name)
-        if provider_row is None:
-            return TaskRuntimeResolution(
-                task=task,
-                provider=provider_name,
-                model=route.model,
-                endpoint=None,
-                thinking=False,
-                ready=False,
-                reason="provider_unconfigured",
-            )
-        if not provider_row.enabled:
-            return TaskRuntimeResolution(
-                task=task,
-                provider=provider_name,
-                model=route.model,
-                endpoint=None,
-                thinking=False,
-                ready=False,
-                reason="provider_disabled",
-            )
+    provider_row = get_provider_config_row(session, provider_name)
+    if provider_row is None:
+        return TaskRuntimeResolution(
+            task=task,
+            provider=provider_name,
+            model=route.model,
+            endpoint=None,
+            thinking=False,
+            ready=False,
+            reason="provider_unconfigured",
+        )
+    if not provider_row.enabled:
+        return TaskRuntimeResolution(
+            task=task,
+            provider=provider_name,
+            model=route.model,
+            endpoint=None,
+            thinking=False,
+            ready=False,
+            reason="provider_disabled",
+        )
+
+    try:
+        provider = get_provider(provider_name)
+    except KeyError:
         return TaskRuntimeResolution(
             task=task,
             provider=provider_name,
@@ -196,38 +156,25 @@ def resolve_task_runtime(session: Session, task: TaskName) -> TaskRuntimeResolut
             reason="provider_unknown",
         )
 
-    provider_row = get_provider_config_row(session, OLLAMA_PROVIDER)
-    if provider_row and not provider_row.enabled:
-        return TaskRuntimeResolution(
-            task=task,
-            provider=OLLAMA_PROVIDER,
-            model=route.model,
-            endpoint=None,
-            thinking=False,
-            ready=False,
-            reason="provider_disabled",
-        )
-
-    ollama_config = get_ollama_provider_config(session)
-    model = route.model or ollama_config.default_model_for_task(task)
-
+    parsed = provider.parse_config(provider_row.config_json, task)
+    model = route.model or parsed.model
     if model is None:
         return TaskRuntimeResolution(
             task=task,
-            provider=OLLAMA_PROVIDER,
+            provider=provider_name,
             model=None,
-            endpoint=ollama_config.endpoint,
-            thinking=ollama_config.thinking,
+            endpoint=parsed.endpoint,
+            thinking=parsed.thinking,
             ready=False,
             reason="model_unconfigured",
         )
 
     return TaskRuntimeResolution(
         task=task,
-        provider=OLLAMA_PROVIDER,
+        provider=provider_name,
         model=model,
-        endpoint=ollama_config.endpoint,
-        thinking=ollama_config.thinking,
+        endpoint=parsed.endpoint,
+        thinking=parsed.thinking,
         ready=True,
         reason=None,
     )
@@ -309,15 +256,15 @@ def format_readiness_reason(runtime: TaskRuntimeResolution) -> str | None:
     if runtime.reason is None:
         return None
 
+    if runtime.reason == "no_provider":
+        return "No LLM provider configured \u2014 set one up in LLM Providers"
     if runtime.reason == "provider_unconfigured":
-        return "Scoring paused — provider is not configured"
+        return "Scoring paused \u2014 provider is not configured"
     if runtime.reason == "provider_disabled":
         return "Scoring paused — provider is disabled"
     if runtime.reason == "provider_unknown":
         return "Scoring paused — configured provider is unsupported"
     if runtime.reason == "provider_unreachable":
-        if runtime.provider == OLLAMA_PROVIDER:
-            return "Scoring paused — Ollama is not running"
         return "Scoring paused — provider is unreachable"
     if runtime.reason == "model_unconfigured":
         return "No model selected — configure one in LLM Providers"

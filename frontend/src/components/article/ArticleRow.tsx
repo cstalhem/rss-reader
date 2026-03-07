@@ -73,36 +73,30 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
         css: isCompleting ? { animation: `${scoreReveal} 3s ease-out forwards` } : undefined,
       })}
     >
-      {/* Read/unread toggle dot - only render for unread articles */}
-      {!article.is_read && (
+      {/* Read/unread toggle dot - hidden in expanded/sticky header to prevent layout shift */}
+      {!isExpanded && !article.is_read && (
         <Box
-          overflow="hidden"
-          transition="max-height 0.2s ease, opacity 0.15s ease"
-          {...(isExpanded ? { maxH: 0, opacity: 0 } : { maxH: "10", opacity: 1 })}
+          flexShrink={0}
+          alignSelf="center"
+          px={2}
+          cursor="pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleRead(article);
+          }}
+          title="Mark as read"
         >
           <Box
-            flexShrink={0}
-            alignSelf="center"
-            px={2}
-            cursor="pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleRead(article);
-            }}
-            title="Mark as read"
-          >
-            <Box
-              w="10px"
-              h="10px"
-              borderRadius="full"
-              bg="accent.solid"
-            />
-          </Box>
+            w="10px"
+            h="10px"
+            borderRadius="full"
+            bg="accent.solid"
+          />
         </Box>
       )}
 
       {/* Main content */}
-      <Flex flex={1} direction="column" gap={1} minW={0}>
+      <Flex flex={1} direction="column" gap={2} minW={0}>
         {/* Title - truncated */}
         <Text
           fontSize={isExpanded ? "sm" : "md"}
@@ -115,38 +109,29 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
           {article.title}
         </Text>
 
-        {/* Source, date, and category tags */}
-        <Box
+        {/* Metadata + preview — collapses when row is expanded as sticky header */}
+        <Flex
+          direction="column"
+          gap={2}
           overflow="hidden"
           transition="max-height 0.2s ease, opacity 0.15s ease"
-          {...(isExpanded ? { maxH: 0, opacity: 0 } : { maxH: "10", opacity: 1 })}
+          {...(isExpanded ? { maxH: 0, opacity: 0 } : { maxH: "24", opacity: 1 })}
         >
-          <Flex gap={2} alignItems="center" flexWrap="wrap">
-            <Text fontSize="sm" color="fg.muted" flexShrink={0}>
-              {feedName ? `${feedName} \u2022 ` : ""}{formatRelativeDate(article.published_at)}
-            </Text>
-            {article.categories && article.categories.length > 0 && (
-              <>
-                <Box w="1px" h="14px" bg="border.subtle" flexShrink={0} />
-                {article.categories.slice(0, MAX_VISIBLE_TAGS).map((cat) => (
-                  <TagChip key={cat.id} label={cat.display_name} size="sm" />
-                ))}
-                {article.categories.length > MAX_VISIBLE_TAGS && (
-                  <Text fontSize="xs" color="fg.muted">
-                    +{article.categories.length - MAX_VISIBLE_TAGS}
-                  </Text>
-                )}
-              </>
-            )}
-          </Flex>
-        </Box>
-
-        {/* Summary/preview line */}
-        <Box
-          overflow="hidden"
-          transition="max-height 0.2s ease, opacity 0.15s ease"
-          {...(isExpanded ? { maxH: 0, opacity: 0 } : { maxH: "10", opacity: 1 })}
-        >
+          <Text fontSize="sm" color="fg.muted">
+            {feedName ? `${feedName} \u2022 ` : ""}{formatRelativeDate(article.published_at)}
+          </Text>
+          {article.categories && article.categories.length > 0 && (
+            <Flex gap={2} alignItems="center" flexWrap="wrap">
+              {article.categories.slice(0, MAX_VISIBLE_TAGS).map((cat) => (
+                <TagChip key={cat.id} label={cat.display_name} size="sm" />
+              ))}
+              {article.categories.length > MAX_VISIBLE_TAGS && (
+                <Text fontSize="xs" color="fg.muted">
+                  +{article.categories.length - MAX_VISIBLE_TAGS}
+                </Text>
+              )}
+            </Flex>
+          )}
           {previewText && (
             <Flex gap={1} alignItems="flex-start">
               {isAiGenerated && (
@@ -168,7 +153,7 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
               </Text>
             </Flex>
           )}
-        </Box>
+        </Flex>
       </Flex>
 
       {/* Right side: scoring indicators or expanded nav */}

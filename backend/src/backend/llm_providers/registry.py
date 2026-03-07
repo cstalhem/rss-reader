@@ -14,3 +14,9 @@ def get_provider(name: str) -> LLMProvider:
     if provider is None:
         raise KeyError(f"Unknown provider: {name}")
     return provider
+
+
+async def close_all_providers() -> None:
+    """Shut down all registered providers."""
+    for provider in PROVIDERS.values():
+        await provider.close()

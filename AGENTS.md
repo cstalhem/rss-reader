@@ -29,7 +29,7 @@ A personal RSS reader with LLM-powered relevance scoring. Local-first, simple, m
 ### Backend (`cd backend`)
 
 ```bash
-uv run uvicorn backend.main:app --reload --port 8912  # Dev server
+uv run dev                                             # Dev server
 uv run pytest                                          # Tests
 uv run ruff check .                                    # Lint
 uv run ruff format .                                   # Format

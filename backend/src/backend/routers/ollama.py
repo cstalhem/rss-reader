@@ -10,43 +10,125 @@ Ollama is the only active provider.
 
 import json
 import logging
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from sqlmodel import Session, select
 
 from backend import ollama_service
 from backend.deps import (
-    OLLAMA_PROVIDER,
     TASK_CATEGORIZATION,
     TASK_SCORING,
-    get_ollama_provider_config,
     get_or_create_preferences,
     get_provider_config_row,
     get_session,
-    sync_ollama_task_routes,
-    upsert_ollama_provider_config,
     upsert_task_route,
 )
-from backend.llm_providers.ollama import OllamaProviderConfig
+from backend.llm_providers.ollama import (
+    OLLAMA_PROVIDER,
+    OllamaProviderConfig,
+    get_ollama_provider_config,
+)
 from backend.llm_providers.registry import get_provider
 from backend.models import LLMProviderConfig, LLMTaskRoute
 from backend.schemas import (
     AvailableModel,
-    OllamaConfigResponse,
-    OllamaConfigUpdate,
-    OllamaHealthResponse,
-    OllamaModelResponse,
-    OllamaPromptsResponse,
     ProviderListItem,
-    PullModelRequest,
     TaskRouteItem,
     TaskRoutesResponse,
     TaskRoutesUpdate,
 )
 
 logger = logging.getLogger(__name__)
+
+
+# --- Ollama helpers (local to this router) ---
+
+
+def upsert_ollama_provider_config(
+    session: Session,
+    config: OllamaProviderConfig,
+) -> LLMProviderConfig:
+    """Create or update Ollama provider config row."""
+    row = get_provider_config_row(session, OLLAMA_PROVIDER)
+    if not row:
+        row = LLMProviderConfig(
+            provider=OLLAMA_PROVIDER, enabled=True, config_json="{}"
+        )
+
+    row.config_json = config.model_dump_json()
+    row.updated_at = datetime.now()
+    session.add(row)
+    return row
+
+
+def sync_ollama_task_routes(
+    session: Session,
+    config: OllamaProviderConfig,
+) -> None:
+    """Keep Ollama task-route defaults aligned with saved config."""
+    upsert_task_route(
+        session,
+        TASK_CATEGORIZATION,
+        OLLAMA_PROVIDER,
+        config.default_model_for_task(TASK_CATEGORIZATION),
+    )
+    upsert_task_route(
+        session,
+        TASK_SCORING,
+        OLLAMA_PROVIDER,
+        config.default_model_for_task(TASK_SCORING),
+    )
+
+
+# --- Ollama schemas (local to this router) ---
+
+
+class OllamaHealthResponse(BaseModel):
+    connected: bool
+    version: str | None
+    latency_ms: int | None
+
+
+class TestConnectionRequest(BaseModel):
+    base_url: str
+    port: int = Field(ge=1, le=65535)
+
+
+class OllamaModelResponse(BaseModel):
+    name: str
+    size: int
+    parameter_size: str | None
+    quantization_level: str | None
+    is_loaded: bool
+
+
+class PullModelRequest(BaseModel):
+    model: str
+
+
+class OllamaConfigResponse(BaseModel):
+    base_url: str
+    port: int = Field(ge=1, le=65535)
+    categorization_model: str | None
+    scoring_model: str | None
+    use_separate_models: bool
+
+
+class OllamaConfigUpdate(BaseModel):
+    base_url: str
+    port: int = Field(ge=1, le=65535)
+    categorization_model: str | None
+    scoring_model: str | None
+    use_separate_models: bool
+
+
+class OllamaPromptsResponse(BaseModel):
+    categorization_prompt: str
+    scoring_prompt: str
+
 
 router = APIRouter(prefix="/api", tags=["ollama"])
 
@@ -212,6 +294,14 @@ async def ollama_health(session: Session = Depends(get_session)):
     config = get_ollama_provider_config(session)
     provider = get_provider("ollama")
     result = await provider.health(config.endpoint)
+    return OllamaHealthResponse(**result)
+
+
+@router.post("/ollama/test-connection", response_model=OllamaHealthResponse)
+async def test_ollama_connection(request: TestConnectionRequest):
+    """Test Ollama connectivity with arbitrary host/port (no DB dependency)."""
+    endpoint = f"{request.base_url.rstrip('/')}:{request.port}"
+    result = await ollama_service.check_health(endpoint)
     return OllamaHealthResponse(**result)
 
 

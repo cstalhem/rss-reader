@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchOllamaModels } from "@/lib/api";
+import { fetchOllamaModels } from "@/lib/providers/ollama";
 import { queryKeys } from "@/lib/queryKeys";
 
 export function useOllamaModels(enabled: boolean = true) {

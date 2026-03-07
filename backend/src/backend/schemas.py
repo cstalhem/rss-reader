@@ -193,48 +193,6 @@ class CategoryBatchAction(BaseModel):
     category_ids: list[int]
 
 
-# --- Ollama ---
-
-
-class OllamaHealthResponse(BaseModel):
-    connected: bool
-    version: str | None
-    latency_ms: int | None
-
-
-class OllamaModelResponse(BaseModel):
-    name: str
-    size: int
-    parameter_size: str | None
-    quantization_level: str | None
-    is_loaded: bool
-
-
-class PullModelRequest(BaseModel):
-    model: str
-
-
-class OllamaConfigResponse(BaseModel):
-    base_url: str
-    port: int = Field(ge=1, le=65535)
-    categorization_model: str | None
-    scoring_model: str | None
-    use_separate_models: bool
-
-
-class OllamaConfigUpdate(BaseModel):
-    base_url: str
-    port: int = Field(ge=1, le=65535)
-    categorization_model: str | None
-    scoring_model: str | None
-    use_separate_models: bool
-
-
-class OllamaPromptsResponse(BaseModel):
-    categorization_prompt: str
-    scoring_prompt: str
-
-
 # --- Providers ---
 
 

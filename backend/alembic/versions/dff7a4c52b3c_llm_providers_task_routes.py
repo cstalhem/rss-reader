@@ -7,18 +7,14 @@ Create Date: 2026-02-24 10:04:53.621208
 """
 
 import json
+import os
 from collections.abc import Sequence
 from datetime import datetime
+from urllib.parse import urlparse
 
 import sqlalchemy as sa
 
 from alembic import op
-from backend.config import get_settings
-from backend.llm_providers.ollama import (
-    DEFAULT_OLLAMA_BASE_URL,
-    DEFAULT_OLLAMA_PORT,
-    split_ollama_host,
-)
 
 # revision identifiers, used by Alembic.
 revision: str = "dff7a4c52b3c"
@@ -196,16 +192,7 @@ def upgrade() -> None:
             unique=True,
         )
 
-    # Backfill provider config and task routes from legacy UserPreferences fields.
-    settings = get_settings()
-    base_url, port = split_ollama_host(settings.ollama.host)
-    if not base_url:
-        base_url = DEFAULT_OLLAMA_BASE_URL
-    if not port:
-        port = DEFAULT_OLLAMA_PORT
-
-    # Guard: legacy columns may not exist on fresh installs where models.py
-    # no longer defines them (removed in Phase 09.6).
+    # --- Backfill provider config and task routes from legacy columns ---
     inspector = sa.inspect(bind)
     has_legacy_cols = _column_exists(
         inspector, "user_preferences", "ollama_categorization_model"
@@ -233,16 +220,28 @@ def upgrade() -> None:
     else:
         legacy = None
 
-    if legacy:
-        categorization_model = legacy["categorization_model"]
-        scoring_model = legacy["scoring_model"]
-        use_separate_models = bool(legacy["use_separate_models"])
-        thinking = bool(legacy["thinking"])
+    # Only seed Ollama provider when migrating from legacy schema.
+    # Fresh installs (no legacy columns) start with no providers configured.
+    if not legacy:
+        return
+
+    categorization_model = legacy["categorization_model"]
+    scoring_model = legacy["scoring_model"]
+    use_separate_models = bool(legacy["use_separate_models"])
+    thinking = bool(legacy["thinking"])
+
+    # Read host from env vars (OLLAMA__HOST or OLLAMA_HOST), fall back to default.
+    # Self-contained: no app imports, just env + stdlib urlparse.
+    host_env = os.environ.get("OLLAMA__HOST") or os.environ.get("OLLAMA_HOST")
+    if host_env:
+        parsed = urlparse(host_env)
+        scheme = parsed.scheme if parsed.scheme in {"http", "https"} else "http"
+        hostname = parsed.hostname or "localhost"
+        base_url = f"{scheme}://{hostname}"
+        port = parsed.port or 11434
     else:
-        categorization_model = None
-        scoring_model = None
-        use_separate_models = False
-        thinking = False
+        base_url = "http://localhost"
+        port = 11434
 
     config_json = json.dumps(
         {

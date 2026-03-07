@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchProviders, disconnectProvider } from "@/lib/api";
-import { queryKeys } from "@/lib/queryKeys";
+import { queryKeys, invalidateModelDependents } from "@/lib/queryKeys";
 
 export function useProviders() {
   const queryClient = useQueryClient();
@@ -17,7 +17,7 @@ export function useProviders() {
     meta: { errorTitle: "Failed to disconnect provider" },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.providers.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.taskRoutes.all });
+      invalidateModelDependents(queryClient);
     },
   });
 

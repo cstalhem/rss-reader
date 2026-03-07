@@ -8,7 +8,7 @@ from sqlmodel import Field, Relationship, SQLModel
 class FeedFolder(SQLModel, table=True):
     """Folder grouping for RSS feeds."""
 
-    __tablename__ = "feed_folders"
+    __tablename__ = "feed_folders"  # pyright: ignore[reportAssignmentType]
 
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True, unique=True)
@@ -23,7 +23,7 @@ class FeedFolder(SQLModel, table=True):
 class Feed(SQLModel, table=True):
     """RSS feed source."""
 
-    __tablename__ = "feeds"
+    __tablename__ = "feeds"  # pyright: ignore[reportAssignmentType]
 
     id: int | None = Field(default=None, primary_key=True)
     url: str = Field(unique=True, index=True)
@@ -43,7 +43,7 @@ class Feed(SQLModel, table=True):
 class ArticleCategoryLink(SQLModel, table=True):
     """Junction table for many-to-many Article <-> Category."""
 
-    __tablename__ = "article_category_link"
+    __tablename__ = "article_category_link"  # pyright: ignore[reportAssignmentType]
 
     article_id: int = Field(
         foreign_key="articles.id", primary_key=True, ondelete="CASCADE"
@@ -56,7 +56,7 @@ class ArticleCategoryLink(SQLModel, table=True):
 class Category(SQLModel, table=True):
     """A topic category for articles."""
 
-    __tablename__ = "categories"
+    __tablename__ = "categories"  # pyright: ignore[reportAssignmentType]
 
     id: int | None = Field(default=None, primary_key=True)
     display_name: str = Field(index=True)
@@ -90,7 +90,7 @@ class Category(SQLModel, table=True):
 class Article(SQLModel, table=True):
     """Article from an RSS feed."""
 
-    __tablename__ = "articles"
+    __tablename__ = "articles"  # pyright: ignore[reportAssignmentType]
 
     id: int | None = Field(default=None, primary_key=True)
     feed_id: int = Field(foreign_key="feeds.id", index=True, ondelete="CASCADE")
@@ -124,7 +124,7 @@ class Article(SQLModel, table=True):
 class UserPreferences(SQLModel, table=True):
     """User preferences for content curation (single-row table)."""
 
-    __tablename__ = "user_preferences"
+    __tablename__ = "user_preferences"  # pyright: ignore[reportAssignmentType]
 
     id: int | None = Field(default=None, primary_key=True)
     interests: str = Field(default="")
@@ -139,7 +139,7 @@ class UserPreferences(SQLModel, table=True):
 class LLMProviderConfig(SQLModel, table=True):
     """Provider-specific runtime configuration."""
 
-    __tablename__ = "llm_provider_configs"
+    __tablename__ = "llm_provider_configs"  # pyright: ignore[reportAssignmentType]
     __table_args__ = (CheckConstraint("json_valid(config_json)"),)
 
     id: int | None = Field(default=None, primary_key=True)
@@ -152,7 +152,7 @@ class LLMProviderConfig(SQLModel, table=True):
 class LLMTaskRoute(SQLModel, table=True):
     """Route each LLM task to a specific provider and model."""
 
-    __tablename__ = "llm_task_routes"
+    __tablename__ = "llm_task_routes"  # pyright: ignore[reportAssignmentType]
 
     id: int | None = Field(default=None, primary_key=True)
     task: str = Field(unique=True, index=True)

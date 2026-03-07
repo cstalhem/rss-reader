@@ -10,6 +10,7 @@ import React, {
 import NextLink from "next/link";
 import {
   Alert,
+  Badge,
   Box,
   createListCollection,
   Flex,
@@ -33,6 +34,7 @@ import {
 } from "react-icons/lu";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useArticles, useMarkAsRead } from "@/hooks/useArticles";
+import { useBufferedArticles } from "@/hooks/useBufferedArticles";
 import {
   useMarkAllRead,
   useMarkAllArticlesRead,
@@ -44,12 +46,14 @@ import { useScoringStatus } from "@/hooks/useScoringStatus";
 import { useCompletingArticles } from "@/hooks/useCompletingArticles";
 import { rescoreArticle } from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
+import { NewArticlesPill } from "./NewArticlesPill";
 import { ArticleRow } from "./ArticleRow";
 import { ArticleRowSkeleton } from "./ArticleRowSkeleton";
 import { ArticleReader } from "./ArticleReader";
 import { SortSelect } from "./SortSelect";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { ArticleListItem, FeedSelection } from "@/lib/types";
+import { MobileArticleActionBar } from "./MobileArticleActionBar";
+import { ArticleListItem, FeedSelection, FilterTab } from "@/lib/types";
 import { parseSortOption } from "@/lib/utils";
 
 interface ArticleListProps {
@@ -57,8 +61,6 @@ interface ArticleListProps {
   onOpenMobileSidebar?: () => void;
   mainRef: React.RefObject<HTMLDivElement | null>;
 }
-
-type FilterTab = "unread" | "all" | "scoring" | "blocked";
 
 export function ArticleList({
   selection,
@@ -103,6 +105,7 @@ export function ArticleList({
     isLoading,
     loadMore,
     hasMore,
+    limit,
   } = useArticles({
     showAll,
     feedId: selection.kind === "feed" ? selection.feedId : undefined,
@@ -114,11 +117,26 @@ export function ArticleList({
     scoringActive: scoringCount > 0,
   });
 
+  // Buffer new articles on Unread tab to prevent list shift during scoring
+  const isBuffering = filter === "unread" && scoringCount > 0;
+  const resetKey = `${selection.kind}:${selection.kind === "feed" ? selection.feedId : selection.kind === "folder" ? selection.folderId : "all"}:${sortOption}`;
+  const { displayArticles: bufferedArticles, newCount, flush } = useBufferedArticles(
+    articles,
+    isBuffering,
+    resetKey,
+    limit,
+  );
+
   // Track articles completing scoring (for animation in Scoring tab)
-  const { displayArticles, completingIds } = useCompletingArticles(
+  // Pass raw `articles` — not bufferedArticles — to avoid referential instability
+  // triggering useCompletingArticles' useLayoutEffect setState loop.
+  const { displayArticles: completedArticles, completingIds } = useCompletingArticles(
     articles,
     filter === "scoring",
   );
+
+  // The two hooks are mutually exclusive by tab — pick the right output
+  const displayArticles = isBuffering ? bufferedArticles : completedArticles;
 
   const { data: feeds } = useFeeds();
   const { data: folders } = useFeedFolders();
@@ -155,6 +173,14 @@ export function ArticleList({
         ? (folders?.find((folder) => folder.id === selection.folderId)?.name ??
           "Folder")
         : "Articles";
+
+  // Unread count for heading badge
+  const unreadCount =
+    selection.kind === "feed"
+      ? (feeds?.find((f) => f.id === selection.feedId)?.unread_count ?? 0)
+      : selection.kind === "folder"
+        ? (folders?.find((f) => f.id === selection.folderId)?.unread_count ?? 0)
+        : (feeds?.reduce((sum, f) => sum + f.unread_count, 0) ?? 0);
 
   // IntersectionObserver for sticky scroll-collapse
   useEffect(() => {
@@ -321,7 +347,7 @@ export function ArticleList({
           : LuBan;
 
   return (
-    <Box>
+    <Box pb={{ base: 16, md: 0 }}>
       {/* Scoring readiness warning */}
       {scoringStatus?.scoring_ready === false &&
         scoringStatus.scoring_ready_reason && (
@@ -364,10 +390,17 @@ export function ArticleList({
         <Heading ref={headingRef} fontSize='2xl' fontWeight='bold'>
           {feedName}
         </Heading>
+        <Box flex={1} />
+        {unreadCount > 0 && (
+          <Badge colorPalette='accent' variant='solid' size='sm'>
+            {unreadCount}
+          </Badge>
+        )}
       </Flex>
 
-      {/* Controls bar */}
+      {/* Controls bar (desktop only) */}
       <Flex
+        display={{ base: "none", md: "flex" }}
         px={4}
         py={2}
         borderBottom='1px solid'
@@ -458,6 +491,9 @@ export function ArticleList({
           {articleCount}
         </Text>
       </Flex>
+
+      {/* New articles pill */}
+      {newCount > 0 && <NewArticlesPill count={newCount} onFlush={flush} />}
 
       {/* Article list */}
       {isLoading ? (
@@ -576,6 +612,19 @@ export function ArticleList({
           )}
         </Flex>
       )}
+
+      {/* Mobile action bar */}
+      <MobileArticleActionBar
+        filter={filter}
+        onFilterChange={setFilter}
+        sortOption={sortOption}
+        onSortChange={setSortOption}
+        onMarkAllRead={handleMarkAllAsRead}
+        canMarkAllRead={filter === "unread" && articleCount > 0}
+        isMarkingRead={markAllRead.isPending || markAllArticlesRead.isPending}
+        scoringCount={scoringCount}
+        blockedCount={blockedCount}
+      />
 
       {/* Confirm mark all articles read dialog */}
       <ConfirmDialog

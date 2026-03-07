@@ -61,6 +61,28 @@ def test_update_ollama_config_persists_provider_config_and_routes(
     assert task_routes[1].model == "qwen3:8b"
 
 
+def test_test_connection_returns_health_response_shape(test_client: TestClient):
+    """POST /api/ollama/test-connection returns correct response shape."""
+    response = test_client.post(
+        "/api/ollama/test-connection",
+        json={"base_url": "http://localhost", "port": 11434},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "connected" in data
+    assert "version" in data
+    assert "latency_ms" in data
+
+
+def test_test_connection_rejects_invalid_port(test_client: TestClient):
+    """POST /api/ollama/test-connection rejects port outside 1-65535."""
+    response = test_client.post(
+        "/api/ollama/test-connection",
+        json={"base_url": "http://localhost", "port": 0},
+    )
+    assert response.status_code == 422
+
+
 def test_scoring_status_exposes_task_readiness_keys(test_client: TestClient):
     response = test_client.get("/api/scoring/status")
     assert response.status_code == 200

@@ -29,6 +29,10 @@ paths: ["backend/**"]
 - `ollama.AsyncClient` is NOT an async context manager — use `client = AsyncClient(...)` directly, never `async with`.
 - `httpx.Timeout` requires either a positional default or all four params (connect, read, write, pool) — use `httpx.Timeout(default, connect=override)` pattern.
 
+## Formatting
+
+- Ruff with `target-version = "py314"` strips parens from multi-exception `except` clauses (PEP 758) — add `# fmt: skip` to preserve them for readability and < 3.14 compat (see critical-patterns).
+
 ## Configuration
 
 - Config priority: env vars > `.env` file > YAML config (`CONFIG_FILE`) > defaults in `config.py`.
