@@ -229,3 +229,30 @@ class TaskRoutesUpdate(BaseModel):
     categorization: TaskRouteAssignment
     scoring: TaskRouteAssignment
     use_separate_models: bool
+
+
+# --- Auto-Group ---
+
+
+class AutoGroupRequest(BaseModel):
+    provider: str | None = None
+    model: str | None = None
+
+
+class GroupSuggestionItem(BaseModel):
+    parent: str
+    children: list[str]
+
+
+class AutoGroupSuggestResponse(BaseModel):
+    groups: list[GroupSuggestionItem]
+
+
+class AutoGroupApplyRequest(BaseModel):
+    groups: list[GroupSuggestionItem]
+
+
+class AutoGroupApplyResponse(BaseModel):
+    ok: bool
+    groups_applied: int
+    categories_moved: int

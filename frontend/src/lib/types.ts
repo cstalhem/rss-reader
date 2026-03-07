@@ -194,6 +194,21 @@ export interface DownloadStatus {
   status: string | null;
 }
 
+export interface GroupSuggestion {
+  parent: string;
+  children: string[];
+}
+
+export interface AutoGroupSuggestResponse {
+  groups: GroupSuggestion[];
+}
+
+export interface AutoGroupApplyResponse {
+  ok: boolean;
+  groups_applied: number;
+  categories_moved: number;
+}
+
 export interface FetchArticlesParams {
   skip?: number;
   limit?: number;

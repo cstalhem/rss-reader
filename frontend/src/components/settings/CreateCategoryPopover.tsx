@@ -38,7 +38,7 @@ export function CreateCategoryPopover({
       positioning={{ placement: "bottom-start" }}
     >
       <Popover.Trigger asChild>
-        <Button colorPalette="accent" size="sm">
+        <Button colorPalette="accent" size="sm" width="100%">
           <LuPlus size={16} />
           Add Category
         </Button>

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from backend.prompts import CategoryResponse, ScoringResponse
+from backend.prompts.grouping import GroupingResponse
 
 
 @dataclass
@@ -46,5 +47,13 @@ class LLMProvider(Protocol):
         model: str,
         thinking: bool,
     ) -> ScoringResponse: ...
+
+    async def suggest_groups(
+        self,
+        all_categories: list[str],
+        existing_groups: dict[str, list[str]],
+        endpoint: str,
+        model: str,
+    ) -> GroupingResponse: ...
 
     async def close(self) -> None: ...
