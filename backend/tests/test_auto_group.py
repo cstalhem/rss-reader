@@ -168,6 +168,38 @@ class TestAutoGroupApply:
         test_session.refresh(child)
         assert child.weight == "reduce"  # Keeps explicit weight
 
+    def test_duplicate_child_across_groups_counted_once(
+        self,
+        test_client: TestClient,
+        test_session: Session,
+        make_category: Callable[..., Category],
+    ):
+        """A child appearing in multiple groups is assigned to the first and counted once."""
+        group_a = make_category(display_name="Group A", slug="group-a")
+        make_category(display_name="Group B", slug="group-b")
+        shared = make_category(display_name="Shared", slug="shared")
+        other = make_category(display_name="Other", slug="other")
+
+        response = test_client.post(
+            "/api/categories/auto-group/apply",
+            json={
+                "groups": [
+                    {"parent": "Group A", "children": ["Shared", "Other"]},
+                    {"parent": "Group B", "children": ["Shared"]},
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # Shared counted once (assigned to Group A), Other counted once
+        assert body["categories_moved"] == 2
+        assert body["groups_applied"] == 1  # Group B has 0 moved → not counted
+
+        test_session.refresh(shared)
+        test_session.refresh(other)
+        assert shared.parent_id == group_a.id  # First assignment wins
+        assert other.parent_id == group_a.id
+
     # --- Cycle 3: Edge cases ---
 
     def test_skips_nonexistent_category_names(
@@ -241,10 +273,11 @@ class TestAutoGroupSuggest:
         make_category(display_name="Machine Learning", slug="machine-learning")
         make_category(display_name="Science", slug="science")
 
+        # LLM returns non-canonical casing — response should use DB display_name
         mock_response = GroupingResponse(
             groups=[
-                GroupSuggestion(parent="Technology", children=["AI", "Machine Learning"]),
-                # This one references non-existent categories - should be filtered out
+                GroupSuggestion(parent="technology", children=["ai", "machine learning"]),
+                # This one references non-existent categories — should be filtered out
                 GroupSuggestion(parent="Science", children=["Physics", "Biology"]),
             ]
         )
@@ -269,8 +302,7 @@ class TestAutoGroupSuggest:
 
         assert response.status_code == 200
         body = response.json()
-        # Only valid group returned (Technology -> AI, Machine Learning)
-        # Science group filtered because its children don't exist
+        # Only valid group returned, with canonical DB display names
         assert len(body["groups"]) == 1
         assert body["groups"][0]["parent"] == "Technology"
         assert body["groups"][0]["children"] == ["AI", "Machine Learning"]

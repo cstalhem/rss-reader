@@ -12,7 +12,7 @@ class GroupSuggestion(BaseModel):
 
 class GroupingResponse(BaseModel):
     groups: list[GroupSuggestion] = Field(
-        default=[], description="Suggested groupings"
+        default_factory=list, description="Suggested groupings"
     )
 
 
@@ -54,5 +54,6 @@ def build_grouping_prompt(
 3. Each group must have at least TWO children. Never create a group with only one child — leave those categories ungrouped instead.
 4. Categories that do not fit any group should remain unparented — do NOT force groupings.
 5. No nested groups — only one level of parent-child.
+6. Each category may appear in at most ONE group — never assign the same category to multiple parents.
 
 Group these categories now."""

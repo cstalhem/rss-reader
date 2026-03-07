@@ -310,19 +310,24 @@ async def auto_group_suggest(
     slug_to_name = {slugify(c.display_name): c.display_name for c in all_categories}
     valid_slugs = set(slug_to_name.keys())
 
-    # Filter groups: only include groups where parent AND all children exist
+    # Filter groups: drop unknown parent/children, keep groups with ≥1 valid child.
+    # Resolve names back to canonical DB display_name via slug_to_name.
     valid_groups = []
     for group in response.groups:
         parent_slug = slugify(group.parent)
         if parent_slug not in valid_slugs:
             continue
         valid_children = [
-            c for c in group.children
+            slug_to_name[slugify(c)]
+            for c in group.children
             if slugify(c) in valid_slugs and slugify(c) != parent_slug
         ]
         if valid_children:
             valid_groups.append(
-                GroupSuggestionItem(parent=group.parent, children=valid_children)
+                GroupSuggestionItem(
+                    parent=slug_to_name[parent_slug],
+                    children=valid_children,
+                )
             )
 
     return AutoGroupSuggestResponse(groups=valid_groups)
@@ -352,9 +357,10 @@ def auto_group_apply(
     all_categories = session.exec(select(Category)).all()
     slug_map: dict[str, Category] = {c.slug: c for c in all_categories}
 
-    # Step 3: Apply new groups
+    # Step 3: Apply new groups (first assignment wins for duplicate children)
     groups_applied = 0
     categories_moved = 0
+    assigned_slugs: set[str] = set()
     for group in body.groups:
         parent_slug = slugify(group.parent)
         parent_cat = slug_map.get(parent_slug)
@@ -364,6 +370,8 @@ def auto_group_apply(
         moved_in_group = 0
         for child_name in group.children:
             child_slug = slugify(child_name)
+            if child_slug in assigned_slugs:
+                continue
             child_cat = slug_map.get(child_slug)
             if not child_cat:
                 continue
@@ -372,6 +380,7 @@ def auto_group_apply(
                 continue
             child_cat.parent_id = parent_cat.id
             session.add(child_cat)
+            assigned_slugs.add(child_slug)
             moved_in_group += 1
 
         if moved_in_group > 0:
