@@ -48,7 +48,7 @@ async def check_health(host: str) -> dict:
                 "version": data.get("version"),
                 "latency_ms": latency_ms,
             }
-    except (httpx.HTTPError, httpx.TimeoutException, ConnectionError, OSError):
+    except (httpx.HTTPError, httpx.TimeoutException, ConnectionError, OSError):  # fmt: skip  # parens required for <3.14 compat; ruff py314 strips them (PEP 758)
         return {"connected": False, "version": None, "latency_ms": None}
 
 
