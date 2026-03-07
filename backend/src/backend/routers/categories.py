@@ -1,13 +1,18 @@
-"""Category CRUD, batch, and merge endpoints."""
+"""Category CRUD, batch, merge, and auto-group endpoints."""
 
 from fastapi import APIRouter, Depends, HTTPException
 from slugify import slugify
 from sqlmodel import Session, func, select
 
 from backend.database import smart_case
-from backend.deps import get_session
+from backend.deps import get_session, resolve_task_runtime
+from backend.llm_providers.registry import get_provider
 from backend.models import ArticleCategoryLink, Category
 from backend.schemas import (
+    AutoGroupApplyRequest,
+    AutoGroupApplyResponse,
+    AutoGroupRequest,
+    AutoGroupSuggestResponse,
     CategoryAcknowledgeRequest,
     CategoryBatchAction,
     CategoryBatchMove,
@@ -15,6 +20,7 @@ from backend.schemas import (
     CategoryMerge,
     CategoryResponse,
     CategoryUpdate,
+    GroupSuggestionItem,
 )
 
 VALID_WEIGHTS = {"block", "reduce", "normal", "boost", "max"}
@@ -259,6 +265,125 @@ def batch_move_categories(
 
     session.commit()
     return {"ok": True, "updated": updated}
+
+
+@router.post("/auto-group/suggest", response_model=AutoGroupSuggestResponse)
+async def auto_group_suggest(
+    body: AutoGroupRequest,
+    session: Session = Depends(get_session),
+):
+    """Ask LLM to suggest category groupings. No DB writes."""
+    from backend.scoring import get_active_categories
+
+    display_names, hierarchy, _hidden = get_active_categories(session)
+
+    if len(display_names) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Need at least 2 non-hidden categories to suggest groupings",
+        )
+
+    # Resolve provider/model for categorization task
+    runtime = resolve_task_runtime(session, "categorization")
+    provider_name = body.provider or runtime.provider
+    model_name = body.model or runtime.model
+
+    if not model_name:
+        raise HTTPException(status_code=400, detail="No model configured")
+
+    provider = get_provider(provider_name)
+
+    # Determine endpoint — for Ollama we need the endpoint from runtime
+    endpoint = runtime.endpoint or ""
+
+    response = await provider.suggest_groups(
+        all_categories=display_names,
+        existing_groups=hierarchy or {},
+        endpoint=endpoint,
+        model=model_name,
+    )
+
+    # Build slug lookup for validation
+    all_categories = session.exec(
+        select(Category).where(Category.is_hidden == False)  # noqa: E712
+    ).all()
+    slug_to_name = {slugify(c.display_name): c.display_name for c in all_categories}
+    valid_slugs = set(slug_to_name.keys())
+
+    # Filter groups: only include groups where parent AND all children exist
+    valid_groups = []
+    for group in response.groups:
+        parent_slug = slugify(group.parent)
+        if parent_slug not in valid_slugs:
+            continue
+        valid_children = [
+            c for c in group.children
+            if slugify(c) in valid_slugs and slugify(c) != parent_slug
+        ]
+        if valid_children:
+            valid_groups.append(
+                GroupSuggestionItem(parent=group.parent, children=valid_children)
+            )
+
+    return AutoGroupSuggestResponse(groups=valid_groups)
+
+
+@router.post("/auto-group/apply", response_model=AutoGroupApplyResponse)
+def auto_group_apply(
+    body: AutoGroupApplyRequest,
+    session: Session = Depends(get_session),
+):
+    """Apply confirmed groupings: flatten existing groups, then apply new ones."""
+    # Step 1: Flatten all existing parent-child relationships
+    children_with_parents = session.exec(
+        select(Category).where(Category.parent_id.isnot(None))  # type: ignore[union-attr]
+    ).all()
+    for child in children_with_parents:
+        # Inherit parent weight if child has no explicit weight
+        if child.weight is None and child.parent_id is not None:
+            parent = session.get(Category, child.parent_id)
+            if parent and parent.weight is not None:
+                child.weight = parent.weight
+        child.parent_id = None
+        session.add(child)
+    session.flush()
+
+    # Step 2: Build slug->category lookup
+    all_categories = session.exec(select(Category)).all()
+    slug_map: dict[str, Category] = {c.slug: c for c in all_categories}
+
+    # Step 3: Apply new groups
+    groups_applied = 0
+    categories_moved = 0
+    for group in body.groups:
+        parent_slug = slugify(group.parent)
+        parent_cat = slug_map.get(parent_slug)
+        if not parent_cat:
+            continue
+
+        moved_in_group = 0
+        for child_name in group.children:
+            child_slug = slugify(child_name)
+            child_cat = slug_map.get(child_slug)
+            if not child_cat:
+                continue
+            # Skip self-references
+            if child_cat.id == parent_cat.id:
+                continue
+            child_cat.parent_id = parent_cat.id
+            session.add(child_cat)
+            moved_in_group += 1
+
+        if moved_in_group > 0:
+            groups_applied += 1
+            categories_moved += moved_in_group
+
+    session.commit()
+    return AutoGroupApplyResponse(
+        ok=True,
+        groups_applied=groups_applied,
+        categories_moved=categories_moved,
+    )
 
 
 @router.post("/batch-hide")

@@ -16,8 +16,10 @@ import {
   batchHideCategories as apiBatchHideCategories,
   batchDeleteCategories as apiBatchDeleteCategories,
   ungroupParent as apiUngroupParent,
+  autoGroupSuggest as apiAutoGroupSuggest,
+  autoGroupApply as apiAutoGroupApply,
 } from "@/lib/api";
-import { Category } from "@/lib/types";
+import type { Category, GroupSuggestion } from "@/lib/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { NEW_COUNT_POLL_INTERVAL } from "@/lib/constants";
 import { toaster } from "@/components/ui/toaster";
@@ -155,6 +157,20 @@ export function useCategories() {
     },
   });
 
+  const autoGroupSuggestMutation = useMutation({
+    mutationFn: (options?: { provider?: string; model?: string }) =>
+      apiAutoGroupSuggest(options),
+    meta: { errorTitle: "Failed to generate category groupings" },
+  });
+
+  const autoGroupApplyMutation = useMutation({
+    mutationFn: (groups: GroupSuggestion[]) => apiAutoGroupApply(groups),
+    meta: { errorTitle: "Failed to apply category groupings" },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
+    },
+  });
+
   // Stable helper with auto-acknowledge logic — useCallback ensures consumers
   // get a referentially stable function (critical for React.memo on row components)
   const updateCategory = useCallback(
@@ -181,5 +197,7 @@ export function useCategories() {
     batchHideMutation,
     batchDeleteMutation,
     ungroupParentMutation,
+    autoGroupSuggestMutation,
+    autoGroupApplyMutation,
   };
 }

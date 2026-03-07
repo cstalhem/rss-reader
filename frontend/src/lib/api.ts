@@ -1,11 +1,14 @@
 import {
   Article,
   ArticleListItem,
+  AutoGroupApplyResponse,
+  AutoGroupSuggestResponse,
   AvailableModel,
   Category,
   Feed,
   FeedFolder,
   FetchArticlesParams,
+  GroupSuggestion,
   ProviderListItem,
   RefreshStatus,
   RescoreResult,
@@ -536,6 +539,30 @@ export async function ungroupParent(
     method: "POST",
   });
   if (!response.ok) await throwApiError(response, "Failed to ungroup category");
+  return response.json();
+}
+
+export async function autoGroupSuggest(
+  options?: { provider?: string; model?: string }
+): Promise<AutoGroupSuggestResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/auto-group/suggest`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(options ?? {}),
+  });
+  if (!response.ok) await throwApiError(response, "Failed to suggest category groupings");
+  return response.json();
+}
+
+export async function autoGroupApply(
+  groups: GroupSuggestion[]
+): Promise<AutoGroupApplyResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/categories/auto-group/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ groups }),
+  });
+  if (!response.ok) await throwApiError(response, "Failed to apply category groupings");
   return response.json();
 }
 

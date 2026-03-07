@@ -29,6 +29,7 @@ from backend.prompts import (
     build_categorization_prompt,
     build_scoring_prompt,
 )
+from backend.prompts.grouping import GroupingResponse, build_grouping_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -369,6 +370,30 @@ class OllamaProvider:
             model=model,
             thinking=thinking,
         )
+
+    async def suggest_groups(
+        self,
+        all_categories: list[str],
+        existing_groups: dict[str, list[str]],
+        endpoint: str,
+        model: str,
+    ) -> GroupingResponse:
+        prompt = build_grouping_prompt(all_categories, existing_groups)
+
+        client = get_ollama_client(endpoint)
+        content = ""
+        async for chunk in await client.chat(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            format=GroupingResponse.model_json_schema(),
+            options={"temperature": 0},
+            stream=True,
+        ):
+            content += chunk["message"].get("content") or ""
+
+        result = GroupingResponse.model_validate_json(content)
+        logger.info("Suggested %d category groups", len(result.groups))
+        return result
 
     async def close(self) -> None:
         await close_ollama_client()
