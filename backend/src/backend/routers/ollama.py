@@ -300,7 +300,7 @@ async def ollama_health(session: Session = Depends(get_session)):
 @router.post("/ollama/test-connection", response_model=OllamaHealthResponse)
 async def test_ollama_connection(request: TestConnectionRequest):
     """Test Ollama connectivity with arbitrary host/port (no DB dependency)."""
-    endpoint = f"{request.base_url}:{request.port}"
+    endpoint = f"{request.base_url.rstrip('/')}:{request.port}"
     result = await ollama_service.check_health(endpoint)
     return OllamaHealthResponse(**result)
 
