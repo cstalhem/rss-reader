@@ -34,6 +34,7 @@ import {
 } from "react-icons/lu";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useArticles, useMarkAsRead } from "@/hooks/useArticles";
+import { useBufferedArticles } from "@/hooks/useBufferedArticles";
 import {
   useMarkAllRead,
   useMarkAllArticlesRead,
@@ -45,6 +46,7 @@ import { useScoringStatus } from "@/hooks/useScoringStatus";
 import { useCompletingArticles } from "@/hooks/useCompletingArticles";
 import { rescoreArticle } from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
+import { NewArticlesPill } from "./NewArticlesPill";
 import { ArticleRow } from "./ArticleRow";
 import { ArticleRowSkeleton } from "./ArticleRowSkeleton";
 import { ArticleReader } from "./ArticleReader";
@@ -114,11 +116,24 @@ export function ArticleList({
     scoringActive: scoringCount > 0,
   });
 
+  // Buffer new articles on Unread tab to prevent list shift during scoring
+  const isBuffering = filter === "unread" && scoringCount > 0;
+  const { displayArticles: bufferedArticles, newCount, flush } = useBufferedArticles(
+    articles,
+    isBuffering,
+    selection,
+  );
+
   // Track articles completing scoring (for animation in Scoring tab)
-  const { displayArticles, completingIds } = useCompletingArticles(
+  // Pass raw `articles` — not bufferedArticles — to avoid referential instability
+  // triggering useCompletingArticles' useLayoutEffect setState loop.
+  const { displayArticles: completedArticles, completingIds } = useCompletingArticles(
     articles,
     filter === "scoring",
   );
+
+  // The two hooks are mutually exclusive by tab — pick the right output
+  const displayArticles = isBuffering ? bufferedArticles : completedArticles;
 
   const { data: feeds } = useFeeds();
   const { data: folders } = useFeedFolders();
@@ -473,6 +488,9 @@ export function ArticleList({
           {articleCount}
         </Text>
       </Flex>
+
+      {/* New articles pill */}
+      {newCount > 0 && <NewArticlesPill count={newCount} onFlush={flush} />}
 
       {/* Article list */}
       {isLoading ? (
