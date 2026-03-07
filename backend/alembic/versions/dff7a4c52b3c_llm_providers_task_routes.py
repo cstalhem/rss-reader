@@ -7,8 +7,10 @@ Create Date: 2026-02-24 10:04:53.621208
 """
 
 import json
+import os
 from collections.abc import Sequence
 from datetime import datetime
+from urllib.parse import urlparse
 
 import sqlalchemy as sa
 
@@ -228,9 +230,18 @@ def upgrade() -> None:
     use_separate_models = bool(legacy["use_separate_models"])
     thinking = bool(legacy["thinking"])
 
-    # Use defaults -- migration is self-contained, no app imports.
-    base_url = "http://localhost"
-    port = 11434
+    # Read host from env vars (OLLAMA__HOST or OLLAMA_HOST), fall back to default.
+    # Self-contained: no app imports, just env + stdlib urlparse.
+    host_env = os.environ.get("OLLAMA__HOST") or os.environ.get("OLLAMA_HOST")
+    if host_env:
+        parsed = urlparse(host_env)
+        scheme = parsed.scheme if parsed.scheme in {"http", "https"} else "http"
+        hostname = parsed.hostname or "localhost"
+        base_url = f"{scheme}://{hostname}"
+        port = parsed.port or 11434
+    else:
+        base_url = "http://localhost"
+        port = 11434
 
     config_json = json.dumps(
         {
