@@ -118,10 +118,11 @@ export function ArticleList({
 
   // Buffer new articles on Unread tab to prevent list shift during scoring
   const isBuffering = filter === "unread" && scoringCount > 0;
+  const resetKey = `${selection.kind}:${selection.kind === "feed" ? selection.feedId : selection.kind === "folder" ? selection.folderId : "all"}:${sortOption}`;
   const { displayArticles: bufferedArticles, newCount, flush } = useBufferedArticles(
     articles,
     isBuffering,
-    selection,
+    resetKey,
   );
 
   // Track articles completing scoring (for animation in Scoring tab)
