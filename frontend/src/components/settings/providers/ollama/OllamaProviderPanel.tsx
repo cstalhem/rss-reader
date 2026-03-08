@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Box,
   Button,
@@ -59,6 +59,16 @@ export function OllamaProviderPanel({
   );
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [showCheck, setShowCheck] = useState(false);
+  const [prevServerConfig, setPrevServerConfig] = useState(serverConfig);
+
+  // Sync local form state when server config loads (replaces useEffect)
+  if (serverConfig !== prevServerConfig) {
+    setPrevServerConfig(serverConfig);
+    if (!isNew && serverConfig) {
+      setLocalHost(serverConfig.base_url);
+      setLocalPort(serverConfig.port);
+    }
+  }
 
   const testMutation = useMutation({
     mutationFn: () => testOllamaConnection(localHost, localPort),
@@ -88,14 +98,6 @@ export function OllamaProviderPanel({
     },
   });
 
-  // Sync local state when server config loads (useState initializer misses async data)
-  useEffect(() => {
-    if (!isNew && serverConfig) {
-      setLocalHost(serverConfig.base_url);
-      setLocalPort(serverConfig.port);
-    }
-  }, [isNew, serverConfig]);
-
   const hostEmpty = localHost.trim() === "";
   const hostError =
     !hostEmpty &&
@@ -109,7 +111,7 @@ export function OllamaProviderPanel({
     serverConfig &&
     (localHost !== serverConfig.base_url || localPort !== serverConfig.port);
 
-  const handleSave = useCallback(() => {
+  const handleSave = () => {
     const configToSave: OllamaConfig = {
       base_url: localHost,
       port: localPort,
@@ -140,15 +142,7 @@ export function OllamaProviderPanel({
         }
       },
     });
-  }, [
-    localHost,
-    localPort,
-    serverConfig,
-    saveMutation.mutate,
-    queryClient,
-    isNew,
-    onCancelSetup,
-  ]);
+  };
 
   return (
     <SettingsPanel>
@@ -286,7 +280,7 @@ export function OllamaProviderPanel({
         body={
           <Text>
             Disconnecting will delete the provider configuration and remove any
-            model assignments using Ollama. You'll need to set it up again if
+            model assignments using Ollama. You&apos;ll need to set it up again if
             you re-add it.
           </Text>
         }

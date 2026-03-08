@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import {
   Badge,
   Button,
@@ -63,6 +63,7 @@ export function AutoGroupDialog({
   // Auto-trigger suggest when dialog opens with single provider
   useEffect(() => {
     if (open && !multipleProviders && !hasTriggered && suggestions === null && !isSuggesting) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time trigger on dialog open; can't move to handler (controlled prop)
       setHasTriggered(true);
       onSuggest();
     }
@@ -72,22 +73,12 @@ export function AutoGroupDialog({
   const prevSuggesting = useRef(false);
   useEffect(() => {
     if (prevSuggesting.current && !isSuggesting && suggestions !== null && suggestions.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- transition detector for ephemeral animation state
       setShowComplete(true);
       completeTimer.current = setTimeout(() => setShowComplete(false), COMPLETE_DELAY_MS);
     }
     prevSuggesting.current = isSuggesting;
   }, [isSuggesting, suggestions]);
-
-  // Reset state when dialog closes
-  useEffect(() => {
-    if (!open) {
-      setSelectedProvider(null);
-      setSelectedModel(null);
-      setHasTriggered(false);
-      setShowComplete(false);
-      if (completeTimer.current) clearTimeout(completeTimer.current);
-    }
-  }, [open]);
 
   // Compute ungrouped categories (those not mentioned in any suggestion)
   const ungroupedCategories = useMemo(() => {
@@ -122,6 +113,11 @@ export function AutoGroupDialog({
   };
 
   const handleClose = () => {
+    setSelectedProvider(null);
+    setSelectedModel(null);
+    setHasTriggered(false);
+    setShowComplete(false);
+    if (completeTimer.current) clearTimeout(completeTimer.current);
     onOpenChange(false);
   };
 

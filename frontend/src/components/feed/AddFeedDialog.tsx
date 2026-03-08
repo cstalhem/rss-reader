@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   Input,
@@ -32,19 +32,17 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
   const addFeed = useAddFeed();
   const updateFeed = useUpdateFeed();
 
-  // Reset state when dialog closes
-  useEffect(() => {
-    if (!isOpen) {
-      setStep("url");
-      setUrl("");
-      setError("");
-      setFeedTitle("");
-      setEditedTitle("");
-      setFeedId(null);
-      setArticleCount(0);
-      setTitleSaved(false);
-    }
-  }, [isOpen]);
+  const handleClose = () => {
+    setStep("url");
+    setUrl("");
+    setError("");
+    setFeedTitle("");
+    setEditedTitle("");
+    setFeedId(null);
+    setArticleCount(0);
+    setTitleSaved(false);
+    onClose();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,13 +67,14 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
       setEditedTitle(feed.title);
       setArticleCount(feed.unread_count);
       setStep("success");
-    } catch (err: any) {
+    } catch (err) {
       setStep("url");
-      if (err.message.includes("already exists")) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes("already exists")) {
         setError("This feed already exists");
-      } else if (err.message.includes("not a valid RSS feed")) {
+      } else if (message.includes("not a valid RSS feed")) {
         setError("URL is not a valid RSS feed");
-      } else if (err.message.includes("Failed to fetch")) {
+      } else if (message.includes("Failed to fetch")) {
         setError("Failed to fetch URL. Please check the URL and try again.");
       } else {
         setError("Failed to add feed. Please try again.");
@@ -90,7 +89,7 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
         setFeedTitle(editedTitle);
         setTitleSaved(true);
         setTimeout(() => setTitleSaved(false), 2000);
-      } catch (err) {
+      } catch {
         setError("Failed to update feed name");
       }
     }
@@ -108,7 +107,7 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
   };
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={({ open }) => !open && onClose()} placement="center">
+    <Dialog.Root open={isOpen} onOpenChange={({ open }) => !open && handleClose()} placement="center">
       <Dialog.Backdrop />
       <Dialog.Positioner>
         <Dialog.Content maxW="md">
@@ -131,7 +130,7 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
                 </Field.Root>
 
                 <Flex justifyContent="flex-end" mt={4} gap={2}>
-                  <Button variant="ghost" onClick={onClose}>
+                  <Button variant="ghost" onClick={handleClose}>
                     Cancel
                   </Button>
                   <Button type="submit" colorPalette="accent">
@@ -183,7 +182,7 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
                   <Button variant="ghost" onClick={handleAddAnother}>
                     Add Another
                   </Button>
-                  <Button colorPalette="accent" onClick={onClose}>
+                  <Button colorPalette="accent" onClick={handleClose}>
                     Done
                   </Button>
                 </Flex>
