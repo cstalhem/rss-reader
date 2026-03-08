@@ -1,4 +1,4 @@
-name: Build and Push Docker Images
+name: CI
 
 on:
   push:
@@ -11,7 +11,8 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  test-frontend:
+  lint-and-test-frontend:
+    name: "Frontend: Lint, Type Check & Test"
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -38,7 +39,8 @@ jobs:
         working-directory: frontend
         run: bun run test
 
-  test-backend:
+  lint-and-test-backend:
+    name: "Backend: Lint & Test"
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -64,8 +66,9 @@ jobs:
         working-directory: backend
         run: uv run pytest
 
-  build-and-push:
-    needs: [test-frontend, test-backend]
+  docker-build-and-publish:
+    name: "Docker: Build & Publish (${{ matrix.service }})"
+    needs: [lint-and-test-frontend, lint-and-test-backend]
     runs-on: ubuntu-latest
     strategy:
       matrix:
