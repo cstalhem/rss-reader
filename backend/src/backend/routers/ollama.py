@@ -109,20 +109,16 @@ class PullModelRequest(BaseModel):
     model: str
 
 
-class OllamaConfigResponse(BaseModel):
-    base_url: str
-    port: int = Field(ge=1, le=65535)
-    categorization_model: str | None
-    scoring_model: str | None
-    use_separate_models: bool
-
-
 class OllamaConfigUpdate(BaseModel):
     base_url: str
     port: int = Field(ge=1, le=65535)
     categorization_model: str | None
     scoring_model: str | None
     use_separate_models: bool
+
+
+class OllamaConfigResponse(OllamaConfigUpdate):
+    pass
 
 
 class OllamaPromptsResponse(BaseModel):

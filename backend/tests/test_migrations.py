@@ -362,8 +362,7 @@ def test_upgrade_preserves_custom_ollama_host_from_env(monkeypatch) -> None:
 
         with sqlite3.connect(db_path) as conn:
             provider_row = conn.execute(
-                "SELECT config_json FROM llm_provider_configs "
-                "WHERE provider = 'ollama'"
+                "SELECT config_json FROM llm_provider_configs WHERE provider = 'ollama'"
             ).fetchone()
             assert provider_row is not None
 

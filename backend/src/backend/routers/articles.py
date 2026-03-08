@@ -31,23 +31,26 @@ def _strip_html_truncate(html: str | None, max_len: int = 200) -> str | None:
     return text
 
 
-def _article_to_response(article: Article) -> ArticleResponse:
-    """Convert an Article with loaded categories_rel to an ArticleResponse."""
+def _build_category_embeds(article: Article) -> list[ArticleCategoryEmbed] | None:
+    """Build category embed list from an Article with loaded categories_rel."""
+    if not article.categories_rel:
+        return None
     from backend.scoring import get_effective_weight
 
-    categories = None
-    if article.categories_rel:
-        categories = [
-            ArticleCategoryEmbed(
-                id=cat.id,  # pyright: ignore[reportArgumentType]
-                display_name=cat.display_name,
-                slug=cat.slug,
-                effective_weight=get_effective_weight(cat),
-                parent_display_name=cat.parent.display_name if cat.parent else None,
-            )
-            for cat in article.categories_rel
-        ]
+    return [
+        ArticleCategoryEmbed(
+            id=cat.id,  # pyright: ignore[reportArgumentType]
+            display_name=cat.display_name,
+            slug=cat.slug,
+            effective_weight=get_effective_weight(cat),
+            parent_display_name=cat.parent.display_name if cat.parent else None,
+        )
+        for cat in article.categories_rel
+    ]
 
+
+def _article_to_response(article: Article) -> ArticleResponse:
+    """Convert an Article with loaded categories_rel to an ArticleResponse."""
     return ArticleResponse(
         id=article.id,  # pyright: ignore[reportArgumentType]
         feed_id=article.feed_id,
@@ -58,7 +61,7 @@ def _article_to_response(article: Article) -> ArticleResponse:
         summary=article.summary,
         content=article.content,
         is_read=article.is_read,
-        categories=categories,
+        categories=_build_category_embeds(article),
         interest_score=article.interest_score,
         quality_score=article.quality_score,
         composite_score=article.composite_score,
@@ -70,21 +73,6 @@ def _article_to_response(article: Article) -> ArticleResponse:
 
 def _article_to_list_item(article: Article) -> ArticleListItem:
     """Convert an Article with loaded categories_rel to a lightweight list item."""
-    from backend.scoring import get_effective_weight
-
-    categories = None
-    if article.categories_rel:
-        categories = [
-            ArticleCategoryEmbed(
-                id=cat.id,  # pyright: ignore[reportArgumentType]
-                display_name=cat.display_name,
-                slug=cat.slug,
-                effective_weight=get_effective_weight(cat),
-                parent_display_name=cat.parent.display_name if cat.parent else None,
-            )
-            for cat in article.categories_rel
-        ]
-
     return ArticleListItem(
         id=article.id,  # pyright: ignore[reportArgumentType]
         feed_id=article.feed_id,
@@ -93,7 +81,7 @@ def _article_to_list_item(article: Article) -> ArticleListItem:
         author=article.author,
         published_at=article.published_at,
         is_read=article.is_read,
-        categories=categories,
+        categories=_build_category_embeds(article),
         interest_score=article.interest_score,
         quality_score=article.quality_score,
         composite_score=article.composite_score,
@@ -157,11 +145,13 @@ def list_articles(
     if sort_by == "composite_score":
         if order == "desc":
             statement = statement.order_by(
-                nulls_last(desc(Article.composite_score)), Article.published_at.asc()  # pyright: ignore[reportArgumentType, reportAttributeAccessIssue, reportOptionalMemberAccess]
+                nulls_last(desc(Article.composite_score)),
+                Article.published_at.asc(),  # pyright: ignore[reportArgumentType, reportAttributeAccessIssue, reportOptionalMemberAccess]
             )
         else:
             statement = statement.order_by(
-                nulls_last(Article.composite_score), Article.published_at.asc()  # pyright: ignore[reportArgumentType, reportAttributeAccessIssue, reportOptionalMemberAccess]
+                nulls_last(Article.composite_score),
+                Article.published_at.asc(),  # pyright: ignore[reportArgumentType, reportAttributeAccessIssue, reportOptionalMemberAccess]
             )
     elif sort_by == "published_at":
         if order == "desc":

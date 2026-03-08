@@ -268,8 +268,6 @@ class OllamaProviderConfig(BaseModel):
             raise ValueError("base_url must not include credentials")
 
         hostname = parsed.hostname
-        if hostname is None:
-            raise ValueError("base_url must include a valid host")
         if ":" in hostname and not hostname.startswith("["):
             hostname = f"[{hostname}]"
         return f"{parsed.scheme}://{hostname}"

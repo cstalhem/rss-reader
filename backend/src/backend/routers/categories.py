@@ -59,7 +59,8 @@ def list_categories(
     """Get flat list of all categories with article counts."""
     statement = (
         select(
-            Category, func.count(ArticleCategoryLink.article_id).label("article_count")  # pyright: ignore[reportArgumentType]
+            Category,
+            func.count(ArticleCategoryLink.article_id).label("article_count"),  # pyright: ignore[reportArgumentType]
         )
         .outerjoin(ArticleCategoryLink, Category.id == ArticleCategoryLink.category_id)  # pyright: ignore[reportArgumentType]
         .group_by(Category.id)  # pyright: ignore[reportArgumentType]
@@ -192,10 +193,8 @@ def merge_categories(
             .where(ArticleCategoryLink.article_id == link.article_id)
             .where(ArticleCategoryLink.category_id == body.target_id)
         ).first()
-        if existing:
-            session.delete(link)
-        else:
-            session.delete(link)
+        session.delete(link)
+        if not existing:
             new_link = ArticleCategoryLink(
                 article_id=link.article_id,
                 category_id=body.target_id,

@@ -123,7 +123,9 @@ async def create_feed(
     session.refresh(feed)
 
     article_count, new_article_ids = save_articles(
-        session, feed.id, parsed_feed.entries  # pyright: ignore[reportArgumentType]
+        session,
+        feed.id,
+        parsed_feed.entries,  # pyright: ignore[reportArgumentType]
     )
     logger.info(f"Created feed {feed.title} with {article_count} articles")
 

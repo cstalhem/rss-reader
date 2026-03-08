@@ -77,11 +77,6 @@ def test_composite_score_capped_at_max():
     score = compute_composite_score(10, 10, [cat])
     assert score == 20.0
 
-    # Even higher theoretical value still caps at 20.0
-    cat2 = _make_category(weight="max")
-    score2 = compute_composite_score(10, 10, [cat2])
-    assert score2 <= 20.0
-
 
 def test_composite_score_boost_weight():
     """Boost weight: interest * 1.5 * quality_mult."""
