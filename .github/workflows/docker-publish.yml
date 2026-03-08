@@ -22,6 +22,9 @@ jobs:
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
+        with:
+          cache: true
+          cache-dependency-path: frontend/bun.lock
 
       - name: Install dependencies
         working-directory: frontend
@@ -33,7 +36,7 @@ jobs:
 
       - name: Type check
         working-directory: frontend
-        run: bun run build
+        run: bunx tsc --noEmit
 
       - name: Run tests
         working-directory: frontend
