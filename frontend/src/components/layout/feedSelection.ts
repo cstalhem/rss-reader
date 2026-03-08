@@ -58,7 +58,3 @@ export function validateFeedSelection(
 
   return ALL_FEEDS_SELECTION;
 }
-
-export function shouldShowFolderUnreadBadge(unreadCount: number): boolean {
-  return unreadCount > 0;
-}

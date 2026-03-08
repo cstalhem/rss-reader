@@ -143,7 +143,6 @@ function CategoryTreeParent({
                     category={child}
                     weight={effectiveWeight}
                     isOverridden={isOverridden}
-                    parentWeight={parentWeight}
                   />
                 </Box>
               );
