@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button, EmptyState, Stack } from "@chakra-ui/react";
 import { LuBot, LuPlus } from "react-icons/lu";
 import { useProviders } from "@/hooks/useProviders";
@@ -18,56 +18,45 @@ export function LLMProvidersSection() {
   const { providers, disconnectMutation } = useProviders();
   const [expandedProvider, setExpandedProvider] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [pendingProviders, setPendingProviders] = useState<Set<string>>(
-    new Set()
-  );
+  const [rawPending, setRawPending] = useState<Set<string>>(new Set());
 
-  // When a pending provider appears in the server list, remove it from pending
-  useEffect(() => {
-    if (!providers) return;
+  // Derived: remove pending providers that now exist on the server
+  const pendingProviders = useMemo(() => {
+    if (!providers) return rawPending;
     const serverIds = new Set(providers.map((p) => p.provider));
-    setPendingProviders((prev) => {
-      const next = new Set<string>();
-      for (const id of prev) {
-        if (!serverIds.has(id)) next.add(id);
-      }
-      if (next.size === prev.size) return prev;
-      return next;
-    });
-  }, [providers]);
+    const filtered = new Set<string>();
+    for (const id of rawPending) {
+      if (!serverIds.has(id)) filtered.add(id);
+    }
+    return filtered.size === rawPending.size ? rawPending : filtered;
+  }, [rawPending, providers]);
 
-  const handleAdd = useCallback((providerId: string) => {
-    setPendingProviders((prev) => new Set(prev).add(providerId));
+  const handleAdd = (providerId: string) => {
+    setRawPending((prev) => new Set(prev).add(providerId));
     setExpandedProvider(providerId);
     setShowAddDialog(false);
-  }, []);
+  };
 
-  const handleCancelSetup = useCallback((providerId: string) => {
-    setPendingProviders((prev) => {
+  const handleCancelSetup = (providerId: string) => {
+    setRawPending((prev) => {
       const next = new Set(prev);
       next.delete(providerId);
       return next;
     });
     setExpandedProvider(null);
-  }, []);
+  };
 
-  const handleDisconnect = useCallback(
-    (providerId: string) => {
-      disconnectMutation.mutate(providerId, {
-        onSuccess: () => {
-          setExpandedProvider(null);
-        },
-      });
-    },
-    [disconnectMutation.mutate]
-  );
+  const handleDisconnect = (providerId: string) => {
+    disconnectMutation.mutate(providerId, {
+      onSuccess: () => {
+        setExpandedProvider(null);
+      },
+    });
+  };
 
-  const handleToggle = useCallback(
-    (id: string) => {
-      setExpandedProvider((prev) => (prev === id ? null : id));
-    },
-    []
-  );
+  const handleToggle = (id: string) => {
+    setExpandedProvider((prev) => (prev === id ? null : id));
+  };
 
   const savedProviderIds = providers?.map((p) => p.provider) ?? [];
   const allProviderIds = [

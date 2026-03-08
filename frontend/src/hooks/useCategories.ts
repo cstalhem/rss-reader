@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchCategories,
@@ -171,15 +170,13 @@ export function useCategories() {
     },
   });
 
-  // Stable helper with auto-acknowledge logic — useCallback ensures consumers
-  // get a referentially stable function (critical for React.memo on row components)
-  const updateCategory = useCallback(
-    (id: number, data: Partial<Pick<Category, "display_name" | "parent_id" | "weight" | "is_hidden" | "is_seen">>) => {
-      const payload = data.weight !== undefined ? { ...data, is_seen: true } : data;
-      updateCategoryMutation.mutate({ id, data: payload });
-    },
-    [updateCategoryMutation.mutate]
-  );
+  const updateCategory = (
+    id: number,
+    data: Partial<Pick<Category, "display_name" | "parent_id" | "weight" | "is_hidden" | "is_seen">>
+  ) => {
+    const payload = data.weight !== undefined ? { ...data, is_seen: true } : data;
+    updateCategoryMutation.mutate({ id, data: payload });
+  };
 
   return {
     categories: categoriesQuery.data ?? [],
