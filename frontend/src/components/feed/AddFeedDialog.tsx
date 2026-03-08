@@ -153,24 +153,27 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
                   Found {articleCount} article{articleCount !== 1 ? "s" : ""}
                 </Text>
 
-                <Field.Root>
-                  <Field.Label>Feed Name</Field.Label>
-                  <Input
-                    value={editedTitle}
-                    onChange={(e) => setEditedTitle(e.target.value)}
-                  />
-                </Field.Root>
+                <form onSubmit={(e) => { e.preventDefault(); handleSaveName(); }}>
+                  <Field.Root>
+                    <Field.Label>Feed Name</Field.Label>
+                    <Input
+                      value={editedTitle}
+                      onChange={(e) => setEditedTitle(e.target.value)}
+                    />
+                  </Field.Root>
 
-                {editedTitle !== feedTitle && (
-                  <Button
-                    size="sm"
-                    colorPalette="accent"
-                    onClick={handleSaveName}
-                    disabled={updateFeed.isPending}
-                  >
-                    {updateFeed.isPending ? "Saving..." : "Save Name"}
-                  </Button>
-                )}
+                  {editedTitle !== feedTitle && (
+                    <Button
+                      size="sm"
+                      colorPalette="accent"
+                      type="submit"
+                      disabled={updateFeed.isPending}
+                      mt={4}
+                    >
+                      {updateFeed.isPending ? "Saving..." : "Save Name"}
+                    </Button>
+                  )}
+                </form>
 
                 {titleSaved && (
                   <Text fontSize="sm" color="fg.success">

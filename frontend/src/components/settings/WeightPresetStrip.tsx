@@ -1,14 +1,13 @@
 "use client";
 
 import React from "react";
-import { Flex, Box, Button, IconButton } from "@chakra-ui/react";
+import { Flex, Box, Button } from "@chakra-ui/react";
 import {
   LuShieldBan,
   LuChevronDown,
   LuMinus,
   LuChevronUp,
   LuChevronsUp,
-  LuUndo2,
 } from "react-icons/lu";
 
 const WEIGHT_OPTIONS = [
@@ -23,14 +22,12 @@ interface WeightPresetStripProps {
   value: string;
   onChange: (weight: string) => void;
   isOverridden?: boolean; // true = explicit override, false = inherited, undefined = root
-  onReset?: () => void; // reset to parent weight
 }
 
 const WeightPresetStripComponent = ({
   value,
   onChange,
   isOverridden,
-  onReset,
 }: WeightPresetStripProps) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
@@ -88,24 +85,6 @@ const WeightPresetStripComponent = ({
           );
         })}
       </Flex>
-
-      {/* Reset button - only when overridden */}
-      <Box w="24px" ml={0.5}>
-        {isOverridden && onReset && (
-          <IconButton
-            aria-label="Reset to parent weight"
-            size="xs"
-            variant="ghost"
-            colorPalette="accent"
-            onClick={(e) => {
-              e.stopPropagation();
-              onReset();
-            }}
-          >
-            <LuUndo2 size={12} />
-          </IconButton>
-        )}
-      </Box>
     </Flex>
   );
 };
