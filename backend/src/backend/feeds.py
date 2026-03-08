@@ -130,7 +130,9 @@ async def refresh_feed(session: Session, feed: Feed) -> int:
 
         # Save articles and enqueue for scoring
         new_count, new_article_ids = save_articles(
-            session, feed.id, parsed_feed.entries  # pyright: ignore[reportArgumentType]
+            session,
+            feed.id,
+            parsed_feed.entries,  # pyright: ignore[reportArgumentType]
         )
 
         # Enqueue new articles for scoring

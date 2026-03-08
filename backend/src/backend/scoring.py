@@ -177,10 +177,7 @@ def get_active_categories(
     hierarchy: dict[str, list[str]] = {}
     for cat in categories:
         if cat.parent_id is not None and cat.parent is not None:
-            parent_name = cat.parent.display_name
-            if parent_name not in hierarchy:
-                hierarchy[parent_name] = []
-            hierarchy[parent_name].append(cat.display_name)
+            hierarchy.setdefault(cat.parent.display_name, []).append(cat.display_name)
 
     # Sort children lists for consistency
     for children in hierarchy.values():

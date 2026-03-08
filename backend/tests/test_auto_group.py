@@ -30,9 +30,7 @@ MOCK_RUNTIME = TaskRuntimeResolution(
 
 class TestBuildGroupingPrompt:
     def test_includes_all_category_names(self):
-        prompt = build_grouping_prompt(
-            ["AI", "Programming", "Science"], {}
-        )
+        prompt = build_grouping_prompt(["AI", "Programming", "Science"], {})
         assert "- AI" in prompt
         assert "- Programming" in prompt
         assert "- Science" in prompt
@@ -146,9 +144,7 @@ class TestAutoGroupApply:
         make_category: Callable[..., Category],
     ):
         """Child with explicit weight keeps it after flatten, not overwritten by parent."""
-        parent = make_category(
-            display_name="Parent", slug="parent", weight="boost"
-        )
+        parent = make_category(display_name="Parent", slug="parent", weight="boost")
         child = make_category(
             display_name="Child",
             slug="child",
@@ -276,7 +272,9 @@ class TestAutoGroupSuggest:
         # LLM returns non-canonical casing — response should use DB display_name
         mock_response = GroupingResponse(
             groups=[
-                GroupSuggestion(parent="technology", children=["ai", "machine learning"]),
+                GroupSuggestion(
+                    parent="technology", children=["ai", "machine learning"]
+                ),
                 # This one references non-existent categories — should be filtered out
                 GroupSuggestion(parent="Science", children=["Physics", "Biology"]),
             ]
@@ -287,9 +285,7 @@ class TestAutoGroupSuggest:
                 "backend.routers.categories.resolve_task_runtime",
                 return_value=MOCK_RUNTIME,
             ),
-            patch(
-                "backend.routers.categories.get_provider"
-            ) as mock_get_provider,
+            patch("backend.routers.categories.get_provider") as mock_get_provider,
         ):
             mock_provider = AsyncMock()
             mock_provider.suggest_groups.return_value = mock_response

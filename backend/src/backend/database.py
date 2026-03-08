@@ -128,7 +128,7 @@ def _seed_default_categories(conn):
     from backend.prompts import DEFAULT_CATEGORY_HIERARCHY
 
     count = conn.execute(text("SELECT COUNT(*) FROM categories")).scalar()
-    if count and count > 0:
+    if count:
         return
 
     hierarchy = DEFAULT_CATEGORY_HIERARCHY

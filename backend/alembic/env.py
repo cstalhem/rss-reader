@@ -20,9 +20,9 @@ def include_object(
     object_,
     name: str | None,
     type_: str,
-    reflected: bool,  # noqa: ARG001
+    reflected: bool,
     compare_to,
-) -> bool:  # noqa: ANN001
+) -> bool:
     """Skip legacy bootstrap table from schema drift checks."""
     if type_ == "table" and name == "schema_version":
         return False
