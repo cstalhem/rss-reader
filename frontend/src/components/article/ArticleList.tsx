@@ -256,17 +256,6 @@ export function ArticleList({
     setIsReaderOpen(false);
   }, []);
 
-  // Escape key to close the reader
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isReaderOpen) {
-        handleCloseReader();
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [isReaderOpen, handleCloseReader]);
-
   const handleExitComplete = useCallback(() => {
     // If there's a pending article to open (user clicked a different article), open it
     if (pendingOpenRef.current) {

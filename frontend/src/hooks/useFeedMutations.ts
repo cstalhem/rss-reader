@@ -9,7 +9,7 @@ import {
   markAllFeedRead,
   markAllArticlesRead,
 } from "@/lib/api";
-import { queryKeys } from "@/lib/queryKeys";
+import { queryKeys, invalidateFeedDependents } from "@/lib/queryKeys";
 
 export function useAddFeed() {
   const queryClient = useQueryClient();
@@ -17,11 +17,7 @@ export function useAddFeed() {
   return useMutation({
     mutationFn: (url: string) => createFeed(url),
     meta: { errorTitle: "Failed to add feed" },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.feedFolders.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
-    },
+    onSuccess: () => invalidateFeedDependents(queryClient),
   });
 }
 
@@ -31,11 +27,7 @@ export function useDeleteFeed() {
   return useMutation({
     mutationFn: (id: number) => deleteFeed(id),
     meta: { errorTitle: "Failed to delete feed" },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.feedFolders.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
-    },
+    onSuccess: () => invalidateFeedDependents(queryClient),
   });
 }
 
@@ -51,11 +43,7 @@ export function useUpdateFeed() {
       data: { title?: string; display_order?: number; folder_id?: number | null };
     }) => updateFeed(id, data),
     meta: { errorTitle: "Failed to update feed" },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.feedFolders.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
-    },
+    onSuccess: () => invalidateFeedDependents(queryClient),
   });
 }
 
@@ -84,11 +72,7 @@ export function useMarkAllRead() {
   return useMutation({
     mutationFn: (feedId: number) => markAllFeedRead(feedId),
     meta: { errorTitle: "Failed to mark feed as read" },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.feedFolders.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
-    },
+    onSuccess: () => invalidateFeedDependents(queryClient),
   });
 }
 
@@ -98,10 +82,6 @@ export function useMarkAllArticlesRead() {
   return useMutation({
     mutationFn: () => markAllArticlesRead(),
     meta: { errorTitle: "Failed to mark all articles read" },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.feedFolders.all });
-    },
+    onSettled: () => invalidateFeedDependents(queryClient),
   });
 }

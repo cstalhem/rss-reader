@@ -12,7 +12,6 @@ interface CategoryChildRowProps {
   category: Category;
   weight: string;
   isOverridden: boolean;
-  parentWeight: string;
 }
 
 const CategoryChildRowComponent = ({

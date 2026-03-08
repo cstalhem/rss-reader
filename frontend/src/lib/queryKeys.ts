@@ -47,3 +47,11 @@ export function invalidateModelDependents(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: queryKeys.models.available });
   queryClient.invalidateQueries({ queryKey: queryKeys.taskRoutes.all });
 }
+
+/** Invalidate caches that depend on feed state.
+ *  Call after any mutation that changes feeds, folders, or article counts. */
+export function invalidateFeedDependents(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.feedFolders.all });
+  queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
+}

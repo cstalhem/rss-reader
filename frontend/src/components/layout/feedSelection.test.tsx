@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   parseStoredFeedSelection,
-  shouldShowFolderUnreadBadge,
   validateFeedSelection,
 } from "./feedSelection";
 import { ALL_FEEDS_SELECTION, Feed, FeedFolder } from "@/lib/types";
@@ -30,11 +29,6 @@ function makeFolder(id: number): FeedFolder {
 }
 
 describe("sidebar folder helpers", () => {
-  it("shows folder unread badge only when unread count is greater than zero", () => {
-    expect(shouldShowFolderUnreadBadge(0)).toBe(false);
-    expect(shouldShowFolderUnreadBadge(4)).toBe(true);
-  });
-
   it("falls back to all selection when selected feed no longer exists", () => {
     const selection = { kind: "feed", feedId: 123 } as const;
     const validated = validateFeedSelection(selection, [makeFeed(1)], [makeFolder(1)]);
