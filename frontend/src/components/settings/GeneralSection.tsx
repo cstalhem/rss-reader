@@ -54,18 +54,18 @@ export function GeneralSection() {
   const countdown = useCountdown(refreshStatus?.next_refresh_at ?? null);
   const savedInterval = preferences?.feed_refresh_interval ?? 1800;
 
-  if (isLoading) return null;
-
   return (
-    <Stack as="section" aria-label="General" gap={6}>
+    <Stack as="section" aria-label="General" gap={8}>
       <SettingsPageHeader title="General" />
 
-      <RefreshIntervalForm
-        key={savedInterval}
-        savedInterval={savedInterval}
-        countdown={countdown}
-        updatePreferencesMutation={updatePreferencesMutation}
-      />
+      {!isLoading && (
+        <RefreshIntervalForm
+          key={savedInterval}
+          savedInterval={savedInterval}
+          countdown={countdown}
+          updatePreferencesMutation={updatePreferencesMutation}
+        />
+      )}
     </Stack>
   );
 }

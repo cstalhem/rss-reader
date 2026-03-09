@@ -486,7 +486,7 @@ export function FeedsSection() {
     filteredFolderBlocks.length > 0 || filteredRootFeeds.length > 0;
 
   return (
-    <Stack as="section" aria-label="Feeds" gap={6}>
+    <Stack as="section" aria-label="Feeds" gap={8}>
       <SettingsPageHeader title="Feeds">
         <Flex gap={2}>
           <Button

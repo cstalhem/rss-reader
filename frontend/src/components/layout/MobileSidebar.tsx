@@ -99,7 +99,7 @@ export function MobileSidebar({
             <CloseButton size='sm' />
           </Drawer.CloseTrigger>
 
-          <Drawer.Body>
+          <Drawer.Body px={0}>
             {isLoading ? (
               <Box px={4} py={3}>
                 <Text fontSize='sm' color='fg.muted'>
@@ -156,15 +156,16 @@ export function MobileSidebar({
                         <Flex
                           alignItems='center'
                           gap={2}
+                          px={4}
                           py={2.5}
                           cursor='pointer'
-                          bg={isSelected ? "accent.subtle" : "transparent"}
+                          bg={isSelected ? "colorPalette.subtle" : "transparent"}
                           _hover={{
-                            bg: isSelected ? "accent.subtle" : "bg.muted",
+                            bg: isSelected ? "colorPalette.subtle" : "bg.muted",
                           }}
                           borderLeftWidth='3px'
                           borderLeftColor={
-                            isSelected ? "accent.solid" : "transparent"
+                            isSelected ? "colorPalette.solid" : "transparent"
                           }
                           onClick={() =>
                             handleSelect({

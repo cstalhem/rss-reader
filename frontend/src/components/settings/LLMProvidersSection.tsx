@@ -87,7 +87,7 @@ export function LLMProvidersSection() {
     : null;
 
   return (
-    <Stack as="section" aria-label="LLM Providers" gap={6}>
+    <Stack as="section" aria-label="LLM Providers" gap={8}>
       <SettingsPageHeader title="LLM Providers" />
 
       {!hasProviders ? (

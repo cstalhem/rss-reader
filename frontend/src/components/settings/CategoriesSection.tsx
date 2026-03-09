@@ -194,7 +194,7 @@ export function CategoriesSection() {
   if (!isLoading && categories.length === 0) {
     return (
       <Stack gap={8}>
-        <SettingsPageHeader title="Topic Categories" />
+        <SettingsPageHeader title="Categories" />
         <EmptyState.Root>
           <EmptyState.Content>
             <EmptyState.Indicator>
@@ -211,9 +211,9 @@ export function CategoriesSection() {
 
   return (
     <CategoryTreeContext.Provider value={contextValue}>
-      <Stack as="section" aria-label="Categories" gap={6} pb={{ base: selectedIds.size > 0 ? 32 : 0, sm: 0 }}>
+      <Stack as="section" aria-label="Categories" gap={8} pb={{ base: selectedIds.size > 0 ? 32 : 0, sm: 0 }}>
         <Flex wrap="wrap" alignItems="center" columnGap={2} rowGap={4} minH={8}>
-          <Text fontSize="xl" fontWeight="semibold">Topic Categories</Text>
+          <Text fontSize="xl" fontWeight="semibold">Categories</Text>
           {newCount > 0 && (
             <Badge colorPalette="accent" size="sm">
               {newCount} new
