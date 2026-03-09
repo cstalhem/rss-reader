@@ -208,7 +208,7 @@ export function MobileSidebar({
                         </Flex>
 
                         {isExpanded && (
-                          <Box>
+                          <Box pl={4}>
                             {folderFeeds.map((feed) => (
                               <FeedRow
                                 key={feed.id}
