@@ -119,6 +119,23 @@ export interface OllamaConfig {
   use_separate_models: boolean;
 }
 
+export interface GoogleConfig {
+  api_key_set: boolean;
+  api_key_preview: string;
+  selected_models: string[];
+}
+
+export interface GoogleModelItem {
+  name: string;
+  display_name: string;
+  description: string;
+}
+
+export interface TestKeyResponse {
+  valid: boolean;
+  error: string | null;
+}
+
 export interface ProviderListItem {
   provider: string;
 }

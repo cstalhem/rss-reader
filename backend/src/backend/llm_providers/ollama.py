@@ -321,20 +321,18 @@ class OllamaProvider:
             thinking=config.thinking,
         )
 
-    async def health(self, endpoint: str) -> dict:
-        return await ollama_service.check_health(endpoint)
+    async def health(self, config: ProviderTaskConfig) -> dict:
+        return await ollama_service.check_health(config.endpoint)
 
-    async def list_models(self, endpoint: str) -> list[dict]:
-        return await ollama_service.list_models(endpoint)
+    async def list_models(self, config: ProviderTaskConfig) -> list[dict]:
+        return await ollama_service.list_models(config.endpoint)
 
     async def categorize(
         self,
         article_title: str,
         article_text: str,
         existing_categories: list[str],
-        endpoint: str,
-        model: str,
-        thinking: bool,
+        config: ProviderTaskConfig,
         category_hierarchy: dict[str, list[str]] | None,
         hidden_categories: list[str] | None,
     ) -> CategoryResponse:
@@ -342,9 +340,9 @@ class OllamaProvider:
             article_title,
             article_text,
             existing_categories,
-            host=endpoint,
-            model=model,
-            thinking=thinking,
+            host=config.endpoint,
+            model=config.model,
+            thinking=config.thinking,
             category_hierarchy=category_hierarchy,
             hidden_categories=hidden_categories,
         )
@@ -355,33 +353,30 @@ class OllamaProvider:
         article_text: str,
         interests: str,
         anti_interests: str,
-        endpoint: str,
-        model: str,
-        thinking: bool,
+        config: ProviderTaskConfig,
     ) -> ScoringResponse:
         return await score_article(
             article_title,
             article_text,
             interests,
             anti_interests,
-            host=endpoint,
-            model=model,
-            thinking=thinking,
+            host=config.endpoint,
+            model=config.model,
+            thinking=config.thinking,
         )
 
     async def suggest_groups(
         self,
         all_categories: list[str],
         existing_groups: dict[str, list[str]],
-        endpoint: str,
-        model: str,
+        config: ProviderTaskConfig,
     ) -> GroupingResponse:
         prompt = build_grouping_prompt(all_categories, existing_groups)
 
-        client = get_ollama_client(endpoint)
+        client = get_ollama_client(config.endpoint)
         content = ""
         async for chunk in await client.chat(
-            model=model,
+            model=config.model,
             messages=[{"role": "user", "content": prompt}],
             format=GroupingResponse.model_json_schema(),
             options={"temperature": 0},

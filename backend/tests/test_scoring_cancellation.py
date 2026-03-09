@@ -41,6 +41,7 @@ async def test_process_next_batch_requeues_cancelled_article(
         model="test-model",
         endpoint="http://localhost:11434",
         thinking=False,
+        api_key=None,
     )
 
     async def fake_readiness(*_args, **_kwargs):

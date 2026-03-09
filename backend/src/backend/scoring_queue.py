@@ -156,18 +156,21 @@ class ScoringQueue:
             session.add(preferences)
             session.commit()
 
-        categorization_model = categorization_runtime.model
-        scoring_model = scoring_runtime.model
-        categorization_endpoint = categorization_runtime.endpoint
-        scoring_endpoint = scoring_runtime.endpoint
-        categorization_thinking = categorization_runtime.thinking
-        scoring_thinking = scoring_runtime.thinking
-        if (
-            categorization_model is None
-            or scoring_model is None
-            or categorization_endpoint is None
-            or scoring_endpoint is None
-        ):
+        from backend.llm_providers.base import ProviderTaskConfig
+
+        cat_config = ProviderTaskConfig(
+            endpoint=categorization_runtime.endpoint,
+            model=categorization_runtime.model,
+            thinking=categorization_runtime.thinking,
+            api_key=categorization_runtime.api_key,
+        )
+        score_config = ProviderTaskConfig(
+            endpoint=scoring_runtime.endpoint,
+            model=scoring_runtime.model,
+            thinking=scoring_runtime.thinking,
+            api_key=scoring_runtime.api_key,
+        )
+        if cat_config.model is None or score_config.model is None:
             logger.warning("Scoring skipped: unresolved provider runtime configuration")
             return 0
 
@@ -211,9 +214,7 @@ class ScoringQueue:
                         article.title,
                         article_text,
                         active_categories,
-                        endpoint=categorization_endpoint,
-                        model=categorization_model,
-                        thinking=categorization_thinking,
+                        config=cat_config,
                         category_hierarchy=category_hierarchy,
                         hidden_categories=hidden_categories or None,
                     )
@@ -294,9 +295,7 @@ class ScoringQueue:
                         article_text,
                         preferences.interests,
                         preferences.anti_interests,
-                        endpoint=scoring_endpoint,
-                        model=scoring_model,
-                        thinking=scoring_thinking,
+                        config=score_config,
                     )
 
                     article.interest_score = scoring.interest_score

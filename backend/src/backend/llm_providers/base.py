@@ -12,6 +12,7 @@ class ProviderTaskConfig:
     endpoint: str | None
     model: str | None
     thinking: bool
+    api_key: str | None = None
 
 
 class LLMProvider(Protocol):
@@ -21,18 +22,16 @@ class LLMProvider(Protocol):
 
     def parse_config(self, config_json: str, task: str) -> ProviderTaskConfig: ...
 
-    async def health(self, endpoint: str) -> dict: ...
+    async def health(self, config: ProviderTaskConfig) -> dict: ...
 
-    async def list_models(self, endpoint: str) -> list[dict]: ...
+    async def list_models(self, config: ProviderTaskConfig) -> list[dict]: ...
 
     async def categorize(
         self,
         article_title: str,
         article_text: str,
         existing_categories: list[str],
-        endpoint: str,
-        model: str,
-        thinking: bool,
+        config: ProviderTaskConfig,
         category_hierarchy: dict[str, list[str]] | None,
         hidden_categories: list[str] | None,
     ) -> CategoryResponse: ...
@@ -43,17 +42,14 @@ class LLMProvider(Protocol):
         article_text: str,
         interests: str,
         anti_interests: str,
-        endpoint: str,
-        model: str,
-        thinking: bool,
+        config: ProviderTaskConfig,
     ) -> ScoringResponse: ...
 
     async def suggest_groups(
         self,
         all_categories: list[str],
         existing_groups: dict[str, list[str]],
-        endpoint: str,
-        model: str,
+        config: ProviderTaskConfig,
     ) -> GroupingResponse: ...
 
     async def close(self) -> None: ...
