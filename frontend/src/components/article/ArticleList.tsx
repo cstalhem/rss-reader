@@ -10,9 +10,7 @@ import React, {
 import NextLink from "next/link";
 import {
   Alert,
-  Badge,
   Box,
-  createListCollection,
   Flex,
   Button,
   Heading,
@@ -26,9 +24,6 @@ import {
 } from "@chakra-ui/react";
 import {
   LuCheckCheck,
-  LuInbox,
-  LuClock,
-  LuBan,
   LuBrainCog,
   LuMenu,
 } from "react-icons/lu";
@@ -52,9 +47,11 @@ import { ArticleRowSkeleton } from "./ArticleRowSkeleton";
 import { ArticleReader } from "./ArticleReader";
 import { SortSelect } from "./SortSelect";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { UnreadCountBadge } from "@/components/ui/unread-count-badge";
 import { MobileArticleActionBar } from "./MobileArticleActionBar";
 import { ArticleListItem, FeedSelection, FilterTab } from "@/lib/types";
 import { parseSortOption } from "@/lib/utils";
+import { ARTICLE_EMPTY_STATES, createArticleFilterCollection } from "./viewConfig";
 
 interface ArticleListProps {
   selection: FeedSelection;
@@ -296,48 +293,14 @@ export function ArticleList({
 
   // Filter dropdown collection with counts
   const filterCollection = useMemo(() => {
-    return createListCollection({
-      items: [
-        {
-          label: `Unread${unreadCount > 0 ? ` (${unreadCount})` : ""}`,
-          value: "unread",
-        },
-        {
-          label: "All",
-          value: "all",
-        },
-        {
-          label: `Scoring${scoringCount > 0 ? ` (${scoringCount})` : ""}`,
-          value: "scoring",
-          disabled: scoringCount === 0,
-        },
-        {
-          label: `Blocked${blockedCount > 0 ? ` (${blockedCount})` : ""}`,
-          value: "blocked",
-          disabled: blockedCount === 0,
-        },
-      ],
+    return createArticleFilterCollection({
+      unreadCount,
+      scoringCount,
+      blockedCount,
     });
   }, [unreadCount, scoringCount, blockedCount]);
 
-  // Empty state messages and icons by filter
-  const emptyMessage =
-    filter === "unread"
-      ? "No unread articles. You're all caught up!"
-      : filter === "all"
-        ? "No articles yet"
-        : filter === "scoring"
-          ? "No articles awaiting scoring."
-          : "No blocked articles.";
-
-  const emptyIcon =
-    filter === "unread"
-      ? LuCheckCheck
-      : filter === "all"
-        ? LuInbox
-        : filter === "scoring"
-          ? LuClock
-          : LuBan;
+  const emptyState = ARTICLE_EMPTY_STATES[filter];
 
   return (
     <Box pb={{ base: 16, md: 0 }}>
@@ -384,11 +347,7 @@ export function ArticleList({
           {feedName}
         </Heading>
         <Box flex={1} />
-        {unreadCount > 0 && (
-          <Badge colorPalette='accent' variant='solid' size='sm'>
-            {unreadCount}
-          </Badge>
-        )}
+        <UnreadCountBadge count={unreadCount} />
       </Flex>
 
       {/* Controls bar (desktop only) */}
@@ -592,9 +551,9 @@ export function ArticleList({
           py={16}
           px={8}
         >
-          <Icon as={emptyIcon} boxSize={12} color='fg.subtle' />
+          <Icon as={emptyState.icon} boxSize={12} color='fg.subtle' />
           <Text fontSize='lg' color='fg.muted' textAlign='center'>
-            {emptyMessage}
+            {emptyState.message}
           </Text>
           {filter === "all" && (
             <Text fontSize='sm' color='fg.subtle' textAlign='center'>

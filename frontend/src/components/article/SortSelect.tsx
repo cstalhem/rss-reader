@@ -1,30 +1,21 @@
 "use client";
 
 import {
-  createListCollection,
   Portal,
   Select,
 } from "@chakra-ui/react";
 import { SortOption } from "@/lib/types";
+import { ARTICLE_SORT_OPTIONS } from "./viewConfig";
 
 interface SortSelectProps {
   value: SortOption;
   onChange: (value: SortOption) => void;
 }
 
-const sortOptions = createListCollection({
-  items: [
-    { label: "Highest score", value: "score_desc" },
-    { label: "Lowest score", value: "score_asc" },
-    { label: "Newest first", value: "date_desc" },
-    { label: "Oldest first", value: "date_asc" },
-  ],
-});
-
 export function SortSelect({ value, onChange }: SortSelectProps) {
   return (
     <Select.Root
-      collection={sortOptions}
+      collection={ARTICLE_SORT_OPTIONS}
       size="sm"
       value={[value]}
       onValueChange={(details) => {
@@ -49,7 +40,7 @@ export function SortSelect({ value, onChange }: SortSelectProps) {
       <Portal>
         <Select.Positioner>
           <Select.Content>
-            {sortOptions.items.map((option) => (
+            {ARTICLE_SORT_OPTIONS.items.map((option) => (
               <Select.Item key={option.value} item={option}>
                 {option.label}
                 <Select.ItemIndicator />
