@@ -226,7 +226,6 @@ export function Sidebar({
               ) : hasItems ? (
                 <Box overflowY="auto" flex={1}>
                   <Flex
-                    colorPalette="accent"
                     alignItems="center"
                     justifyContent="space-between"
                     px={4}
@@ -268,10 +267,10 @@ export function Sidebar({
                             px={4}
                             py={2.5}
                             cursor="pointer"
-                            bg={isSelected ? "accent.subtle" : "transparent"}
-                            _hover={{ bg: isSelected ? "accent.subtle" : "bg.muted" }}
+                            bg={isSelected ? "colorPalette.subtle" : "transparent"}
+                            _hover={{ bg: isSelected ? "colorPalette.subtle" : "bg.muted" }}
                             borderLeftWidth="3px"
-                            borderLeftColor={isSelected ? "accent.solid" : "transparent"}
+                            borderLeftColor={isSelected ? "colorPalette.solid" : "transparent"}
                             onClick={() =>
                               onSelect({ kind: "folder", folderId: folder.id })
                             }
