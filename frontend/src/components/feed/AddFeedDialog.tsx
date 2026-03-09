@@ -27,8 +27,6 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
   const [editedTitle, setEditedTitle] = useState("");
   const [feedId, setFeedId] = useState<number | null>(null);
   const [articleCount, setArticleCount] = useState(0);
-  const [titleSaved, setTitleSaved] = useState(false);
-
   const addFeed = useAddFeed();
   const updateFeed = useUpdateFeed();
 
@@ -40,7 +38,6 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
     setEditedTitle("");
     setFeedId(null);
     setArticleCount(0);
-    setTitleSaved(false);
     onClose();
   };
 
@@ -82,20 +79,19 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
     }
   };
 
-  const handleSaveName = async () => {
+  const saveName = async () => {
     if (feedId && editedTitle !== feedTitle) {
-      try {
-        await updateFeed.mutateAsync({ id: feedId, data: { title: editedTitle } });
-        setFeedTitle(editedTitle);
-        setTitleSaved(true);
-        setTimeout(() => setTitleSaved(false), 2000);
-      } catch {
-        setError("Failed to update feed name");
-      }
+      await updateFeed.mutateAsync({ id: feedId, data: { title: editedTitle } });
     }
   };
 
-  const handleAddAnother = () => {
+  const handleDone = async () => {
+    await saveName();
+    handleClose();
+  };
+
+  const handleAddAnother = async () => {
+    await saveName();
     setStep("url");
     setUrl("");
     setError("");
@@ -103,7 +99,6 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
     setEditedTitle("");
     setFeedId(null);
     setArticleCount(0);
-    setTitleSaved(false);
   };
 
   return (
@@ -148,12 +143,12 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
             )}
 
             {step === "success" && (
-              <Flex direction="column" gap={4}>
-                <Text color="fg.muted">
-                  Found {articleCount} article{articleCount !== 1 ? "s" : ""}
-                </Text>
+              <form onSubmit={(e) => { e.preventDefault(); handleDone(); }}>
+                <Flex direction="column" gap={4}>
+                  <Text color="fg.muted">
+                    Found {articleCount} article{articleCount !== 1 ? "s" : ""}
+                  </Text>
 
-                <form onSubmit={(e) => { e.preventDefault(); handleSaveName(); }}>
                   <Field.Root>
                     <Field.Label>Feed Name</Field.Label>
                     <Input
@@ -162,34 +157,16 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
                     />
                   </Field.Root>
 
-                  {editedTitle !== feedTitle && (
-                    <Button
-                      size="sm"
-                      colorPalette="accent"
-                      type="submit"
-                      disabled={updateFeed.isPending}
-                      mt={4}
-                    >
-                      {updateFeed.isPending ? "Saving..." : "Save Name"}
+                  <Flex justifyContent="flex-end" gap={2} mt={2}>
+                    <Button variant="ghost" onClick={handleAddAnother} type="button">
+                      Add Another
                     </Button>
-                  )}
-                </form>
-
-                {titleSaved && (
-                  <Text fontSize="sm" color="fg.success">
-                    Name saved!
-                  </Text>
-                )}
-
-                <Flex justifyContent="flex-end" gap={2} mt={2}>
-                  <Button variant="ghost" onClick={handleAddAnother}>
-                    Add Another
-                  </Button>
-                  <Button colorPalette="accent" onClick={handleClose}>
-                    Done
-                  </Button>
+                    <Button colorPalette="accent" type="submit" disabled={updateFeed.isPending}>
+                      Done
+                    </Button>
+                  </Flex>
                 </Flex>
-              </Flex>
+              </form>
             )}
           </Dialog.Body>
 
