@@ -243,7 +243,7 @@ export function Sidebar({
                       All Articles
                     </Text>
                     {totalUnread > 0 && (
-                      <Badge colorPalette="accent" size="sm">
+                      <Badge colorPalette="accent" variant="solid" size="sm">
                         {totalUnread}
                       </Badge>
                     )}
@@ -280,7 +280,7 @@ export function Sidebar({
                               {folder.name}
                             </Text>
                             {folder.unread_count > 0 ? (
-                              <Badge colorPalette="accent" size="sm">
+                              <Badge colorPalette="accent" variant="solid" size="sm">
                                 {folder.unread_count}
                               </Badge>
                             ) : null}

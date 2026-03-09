@@ -180,6 +180,7 @@ export function FeedRow({
           {feed.unread_count > 0 && (
             <Badge
               colorPalette="accent"
+              variant="solid"
               size="sm"
               opacity={isHovered && showDesktopActions ? 0 : 1}
               transition="opacity 0.2s ease"
