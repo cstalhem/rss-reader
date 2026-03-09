@@ -6,15 +6,8 @@ import {
   Flex,
   Link,
   Text,
-  IconButton,
   Spinner,
 } from "@chakra-ui/react";
-import {
-  LuExternalLink,
-  LuChevronUp,
-  LuChevronDown,
-  LuX,
-} from "react-icons/lu";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArticleListItem } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
@@ -24,6 +17,7 @@ import { useAutoMarkAsRead } from "@/hooks/useAutoMarkAsRead";
 import { TagChip } from "./TagChip";
 import { ScoreBadge } from "./ScoreBadge";
 import { ArticleContent } from "./ArticleContent";
+import { ReaderNavControls } from "./ReaderNavControls";
 
 interface ArticleReaderProps {
   article: ArticleListItem;
@@ -127,44 +121,15 @@ export function ArticleReader({
           >
             {article.title}
           </Text>
-          <IconButton
-            aria-label="Open original"
-            title="Open original"
-            size="sm"
-            variant="ghost"
-            onClick={() => window.open(article.url, "_blank", "noopener,noreferrer")}
-          >
-            <LuExternalLink />
-          </IconButton>
-          <IconButton
-            aria-label="Previous article"
-            title="Previous article"
-            size="sm"
-            variant="ghost"
-            disabled={!prevArticle}
-            onClick={() => prevArticle && onNavigate(prevArticle)}
-          >
-            <LuChevronUp />
-          </IconButton>
-          <IconButton
-            aria-label="Next article"
-            title="Next article"
-            size="sm"
-            variant="ghost"
-            disabled={!nextArticle}
-            onClick={() => nextArticle && onNavigate(nextArticle)}
-          >
-            <LuChevronDown />
-          </IconButton>
-          <IconButton
-            aria-label="Close reader"
-            title="Close reader"
-            size="sm"
-            variant="ghost"
-            onClick={onClose}
-          >
-            <LuX />
-          </IconButton>
+          <ReaderNavControls
+            gap={2}
+            onOpenOriginal={() =>
+              window.open(article.url, "_blank", "noopener,noreferrer")
+            }
+            onNavigatePrev={prevArticle ? () => onNavigate(prevArticle) : null}
+            onNavigateNext={nextArticle ? () => onNavigate(nextArticle) : null}
+            onClose={onClose}
+          />
         </Flex>
       )}
 
