@@ -97,14 +97,23 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
 
       {/* Main content */}
       <Flex flex={1} direction="column" gap={2} minW={0}>
-        {/* Title - truncated */}
+        {/* Title - 2-line clamp on mobile, single-line ellipsis on desktop */}
         <Text
           fontSize={isExpanded ? "sm" : "md"}
           fontWeight={isExpanded ? "medium" : (article.is_read ? "normal" : "semibold")}
           color="fg.default"
-          whiteSpace="nowrap"
           overflow="hidden"
-          textOverflow="ellipsis"
+          css={{
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            display: "-webkit-box",
+            "@media (min-width: 48em)": {
+              WebkitLineClamp: 1,
+              display: "block",
+              whiteSpace: "nowrap",
+              textOverflow: "ellipsis",
+            },
+          }}
         >
           {article.title}
         </Text>
@@ -115,11 +124,21 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
           gap={2}
           overflow="hidden"
           transition="max-height 0.2s ease, opacity 0.15s ease"
-          {...(isExpanded ? { maxH: 0, opacity: 0 } : { maxH: "24", opacity: 1 })}
+          {...(isExpanded ? { maxH: 0, opacity: 0 } : { maxH: { base: "none", md: "24" }, opacity: 1 })}
         >
-          <Text fontSize="sm" color="fg.muted">
-            {feedName ? `${feedName} \u2022 ` : ""}{formatRelativeDate(article.published_at)}
-          </Text>
+          <Flex alignItems="center" gap={2}>
+            <Text fontSize="sm" color="fg.muted">
+              {feedName ? `${feedName} \u2022 ` : ""}{formatRelativeDate(article.published_at)}
+            </Text>
+            {/* Score badge inline on mobile, hidden on desktop (shown in right column there) */}
+            <Box display={{ base: "inline-flex", md: "none" }}>
+              <ScoreBadge
+                score={article.composite_score}
+                scoringState={article.scoring_state}
+                size="sm"
+              />
+            </Box>
+          </Flex>
           {article.categories && article.categories.length > 0 && (
             <Flex gap={2} alignItems="center" flexWrap="wrap">
               {article.categories.slice(0, MAX_VISIBLE_TAGS).map((cat) => (
@@ -206,12 +225,14 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
             <Text fontSize="xs" color="red.fg">&#10005; Failed</Text>
           )}
 
-          {/* Score badge for scored articles */}
-          <ScoreBadge
-            score={article.composite_score}
-            scoringState={article.scoring_state}
-            size="sm"
-          />
+          {/* Score badge for scored articles — desktop only (mobile renders inline in metadata) */}
+          <Box display={{ base: "none", md: "inline-flex" }}>
+            <ScoreBadge
+              score={article.composite_score}
+              scoringState={article.scoring_state}
+              size="sm"
+            />
+          </Box>
 
           {/* Context menu for read articles (hover-reveal) */}
           {isHovered && article.is_read && onRescore && (
