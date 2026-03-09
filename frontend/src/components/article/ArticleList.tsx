@@ -296,17 +296,14 @@ export function ArticleList({
 
   // Filter dropdown collection with counts
   const filterCollection = useMemo(() => {
-    const unreadCount = filter === "unread" ? articleCount : undefined;
-    const allCount = filter === "all" ? articleCount : undefined;
-
     return createListCollection({
       items: [
         {
-          label: `Unread${unreadCount !== undefined ? ` (${unreadCount})` : ""}`,
+          label: `Unread${unreadCount > 0 ? ` (${unreadCount})` : ""}`,
           value: "unread",
         },
         {
-          label: `All${allCount !== undefined ? ` (${allCount})` : ""}`,
+          label: "All",
           value: "all",
         },
         {
@@ -321,7 +318,7 @@ export function ArticleList({
         },
       ],
     });
-  }, [filter, articleCount, scoringCount, blockedCount]);
+  }, [unreadCount, scoringCount, blockedCount]);
 
   // Empty state messages and icons by filter
   const emptyMessage =
@@ -466,26 +463,24 @@ export function ArticleList({
         {/* Sort dropdown */}
         <SortSelect value={sortOption} onChange={setSortOption} />
 
-        <Box flex={1} />
-
         {/* Mark all read icon button */}
         {filter === "unread" && articleCount > 0 && (
-          <IconButton
-            aria-label='Mark all as read'
-            title='Mark all as read'
-            size='sm'
-            variant='ghost'
-            onClick={handleMarkAllAsRead}
-            disabled={markAllRead.isPending || markAllArticlesRead.isPending}
-          >
-            <LuCheckCheck />
-          </IconButton>
+          <>
+            <Box w='1px' alignSelf='stretch' my={1} bg='border.subtle' />
+            <IconButton
+              aria-label='Mark all as read'
+              title='Mark all as read'
+              size='sm'
+              variant='outline'
+              onClick={handleMarkAllAsRead}
+              disabled={markAllRead.isPending || markAllArticlesRead.isPending}
+            >
+              <LuCheckCheck />
+            </IconButton>
+          </>
         )}
 
-        {/* Count label */}
-        <Text fontSize='sm' color='fg.muted' flexShrink={0}>
-          {articleCount}
-        </Text>
+        <Box flex={1} />
       </Flex>
 
       {/* New articles pill */}
