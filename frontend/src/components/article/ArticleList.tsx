@@ -76,6 +76,7 @@ export function ArticleList({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const rowRefs = useRef<Map<number, HTMLElement>>(new Map());
   const pendingOpenRef = useRef<ArticleListItem | null>(null);
+  const openScrollTopRef = useRef(0);
   const { sortOption, setSortOption } = useSortPreference();
   const { data: scoringStatus } = useScoringStatus();
   const queryClient = useQueryClient();
@@ -214,6 +215,9 @@ export function ArticleList({
         const onScrollEnd = () => {
           mainRef.current?.removeEventListener("scrollend", onScrollEnd);
           clearTimeout(fallback);
+          if (mainRef.current) {
+            openScrollTopRef.current = mainRef.current.scrollTop;
+          }
           setSelectedArticle(article);
           setIsReaderOpen(true);
         };
@@ -253,8 +257,11 @@ export function ArticleList({
   );
 
   const handleCloseReader = useCallback(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTop = openScrollTopRef.current;
+    }
     setIsReaderOpen(false);
-  }, []);
+  }, [mainRef]);
 
   const handleExitComplete = useCallback(() => {
     // If there's a pending article to open (user clicked a different article), open it
