@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Protocol
 
-from backend.prompts import CategoryResponse, ScoringResponse
+from backend.prompts import ArticleCategoryResult, ArticleScoringResult
 from backend.prompts.grouping import GroupingResponse
 
 
@@ -29,22 +29,20 @@ class LLMProvider(Protocol):
 
     async def categorize(
         self,
-        article_title: str,
-        article_text: str,
+        articles: list[dict],
         existing_categories: list[str],
         config: ProviderTaskConfig,
         category_hierarchy: dict[str, list[str]] | None,
         hidden_categories: list[str] | None,
-    ) -> CategoryResponse: ...
+    ) -> list[ArticleCategoryResult]: ...
 
     async def score(
         self,
-        article_title: str,
-        article_text: str,
+        articles: list[dict],
         interests: str,
         anti_interests: str,
         config: ProviderTaskConfig,
-    ) -> ScoringResponse: ...
+    ) -> list[ArticleScoringResult]: ...
 
     async def suggest_groups(
         self,

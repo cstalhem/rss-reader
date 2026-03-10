@@ -10,10 +10,12 @@ from typing import TYPE_CHECKING, TypeVar
 from pydantic import BaseModel, Field
 
 from backend.prompts import (
-    CategoryResponse,
-    ScoringResponse,
-    build_categorization_prompt,
-    build_scoring_prompt,
+    ArticleCategoryResult,
+    ArticleScoringResult,
+    BatchCategoryResponse,
+    BatchScoringResponse,
+    build_batch_categorization_prompt,
+    build_batch_scoring_prompt,
 )
 from backend.prompts.grouping import GroupingResponse, build_grouping_prompt
 
@@ -269,7 +271,8 @@ class GoogleProvider:
     async def _generate(
         self,
         config: ProviderTaskConfig,
-        prompt: str,
+        system_prompt: str,
+        user_message: str,
         schema: type[_T],
     ) -> _T:
         """Call Gemini with structured JSON output and return a validated model."""
@@ -279,8 +282,9 @@ class GoogleProvider:
         client = genai.Client(api_key=config.api_key)
         response = await client.aio.models.generate_content(
             model=config.model,  # pyright: ignore[reportArgumentType]
-            contents=prompt,
+            contents=user_message,
             config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
                 response_mime_type="application/json",
                 response_schema=schema.model_json_schema(),
                 temperature=0,
@@ -290,46 +294,35 @@ class GoogleProvider:
 
     async def categorize(
         self,
-        article_title: str,
-        article_text: str,
+        articles: list[dict],
         existing_categories: list[str],
         config: ProviderTaskConfig,
         category_hierarchy: dict[str, list[str]] | None,
         hidden_categories: list[str] | None,
-    ) -> CategoryResponse:
-        prompt = build_categorization_prompt(
-            article_title,
-            article_text,
+    ) -> list[ArticleCategoryResult]:
+        system_prompt, user_message = build_batch_categorization_prompt(
+            articles,
             existing_categories,
             category_hierarchy,
             hidden_categories=hidden_categories,
         )
-        result = await self._generate(config, prompt, CategoryResponse)
-        logger.info(
-            "Google categorized: %d categories, %d suggestions",
-            len(result.categories),
-            len(result.suggested_new),
-        )
-        return result
+        result = await self._generate(config, system_prompt, user_message, BatchCategoryResponse)
+        logger.info("Google categorized %d articles", len(result.results))
+        return result.results
 
     async def score(
         self,
-        article_title: str,
-        article_text: str,
+        articles: list[dict],
         interests: str,
         anti_interests: str,
         config: ProviderTaskConfig,
-    ) -> ScoringResponse:
-        prompt = build_scoring_prompt(
-            article_title, article_text, interests, anti_interests
+    ) -> list[ArticleScoringResult]:
+        system_prompt, user_message = build_batch_scoring_prompt(
+            articles, interests, anti_interests
         )
-        result = await self._generate(config, prompt, ScoringResponse)
-        logger.info(
-            "Google scored: interest=%d, quality=%d",
-            result.interest_score,
-            result.quality_score,
-        )
-        return result
+        result = await self._generate(config, system_prompt, user_message, BatchScoringResponse)
+        logger.info("Google scored %d articles", len(result.results))
+        return result.results
 
     async def suggest_groups(
         self,
@@ -338,7 +331,8 @@ class GoogleProvider:
         config: ProviderTaskConfig,
     ) -> GroupingResponse:
         prompt = build_grouping_prompt(all_categories, existing_groups)
-        result = await self._generate(config, prompt, GroupingResponse)
+        # Grouping uses a single prompt — pass it as user message with empty system prompt
+        result = await self._generate(config, "", prompt, GroupingResponse)
         logger.info("Google suggested %d category groups", len(result.groups))
         return result
 

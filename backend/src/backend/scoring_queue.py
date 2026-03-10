@@ -226,14 +226,15 @@ class ScoringQueue:
                         )
 
                 if not skip_categorization or not article_categories:
-                    categorization = await categorization_provider.categorize(
-                        article.title,
-                        article_text,
+                    batch_input = [{"id": article.id, "title": article.title, "content_markdown": article_text}]
+                    cat_results = await categorization_provider.categorize(
+                        batch_input,
                         active_categories,
                         config=cat_config,
                         category_hierarchy=category_hierarchy,
                         hidden_categories=hidden_categories or None,
                     )
+                    categorization = cat_results[0] if cat_results else None
 
                     # Phase A: Resolve categories, then commit to get IDs
                     # Use no_autoflush to prevent SELECTs from starting
@@ -306,13 +307,14 @@ class ScoringQueue:
                     )
                 else:
                     # Step 3: Score non-blocked articles
-                    scoring = await scoring_provider.score(
-                        article.title,
-                        article_text,
+                    batch_input = [{"id": article.id, "title": article.title, "content_markdown": article_text}]
+                    score_results = await scoring_provider.score(
+                        batch_input,
                         preferences.interests,
                         preferences.anti_interests,
                         config=score_config,
                     )
+                    scoring = score_results[0]
 
                     article.interest_score = scoring.interest_score
                     article.quality_score = scoring.quality_score
