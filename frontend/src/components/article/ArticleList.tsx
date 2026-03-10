@@ -77,18 +77,24 @@ export function ArticleList({
   const { sortOption, setSortOption } = useSortPreference();
   const { data: scoringStatus } = useScoringStatus();
   const queryClient = useQueryClient();
+  const serverRetryAfter = scoringStatus?.rate_limit_retry_after ?? 0;
   const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
+  const prevRetryAfterRef = useRef(0);
 
-  // Seed countdown from server value; tick down locally for smooth display
+  // Seed countdown from server value when it changes (derived, no effect needed)
+  if (serverRetryAfter !== prevRetryAfterRef.current) {
+    prevRetryAfterRef.current = serverRetryAfter;
+    setRateLimitCountdown(serverRetryAfter);
+  }
+
+  // Tick down locally for smooth display
   useEffect(() => {
-    const serverValue = scoringStatus?.rate_limit_retry_after ?? 0;
-    setRateLimitCountdown(serverValue);
-    if (serverValue <= 0) return;
+    if (rateLimitCountdown <= 0) return;
     const interval = setInterval(() => {
       setRateLimitCountdown((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
     return () => clearInterval(interval);
-  }, [scoringStatus?.rate_limit_retry_after]);
+  }, [rateLimitCountdown > 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate tab counts (needed before useArticles for scoringActive)
   const scoringCount =
