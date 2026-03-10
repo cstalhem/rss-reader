@@ -20,6 +20,7 @@ from backend.scoring import (
     get_active_categories,
     get_or_create_category,
     is_blocked,
+    set_rate_limited,
     set_scoring_context,
 )
 
@@ -27,6 +28,21 @@ logger = logging.getLogger(__name__)
 
 RESCORE_LOOKBACK_DAYS = 7
 RESCORE_MAX_ARTICLES = 100
+_DEFAULT_RATE_LIMIT_BACKOFF = 60.0  # seconds
+
+
+def _extract_rate_limit_delay(exc: Exception) -> float | None:
+    """If exc is a 429 rate-limit error, return retry-after seconds (or default)."""
+    import re
+
+    exc_str = str(exc)
+    if "429" not in exc_str:
+        return None
+    # Try to extract retryDelay from Google-style error messages
+    match = re.search(r"retryDelay.*?(\d+(?:\.\d+)?)s", exc_str)
+    if match:
+        return float(match.group(1))
+    return _DEFAULT_RATE_LIMIT_BACKOFF
 
 
 class ScoringQueue:
@@ -335,15 +351,33 @@ class ScoringQueue:
                 session.commit()
                 raise
             except Exception as e:
-                logger.error(
-                    f"Failed to score article {article.id}: {e}", exc_info=True
-                )
-                # Mark as failed and continue
-                article.scoring_state = "failed"
-                article.scoring_priority = 0
-                article.rescore_mode = None
-                session.add(article)
-                session.commit()
+                rate_limit_delay = _extract_rate_limit_delay(e)
+                if rate_limit_delay is not None:
+                    # Transient rate limit — re-queue and back off
+                    logger.warning(
+                        "Article %s rate-limited; re-queueing (retry in %.0fs)",
+                        article.id,
+                        rate_limit_delay,
+                    )
+                    set_rate_limited(rate_limit_delay)
+                    session.rollback()
+                    article.scoring_state = "queued"
+                    session.add(article)
+                    session.commit()
+                    break  # Stop processing this batch; let next cycle retry
+                else:
+                    logger.error(
+                        "Failed to score article %s: %s",
+                        article.id,
+                        e,
+                        exc_info=True,
+                    )
+                    # Mark as failed and continue
+                    article.scoring_state = "failed"
+                    article.scoring_priority = 0
+                    article.rescore_mode = None
+                    session.add(article)
+                    session.commit()
             finally:
                 set_scoring_context(None)
 

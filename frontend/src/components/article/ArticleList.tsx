@@ -80,6 +80,18 @@ export function ArticleList({
   const { sortOption, setSortOption } = useSortPreference();
   const { data: scoringStatus } = useScoringStatus();
   const queryClient = useQueryClient();
+  const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
+
+  // Seed countdown from server value; tick down locally for smooth display
+  useEffect(() => {
+    const serverValue = scoringStatus?.rate_limit_retry_after ?? 0;
+    setRateLimitCountdown(serverValue);
+    if (serverValue <= 0) return;
+    const interval = setInterval(() => {
+      setRateLimitCountdown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [scoringStatus?.rate_limit_retry_after]);
 
   // Calculate tab counts (needed before useArticles for scoringActive)
   const scoringCount =
@@ -350,7 +362,9 @@ export function ArticleList({
                 <LuBrainCog />
               </Alert.Indicator>
               <Alert.Title fontSize='xs'>
-                {scoringStatus.scoring_ready_reason}
+                {rateLimitCountdown > 0
+                  ? `API rate limit exceeded. Will retry automatically in ${rateLimitCountdown} seconds.`
+                  : scoringStatus.scoring_ready_reason}
                 {scoringStatus.scoring_ready_reason.includes(
                   "LLM Providers",
                 ) && (

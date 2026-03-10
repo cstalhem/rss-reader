@@ -5,10 +5,10 @@ import { Box, Button, Flex, Input, Stack, Text } from "@chakra-ui/react";
 import type { GoogleModelItem } from "@/lib/types";
 
 const RECOMMENDED_GEMINI_MODELS = [
-  { name: "models/gemini-2.5-flash", description: "Good balance, fast structured output" },
-  { name: "models/gemini-2.5-pro", description: "Strong accuracy, best reasoning" },
-  { name: "models/gemini-2.5-flash-lite", description: "Smallest, lowest cost" },
-  { name: "models/gemini-3.1-flash-lite", description: "Latest gen, fast on simple tasks" },
+  { name: "models/gemini-3-flash-preview", description: "Preview. Next-gen Flash, faster and smarter than 2.5 Flash" },
+  { name: "models/gemini-3.1-flash-lite-preview", description: "Preview. 2.5x faster than 2.5 Flash, very low cost" },
+  { name: "models/gemini-2.5-flash", description: "Stable. Great for multi-step tasks, best speed/quality balance" },
+  { name: "models/gemini-2.5-pro", description: "Stable. Highest accuracy, best reasoning. Slower and pricier" },
 ];
 
 interface GoogleModelManagementProps {
@@ -102,7 +102,7 @@ export function GoogleModelManagement({
   // Section 2: Recommended models that are unselected and available
   const unselectedRecommended = RECOMMENDED_GEMINI_MODELS.filter(
     (r) => !selectedSet.has(r.name) && availableByName.has(r.name)
-  ).map((r) => availableByName.get(r.name)!);
+  ).map((r) => ({ ...availableByName.get(r.name)!, description: r.description }));
 
   // Section 3: Search results
   const query = searchQuery.trim().toLowerCase();

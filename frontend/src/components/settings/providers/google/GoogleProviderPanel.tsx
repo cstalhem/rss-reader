@@ -102,28 +102,29 @@ export function GoogleProviderPanel({
       )}
 
       {/* API Key section — at bottom, close to action buttons */}
-      <SettingsPanelHeading>API Key</SettingsPanelHeading>
+      <Box mt={6}>
+        <SettingsPanelHeading>API Key</SettingsPanelHeading>
 
-      {!isNew && serverConfig?.api_key_set && (
-        <Text fontSize="sm" color="fg.muted" mb={2}>
-          Current key: {serverConfig.api_key_preview || "set"}
-        </Text>
-      )}
+        {!isNew && serverConfig?.api_key_set && (
+          <Text fontSize="sm" color="fg.muted" mb={2}>
+            Current key: {serverConfig.api_key_preview || "set"}
+          </Text>
+        )}
 
-      <Input
-        size="sm"
-        type="password"
-        value={localApiKey}
-        onChange={(e) => setLocalApiKey(e.target.value)}
-        placeholder={
-          !isNew && serverConfig?.api_key_set
-            ? "Enter new key to replace"
-            : "Enter your Google API key"
-        }
-      />
+        <Input
+          size="sm"
+          type="password"
+          value={localApiKey}
+          onChange={(e) => setLocalApiKey(e.target.value)}
+          placeholder={
+            !isNew && serverConfig?.api_key_set
+              ? "Enter new key to replace"
+              : "Enter your Google API key"
+          }
+        />
 
-      {/* Action buttons */}
-      <Stack direction="row" gap={3} mt={6}>
+        {/* Action buttons */}
+        <Stack direction="row" gap={3} mt={6}>
         <Button
           size="sm"
           colorPalette="accent"
@@ -166,7 +167,8 @@ export function GoogleProviderPanel({
             Disconnect
           </Button>
         )}
-      </Stack>
+        </Stack>
+      </Box>
 
       <ConfirmDialog
         open={showDisconnectDialog}

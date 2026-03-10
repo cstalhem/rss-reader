@@ -201,6 +201,7 @@ export interface ScoringStatus {
   score_ready_reason: string | null;
   scoring_ready: boolean;
   scoring_ready_reason: string | null;
+  rate_limit_retry_after: number | null;
 }
 
 export interface DownloadStatus {
