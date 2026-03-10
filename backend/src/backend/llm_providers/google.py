@@ -61,7 +61,7 @@ class GoogleProviderConfig(BaseModel):
 
     api_key_encrypted: str = ""
     selected_models: list[str] = []
-    batch_size: int = Field(default=5, ge=1, le=50)
+    batch_size: int = Field(default=5, ge=1, le=10)
 
 
 # --- In-memory model catalog cache ---

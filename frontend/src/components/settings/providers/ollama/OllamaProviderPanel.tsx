@@ -216,12 +216,12 @@ export function OllamaProviderPanel({
               type="number"
               value={localBatchSize}
               onChange={(e) => {
-                const v = Math.max(1, Math.min(50, Number(e.target.value) || 1));
+                const v = Math.max(1, Math.min(10, Number(e.target.value) || 1));
                 setLocalBatchSize(v);
               }}
               width="80px"
               min={1}
-              max={50}
+              max={10}
             />
             <Text fontSize="xs" color="fg.muted" mt={1}>
               Articles scored per cycle. Local models are slower — keep this low.

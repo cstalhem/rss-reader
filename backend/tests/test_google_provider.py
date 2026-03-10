@@ -176,6 +176,21 @@ def test_extract_google_error_message_nested_quotes():
     assert extract_google_error_message(exc) == "User doesn't have permission"
 
 
+def test_google_config_rejects_batch_size_11():
+    """GoogleProviderConfig rejects batch_size above 10."""
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        GoogleProviderConfig(batch_size=11)
+
+
+def test_google_config_accepts_batch_size_10():
+    """GoogleProviderConfig accepts batch_size=10."""
+    config = GoogleProviderConfig(batch_size=10)
+    assert config.batch_size == 10
+
+
 def test_model_cache_invalidation():
     """invalidate_model_cache resets the cached data."""
 
