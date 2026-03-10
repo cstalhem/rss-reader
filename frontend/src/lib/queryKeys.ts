@@ -32,6 +32,10 @@ export const queryKeys = {
   taskRoutes: {
     all: ["task-routes"] as const,
   },
+  google: {
+    config: ["google-config"] as const,
+    availableModels: ["google-models-available"] as const,
+  },
   ollama: {
     health: ["ollama-health"] as const,
     models: ["ollama-models"] as const,

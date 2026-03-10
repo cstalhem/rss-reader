@@ -113,13 +113,12 @@ export function getArticleScoringPhaseLabel(phase?: string) {
     case "starting":
       return "Starting\u2026";
     default:
-      return "Scoring complete";
+      return "Stalled";
   }
 }
 
 export function getArticleScoringPhaseColorPalette(phase?: string) {
   if (phase === "thinking") return "blue";
   if (phase === "categorizing" || phase === "scoring") return "accent";
-  if (phase) return "gray";
-  return "green";
+  return "gray";
 }

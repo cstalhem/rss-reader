@@ -11,7 +11,7 @@ import backend.database as database_module
 import backend.scheduler as scheduler_module
 import backend.scoring_queue as scoring_queue_module
 from backend.models import Article, Feed
-from backend.prompts import CategoryResponse
+from backend.prompts import ArticleCategoryResult
 from backend.scoring import get_scoring_activity
 from backend.scoring_queue import ScoringQueue
 
@@ -41,14 +41,15 @@ async def test_process_next_batch_requeues_cancelled_article(
         model="test-model",
         endpoint="http://localhost:11434",
         thinking=False,
+        api_key=None,
     )
 
     async def fake_readiness(*_args, **_kwargs):
         return runtime
 
     class FakeProvider:
-        async def categorize(self, *_args, **_kwargs):
-            return CategoryResponse(categories=[], suggested_new=[])
+        async def categorize(self, articles, *_args, **_kwargs):
+            return [ArticleCategoryResult(article_id=a["id"], categories=[]) for a in articles]
 
         async def score(self, *_args, **_kwargs):
             raise asyncio.CancelledError()

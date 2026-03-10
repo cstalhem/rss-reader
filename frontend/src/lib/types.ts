@@ -117,6 +117,25 @@ export interface OllamaConfig {
   categorization_model: string | null;
   scoring_model: string | null;
   use_separate_models: boolean;
+  batch_size: number;
+}
+
+export interface GoogleConfig {
+  api_key_set: boolean;
+  api_key_preview: string;
+  selected_models: string[];
+  batch_size: number;
+}
+
+export interface GoogleModelItem {
+  name: string;
+  display_name: string;
+  description: string;
+}
+
+export interface TestKeyResponse {
+  valid: boolean;
+  error: string | null;
 }
 
 export interface ProviderListItem {
@@ -184,6 +203,7 @@ export interface ScoringStatus {
   score_ready_reason: string | null;
   scoring_ready: boolean;
   scoring_ready_reason: string | null;
+  rate_limit_retry_after: number | null;
 }
 
 export interface DownloadStatus {

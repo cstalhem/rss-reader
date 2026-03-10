@@ -15,8 +15,10 @@ from backend.routers import (
     categories,
     feed_folders,
     feeds,
+    google,
     ollama,
     preferences,
+    providers,
     scoring,
 )
 from backend.scheduler import shutdown_scheduler, start_scheduler
@@ -74,7 +76,9 @@ app.include_router(feeds.router)
 app.include_router(feed_folders.router)
 app.include_router(categories.router)
 app.include_router(preferences.router)
+app.include_router(providers.router)
 app.include_router(ollama.router)
+app.include_router(google.router)
 app.include_router(scoring.router)
 
 

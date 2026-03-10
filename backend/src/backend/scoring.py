@@ -17,11 +17,41 @@ MAX_COMPOSITE_SCORE = 20.0
 # Shape: {"article_id": int | None, "phase": str}
 _scoring_activity: dict = {"article_id": None, "phase": "idle"}
 
+# Rate-limit tracking: timestamp (time.time()) until which we're throttled.
+_rate_limited_until: float = 0.0
+
 
 def set_scoring_context(article_id: int | None) -> None:
     """Set the article currently being scored. Called by scoring_queue."""
     _scoring_activity["article_id"] = article_id
     _scoring_activity["phase"] = "starting" if article_id else "idle"
+
+
+def set_scoring_phase(phase: str) -> None:
+    """Set the current scoring phase without changing article_id."""
+    _scoring_activity["phase"] = phase
+
+
+def set_rate_limited(retry_after_seconds: float) -> None:
+    """Record that the provider is rate-limited. Called by scoring_queue."""
+    import time
+
+    global _rate_limited_until
+    _rate_limited_until = time.time() + retry_after_seconds
+
+
+def is_rate_limited() -> bool:
+    """Check if we're currently in a rate-limit window."""
+    import time
+
+    return time.time() < _rate_limited_until
+
+
+def get_rate_limit_remaining() -> float:
+    """Seconds remaining in rate-limit window, or 0 if not limited."""
+    import time
+
+    return max(0.0, _rate_limited_until - time.time())
 
 
 def get_scoring_activity() -> dict:

@@ -292,14 +292,19 @@ async def auto_group_suggest(
 
     provider = get_provider(provider_name)
 
-    # Determine endpoint — for Ollama we need the endpoint from runtime
-    endpoint = runtime.endpoint or ""
+    from backend.llm_providers.base import ProviderTaskConfig
+
+    config = ProviderTaskConfig(
+        endpoint=runtime.endpoint,
+        model=model_name,
+        thinking=False,
+        api_key=runtime.api_key,
+    )
 
     response = await provider.suggest_groups(
         all_categories=display_names,
         existing_groups=hierarchy or {},
-        endpoint=endpoint,
-        model=model_name,
+        config=config,
     )
 
     # Build slug lookup for validation

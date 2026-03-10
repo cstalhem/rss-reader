@@ -30,6 +30,7 @@ def test_update_ollama_config_persists_provider_config_and_routes(
         "categorization_model": "qwen3:4b",
         "scoring_model": "qwen3:8b",
         "use_separate_models": True,
+        "batch_size": 5,
     }
 
     response = test_client.put("/api/providers/ollama/config", json=payload)
@@ -59,6 +60,25 @@ def test_update_ollama_config_persists_provider_config_and_routes(
     assert task_routes[1].task == "scoring"
     assert task_routes[1].provider == "ollama"
     assert task_routes[1].model == "qwen3:8b"
+
+
+def test_ollama_config_rejects_batch_size_11():
+    """OllamaProviderConfig rejects batch_size above 10."""
+    import pytest
+    from pydantic import ValidationError
+
+    from backend.llm_providers.ollama import OllamaProviderConfig
+
+    with pytest.raises(ValidationError):
+        OllamaProviderConfig(batch_size=11)
+
+
+def test_ollama_config_accepts_batch_size_10():
+    """OllamaProviderConfig accepts batch_size=10."""
+    from backend.llm_providers.ollama import OllamaProviderConfig
+
+    config = OllamaProviderConfig(batch_size=10)
+    assert config.batch_size == 10
 
 
 def test_test_connection_returns_health_response_shape(test_client: TestClient):

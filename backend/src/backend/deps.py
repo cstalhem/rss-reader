@@ -1,5 +1,6 @@
 """Shared FastAPI dependencies and helper functions."""
 
+import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime
@@ -8,6 +9,7 @@ from typing import Literal
 from sqlmodel import Session, func, select
 
 from backend.database import engine
+from backend.llm_providers.base import ProviderTaskConfig
 from backend.llm_providers.registry import get_provider
 from backend.models import LLMProviderConfig, LLMTaskRoute, UserPreferences
 
@@ -37,6 +39,7 @@ class TaskRuntimeResolution:
     model: str | None
     endpoint: str | None
     thinking: bool
+    api_key: str | None
     ready: bool
     reason: ReadinessReason | None
 
@@ -76,6 +79,21 @@ def get_task_route(session: Session, task: TaskName) -> LLMTaskRoute | None:
     return session.exec(select(LLMTaskRoute).where(LLMTaskRoute.task == task)).first()
 
 
+_DEFAULT_BATCH_SIZE = 5
+
+
+def get_scoring_batch_size(session: Session) -> int:
+    """Read batch_size from the active scoring provider's config."""
+    route = get_task_route(session, TASK_SCORING)
+    if not route:
+        return _DEFAULT_BATCH_SIZE
+    row = get_provider_config_row(session, route.provider)
+    if not row:
+        return _DEFAULT_BATCH_SIZE
+    raw = json.loads(row.config_json) if row.config_json else {}
+    return raw.get("batch_size", _DEFAULT_BATCH_SIZE)
+
+
 def upsert_task_route(
     session: Session,
     task: TaskName,
@@ -94,6 +112,28 @@ def upsert_task_route(
     return route
 
 
+def _not_ready(
+    task: TaskName,
+    reason: ReadinessReason,
+    provider: str = "",
+    model: str | None = None,
+    endpoint: str | None = None,
+    thinking: bool = False,
+    api_key: str | None = None,
+) -> TaskRuntimeResolution:
+    """Shorthand for constructing a not-ready resolution."""
+    return TaskRuntimeResolution(
+        task=task,
+        provider=provider,
+        model=model,
+        endpoint=endpoint,
+        thinking=thinking,
+        api_key=api_key,
+        ready=False,
+        reason=reason,
+    )
+
+
 def resolve_task_runtime(session: Session, task: TaskName) -> TaskRuntimeResolution:
     """Resolve provider/model/endpoint for a task without network calls."""
     route = get_task_route(session, task)
@@ -101,72 +141,37 @@ def resolve_task_runtime(session: Session, task: TaskName) -> TaskRuntimeResolut
     if route is None:
         provider_count = session.exec(select(func.count(LLMProviderConfig.id))).one()  # pyright: ignore[reportArgumentType]
         if provider_count == 0:
-            return TaskRuntimeResolution(
-                task=task,
-                provider="",
-                model=None,
-                endpoint=None,
-                thinking=False,
-                ready=False,
-                reason="no_provider",
-            )
-        return TaskRuntimeResolution(
-            task=task,
-            provider="",
-            model=None,
-            endpoint=None,
-            thinking=False,
-            ready=False,
-            reason="model_unconfigured",
-        )
+            return _not_ready(task, "no_provider")
+        return _not_ready(task, "model_unconfigured")
 
     provider_name = route.provider
     provider_row = get_provider_config_row(session, provider_name)
     if provider_row is None:
-        return TaskRuntimeResolution(
-            task=task,
-            provider=provider_name,
-            model=route.model,
-            endpoint=None,
-            thinking=False,
-            ready=False,
-            reason="provider_unconfigured",
+        return _not_ready(
+            task, "provider_unconfigured", provider=provider_name, model=route.model
         )
     if not provider_row.enabled:
-        return TaskRuntimeResolution(
-            task=task,
-            provider=provider_name,
-            model=route.model,
-            endpoint=None,
-            thinking=False,
-            ready=False,
-            reason="provider_disabled",
+        return _not_ready(
+            task, "provider_disabled", provider=provider_name, model=route.model
         )
 
     try:
         provider = get_provider(provider_name)
     except KeyError:
-        return TaskRuntimeResolution(
-            task=task,
-            provider=provider_name,
-            model=route.model,
-            endpoint=None,
-            thinking=False,
-            ready=False,
-            reason="provider_unknown",
+        return _not_ready(
+            task, "provider_unknown", provider=provider_name, model=route.model
         )
 
     parsed = provider.parse_config(provider_row.config_json, task)
     model = route.model or parsed.model
     if model is None:
-        return TaskRuntimeResolution(
-            task=task,
+        return _not_ready(
+            task,
+            "model_unconfigured",
             provider=provider_name,
-            model=None,
             endpoint=parsed.endpoint,
             thinking=parsed.thinking,
-            ready=False,
-            reason="model_unconfigured",
+            api_key=parsed.api_key,
         )
 
     return TaskRuntimeResolution(
@@ -175,6 +180,7 @@ def resolve_task_runtime(session: Session, task: TaskName) -> TaskRuntimeResolut
         model=model,
         endpoint=parsed.endpoint,
         thinking=parsed.thinking,
+        api_key=parsed.api_key,
         ready=True,
         reason=None,
     )
@@ -189,63 +195,78 @@ async def evaluate_task_readiness(
     if not runtime.ready:
         return runtime
 
-    if runtime.endpoint is None or runtime.model is None:
-        return TaskRuntimeResolution(
-            task=runtime.task,
+    # Cloud providers have api_key instead of endpoint — both None means unconfigured
+    if runtime.endpoint is None and runtime.api_key is None:
+        return _not_ready(
+            runtime.task,
+            "provider_unconfigured",
             provider=runtime.provider,
             model=runtime.model,
+            thinking=runtime.thinking,
+        )
+    if runtime.model is None:
+        return _not_ready(
+            runtime.task,
+            "model_unconfigured",
+            provider=runtime.provider,
             endpoint=runtime.endpoint,
             thinking=runtime.thinking,
-            ready=False,
-            reason="provider_unconfigured",
+            api_key=runtime.api_key,
         )
 
     try:
         provider = get_provider(runtime.provider)
     except KeyError:
-        return TaskRuntimeResolution(
-            task=runtime.task,
+        return _not_ready(
+            runtime.task,
+            "provider_unknown",
             provider=runtime.provider,
             model=runtime.model,
             endpoint=runtime.endpoint,
             thinking=runtime.thinking,
-            ready=False,
-            reason="provider_unknown",
+            api_key=runtime.api_key,
         )
 
+    config = ProviderTaskConfig(
+        endpoint=runtime.endpoint,
+        model=runtime.model,
+        thinking=runtime.thinking,
+        api_key=runtime.api_key,
+    )
+
     try:
-        health = await provider.health(runtime.endpoint)
+        health = await provider.health(config)
     except Exception:
         logger.exception("Provider health check failed: task=%s", task)
         health = {"connected": False}
 
     if not health.get("connected"):
-        return TaskRuntimeResolution(
-            task=runtime.task,
+        return _not_ready(
+            runtime.task,
+            "provider_unreachable",
             provider=runtime.provider,
             model=runtime.model,
             endpoint=runtime.endpoint,
             thinking=runtime.thinking,
-            ready=False,
-            reason="provider_unreachable",
+            api_key=runtime.api_key,
         )
 
     try:
-        models = await provider.list_models(runtime.endpoint)
+        models = await provider.list_models(config)
         installed_names = {m.get("name") for m in models if m.get("name")}
     except Exception:
         logger.exception("Provider model listing failed: task=%s", task)
         installed_names = set()
 
     if not installed_names or runtime.model not in installed_names:
-        return TaskRuntimeResolution(
-            task=runtime.task,
+        return _not_ready(
+            runtime.task,
+            "model_missing",
             provider=runtime.provider,
             model=runtime.model,
             endpoint=runtime.endpoint,
             thinking=runtime.thinking,
-            ready=False,
-            reason="model_missing",
+            api_key=runtime.api_key,
         )
 
     return runtime

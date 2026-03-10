@@ -6,6 +6,7 @@ from sqlmodel import Session, select
 
 from backend.config import get_settings
 from backend.database import engine
+from backend.deps import get_scoring_batch_size
 from backend.feeds import refresh_feed
 from backend.models import Feed, UserPreferences
 from backend.scoring_queue import ScoringQueue
@@ -14,7 +15,6 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 DEFAULT_FEED_REFRESH_INTERVAL = 1800  # seconds
-SCORING_BATCH_SIZE = 5
 SCORING_INTERVAL_SECONDS = 30
 
 scheduler = AsyncIOScheduler()
@@ -54,9 +54,10 @@ async def process_scoring_queue():
         # post-commit outside request cycle
         session.expire_on_commit = False
         try:
+            batch_size = get_scoring_batch_size(session)
             processed = await scoring_queue.process_next_batch(
                 session,
-                batch_size=SCORING_BATCH_SIZE,
+                batch_size=batch_size,
             )
             if settings.scheduler.log_job_execution and processed > 0:
                 logger.info(f"Processed {processed} articles from scoring queue")

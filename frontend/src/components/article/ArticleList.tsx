@@ -77,6 +77,24 @@ export function ArticleList({
   const { sortOption, setSortOption } = useSortPreference();
   const { data: scoringStatus } = useScoringStatus();
   const queryClient = useQueryClient();
+  const serverRetryAfter = scoringStatus?.rate_limit_retry_after ?? 0;
+  const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
+  const prevRetryAfterRef = useRef(0);
+
+  // Seed countdown from server value when it changes (derived, no effect needed)
+  if (serverRetryAfter !== prevRetryAfterRef.current) {
+    prevRetryAfterRef.current = serverRetryAfter;
+    setRateLimitCountdown(serverRetryAfter);
+  }
+
+  // Tick down locally for smooth display
+  useEffect(() => {
+    if (rateLimitCountdown <= 0) return;
+    const interval = setInterval(() => {
+      setRateLimitCountdown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [rateLimitCountdown > 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate tab counts (needed before useArticles for scoringActive)
   const scoringCount =
@@ -313,7 +331,9 @@ export function ArticleList({
                 <LuBrainCog />
               </Alert.Indicator>
               <Alert.Title fontSize='xs'>
-                {scoringStatus.scoring_ready_reason}
+                {rateLimitCountdown > 0
+                  ? `API rate limit exceeded. Will retry automatically in ${rateLimitCountdown} seconds.`
+                  : scoringStatus.scoring_ready_reason}
                 {scoringStatus.scoring_ready_reason.includes(
                   "LLM Providers",
                 ) && (
@@ -499,7 +519,8 @@ export function ArticleList({
                     }
                     scoringPhase={
                       article.scoring_state === "scoring" &&
-                      scoringStatus?.current_article_id === article.id
+                      scoringStatus?.phase &&
+                      scoringStatus.phase !== "idle"
                         ? scoringStatus.phase
                         : undefined
                     }

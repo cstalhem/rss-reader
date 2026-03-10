@@ -33,6 +33,21 @@ class CategoryResponse(BaseModel):
     )
 
 
+class ArticleCategoryResult(BaseModel):
+    """Single article result within a batch categorization response."""
+
+    article_id: int
+    categories: list[str] = Field(max_length=4)
+    suggested_new: list[str] = Field(default_factory=list, max_length=2)
+    suggested_parent: str | None = None
+
+
+class BatchCategoryResponse(BaseModel):
+    """Batch response containing categorization results for multiple articles."""
+
+    results: list[ArticleCategoryResult]
+
+
 def build_categorization_prompt(
     article_title: str,
     article_text: str,
@@ -100,3 +115,69 @@ Content: {truncated_text}
 Categorize this article now."""
 
     return prompt
+
+
+def build_batch_categorization_prompt(
+    articles: list[dict],
+    existing_categories: list[str],
+    category_hierarchy: dict[str, list[str]] | None = None,
+    hidden_categories: list[str] | None = None,
+) -> tuple[str, str]:
+    """Build system prompt and user message for batch categorization.
+
+    Args:
+        articles: List of dicts with keys: id, title, content_markdown
+        existing_categories: List of known categories to reuse
+        category_hierarchy: Optional parent->children hierarchy
+        hidden_categories: Optional list of hidden categories to avoid
+
+    Returns:
+        Tuple of (system_prompt, user_message)
+    """
+    from backend.prompts.content import CATEGORIZATION_MAX_CHARS, format_articles_block
+
+    # Format existing categories
+    categories_list = ", ".join(sorted(existing_categories))
+
+    # Format hierarchy if provided
+    hierarchy_section = ""
+    if category_hierarchy:
+        hierarchy_lines = []
+        for parent, children in sorted(category_hierarchy.items()):
+            if children:
+                children_str = ", ".join(children)
+                hierarchy_lines.append(f"{parent} > {children_str}")
+        if hierarchy_lines:
+            hierarchy_section = (
+                "\n\n**Category hierarchy "
+                "(assign new categories as children of these parents when appropriate):**\n"
+                + "\n".join(hierarchy_lines)
+            )
+
+    # Format hidden categories section if provided
+    hidden_section = ""
+    if hidden_categories:
+        hidden_section = (
+            "\n\n**NEVER assign these categories or similar topics (they are blocked):**\n"
+            + ", ".join(hidden_categories)
+        )
+
+    system_prompt = f"""Categorize articles into 1-4 topic categories each.
+
+**Rules (follow strictly):**
+1. ONLY categorize each article's PRIMARY topics — what the article is fundamentally about.
+2. IGNORE incidental mentions, anecdotes, metaphors, and examples used to illustrate a point.
+3. REUSE existing categories from the list below. Strongly prefer existing categories.
+4. Category names should be human-readable English (e.g., "Artificial Intelligence", "Web Development", "Open Source"). Do NOT use kebab-case, underscores, or slashes. Even if the article is in another language, always use English category names.
+5. Keep categories BROAD. Use "AI" not "AI-Assisted Programming" or "Generative AI". Use "Programming" not "Python Development".
+6. Only suggest a new category if NO existing category covers the article's primary topic AND the topic is likely to recur across many articles.
+7. Maximum 4 categories per article. Fewer is better.
+8. When suggesting a new category, suggest which existing parent it should belong under in the suggested_parent field.
+
+**Existing categories:** {categories_list}{hierarchy_section}{hidden_section}
+
+You will receive multiple articles wrapped in `<article>` tags. Return a JSON object with a `results` array. Each entry must include the `article_id` from the input."""
+
+    user_message = format_articles_block(articles, max_chars=CATEGORIZATION_MAX_CHARS)
+
+    return system_prompt, user_message

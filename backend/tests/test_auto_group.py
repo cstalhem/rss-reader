@@ -20,6 +20,7 @@ MOCK_RUNTIME = TaskRuntimeResolution(
     model="test-model",
     endpoint="http://localhost:11434",
     thinking=False,
+    api_key=None,
     ready=True,
     reason=None,
 )

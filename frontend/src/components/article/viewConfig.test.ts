@@ -49,8 +49,8 @@ describe("article view config", () => {
       "No unread articles. You're all caught up!",
     );
     expect(getArticleScoringPhaseLabel("categorizing")).toBe("Categorizing…");
-    expect(getArticleScoringPhaseLabel(undefined)).toBe("Scoring complete");
+    expect(getArticleScoringPhaseLabel(undefined)).toBe("Stalled");
     expect(getArticleScoringPhaseColorPalette("thinking")).toBe("blue");
-    expect(getArticleScoringPhaseColorPalette(undefined)).toBe("green");
+    expect(getArticleScoringPhaseColorPalette(undefined)).toBe("gray");
   });
 });

@@ -169,10 +169,10 @@ async def test_evaluate_task_readiness_model_missing(
 
     provider = get_provider("ollama")
 
-    async def fake_health(endpoint: str) -> dict:
+    async def fake_health(config) -> dict:
         return {"connected": True, "version": "test", "latency_ms": 1}
 
-    async def fake_list_models(endpoint: str) -> list[dict]:
+    async def fake_list_models(config) -> list[dict]:
         return [{"name": "qwen3:8b"}]
 
     monkeypatch.setattr(provider, "health", fake_health)
