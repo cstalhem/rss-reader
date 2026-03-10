@@ -33,6 +33,21 @@ class CategoryResponse(BaseModel):
     )
 
 
+class ArticleCategoryResult(BaseModel):
+    """Single article result within a batch categorization response."""
+
+    article_id: int
+    categories: list[str] = Field(max_length=4)
+    suggested_new: list[str] = Field(default_factory=list, max_length=2)
+    suggested_parent: str | None = None
+
+
+class BatchCategoryResponse(BaseModel):
+    """Batch response containing categorization results for multiple articles."""
+
+    results: list[ArticleCategoryResult]
+
+
 def build_categorization_prompt(
     article_title: str,
     article_text: str,

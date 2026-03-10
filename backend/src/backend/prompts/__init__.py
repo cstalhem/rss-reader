@@ -5,6 +5,8 @@ Re-exports all public names for backward compatibility.
 
 from backend.prompts.categorization import (
     DEFAULT_CATEGORY_HIERARCHY,
+    ArticleCategoryResult,
+    BatchCategoryResponse,
     CategoryResponse,
     build_categorization_prompt,
 )
@@ -14,11 +16,17 @@ from backend.prompts.grouping import (
     build_grouping_prompt,
 )
 from backend.prompts.scoring import (
+    ArticleScoringResult,
+    BatchScoringResponse,
     ScoringResponse,
     build_scoring_prompt,
 )
 
 __all__ = [
+    "ArticleCategoryResult",
+    "ArticleScoringResult",
+    "BatchCategoryResponse",
+    "BatchScoringResponse",
     "CategoryResponse",
     "DEFAULT_CATEGORY_HIERARCHY",
     "GroupSuggestion",

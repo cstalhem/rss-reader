@@ -11,6 +11,21 @@ class ScoringResponse(BaseModel):
     reasoning: str = Field(description="1-2 sentence explanation of scores")
 
 
+class ArticleScoringResult(BaseModel):
+    """Single article result within a batch scoring response."""
+
+    article_id: int
+    interest_score: int = Field(ge=0, le=10)
+    quality_score: int = Field(ge=0, le=10)
+    reasoning: str
+
+
+class BatchScoringResponse(BaseModel):
+    """Batch response containing scoring results for multiple articles."""
+
+    results: list[ArticleScoringResult]
+
+
 def build_scoring_prompt(
     article_title: str,
     article_text: str,
