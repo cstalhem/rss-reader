@@ -211,18 +211,6 @@ async def list_available_models(session: Session = Depends(get_session)):
             )
             continue
 
-        # For Google, filter to selected_models from config
-        if row.provider == "google":
-            import json
-
-            try:
-                config_data = json.loads(row.config_json)
-                selected = set(config_data.get("selected_models", []))
-                if selected:
-                    models = [m for m in models if m.get("name") in selected]
-            except (json.JSONDecodeError, TypeError):  # fmt: skip
-                pass
-
         for m in models:
             all_models.append(
                 AvailableModel(

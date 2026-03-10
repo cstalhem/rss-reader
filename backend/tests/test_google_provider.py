@@ -128,15 +128,6 @@ def test_google_models_available_empty(test_client):
     assert response.json() == []
 
 
-def test_google_selected_models_404_when_not_configured(test_client):
-    """PUT /api/google/models/selected returns 404 when not configured."""
-    response = test_client.put(
-        "/api/google/models/selected",
-        json={"selected_models": ["gemini-2.5-flash"]},
-    )
-    assert response.status_code == 404
-
-
 def test_save_google_config_and_read_back(test_client, monkeypatch, tmp_path):
     """PUT /api/providers/google/config saves encrypted config, GET reads it back masked."""
     from types import SimpleNamespace

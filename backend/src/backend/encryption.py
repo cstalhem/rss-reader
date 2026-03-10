@@ -51,5 +51,5 @@ def decrypt_value(ciphertext: str, keyfile_path: str) -> str:
             key = f.read().strip()
         fernet = Fernet(key.encode())
         return fernet.decrypt(ciphertext.encode()).decode()
-    except (InvalidToken, ValueError, Exception) as e:
+    except (InvalidToken, ValueError) as e:
         raise EncryptionError(f"Decryption failed: {e}") from e

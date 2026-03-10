@@ -8,7 +8,6 @@ import {
   Stack,
   Text,
 } from "@chakra-ui/react";
-import { keyframes } from "@emotion/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LuCheck } from "react-icons/lu";
 import { useGoogleConfig, useGoogleModels } from "@/hooks/providers/google";
@@ -20,12 +19,7 @@ import { SettingsPanelHeading } from "@/components/settings/SettingsPanelHeading
 import { GoogleModelManagement } from "./GoogleModelManagement";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ProviderPanelProps } from "../types";
-
-const checkReveal = keyframes`
-  0% { opacity: 0; transform: scale(0.5); }
-  50% { opacity: 1; transform: scale(1.15); }
-  100% { opacity: 1; transform: scale(1); }
-`;
+import { checkReveal } from "../shared";
 
 export function GoogleProviderPanel({
   onDisconnect,
@@ -130,79 +124,47 @@ export function GoogleProviderPanel({
 
       {/* Action buttons */}
       <Stack direction="row" gap={3} mt={6}>
+        <Button
+          size="sm"
+          colorPalette="accent"
+          onClick={handleSave}
+          loading={saveMutation.isPending}
+          disabled={apiKeyEmpty}
+        >
+          {isNew ? "Save" : serverConfig?.api_key_set ? "Update Key" : "Save Key"}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => testMutation.mutate()}
+          loading={testMutation.isPending}
+          disabled={apiKeyEmpty}
+        >
+          {showCheck ? (
+            <Box
+              as="span"
+              color="green.400"
+              css={{ animation: `${checkReveal} 0.3s ease-out` }}
+            >
+              <LuCheck />
+            </Box>
+          ) : (
+            "Test Key"
+          )}
+        </Button>
         {isNew ? (
-          <>
-            <Button
-              size="sm"
-              colorPalette="accent"
-              onClick={handleSave}
-              loading={saveMutation.isPending}
-              disabled={apiKeyEmpty}
-            >
-              Save
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => testMutation.mutate()}
-              loading={testMutation.isPending}
-              disabled={apiKeyEmpty}
-            >
-              {showCheck ? (
-                <Box
-                  as="span"
-                  color="green.400"
-                  css={{ animation: `${checkReveal} 0.3s ease-out` }}
-                >
-                  <LuCheck />
-                </Box>
-              ) : (
-                "Test Key"
-              )}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={onCancelSetup}>
-              Cancel
-            </Button>
-          </>
+          <Button size="sm" variant="ghost" onClick={onCancelSetup}>
+            Cancel
+          </Button>
         ) : (
-          <>
-            <Button
-              size="sm"
-              colorPalette="accent"
-              onClick={handleSave}
-              loading={saveMutation.isPending}
-              disabled={apiKeyEmpty}
-            >
-              {serverConfig?.api_key_set ? "Update Key" : "Save Key"}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => testMutation.mutate()}
-              loading={testMutation.isPending}
-              disabled={apiKeyEmpty}
-            >
-              {showCheck ? (
-                <Box
-                  as="span"
-                  color="green.400"
-                  css={{ animation: `${checkReveal} 0.3s ease-out` }}
-                >
-                  <LuCheck />
-                </Box>
-              ) : (
-                "Test Key"
-              )}
-            </Button>
-            <Button
-              size="sm"
-              variant="subtle"
-              colorPalette="red"
-              onClick={() => setShowDisconnectDialog(true)}
-            >
-              Disconnect
-            </Button>
-          </>
+          <Button
+            size="sm"
+            variant="subtle"
+            colorPalette="red"
+            onClick={() => setShowDisconnectDialog(true)}
+          >
+            Disconnect
+          </Button>
         )}
       </Stack>
 

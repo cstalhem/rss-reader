@@ -19,11 +19,14 @@ export function useGoogleConfig() {
     mutationFn: (data: { api_key?: string; selected_models?: string[] }) =>
       saveProviderConfig("google", data),
     meta: { errorTitle: "Failed to save Google config" },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.google.config });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.google.availableModels,
-      });
+      // Only refetch the full model catalog when the API key changed
+      if (variables.api_key) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.google.availableModels,
+        });
+      }
       invalidateModelDependents(queryClient);
     },
   });

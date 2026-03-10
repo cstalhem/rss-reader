@@ -13,6 +13,7 @@ class ProviderTaskConfig:
     model: str | None
     thinking: bool
     api_key: str | None = None
+    selected_models: list[str] | None = None
 
 
 class LLMProvider(Protocol):

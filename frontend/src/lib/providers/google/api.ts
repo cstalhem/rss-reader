@@ -27,14 +27,3 @@ export async function fetchGoogleAvailableModels(): Promise<GoogleModelItem[]> {
   return response.json();
 }
 
-export async function updateGoogleSelectedModels(
-  selectedModels: string[]
-): Promise<{ ok: boolean }> {
-  const response = await fetch(`${API_BASE_URL}/api/google/models/selected`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ selected_models: selectedModels }),
-  });
-  if (!response.ok) await throwApiError(response, "Failed to update selected models");
-  return response.json();
-}

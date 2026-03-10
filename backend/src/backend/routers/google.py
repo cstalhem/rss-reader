@@ -1,8 +1,8 @@
-"""Google-specific endpoints: test key, config, available models, selected models."""
+"""Google-specific endpoints: test key, config, available models."""
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlmodel import Session
 
@@ -11,8 +11,6 @@ from backend.llm_providers.google import (
     GOOGLE_PROVIDER,
     GoogleProviderConfig,
     _decrypt_api_key,
-    extract_google_error_message,
-    invalidate_model_cache,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,25 +42,23 @@ class GoogleModelItem(BaseModel):
     description: str
 
 
-class SelectedModelsUpdate(BaseModel):
-    selected_models: list[str]
-
-
 # --- Endpoints ---
 
 
 @router.post("/google/test-key", response_model=TestKeyResponse)
 async def test_google_key(request: TestKeyRequest):
     """Validate an API key without saving it."""
-    try:
-        from google import genai
+    from backend.llm_providers.base import ProviderTaskConfig
+    from backend.llm_providers.registry import get_provider
 
-        client = genai.Client(api_key=request.api_key)
-        async for _ in await client.aio.models.list(config={"page_size": 1}):
-            break
+    provider = get_provider(GOOGLE_PROVIDER)
+    config = ProviderTaskConfig(
+        endpoint=None, model=None, thinking=False, api_key=request.api_key
+    )
+    result = await provider.health(config)
+    if result.get("connected"):
         return TestKeyResponse(valid=True)
-    except Exception as e:
-        return TestKeyResponse(valid=False, error=extract_google_error_message(e))
+    return TestKeyResponse(valid=False, error=result.get("error"))
 
 
 @router.get("/google/config", response_model=GoogleConfigResponse)
@@ -129,26 +125,3 @@ async def list_google_available_models(session: Session = Depends(get_session)):
     ]
 
 
-@router.put("/google/models/selected")
-def update_google_selected_models(
-    data: SelectedModelsUpdate,
-    session: Session = Depends(get_session),
-):
-    """Update selected_models in Google config; invalidates model cache."""
-    row = get_provider_config_row(session, GOOGLE_PROVIDER)
-    if not row:
-        raise HTTPException(status_code=404, detail="Google provider not configured")
-
-    try:
-        config = GoogleProviderConfig.model_validate_json(row.config_json)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Invalid config: {e}") from e
-
-    config.selected_models = data.selected_models
-    row.config_json = config.model_dump_json()
-    session.add(row)
-    session.commit()
-
-    invalidate_model_cache()
-
-    return {"ok": True}

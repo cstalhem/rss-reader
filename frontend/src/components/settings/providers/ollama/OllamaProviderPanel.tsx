@@ -9,7 +9,6 @@ import {
   Stack,
   Text,
 } from "@chakra-ui/react";
-import { keyframes } from "@emotion/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LuCheck } from "react-icons/lu";
 import {
@@ -28,15 +27,10 @@ import { ModelManagement } from "@/components/settings/ModelManagement";
 import { queryKeys } from "@/lib/queryKeys";
 import type { OllamaConfig } from "@/lib/types";
 import type { ProviderPanelProps } from "../types";
+import { checkReveal } from "../shared";
 
 const DEFAULT_HOST = "http://localhost";
 const DEFAULT_PORT = 11434;
-
-const checkReveal = keyframes`
-  0% { opacity: 0; transform: scale(0.5); }
-  50% { opacity: 1; transform: scale(1.15); }
-  100% { opacity: 1; transform: scale(1); }
-`;
 
 export function OllamaProviderPanel({
   onDisconnect,

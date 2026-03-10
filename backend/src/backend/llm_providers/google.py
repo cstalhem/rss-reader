@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 from pydantic import BaseModel
 
@@ -23,6 +23,8 @@ if TYPE_CHECKING:
     from backend.llm_providers.base import ProviderTaskConfig
 
 logger = logging.getLogger(__name__)
+
+_T = TypeVar("_T", bound=BaseModel)
 
 GOOGLE_PROVIDER = "google"
 
@@ -123,26 +125,28 @@ def save_google_provider_config(session: Session, body: dict) -> dict:
     api_key = body.get("api_key", "")
     selected_models = body.get("selected_models", [])
 
+    row = get_provider_config_row(session, GOOGLE_PROVIDER)
+
     # If no new key provided, preserve existing encrypted key
     encrypted_key = ""
     if api_key:
         get_or_create_key(keyfile)
         encrypted_key = encrypt_value(api_key, keyfile)
-    else:
-        row = get_provider_config_row(session, GOOGLE_PROVIDER)
-        if row:
-            try:
-                existing = GoogleProviderConfig.model_validate_json(row.config_json)
-                encrypted_key = existing.api_key_encrypted
-            except Exception:
-                pass
+    elif row:
+        try:
+            existing = GoogleProviderConfig.model_validate_json(row.config_json)
+            encrypted_key = existing.api_key_encrypted
+            # Preserve existing selected_models when only updating key
+            if not selected_models:
+                selected_models = existing.selected_models
+        except Exception:
+            pass
 
     config = GoogleProviderConfig(
         api_key_encrypted=encrypted_key,
         selected_models=selected_models,
     )
 
-    row = get_provider_config_row(session, GOOGLE_PROVIDER)
     if not row:
         row = LLMProviderConfig(
             provider=GOOGLE_PROVIDER, enabled=True, config_json="{}"
@@ -157,7 +161,6 @@ def save_google_provider_config(session: Session, body: dict) -> dict:
     # Return masked response
     key_preview = f"...{api_key[-4:]}" if api_key and len(api_key) >= 4 else ""
     if not api_key and encrypted_key:
-        # Decrypt to get preview
         decrypted = _decrypt_api_key(config)
         key_preview = (
             f"...{decrypted[-4:]}" if decrypted and len(decrypted) >= 4 else ""
@@ -191,62 +194,94 @@ class GoogleProvider:
             model=model,
             thinking=False,
             api_key=api_key or None,
+            selected_models=config.selected_models or None,
         )
 
     async def health(self, config: ProviderTaskConfig) -> dict:
-        """Validate API key by listing a single model."""
+        """Validate API key by listing a single model.
+
+        Returns {"connected": True} on success, or
+        {"connected": False, "error": "..."} on failure.
+        """
         if not config.api_key:
-            return {"connected": False}
+            return {"connected": False, "error": "No API key configured"}
         try:
             from google import genai
 
             client = genai.Client(api_key=config.api_key)
-            # Small request to validate the key
-            result = await client.aio.models.list(config={"page_size": 1})
-            async for _ in result:
+            async for _ in await client.aio.models.list(config={"page_size": 1}):
                 break
             return {"connected": True}
         except Exception as e:
             logger.warning("Google health check failed: %s", e)
-            return {"connected": False}
+            return {"connected": False, "error": extract_google_error_message(e)}
 
     async def list_models(self, config: ProviderTaskConfig) -> list[dict]:
-        """List available Gemini models, with 120s cache."""
+        """List available Gemini models, with 120s cache.
+
+        When config.selected_models is set, returns only those models
+        (used by the aggregated /models endpoint for task route dropdowns).
+        """
         global _model_cache, _model_cache_time
 
         if (
             _model_cache is not None
             and (time.time() - _model_cache_time) < _MODEL_CACHE_TTL
         ):
-            return _model_cache
-
-        if not config.api_key:
+            all_models = _model_cache
+        elif not config.api_key:
             return []
+        else:
+            try:
+                from google import genai
 
-        try:
-            from google import genai
+                client = genai.Client(api_key=config.api_key)
+                models = []
+                async for model in await client.aio.models.list(config={"page_size": 100}):
+                    methods = model.supported_actions or []
+                    if "generateContent" not in methods:
+                        continue
+                    models.append(
+                        {
+                            "name": model.name or "",
+                            "display_name": model.display_name or model.name or "",
+                            "description": model.description or "",
+                        }
+                    )
 
-            client = genai.Client(api_key=config.api_key)
-            models = []
-            async for model in await client.aio.models.list(config={"page_size": 100}):
-                # Only include models that support generateContent
-                methods = model.supported_actions or []
-                if "generateContent" not in methods:
-                    continue
-                models.append(
-                    {
-                        "name": model.name or "",
-                        "display_name": model.display_name or model.name or "",
-                        "description": model.description or "",
-                    }
-                )
+                _model_cache = models
+                _model_cache_time = time.time()
+                all_models = models
+            except Exception:
+                logger.exception("Failed to list Google models")
+                return []
 
-            _model_cache = models
-            _model_cache_time = time.time()
-            return models
-        except Exception:
-            logger.exception("Failed to list Google models")
-            return []
+        if config.selected_models:
+            selected = set(config.selected_models)
+            return [m for m in all_models if m.get("name") in selected]
+        return all_models
+
+    async def _generate(
+        self,
+        config: ProviderTaskConfig,
+        prompt: str,
+        schema: type[_T],
+    ) -> _T:
+        """Call Gemini with structured JSON output and return a validated model."""
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=config.api_key)
+        response = await client.aio.models.generate_content(
+            model=config.model,  # pyright: ignore[reportArgumentType]
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=schema.model_json_schema(),
+                temperature=0,
+            ),
+        )
+        return schema.model_validate_json(response.text)  # pyright: ignore[reportArgumentType]
 
     async def categorize(
         self,
@@ -257,9 +292,6 @@ class GoogleProvider:
         category_hierarchy: dict[str, list[str]] | None,
         hidden_categories: list[str] | None,
     ) -> CategoryResponse:
-        from google import genai
-        from google.genai import types
-
         prompt = build_categorization_prompt(
             article_title,
             article_text,
@@ -267,19 +299,7 @@ class GoogleProvider:
             category_hierarchy,
             hidden_categories=hidden_categories,
         )
-
-        client = genai.Client(api_key=config.api_key)
-        response = await client.aio.models.generate_content(
-            model=config.model,  # pyright: ignore[reportArgumentType]
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=CategoryResponse.model_json_schema(),
-                temperature=0,
-            ),
-        )
-
-        result = CategoryResponse.model_validate_json(response.text)  # pyright: ignore[reportArgumentType]
+        result = await self._generate(config, prompt, CategoryResponse)
         logger.info(
             "Google categorized: %d categories, %d suggestions",
             len(result.categories),
@@ -295,25 +315,10 @@ class GoogleProvider:
         anti_interests: str,
         config: ProviderTaskConfig,
     ) -> ScoringResponse:
-        from google import genai
-        from google.genai import types
-
         prompt = build_scoring_prompt(
             article_title, article_text, interests, anti_interests
         )
-
-        client = genai.Client(api_key=config.api_key)
-        response = await client.aio.models.generate_content(
-            model=config.model,  # pyright: ignore[reportArgumentType]
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=ScoringResponse.model_json_schema(),
-                temperature=0,
-            ),
-        )
-
-        result = ScoringResponse.model_validate_json(response.text)  # pyright: ignore[reportArgumentType]
+        result = await self._generate(config, prompt, ScoringResponse)
         logger.info(
             "Google scored: interest=%d, quality=%d",
             result.interest_score,
@@ -327,23 +332,8 @@ class GoogleProvider:
         existing_groups: dict[str, list[str]],
         config: ProviderTaskConfig,
     ) -> GroupingResponse:
-        from google import genai
-        from google.genai import types
-
         prompt = build_grouping_prompt(all_categories, existing_groups)
-
-        client = genai.Client(api_key=config.api_key)
-        response = await client.aio.models.generate_content(
-            model=config.model,  # pyright: ignore[reportArgumentType]
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=GroupingResponse.model_json_schema(),
-                temperature=0,
-            ),
-        )
-
-        result = GroupingResponse.model_validate_json(response.text)  # pyright: ignore[reportArgumentType]
+        result = await self._generate(config, prompt, GroupingResponse)
         logger.info("Google suggested %d category groups", len(result.groups))
         return result
 
