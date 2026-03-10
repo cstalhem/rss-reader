@@ -554,7 +554,8 @@ export function ArticleList({
                     }
                     scoringPhase={
                       article.scoring_state === "scoring" &&
-                      scoringStatus?.current_article_id === article.id
+                      scoringStatus?.phase &&
+                      scoringStatus.phase !== "idle"
                         ? scoringStatus.phase
                         : undefined
                     }

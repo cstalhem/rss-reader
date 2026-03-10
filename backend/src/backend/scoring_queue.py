@@ -22,6 +22,7 @@ from backend.scoring import (
     is_blocked,
     set_rate_limited,
     set_scoring_context,
+    set_scoring_phase,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,11 +33,12 @@ _DEFAULT_RATE_LIMIT_BACKOFF = 60.0  # seconds
 
 
 def _extract_rate_limit_delay(exc: Exception) -> float | None:
-    """If exc is a 429 rate-limit error, return retry-after seconds (or default)."""
+    """If exc is a transient server error (429/503), return retry-after seconds (or default)."""
     import re
 
     exc_str = str(exc)
-    if "429" not in exc_str:
+    # Treat both 429 (rate limit) and 503 (service unavailable/high demand) as transient
+    if "429" not in exc_str and "503" not in exc_str:
         return None
     # Try to extract retryDelay from Google-style error messages
     match = re.search(r"retryDelay.*?(\d+(?:\.\d+)?)s", exc_str)
@@ -205,6 +207,9 @@ class ScoringQueue:
             article_map[article.id] = article  # pyright: ignore[reportArgumentType]
         session.commit()
 
+        # Signal batch is active (no single article — frontend shows phase on all)
+        set_scoring_context(next(iter(batch_ids)))
+
         # --- Step 2: Build article dicts ---
         article_dicts: dict[int, dict] = {}
         for article in articles:
@@ -249,6 +254,7 @@ class ScoringQueue:
 
         if needs_cat_ids:
             cat_input = [article_dicts[aid] for aid in sorted(needs_cat_ids)]
+            set_scoring_phase("categorizing")
             try:
                 cat_results = await categorization_provider.categorize(
                     cat_input,
@@ -259,6 +265,7 @@ class ScoringQueue:
                 )
             except asyncio.CancelledError:
                 logger.info("Scoring cancelled during categorization; re-queueing batch")
+                set_scoring_context(None)
                 session.rollback()
                 for art in articles:
                     art.scoring_state = "queued"
@@ -266,6 +273,7 @@ class ScoringQueue:
                 session.commit()
                 raise
             except Exception as e:
+                set_scoring_context(None)
                 rate_limit_delay = _extract_rate_limit_delay(e)
                 if rate_limit_delay is not None:
                     logger.warning(
@@ -388,6 +396,7 @@ class ScoringQueue:
 
         if scoreable_ids:
             score_input = [article_dicts[aid] for aid in sorted(scoreable_ids)]
+            set_scoring_phase("scoring")
             try:
                 score_results = await scoring_provider.score(
                     score_input,
@@ -397,6 +406,7 @@ class ScoringQueue:
                 )
             except asyncio.CancelledError:
                 logger.info("Scoring cancelled during score step; re-queueing")
+                set_scoring_context(None)
                 session.rollback()
                 for aid in scoreable_ids:
                     art = article_map[aid]
@@ -405,6 +415,7 @@ class ScoringQueue:
                 session.commit()
                 raise
             except Exception as e:
+                set_scoring_context(None)
                 rate_limit_delay = _extract_rate_limit_delay(e)
                 if rate_limit_delay is not None:
                     logger.warning(

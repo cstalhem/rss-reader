@@ -27,6 +27,11 @@ def set_scoring_context(article_id: int | None) -> None:
     _scoring_activity["phase"] = "starting" if article_id else "idle"
 
 
+def set_scoring_phase(phase: str) -> None:
+    """Set the current scoring phase without changing article_id."""
+    _scoring_activity["phase"] = phase
+
+
 def set_rate_limited(retry_after_seconds: float) -> None:
     """Record that the provider is rate-limited. Called by scoring_queue."""
     import time

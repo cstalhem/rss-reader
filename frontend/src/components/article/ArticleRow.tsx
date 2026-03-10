@@ -193,7 +193,7 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
                       ? "Scoring\u2026"
                       : scoringPhase === "starting"
                         ? "Starting\u2026"
-                        : "Scoring complete"}
+                        : "Stalled"}
               </Text>
               <Spinner
                 size="xs"
@@ -202,9 +202,7 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
                     ? "blue"
                     : scoringPhase === "categorizing" || scoringPhase === "scoring"
                       ? "accent"
-                      : scoringPhase
-                        ? "gray"
-                        : "green"
+                      : "gray"
                 }
               />
             </Flex>

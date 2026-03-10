@@ -259,8 +259,13 @@ class GoogleProvider:
                 _model_cache = models
                 _model_cache_time = time.time()
                 all_models = models
-            except Exception:
-                logger.exception("Failed to list Google models")
+            except Exception as e:
+                from google.genai.errors import ServerError
+
+                if isinstance(e, ServerError):
+                    logger.warning("Google API unavailable (%s %s), returning cached or empty model list", e.code, e.status)
+                else:
+                    logger.exception("Failed to list Google models")
                 return []
 
         if config.selected_models:
