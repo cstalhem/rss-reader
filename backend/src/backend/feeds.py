@@ -6,6 +6,7 @@ import feedparser
 import httpx
 from sqlmodel import Session, select
 
+from backend.markdown import html_to_markdown
 from backend.models import Article, Feed
 
 logger = logging.getLogger(__name__)
@@ -95,6 +96,14 @@ def save_articles(
             else None,
             is_read=False,
         )
+
+        raw_html = article.content or article.summary or ""
+        if raw_html:
+            try:
+                article.content_markdown = html_to_markdown(raw_html)
+                logger.info("Converted article %s to markdown", article.id or article.title)
+            except Exception as e:
+                logger.warning("Markdown conversion failed for article '%s': %s", article.title, e)
 
         session.add(article)
         session.flush()  # Flush to get ID without committing

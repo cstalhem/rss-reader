@@ -100,6 +100,7 @@ class Article(SQLModel, table=True):
     published_at: datetime | None = Field(default=None, index=True)
     summary: str | None = None
     content: str | None = None
+    content_markdown: str | None = None
     is_read: bool = Field(default=False)
 
     # LLM scoring fields

@@ -137,3 +137,42 @@ def test_save_empty_entries(test_session: Session, make_feed: Callable[..., Feed
 
     assert new_count == 0
     assert new_ids == []
+
+
+# --- content_markdown population tests ---
+
+
+def test_save_populates_content_markdown(
+    test_session: Session, make_feed: Callable[..., Feed]
+):
+    feed = make_feed()
+    entries = [
+        {
+            "link": "https://example.com/md-test",
+            "title": "Markdown Test",
+            "content": [{"value": "<h2>Hello</h2><p>World</p>"}],
+        }
+    ]
+
+    save_articles(test_session, feed.id, entries)
+
+    article = test_session.exec(
+        select(Article).where(Article.url == "https://example.com/md-test")
+    ).one()
+    assert article.content_markdown is not None
+    assert "## Hello" in article.content_markdown
+    assert "World" in article.content_markdown
+
+
+def test_save_no_content_no_markdown(
+    test_session: Session, make_feed: Callable[..., Feed]
+):
+    feed = make_feed()
+    entries = [{"link": "https://example.com/no-content", "title": "No Content"}]
+
+    save_articles(test_session, feed.id, entries)
+
+    article = test_session.exec(
+        select(Article).where(Article.url == "https://example.com/no-content")
+    ).one()
+    assert article.content_markdown is None

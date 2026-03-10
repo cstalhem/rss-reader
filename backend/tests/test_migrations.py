@@ -53,8 +53,37 @@ def _create_pre_feature_schema(db_path: Path) -> None:
               1,
               1800
             );
+
             """
         )
+        _create_articles_table(conn)
+
+
+def _create_articles_table(conn) -> None:
+    """Create the articles table required by migrations."""
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS articles (
+          id INTEGER PRIMARY KEY,
+          feed_id INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          url TEXT NOT NULL UNIQUE,
+          author TEXT,
+          published_at TIMESTAMP,
+          summary TEXT,
+          content TEXT,
+          is_read BOOLEAN NOT NULL DEFAULT 0,
+          interest_score INTEGER,
+          quality_score INTEGER,
+          composite_score FLOAT,
+          score_reasoning TEXT,
+          scoring_state TEXT NOT NULL DEFAULT 'unscored',
+          scored_at TIMESTAMP,
+          scoring_priority INTEGER NOT NULL DEFAULT 0,
+          rescore_mode TEXT
+        );
+        """
+    )
 
 
 def _create_category_dup_schema_at_dff(db_path: Path) -> None:
@@ -163,6 +192,8 @@ def _create_category_dup_schema_at_dff(db_path: Path) -> None:
             links,
         )
 
+        _create_articles_table(conn)
+
 
 def _create_schema_at_8c6f_without_feed_folders(db_path: Path) -> None:
     with sqlite3.connect(db_path) as conn:
@@ -183,6 +214,7 @@ def _create_schema_at_8c6f_without_feed_folders(db_path: Path) -> None:
             INSERT INTO alembic_version (version_num) VALUES ('8c6f3c9b8f70');
             """
         )
+        _create_articles_table(conn)
 
 
 def test_upgrade_head_backfills_provider_and_routes() -> None:
