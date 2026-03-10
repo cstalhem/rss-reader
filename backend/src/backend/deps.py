@@ -1,5 +1,6 @@
 """Shared FastAPI dependencies and helper functions."""
 
+import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime
@@ -76,6 +77,21 @@ def get_provider_config_row(
 def get_task_route(session: Session, task: TaskName) -> LLMTaskRoute | None:
     """Load routing row for a specific LLM task."""
     return session.exec(select(LLMTaskRoute).where(LLMTaskRoute.task == task)).first()
+
+
+_DEFAULT_BATCH_SIZE = 5
+
+
+def get_scoring_batch_size(session: Session) -> int:
+    """Read batch_size from the active scoring provider's config."""
+    route = get_task_route(session, TASK_SCORING)
+    if not route:
+        return _DEFAULT_BATCH_SIZE
+    row = get_provider_config_row(session, route.provider)
+    if not row:
+        return _DEFAULT_BATCH_SIZE
+    raw = json.loads(row.config_json) if row.config_json else {}
+    return raw.get("batch_size", _DEFAULT_BATCH_SIZE)
 
 
 def upsert_task_route(

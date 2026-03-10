@@ -45,6 +45,7 @@ class OllamaConfigUpdate(BaseModel):
     categorization_model: str | None
     scoring_model: str | None
     use_separate_models: bool
+    batch_size: int = Field(default=1, ge=1, le=50)
 
 
 class OllamaConfigResponse(OllamaConfigUpdate):
@@ -112,6 +113,7 @@ def get_ollama_config(
         categorization_model=config.categorization_model,
         scoring_model=config.scoring_model,
         use_separate_models=config.use_separate_models,
+        batch_size=config.batch_size,
     )
 
 

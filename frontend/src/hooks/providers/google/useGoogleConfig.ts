@@ -16,7 +16,7 @@ export function useGoogleConfig() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: (data: { api_key?: string; selected_models?: string[] }) =>
+    mutationFn: (data: { api_key?: string; selected_models?: string[]; batch_size?: number }) =>
       saveProviderConfig("google", data),
     meta: { errorTitle: "Failed to save Google config" },
     onSuccess: (_data, variables) => {

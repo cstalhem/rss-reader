@@ -31,7 +31,11 @@ async def get_scoring_status(
     session: Session = Depends(get_session),
 ):
     """Get counts of articles by scoring state, plus live activity and readiness."""
-    from backend.scoring import get_rate_limit_remaining, get_scoring_activity, is_rate_limited
+    from backend.scoring import (
+        get_rate_limit_remaining,
+        get_scoring_activity,
+        is_rate_limited,
+    )
 
     # Single GROUP BY query replaces 5 separate COUNT queries
     state_rows = session.exec(

@@ -249,6 +249,7 @@ class OllamaProviderConfig(BaseModel):
     scoring_model: str | None = None
     use_separate_models: bool = False
     thinking: bool = False
+    batch_size: int = Field(default=1, ge=1, le=50)
 
     @field_validator("base_url")
     @classmethod

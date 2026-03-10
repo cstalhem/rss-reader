@@ -32,8 +32,20 @@ export function GoogleProviderPanel({
     useGoogleModels(!isNew && !!serverConfig?.api_key_set);
 
   const [localApiKey, setLocalApiKey] = useState("");
+  const [localBatchSize, setLocalBatchSize] = useState(
+    serverConfig?.batch_size ?? 5
+  );
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [showCheck, setShowCheck] = useState(false);
+  const [prevServerConfig, setPrevServerConfig] = useState(serverConfig);
+
+  // Sync batch_size when server config loads
+  if (serverConfig !== prevServerConfig) {
+    setPrevServerConfig(serverConfig);
+    if (serverConfig) {
+      setLocalBatchSize(serverConfig.batch_size);
+    }
+  }
 
   const testMutation = useMutation({
     mutationFn: () => testGoogleKey(localApiKey),
@@ -99,6 +111,44 @@ export function GoogleProviderPanel({
             isLoading={modelsLoading}
           />
         </>
+      )}
+
+      {/* Scoring batch size — edit mode only */}
+      {!isNew && serverConfig?.api_key_set && (
+        <Box mt={6}>
+          <SettingsPanelHeading>Scoring</SettingsPanelHeading>
+          <Box>
+            <Text fontSize="xs" color="fg.muted" mb={1}>
+              Batch size
+            </Text>
+            <Input
+              size="sm"
+              type="number"
+              value={localBatchSize}
+              onChange={(e) => {
+                const v = Math.max(1, Math.min(50, Number(e.target.value) || 1));
+                setLocalBatchSize(v);
+              }}
+              width="80px"
+              min={1}
+              max={50}
+            />
+            <Text fontSize="xs" color="fg.muted" mt={1}>
+              Articles scored per cycle. Higher = faster but uses more API quota.
+            </Text>
+          </Box>
+          <Stack direction="row" gap={3} mt={4}>
+            <Button
+              size="sm"
+              colorPalette="accent"
+              onClick={() => saveMutation.mutate({ batch_size: localBatchSize })}
+              loading={saveMutation.isPending}
+              disabled={localBatchSize === serverConfig.batch_size}
+            >
+              Save
+            </Button>
+          </Stack>
+        </Box>
       )}
 
       {/* API Key section — at bottom, close to action buttons */}

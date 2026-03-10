@@ -34,6 +34,7 @@ class GoogleConfigResponse(BaseModel):
     api_key_set: bool
     api_key_preview: str
     selected_models: list[str]
+    batch_size: int
 
 
 class GoogleModelItem(BaseModel):
@@ -67,14 +68,14 @@ def get_google_config(session: Session = Depends(get_session)):
     row = get_provider_config_row(session, GOOGLE_PROVIDER)
     if not row:
         return GoogleConfigResponse(
-            api_key_set=False, api_key_preview="", selected_models=[]
+            api_key_set=False, api_key_preview="", selected_models=[], batch_size=5
         )
 
     try:
         config = GoogleProviderConfig.model_validate_json(row.config_json)
     except Exception:
         return GoogleConfigResponse(
-            api_key_set=False, api_key_preview="", selected_models=[]
+            api_key_set=False, api_key_preview="", selected_models=[], batch_size=5
         )
 
     key_preview = ""
@@ -87,6 +88,7 @@ def get_google_config(session: Session = Depends(get_session)):
         api_key_set=bool(config.api_key_encrypted),
         api_key_preview=key_preview,
         selected_models=config.selected_models,
+        batch_size=config.batch_size,
     )
 
 

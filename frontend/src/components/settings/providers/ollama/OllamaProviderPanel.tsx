@@ -51,6 +51,9 @@ export function OllamaProviderPanel({
   const [localPort, setLocalPort] = useState(
     isNew ? DEFAULT_PORT : (serverConfig?.port ?? DEFAULT_PORT)
   );
+  const [localBatchSize, setLocalBatchSize] = useState(
+    isNew ? 1 : (serverConfig?.batch_size ?? 1)
+  );
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [showCheck, setShowCheck] = useState(false);
   const [prevServerConfig, setPrevServerConfig] = useState(serverConfig);
@@ -61,6 +64,7 @@ export function OllamaProviderPanel({
     if (!isNew && serverConfig) {
       setLocalHost(serverConfig.base_url);
       setLocalPort(serverConfig.port);
+      setLocalBatchSize(serverConfig.batch_size);
     }
   }
 
@@ -103,7 +107,9 @@ export function OllamaProviderPanel({
   const isDirty =
     !isNew &&
     serverConfig &&
-    (localHost !== serverConfig.base_url || localPort !== serverConfig.port);
+    (localHost !== serverConfig.base_url ||
+      localPort !== serverConfig.port ||
+      localBatchSize !== serverConfig.batch_size);
 
   const handleSave = () => {
     const configToSave: OllamaConfig = {
@@ -112,6 +118,7 @@ export function OllamaProviderPanel({
       categorization_model: serverConfig?.categorization_model ?? null,
       scoring_model: serverConfig?.scoring_model ?? null,
       use_separate_models: serverConfig?.use_separate_models ?? false,
+      batch_size: localBatchSize,
     };
 
     saveMutation.mutate(configToSave, {
@@ -194,6 +201,33 @@ export function OllamaProviderPanel({
             pullHook={pullHook}
           />
         </>
+      )}
+
+      {/* Scoring batch size */}
+      {!isNew && (
+        <Box mt={6}>
+          <SettingsPanelHeading>Scoring</SettingsPanelHeading>
+          <Box>
+            <Text fontSize="xs" color="fg.muted" mb={1}>
+              Batch size
+            </Text>
+            <Input
+              size="sm"
+              type="number"
+              value={localBatchSize}
+              onChange={(e) => {
+                const v = Math.max(1, Math.min(50, Number(e.target.value) || 1));
+                setLocalBatchSize(v);
+              }}
+              width="80px"
+              min={1}
+              max={50}
+            />
+            <Text fontSize="xs" color="fg.muted" mt={1}>
+              Articles scored per cycle. Local models are slower — keep this low.
+            </Text>
+          </Box>
+        </Box>
       )}
 
       {/* Action buttons */}

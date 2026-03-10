@@ -7,7 +7,7 @@ import time
 from datetime import datetime
 from typing import TYPE_CHECKING, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.prompts import (
     CategoryResponse,
@@ -59,6 +59,7 @@ class GoogleProviderConfig(BaseModel):
 
     api_key_encrypted: str = ""
     selected_models: list[str] = []
+    batch_size: int = Field(default=5, ge=1, le=50)
 
 
 # --- In-memory model catalog cache ---
@@ -124,6 +125,7 @@ def save_google_provider_config(session: Session, body: dict) -> dict:
 
     api_key = body.get("api_key", "")
     selected_models = body.get("selected_models", [])
+    batch_size = body.get("batch_size")
 
     row = get_provider_config_row(session, GOOGLE_PROVIDER)
 
@@ -136,15 +138,18 @@ def save_google_provider_config(session: Session, body: dict) -> dict:
         try:
             existing = GoogleProviderConfig.model_validate_json(row.config_json)
             encrypted_key = existing.api_key_encrypted
-            # Preserve existing selected_models when only updating key
+            # Preserve existing fields when only updating a subset
             if not selected_models:
                 selected_models = existing.selected_models
+            if batch_size is None:
+                batch_size = existing.batch_size
         except Exception:
             pass
 
     config = GoogleProviderConfig(
         api_key_encrypted=encrypted_key,
         selected_models=selected_models,
+        batch_size=batch_size if batch_size is not None else 5,
     )
 
     if not row:

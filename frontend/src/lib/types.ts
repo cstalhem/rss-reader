@@ -117,12 +117,14 @@ export interface OllamaConfig {
   categorization_model: string | null;
   scoring_model: string | null;
   use_separate_models: boolean;
+  batch_size: number;
 }
 
 export interface GoogleConfig {
   api_key_set: boolean;
   api_key_preview: string;
   selected_models: string[];
+  batch_size: number;
 }
 
 export interface GoogleModelItem {

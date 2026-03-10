@@ -51,6 +51,7 @@ def _save_ollama_config(
             scoring_model=body.get("scoring_model"),
             use_separate_models=body.get("use_separate_models", False),
             thinking=False,
+            batch_size=body.get("batch_size", 1),
         )
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
@@ -86,6 +87,7 @@ def _save_ollama_config(
         "categorization_model": config.categorization_model,
         "scoring_model": config.scoring_model,
         "use_separate_models": config.use_separate_models,
+        "batch_size": config.batch_size,
     }
 
 
