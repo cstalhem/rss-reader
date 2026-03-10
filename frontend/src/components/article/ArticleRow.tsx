@@ -1,14 +1,19 @@
 "use client";
 
 import React, { useState } from "react";
-import { Box, Flex, Text, Spinner, IconButton } from "@chakra-ui/react";
+import { Box, Flex, Text, Spinner } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
-import { LuClock, LuSparkles, LuExternalLink, LuChevronUp, LuChevronDown, LuX } from "react-icons/lu";
+import { LuClock, LuSparkles } from "react-icons/lu";
 import { ArticleListItem } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
 import { TagChip } from "./TagChip";
 import { ScoreBadge } from "./ScoreBadge";
 import { ArticleRowContextMenu } from "./ArticleRowContextMenu";
+import { ReaderNavControls } from "./ReaderNavControls";
+import {
+  getArticleScoringPhaseColorPalette,
+  getArticleScoringPhaseLabel,
+} from "./viewConfig";
 
 const MAX_VISIBLE_TAGS = 3;
 
@@ -185,25 +190,11 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
           {article.scoring_state === "scoring" && (
             <Flex alignItems="center" gap={1.5}>
               <Text fontSize="xs" color="fg.muted">
-                {scoringPhase === "thinking"
-                  ? "Thinking\u2026"
-                  : scoringPhase === "categorizing"
-                    ? "Categorizing\u2026"
-                    : scoringPhase === "scoring"
-                      ? "Scoring\u2026"
-                      : scoringPhase === "starting"
-                        ? "Starting\u2026"
-                        : "Stalled"}
+                {getArticleScoringPhaseLabel(scoringPhase)}
               </Text>
               <Spinner
                 size="xs"
-                colorPalette={
-                  scoringPhase === "thinking"
-                    ? "blue"
-                    : scoringPhase === "categorizing" || scoringPhase === "scoring"
-                      ? "accent"
-                      : "gray"
-                }
+                colorPalette={getArticleScoringPhaseColorPalette(scoringPhase)}
               />
             </Flex>
           )}
@@ -243,46 +234,40 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
         </Flex>
       )}
       {isExpanded && (
-        <Flex flexShrink={0} alignItems="center" gap={1}>
-          <IconButton
-            aria-label="Open original"
-            title="Open original"
-            size="sm"
-            variant="ghost"
-            onClick={(e) => { e.stopPropagation(); onOpenOriginal?.(); }}
-          >
-            <LuExternalLink />
-          </IconButton>
-          <IconButton
-            aria-label="Previous article"
-            title="Previous article"
-            size="sm"
-            variant="ghost"
-            disabled={!onNavigatePrev}
-            onClick={(e) => { e.stopPropagation(); onNavigatePrev?.(); }}
-          >
-            <LuChevronUp />
-          </IconButton>
-          <IconButton
-            aria-label="Next article"
-            title="Next article"
-            size="sm"
-            variant="ghost"
-            disabled={!onNavigateNext}
-            onClick={(e) => { e.stopPropagation(); onNavigateNext?.(); }}
-          >
-            <LuChevronDown />
-          </IconButton>
-          <IconButton
-            aria-label="Close reader"
-            title="Close reader"
-            size="sm"
-            variant="ghost"
-            onClick={(e) => { e.stopPropagation(); onClose?.(); }}
-          >
-            <LuX />
-          </IconButton>
-        </Flex>
+        <ReaderNavControls
+          onOpenOriginal={
+            onOpenOriginal
+              ? (event) => {
+                  event.stopPropagation();
+                  onOpenOriginal();
+                }
+              : null
+          }
+          onNavigatePrev={
+            onNavigatePrev
+              ? (event) => {
+                  event.stopPropagation();
+                  onNavigatePrev();
+                }
+              : null
+          }
+          onNavigateNext={
+            onNavigateNext
+              ? (event) => {
+                  event.stopPropagation();
+                  onNavigateNext();
+                }
+              : null
+          }
+          onClose={
+            onClose
+              ? (event) => {
+                  event.stopPropagation();
+                  onClose();
+                }
+              : null
+          }
+        />
       )}
     </Flex>
   );

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchArticles, updateArticleReadStatus } from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
-import type { ArticleListItem } from "@/lib/types";
+import type { ArticleListItem, Feed, FeedFolder } from "@/lib/types";
 
 const PAGE_SIZE = 50;
 const SCORING_ACTIVE_POLL_INTERVAL = 10_000;
@@ -89,16 +89,59 @@ export function useMarkAsRead() {
     }) => updateArticleReadStatus(articleId, isRead),
     meta: { errorTitle: "Failed to update article" },
     onSuccess: (_, { articleId, isRead }) => {
+      const unreadDelta = isRead ? -1 : 1;
+      let articleFeedId: number | null = null;
+      let articleFolderId: number | null = null;
+
       // Update is_read in cached article lists without removing the article.
       queryClient.setQueriesData<ArticleListItem[]>(
         { queryKey: queryKeys.articles.all },
         (oldData) => {
           if (!oldData || !Array.isArray(oldData)) return oldData;
-          return oldData.map((a) =>
-            a.id === articleId ? { ...a, is_read: isRead } : a
-          );
-        }
+          return oldData.map((article) => {
+            if (article.id !== articleId) return article;
+            articleFeedId = article.feed_id;
+            return { ...article, is_read: isRead };
+          });
+        },
       );
+
+      if (articleFeedId !== null) {
+        queryClient.setQueryData<Feed[]>(queryKeys.feeds.all, (oldData) => {
+          if (!oldData || !Array.isArray(oldData)) return oldData;
+
+          return oldData.map((feed) => {
+            if (feed.id !== articleFeedId) return feed;
+            articleFolderId = feed.folder_id;
+            return {
+              ...feed,
+              unread_count: Math.max(0, feed.unread_count + unreadDelta),
+            };
+          });
+        });
+      }
+
+      if (articleFolderId !== null) {
+        queryClient.setQueryData<FeedFolder[]>(
+          queryKeys.feedFolders.all,
+          (oldData) => {
+            if (!oldData || !Array.isArray(oldData)) return oldData;
+
+            return oldData.map((folder) =>
+              folder.id === articleFolderId
+                ? {
+                    ...folder,
+                    unread_count: Math.max(0, folder.unread_count + unreadDelta),
+                  }
+                : folder,
+            );
+          },
+        );
+      }
+
+      queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.feedFolders.all });
+
       // Mark all article queries as invalid so they refetch on next observe
       // (tab switch, feed switch) — but don't refetch the active query now,
       // so the article stays visible in the current view.

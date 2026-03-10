@@ -8,19 +8,15 @@ import {
   reorderFeedFolders,
   updateFeedFolder,
 } from "@/lib/api";
-import { queryKeys } from "@/lib/queryKeys";
+import { FEED_STATE_POLL_INTERVAL } from "@/lib/constants";
+import { queryKeys, invalidateFeedDependents } from "@/lib/queryKeys";
 
 export function useFeedFolders() {
   return useQuery({
     queryKey: queryKeys.feedFolders.all,
     queryFn: fetchFeedFolders,
+    refetchInterval: FEED_STATE_POLL_INTERVAL,
   });
-}
-
-function invalidateFeedFolderRelated(queryClient: ReturnType<typeof useQueryClient>) {
-  queryClient.invalidateQueries({ queryKey: queryKeys.feedFolders.all });
-  queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
-  queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
 }
 
 export function useCreateFeedFolder() {
@@ -30,7 +26,7 @@ export function useCreateFeedFolder() {
     mutationFn: ({ name, feedIds }: { name: string; feedIds: number[] }) =>
       createFeedFolder({ name, feed_ids: feedIds }),
     meta: { errorTitle: "Failed to create folder" },
-    onSuccess: () => invalidateFeedFolderRelated(queryClient),
+    onSuccess: () => invalidateFeedDependents(queryClient),
   });
 }
 
@@ -46,7 +42,7 @@ export function useUpdateFeedFolder() {
       data: { name?: string; display_order?: number };
     }) => updateFeedFolder(id, data),
     meta: { errorTitle: "Failed to update folder" },
-    onSuccess: () => invalidateFeedFolderRelated(queryClient),
+    onSuccess: () => invalidateFeedDependents(queryClient),
   });
 }
 
@@ -62,7 +58,7 @@ export function useDeleteFeedFolder() {
       deleteFeeds: boolean;
     }) => deleteFeedFolder(id, deleteFeeds),
     meta: { errorTitle: "Failed to delete folder" },
-    onSuccess: () => invalidateFeedFolderRelated(queryClient),
+    onSuccess: () => invalidateFeedDependents(queryClient),
   });
 }
 
@@ -72,6 +68,6 @@ export function useReorderFeedFolders() {
   return useMutation({
     mutationFn: (folderIds: number[]) => reorderFeedFolders(folderIds),
     meta: { errorTitle: "Failed to reorder folders" },
-    onSuccess: () => invalidateFeedFolderRelated(queryClient),
+    onSuccess: () => invalidateFeedDependents(queryClient),
   });
 }

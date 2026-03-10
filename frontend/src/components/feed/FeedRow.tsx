@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { Box, Flex, Text, Badge, IconButton, Input } from "@chakra-ui/react";
+import { Box, Flex, Text, IconButton, Input } from "@chakra-ui/react";
 import { LuCheckCheck, LuFolderInput, LuGripVertical, LuTrash2 } from "react-icons/lu";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useSwipeable } from "react-swipeable";
 import { Feed } from "@/lib/types";
 import { useRenameState } from "@/hooks/useRenameState";
+import { UnreadCountBadge } from "@/components/ui/unread-count-badge";
 
 interface FeedRowProps {
   feed: Feed;
@@ -177,17 +178,12 @@ export function FeedRow({
 
         {/* Unread count badge */}
         <Box position="relative">
-          {feed.unread_count > 0 && (
-            <Badge
-              colorPalette="accent"
-              variant="solid"
-              size="sm"
-              opacity={isHovered && showDesktopActions ? 0 : 1}
-              transition="opacity 0.2s ease"
-            >
-              {feed.unread_count}
-            </Badge>
-          )}
+          <Box
+            opacity={isHovered && showDesktopActions ? 0 : 1}
+            transition="opacity 0.2s ease"
+          >
+            <UnreadCountBadge count={feed.unread_count} />
+          </Box>
 
           {/* Desktop hover actions */}
           {showDesktopActions && isHovered && (

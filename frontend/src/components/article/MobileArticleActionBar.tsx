@@ -20,6 +20,11 @@ import {
   LuFilter,
 } from "react-icons/lu";
 import type { FilterTab, SortOption } from "@/lib/types";
+import {
+  ARTICLE_FILTER_LABELS,
+  ARTICLE_SORT_LABELS,
+  getArticleFilterActionLabel,
+} from "./viewConfig";
 
 interface MobileArticleActionBarProps {
   filter: FilterTab;
@@ -32,20 +37,6 @@ interface MobileArticleActionBarProps {
   scoringCount: number;
   blockedCount: number;
 }
-
-const filterLabels: Record<FilterTab, string> = {
-  unread: "Unread",
-  all: "All",
-  scoring: "Scoring",
-  blocked: "Blocked",
-};
-
-const sortLabels: Record<SortOption, string> = {
-  score_desc: "Highest score",
-  score_asc: "Lowest score",
-  date_desc: "Newest first",
-  date_asc: "Oldest first",
-};
 
 export function MobileArticleActionBar({
   filter,
@@ -60,6 +51,7 @@ export function MobileArticleActionBar({
 }: MobileArticleActionBarProps) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
+  const filterCounts = { unreadCount: 0, scoringCount, blockedCount };
 
   return (
     <ActionBar.Root open={true} closeOnInteractOutside={false}>
@@ -88,9 +80,13 @@ export function MobileArticleActionBar({
               onOpenChange={(e) => setFilterOpen(e.open)}
             >
               <Popover.Trigger asChild>
-                <Button variant="ghost" size="sm" aria-label={filterLabels[filter]}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={ARTICLE_FILTER_LABELS[filter]}
+                >
                   <LuFilter />
-                  {filterLabels[filter]}
+                  {ARTICLE_FILTER_LABELS[filter]}
                 </Button>
               </Popover.Trigger>
               <Portal>
@@ -107,11 +103,15 @@ export function MobileArticleActionBar({
                       >
                         <SegmentGroup.Indicator />
                         <SegmentGroup.Item value="unread">
-                          <SegmentGroup.ItemText>Unread</SegmentGroup.ItemText>
+                          <SegmentGroup.ItemText>
+                            {ARTICLE_FILTER_LABELS.unread}
+                          </SegmentGroup.ItemText>
                           <SegmentGroup.ItemHiddenInput />
                         </SegmentGroup.Item>
                         <SegmentGroup.Item value="all">
-                          <SegmentGroup.ItemText>All</SegmentGroup.ItemText>
+                          <SegmentGroup.ItemText>
+                            {ARTICLE_FILTER_LABELS.all}
+                          </SegmentGroup.ItemText>
                           <SegmentGroup.ItemHiddenInput />
                         </SegmentGroup.Item>
                         <SegmentGroup.Item
@@ -119,7 +119,7 @@ export function MobileArticleActionBar({
                           disabled={scoringCount === 0}
                         >
                           <SegmentGroup.ItemText>
-                            Scoring{scoringCount > 0 ? ` (${scoringCount})` : ""}
+                            {getArticleFilterActionLabel("scoring", filterCounts)}
                           </SegmentGroup.ItemText>
                           <SegmentGroup.ItemHiddenInput />
                         </SegmentGroup.Item>
@@ -128,7 +128,7 @@ export function MobileArticleActionBar({
                           disabled={blockedCount === 0}
                         >
                           <SegmentGroup.ItemText>
-                            Blocked{blockedCount > 0 ? ` (${blockedCount})` : ""}
+                            {getArticleFilterActionLabel("blocked", filterCounts)}
                           </SegmentGroup.ItemText>
                           <SegmentGroup.ItemHiddenInput />
                         </SegmentGroup.Item>
@@ -150,9 +150,13 @@ export function MobileArticleActionBar({
               unmountOnExit
             >
               <Popover.Trigger asChild>
-                <Button variant="ghost" size="sm" aria-label={sortLabels[sortOption]}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={ARTICLE_SORT_LABELS[sortOption]}
+                >
                   <LuArrowUpDown />
-                  {sortLabels[sortOption]}
+                  {ARTICLE_SORT_LABELS[sortOption]}
                 </Button>
               </Popover.Trigger>
               <Portal>
