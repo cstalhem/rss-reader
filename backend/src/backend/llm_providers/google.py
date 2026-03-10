@@ -26,6 +26,29 @@ logger = logging.getLogger(__name__)
 
 GOOGLE_PROVIDER = "google"
 
+
+def extract_google_error_message(exc: Exception) -> str:
+    """Extract human-readable message from Google SDK exceptions.
+
+    Google SDK exceptions stringify as e.g.:
+      "400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'API key not valid...', ...}}"
+    This extracts the inner 'message' field, falling back to the full string.
+    """
+    import ast
+    import re
+
+    raw = str(exc)
+    match = re.search(r"\{.*\}\s*$", raw, re.DOTALL)
+    if match:
+        try:
+            parsed = ast.literal_eval(match.group())
+            msg = parsed.get("error", {}).get("message")
+            if msg:
+                return msg
+        except (ValueError, SyntaxError):  # fmt: skip
+            pass
+    return raw
+
 # --- Config model ---
 
 

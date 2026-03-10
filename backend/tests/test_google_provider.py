@@ -8,6 +8,7 @@ from backend.llm_providers.google import (
     GOOGLE_PROVIDER,
     GoogleProvider,
     GoogleProviderConfig,
+    extract_google_error_message,
     invalidate_model_cache,
 )
 from backend.models import LLMProviderConfig, LLMTaskRoute
@@ -157,6 +158,31 @@ def test_save_google_config_and_read_back(test_client, monkeypatch, tmp_path):
     assert data["api_key_preview"].endswith("7890")
     assert "AIzaSy" not in data["api_key_preview"]  # Full key never exposed
     assert data["selected_models"] == ["gemini-2.5-flash"]
+
+
+# --- extract_google_error_message ---
+
+
+def test_extract_google_error_message_with_dict():
+    """Extracts the human-readable message from a Google SDK error."""
+    exc = Exception(
+        "400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'API key not valid. Please pass a valid API key.', 'status': 'INVALID_ARGUMENT', 'details': []}}"
+    )
+    assert extract_google_error_message(exc) == "API key not valid. Please pass a valid API key."
+
+
+def test_extract_google_error_message_fallback():
+    """Falls back to the raw string for unknown error formats."""
+    exc = Exception("Some unknown error format")
+    assert extract_google_error_message(exc) == "Some unknown error format"
+
+
+def test_extract_google_error_message_nested_quotes():
+    """Handles nested quote characters in the error message."""
+    exc = Exception(
+        "403 PERMISSION_DENIED. {'error': {'code': 403, 'message': \"User doesn't have permission\", 'status': 'PERMISSION_DENIED'}}"
+    )
+    assert extract_google_error_message(exc) == "User doesn't have permission"
 
 
 def test_model_cache_invalidation():

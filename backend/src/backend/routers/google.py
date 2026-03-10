@@ -11,6 +11,7 @@ from backend.llm_providers.google import (
     GOOGLE_PROVIDER,
     GoogleProviderConfig,
     _decrypt_api_key,
+    extract_google_error_message,
     invalidate_model_cache,
 )
 
@@ -61,7 +62,7 @@ async def test_google_key(request: TestKeyRequest):
             break
         return TestKeyResponse(valid=True)
     except Exception as e:
-        return TestKeyResponse(valid=False, error=str(e))
+        return TestKeyResponse(valid=False, error=extract_google_error_message(e))
 
 
 @router.get("/google/config", response_model=GoogleConfigResponse)

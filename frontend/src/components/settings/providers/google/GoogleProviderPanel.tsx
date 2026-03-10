@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Box,
   Button,
-  Checkbox,
   Input,
   Stack,
   Text,
@@ -18,6 +17,7 @@ import { toaster } from "@/components/ui/toaster";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { SettingsPanel } from "@/components/settings/SettingsPanel";
 import { SettingsPanelHeading } from "@/components/settings/SettingsPanelHeading";
+import { GoogleModelManagement } from "./GoogleModelManagement";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ProviderPanelProps } from "../types";
 
@@ -90,18 +90,24 @@ export function GoogleProviderPanel({
     );
   };
 
-  const handleModelToggle = (modelName: string, checked: boolean) => {
-    const current = serverConfig?.selected_models ?? [];
-    const next = checked
-      ? [...current, modelName]
-      : current.filter((m) => m !== modelName);
-    saveMutation.mutate({ selected_models: next });
-  };
-
   const apiKeyEmpty = localApiKey.trim() === "";
 
   return (
     <SettingsPanel>
+      {/* Model Selection — edit mode only, shown first */}
+      {!isNew && serverConfig?.api_key_set && (
+        <>
+          <SettingsPanelHeading>Model Selection</SettingsPanelHeading>
+          <GoogleModelManagement
+            availableModels={availableModels ?? []}
+            selectedModelNames={serverConfig.selected_models ?? []}
+            onSelect={(names) => saveMutation.mutate({ selected_models: names })}
+            isLoading={modelsLoading}
+          />
+        </>
+      )}
+
+      {/* API Key section — at bottom, close to action buttons */}
       <SettingsPanelHeading>API Key</SettingsPanelHeading>
 
       {!isNew && serverConfig?.api_key_set && (
@@ -120,48 +126,7 @@ export function GoogleProviderPanel({
             ? "Enter new key to replace"
             : "Enter your Google API key"
         }
-        mb={6}
       />
-
-      {/* Model Selection — edit mode only */}
-      {!isNew && serverConfig?.api_key_set && (
-        <>
-          <SettingsPanelHeading>Model Selection</SettingsPanelHeading>
-          {modelsLoading ? (
-            <Text fontSize="sm" color="fg.muted">
-              Loading models...
-            </Text>
-          ) : availableModels && availableModels.length > 0 ? (
-            <Stack gap={2} mb={6}>
-              {availableModels.map((model) => {
-                const isSelected = (
-                  serverConfig.selected_models ?? []
-                ).includes(model.name);
-                return (
-                  <Checkbox.Root
-                    key={model.name}
-                    checked={isSelected}
-                    onCheckedChange={(details) =>
-                      handleModelToggle(model.name, !!details.checked)
-                    }
-                  >
-                    <Checkbox.HiddenInput />
-                    <Checkbox.Control />
-                    <Checkbox.Label>
-                      <Text fontSize="sm">{model.display_name}</Text>
-                    </Checkbox.Label>
-                  </Checkbox.Root>
-                );
-              })}
-            </Stack>
-          ) : (
-            <Text fontSize="sm" color="fg.muted" mb={6}>
-              No models available. Verify your API key has access to Gemini
-              models.
-            </Text>
-          )}
-        </>
-      )}
 
       {/* Action buttons */}
       <Stack direction="row" gap={3} mt={6}>
