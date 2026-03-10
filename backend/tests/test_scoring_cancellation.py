@@ -48,8 +48,8 @@ async def test_process_next_batch_requeues_cancelled_article(
         return runtime
 
     class FakeProvider:
-        async def categorize(self, *_args, **_kwargs):
-            return [ArticleCategoryResult(article_id=0, categories=[])]
+        async def categorize(self, articles, *_args, **_kwargs):
+            return [ArticleCategoryResult(article_id=a["id"], categories=[]) for a in articles]
 
         async def score(self, *_args, **_kwargs):
             raise asyncio.CancelledError()
