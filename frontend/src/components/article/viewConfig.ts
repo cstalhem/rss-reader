@@ -129,7 +129,7 @@ export function getArticleScoringPhaseLabel(phase?: string) {
     case "starting":
       return "Starting\u2026";
     default:
-      return "Stalled";
+      return "Processing…";
   }
 }
 

@@ -3,10 +3,10 @@
 from unittest.mock import patch
 
 
-def test_first_time_categorizing_article_shows_as_scoring(
+def test_first_time_categorizing_article_shows_actual_state(
     test_client, test_engine, make_feed, make_article
 ):
-    """Article with categorization_state='queued', composite_score=None shows scoring_state='scoring'."""
+    """Article with categorization_state='queued', composite_score=None shows scoring_state='queued'."""
     feed = make_feed()
     make_article(
         feed.id,
@@ -19,7 +19,7 @@ def test_first_time_categorizing_article_shows_as_scoring(
     assert resp.status_code == 200
     items = resp.json()
     assert len(items) == 1
-    assert items[0]["scoring_state"] == "scoring"
+    assert items[0]["scoring_state"] == "queued"
     assert items[0]["re_evaluating"] is False
 
 

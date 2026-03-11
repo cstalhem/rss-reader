@@ -3,6 +3,7 @@
 import { IconButton, Menu, Portal } from "@chakra-ui/react";
 import {
   LuEllipsisVertical,
+  LuMail,
   LuMailOpen,
   LuExternalLink,
   LuRefreshCw,
@@ -11,13 +12,15 @@ import { ArticleListItem } from "@/lib/types";
 
 interface ArticleRowContextMenuProps {
   article: ArticleListItem;
-  onMarkUnread: () => void;
+  isRead: boolean;
+  onToggleRead: () => void;
   onRescore: () => void;
 }
 
 export function ArticleRowContextMenu({
   article,
-  onMarkUnread,
+  isRead,
+  onToggleRead,
   onRescore,
 }: ArticleRowContextMenuProps) {
   return (
@@ -35,9 +38,9 @@ export function ArticleRowContextMenu({
       <Portal>
         <Menu.Positioner>
           <Menu.Content>
-            <Menu.Item value="mark-unread" onClick={onMarkUnread}>
-              <LuMailOpen />
-              Mark unread
+            <Menu.Item value="toggle-read" onClick={onToggleRead}>
+              {isRead ? <LuMailOpen /> : <LuMail />}
+              {isRead ? "Mark unread" : "Mark read"}
             </Menu.Item>
             <Menu.Item
               value="open-original"

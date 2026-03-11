@@ -188,6 +188,17 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
           opacity={1}
         >
           {/* Scoring state indicators for non-scored states */}
+          {article.scoring_state === "categorizing" && (
+            <Flex alignItems="center" gap={1.5}>
+              <Text fontSize="xs" color="fg.muted">
+                Categorizing…
+              </Text>
+              <Spinner
+                size="xs"
+                colorPalette="accent"
+              />
+            </Flex>
+          )}
           {article.scoring_state === "scoring" && (
             <Flex alignItems="center" gap={1.5}>
               <Text fontSize="xs" color="fg.muted">
@@ -225,11 +236,12 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
             />
           </Box>
 
-          {/* Context menu for read articles (hover-reveal) */}
-          {isHovered && article.is_read && onRescore && (
+          {/* Context menu (hover-reveal) */}
+          {isHovered && onRescore && (
             <ArticleRowContextMenu
               article={article}
-              onMarkUnread={() => onToggleRead(article)}
+              isRead={article.is_read}
+              onToggleRead={() => onToggleRead(article)}
               onRescore={() => onRescore(article)}
             />
           )}
