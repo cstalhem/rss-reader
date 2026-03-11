@@ -180,12 +180,13 @@ export function ArticleReader({
         )}
 
         {/* Score Display */}
-        {article.scoring_state === "scored" ? (
+        {(article.scoring_state === "scored" || article.re_evaluating) ? (
           <Box mb={8}>
             <Flex gap={3} alignItems="center">
               <ScoreBadge
                 score={article.composite_score}
                 scoringState={article.scoring_state}
+                reEvaluating={article.re_evaluating}
                 size="md"
               />
               <Text fontSize="md" color="fg.muted">
@@ -215,8 +216,8 @@ export function ArticleReader({
         ) : (
           <Box mb={8}>
             <Text fontSize="sm" color="fg.muted">
-              {article.scoring_state === "scoring" && "Scoring in progress..."}
-              {article.scoring_state === "queued" && "Queued for scoring..."}
+              {article.scoring_state === "scoring" && "Processing..."}
+              {article.scoring_state === "queued" && "Pending..."}
               {article.scoring_state === "unscored" && "Not yet scored"}
               {article.scoring_state === "failed" && "Scoring failed"}
             </Text>

@@ -49,8 +49,28 @@ def _build_category_embeds(article: Article) -> list[ArticleCategoryEmbed] | Non
     ]
 
 
+def _derive_display_state(article: Article) -> tuple[str, bool]:
+    """Derive the API-facing scoring_state and re_evaluating flag.
+
+    Returns (display_scoring_state, re_evaluating).
+    """
+    re_evaluating = article.composite_score is not None and (
+        article.categorization_state in ("queued", "categorizing")
+        or article.scoring_state in ("queued", "scoring")
+    )
+
+    if article.categorization_state == "failed":
+        return "failed", re_evaluating
+    if re_evaluating:
+        return "scored", True
+    if article.categorization_state in ("queued", "categorizing"):
+        return "scoring", False
+    return article.scoring_state, re_evaluating
+
+
 def _article_to_response(article: Article) -> ArticleResponse:
     """Convert an Article with loaded categories_rel to an ArticleResponse."""
+    display_state, re_eval = _derive_display_state(article)
     return ArticleResponse(
         id=article.id,  # pyright: ignore[reportArgumentType]
         feed_id=article.feed_id,
@@ -66,13 +86,15 @@ def _article_to_response(article: Article) -> ArticleResponse:
         quality_score=article.quality_score,
         composite_score=article.composite_score,
         score_reasoning=article.score_reasoning,
-        scoring_state=article.scoring_state,
+        scoring_state=display_state,
         scored_at=article.scored_at,
+        re_evaluating=re_eval,
     )
 
 
 def _article_to_list_item(article: Article) -> ArticleListItem:
     """Convert an Article with loaded categories_rel to a lightweight list item."""
+    display_state, re_eval = _derive_display_state(article)
     return ArticleListItem(
         id=article.id,  # pyright: ignore[reportArgumentType]
         feed_id=article.feed_id,
@@ -87,8 +109,9 @@ def _article_to_list_item(article: Article) -> ArticleListItem:
         composite_score=article.composite_score,
         score_reasoning=article.score_reasoning,
         summary_preview=_strip_html_truncate(article.summary),
-        scoring_state=article.scoring_state,
+        scoring_state=display_state,
         scored_at=article.scored_at,
+        re_evaluating=re_eval,
     )
 
 
@@ -123,11 +146,21 @@ def list_articles(
 
     if scoring_state == "pending":
         statement = statement.where(
-            Article.scoring_state.in_(["unscored", "queued", "scoring"])  # pyright: ignore[reportAttributeAccessIssue]
+            Article.composite_score.is_(None),  # pyright: ignore[reportAttributeAccessIssue]  # first-time only — excludes re-evaluating
+            (
+                Article.scoring_state.in_(["unscored", "queued", "scoring"])  # pyright: ignore[reportAttributeAccessIssue]
+                | Article.categorization_state.in_(["queued", "categorizing"])  # pyright: ignore[reportAttributeAccessIssue]
+            ),
         )
     elif scoring_state == "blocked":
         statement = statement.where(Article.scoring_state == "scored").where(
             Article.composite_score == 0
+        )
+        exclude_blocked = False
+    elif scoring_state == "failed":
+        statement = statement.where(
+            (Article.scoring_state == "failed")
+            | (Article.categorization_state == "failed")
         )
         exclude_blocked = False
     elif scoring_state is not None:
@@ -184,10 +217,10 @@ def rescore_article(article_id: int, session: Session = Depends(get_session)):
     article = session.get(Article, article_id)
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
-    article.scoring_state = "queued"
-    article.scoring_priority = 1
-    session.add(article)
-    session.commit()
+
+    from backend.scheduler import categorization_worker
+
+    categorization_worker.enqueue_single_for_rescoring(session, article)
     return {"ok": True}
 
 

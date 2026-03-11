@@ -6,6 +6,9 @@ import { ArticleListItem } from "@/lib/types";
 
 const COMPLETING_ARTICLE_DURATION = 3_000;
 
+// Re-evaluating articles have display scoring_state='scored' and stay in the
+// scored list, so they never appear in (or disappear from) the Scoring tab.
+// First-time articles flow through the Scoring tab normally.
 /**
  * Tracks articles that just finished scoring while viewing the Scoring tab.
  *

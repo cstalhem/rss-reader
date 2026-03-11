@@ -51,6 +51,7 @@ class ArticleListItem(BaseModel):
     summary_preview: str | None
     scoring_state: str
     scored_at: datetime | None
+    re_evaluating: bool = False
 
 
 class ArticleResponse(BaseModel):
@@ -72,6 +73,7 @@ class ArticleResponse(BaseModel):
     score_reasoning: str | None
     scoring_state: str
     scored_at: datetime | None
+    re_evaluating: bool = False
 
 
 # --- Feeds ---
@@ -213,6 +215,7 @@ class TaskRouteItem(BaseModel):
     task: str
     provider: str
     model: str | None = None
+    batch_size: int | None = None
 
 
 class TaskRoutesResponse(BaseModel):
@@ -223,6 +226,7 @@ class TaskRoutesResponse(BaseModel):
 class TaskRouteAssignment(BaseModel):
     provider: str
     model: str
+    batch_size: int | None = None
 
 
 class TaskRoutesUpdate(BaseModel):

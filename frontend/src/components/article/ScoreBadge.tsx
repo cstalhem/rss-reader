@@ -1,19 +1,18 @@
 "use client";
 
-import { Badge } from "@chakra-ui/react";
+import { Badge, Flex, Spinner } from "@chakra-ui/react";
 import { HIGH_SCORE_THRESHOLD } from "@/lib/constants";
 
 interface ScoreBadgeProps {
   score: number | null;
   scoringState: string;
+  reEvaluating?: boolean;
   size?: "sm" | "md";
 }
 
-export function ScoreBadge({ score, scoringState, size = "sm" }: ScoreBadgeProps) {
-  // Only show badge for scored articles with a score
-  if (scoringState !== "scored" || score === null) {
-    return null;
-  }
+export function ScoreBadge({ score, scoringState, reEvaluating, size = "sm" }: ScoreBadgeProps) {
+  if (score === null) return null;
+  if (scoringState !== "scored" && !reEvaluating) return null;
 
   // Determine badge appearance based on score
   const scoreDisplay = score.toFixed(1);
@@ -34,17 +33,30 @@ export function ScoreBadge({ score, scoringState, size = "sm" }: ScoreBadgeProps
 
   const fontSize = size === "sm" ? "xs" : "sm";
 
+  const badgeProps = {
+    "aria-label": `Score: ${scoreDisplay}`,
+    colorPalette,
+    variant,
+    fontSize,
+    px: 2,
+    py: 0.5,
+    borderRadius: "md" as const,
+    fontWeight: "semibold" as const,
+  };
+
+  if (reEvaluating) {
+    return (
+      <Flex alignItems="center" gap={1}>
+        <Badge opacity={0.5} {...badgeProps}>
+          {scoreDisplay}
+        </Badge>
+        <Spinner size="xs" colorPalette="accent" />
+      </Flex>
+    );
+  }
+
   return (
-    <Badge
-      aria-label={`Score: ${scoreDisplay}`}
-      colorPalette={colorPalette}
-      variant={variant}
-      fontSize={fontSize}
-      px={2}
-      py={0.5}
-      borderRadius="md"
-      fontWeight="semibold"
-    >
+    <Badge {...badgeProps}>
       {scoreDisplay}
     </Badge>
   );

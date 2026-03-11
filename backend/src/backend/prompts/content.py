@@ -29,8 +29,8 @@ def format_articles_block(articles: list[dict], max_chars: int) -> str:
     for a in articles:
         content = truncate_at_paragraph(a["content_markdown"] or "", max_chars)
         parts.append(
-            f'<article id:{a["id"]}>\n'
-            f'Title: {a["title"]}\n'
+            f"<article id:{a['id']}>\n"
+            f"Title: {a['title']}\n"
             f"Content: {content}\n"
             f"</article>"
         )

@@ -1,12 +1,13 @@
 import { createListCollection } from "@chakra-ui/react";
 import type { IconType } from "react-icons";
-import { LuBan, LuCheckCheck, LuClock, LuInbox } from "react-icons/lu";
+import { LuBan, LuCheckCheck, LuClock, LuInbox, LuTriangleAlert } from "react-icons/lu";
 import type { FilterTab, SortOption } from "@/lib/types";
 
 export interface ArticleFilterCounts {
   unreadCount: number;
   scoringCount: number;
   blockedCount: number;
+  failedCount: number;
 }
 
 export const ARTICLE_FILTER_LABELS: Record<FilterTab, string> = {
@@ -14,6 +15,7 @@ export const ARTICLE_FILTER_LABELS: Record<FilterTab, string> = {
   all: "All",
   scoring: "Scoring",
   blocked: "Blocked",
+  failed: "Failed",
 };
 
 export const ARTICLE_SORT_LABELS: Record<SortOption, string> = {
@@ -52,6 +54,10 @@ export const ARTICLE_EMPTY_STATES: Record<
     icon: LuBan,
     message: "No blocked articles.",
   },
+  failed: {
+    icon: LuTriangleAlert,
+    message: "No failed articles.",
+  },
 };
 
 function formatLabelWithCount(label: string, count: number) {
@@ -62,6 +68,7 @@ export function createArticleFilterCollection({
   unreadCount,
   scoringCount,
   blockedCount,
+  failedCount,
 }: ArticleFilterCounts) {
   return createListCollection({
     items: [
@@ -83,6 +90,11 @@ export function createArticleFilterCollection({
         value: "blocked" as const,
         disabled: blockedCount === 0,
       },
+      {
+        label: formatLabelWithCount(ARTICLE_FILTER_LABELS.failed, failedCount),
+        value: "failed" as const,
+        disabled: failedCount === 0,
+      },
     ],
   });
 }
@@ -97,6 +109,10 @@ export function getArticleFilterActionLabel(
 
   if (filter === "blocked") {
     return formatLabelWithCount(ARTICLE_FILTER_LABELS.blocked, counts.blockedCount);
+  }
+
+  if (filter === "failed") {
+    return formatLabelWithCount(ARTICLE_FILTER_LABELS.failed, counts.failedCount);
   }
 
   return ARTICLE_FILTER_LABELS[filter];

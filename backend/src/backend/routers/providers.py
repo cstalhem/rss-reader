@@ -158,7 +158,9 @@ def get_task_routes(session: Session = Depends(get_session)):
     preferences = get_or_create_preferences(session)
     return TaskRoutesResponse(
         routes=[
-            TaskRouteItem(task=r.task, provider=r.provider, model=r.model)
+            TaskRouteItem(
+                task=r.task, provider=r.provider, model=r.model, batch_size=r.batch_size
+            )
             for r in routes
         ],
         use_separate_models=preferences.use_separate_models,
@@ -176,8 +178,15 @@ def save_task_routes(
         TASK_CATEGORIZATION,
         data.categorization.provider,
         data.categorization.model,
+        batch_size=data.categorization.batch_size,
     )
-    upsert_task_route(session, TASK_SCORING, data.scoring.provider, data.scoring.model)
+    upsert_task_route(
+        session,
+        TASK_SCORING,
+        data.scoring.provider,
+        data.scoring.model,
+        batch_size=data.scoring.batch_size,
+    )
 
     preferences = get_or_create_preferences(session)
     preferences.use_separate_models = data.use_separate_models

@@ -109,7 +109,7 @@ def _set_schema_version(conn, version: int):
 
 
 def _recover_stuck_scoring(conn):
-    """Reset articles orphaned in 'scoring' state back to 'queued'."""
+    """Reset articles orphaned in 'scoring' or 'categorizing' state back to queued."""
     result = conn.execute(
         text(
             "UPDATE articles SET scoring_state = 'queued' WHERE scoring_state = 'scoring'"
@@ -117,6 +117,16 @@ def _recover_stuck_scoring(conn):
     )
     if result.rowcount > 0:
         logger.info(f"Recovered {result.rowcount} articles stuck in scoring state")
+
+    result2 = conn.execute(
+        text(
+            "UPDATE articles SET categorization_state = 'queued' WHERE categorization_state = 'categorizing'"
+        )
+    )
+    if result2.rowcount > 0:
+        logger.info(
+            f"Recovered {result2.rowcount} articles stuck in categorizing state"
+        )
 
 
 def _seed_default_categories(conn):
@@ -215,7 +225,9 @@ def _backfill_content_markdown():
                     article.content_markdown = html_to_markdown(raw_html)
                     converted += 1
                 except Exception as e:
-                    logger.warning("Backfill markdown failed for article %s: %s", article.id, e)
+                    logger.warning(
+                        "Backfill markdown failed for article %s: %s", article.id, e
+                    )
 
             if (i + 1) % 100 == 0:
                 session.commit()

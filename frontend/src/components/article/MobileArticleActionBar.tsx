@@ -36,6 +36,7 @@ interface MobileArticleActionBarProps {
   isMarkingRead: boolean;
   scoringCount: number;
   blockedCount: number;
+  failedCount: number;
 }
 
 export function MobileArticleActionBar({
@@ -48,10 +49,11 @@ export function MobileArticleActionBar({
   isMarkingRead,
   scoringCount,
   blockedCount,
+  failedCount,
 }: MobileArticleActionBarProps) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
-  const filterCounts = { unreadCount: 0, scoringCount, blockedCount };
+  const filterCounts = { unreadCount: 0, scoringCount, blockedCount, failedCount };
 
   return (
     <ActionBar.Root open={true} closeOnInteractOutside={false}>
@@ -129,6 +131,15 @@ export function MobileArticleActionBar({
                         >
                           <SegmentGroup.ItemText>
                             {getArticleFilterActionLabel("blocked", filterCounts)}
+                          </SegmentGroup.ItemText>
+                          <SegmentGroup.ItemHiddenInput />
+                        </SegmentGroup.Item>
+                        <SegmentGroup.Item
+                          value="failed"
+                          disabled={failedCount === 0}
+                        >
+                          <SegmentGroup.ItemText>
+                            {getArticleFilterActionLabel("failed", filterCounts)}
                           </SegmentGroup.ItemText>
                           <SegmentGroup.ItemHiddenInput />
                         </SegmentGroup.Item>
