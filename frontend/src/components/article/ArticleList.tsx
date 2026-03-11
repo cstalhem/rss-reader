@@ -525,9 +525,8 @@ export function ArticleList({
                     }
                     scoringPhase={
                       article.scoring_state === "scoring" &&
-                      scoringStatus?.phase &&
-                      scoringStatus.phase !== "idle"
-                        ? scoringStatus.phase
+                      scoringStatus?.phase === "thinking"
+                        ? "thinking"
                         : undefined
                     }
                   />

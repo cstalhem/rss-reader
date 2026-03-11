@@ -1,5 +1,8 @@
 """Tests for Google provider config, parse_config, and router endpoints."""
 
+import time
+
+import pytest
 from sqlmodel import Session
 
 from backend.deps import resolve_task_runtime
@@ -207,3 +210,31 @@ def test_model_cache_invalidation():
 
     assert google._model_cache is None
     assert google._model_cache_time == 0
+
+
+# --- list_models filtering ---
+
+
+@pytest.mark.asyncio
+async def test_list_models_empty_selected_returns_empty(monkeypatch):
+    """list_models with selected_models=[] should return [], not all models."""
+    from backend.llm_providers import google
+
+    # Seed the module-level cache with some models
+    monkeypatch.setattr(google, "_model_cache", [
+        {"name": "gemini-2.5-flash", "display_name": "Gemini 2.5 Flash", "description": ""},
+        {"name": "gemini-2.5-pro", "display_name": "Gemini 2.5 Pro", "description": ""},
+    ])
+    monkeypatch.setattr(google, "_model_cache_time", time.time())
+
+    provider = GoogleProvider()
+    config = ProviderTaskConfig(
+        endpoint=None,
+        model=None,
+        thinking=False,
+        api_key="test-key",
+        selected_models=[],
+    )
+
+    result = await provider.list_models(config)
+    assert result == [], f"Expected empty list but got {len(result)} models"

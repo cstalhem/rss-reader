@@ -64,7 +64,7 @@ def _derive_display_state(article: Article) -> tuple[str, bool]:
     if re_evaluating:
         return "scored", True
     if article.categorization_state in ("queued", "categorizing"):
-        return "scoring", False
+        return article.categorization_state, False
     return article.scoring_state, re_evaluating
 
 

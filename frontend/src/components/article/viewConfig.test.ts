@@ -15,6 +15,7 @@ describe("article view config", () => {
       unreadCount: 4,
       scoringCount: 0,
       blockedCount: 2,
+      failedCount: 1,
     });
 
     expect(collection.items).toEqual([
@@ -22,16 +23,18 @@ describe("article view config", () => {
       { label: "All", value: "all" },
       { label: "Scoring", value: "scoring", disabled: true },
       { label: "Blocked (2)", value: "blocked", disabled: false },
+      { label: "Failed (1)", value: "failed", disabled: false },
     ]);
   });
 
   it("formats mobile filter labels without adding unread counts", () => {
-    const counts = { unreadCount: 9, scoringCount: 3, blockedCount: 1 };
+    const counts = { unreadCount: 9, scoringCount: 3, blockedCount: 1, failedCount: 0 };
 
     expect(getArticleFilterActionLabel("unread", counts)).toBe("Unread");
     expect(getArticleFilterActionLabel("all", counts)).toBe("All");
     expect(getArticleFilterActionLabel("scoring", counts)).toBe("Scoring (3)");
     expect(getArticleFilterActionLabel("blocked", counts)).toBe("Blocked (1)");
+    expect(getArticleFilterActionLabel("failed", counts)).toBe("Failed");
   });
 
   it("exposes shared sort labels and options", () => {
@@ -46,10 +49,10 @@ describe("article view config", () => {
 
   it("provides empty-state and scoring phase lookup helpers", () => {
     expect(ARTICLE_EMPTY_STATES.unread.message).toBe(
-      "No unread articles. You're all caught up!",
+      "No unread articles. You're all caught up\!",
     );
     expect(getArticleScoringPhaseLabel("categorizing")).toBe("Categorizing…");
-    expect(getArticleScoringPhaseLabel(undefined)).toBe("Stalled");
+    expect(getArticleScoringPhaseLabel(undefined)).toBe("Processing…");
     expect(getArticleScoringPhaseColorPalette("thinking")).toBe("blue");
     expect(getArticleScoringPhaseColorPalette(undefined)).toBe("gray");
   });

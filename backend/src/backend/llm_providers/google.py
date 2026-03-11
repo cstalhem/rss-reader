@@ -275,7 +275,7 @@ class GoogleProvider:
                     logger.exception("Failed to list Google models")
                 return []
 
-        if config.selected_models:
+        if config.selected_models is not None:
             selected = set(config.selected_models)
             return [m for m in all_models if m.get("name") in selected]
         return all_models
