@@ -100,8 +100,11 @@ export function ArticleList({
   const scoringCount =
     (scoringStatus?.unscored ?? 0) +
     (scoringStatus?.queued ?? 0) +
-    (scoringStatus?.scoring ?? 0);
+    (scoringStatus?.scoring ?? 0) +
+    (scoringStatus?.categorization?.queued ?? 0) +
+    (scoringStatus?.categorization?.categorizing ?? 0);
   const blockedCount = scoringStatus?.blocked ?? 0;
+  const failedCount = scoringStatus?.failed ?? 0;
 
   // Derive useArticles options from filter state
   const showAll = filter !== "unread";
@@ -110,7 +113,9 @@ export function ArticleList({
       ? "pending"
       : filter === "blocked"
         ? "blocked"
-        : undefined;
+        : filter === "failed"
+          ? "failed"
+          : undefined;
   const excludeBlocked = filter === "unread" || filter === "all";
 
   // Parse sort option for backend
@@ -315,8 +320,9 @@ export function ArticleList({
       unreadCount,
       scoringCount,
       blockedCount,
+      failedCount,
     });
-  }, [unreadCount, scoringCount, blockedCount]);
+  }, [unreadCount, scoringCount, blockedCount, failedCount]);
 
   const emptyState = ARTICLE_EMPTY_STATES[filter];
 
@@ -595,6 +601,7 @@ export function ArticleList({
         isMarkingRead={markAllRead.isPending || markAllArticlesRead.isPending}
         scoringCount={scoringCount}
         blockedCount={blockedCount}
+        failedCount={failedCount}
       />
 
       {/* Confirm mark all articles read dialog */}

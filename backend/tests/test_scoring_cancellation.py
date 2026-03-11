@@ -11,17 +11,17 @@ import backend.database as database_module
 import backend.scheduler as scheduler_module
 import backend.scoring_queue as scoring_queue_module
 from backend.models import Article, Feed
-from backend.prompts import ArticleCategoryResult
-from backend.scoring import get_scoring_activity
-from backend.scoring_queue import ScoringQueue
+from backend.scoring import get_categorization_activity
+from backend.scoring_queue import CategorizationWorker
 
 
 @pytest.mark.asyncio
-async def test_process_next_batch_requeues_cancelled_article(
+async def test_categorization_requeues_cancelled_article(
     test_session,
     sample_feed: Feed,
     monkeypatch: pytest.MonkeyPatch,
 ):
+    """Cancellation during categorization re-queues the article."""
     article = Article(
         feed_id=sample_feed.id,
         title="Cancellation test article",
@@ -29,7 +29,8 @@ async def test_process_next_batch_requeues_cancelled_article(
         published_at=datetime.now(),
         summary="summary",
         content="content",
-        scoring_state="queued",
+        categorization_state="queued",
+        scoring_state="unscored",
     )
     test_session.add(article)
     test_session.commit()
@@ -49,42 +50,52 @@ async def test_process_next_batch_requeues_cancelled_article(
 
     class FakeProvider:
         async def categorize(self, articles, *_args, **_kwargs):
-            return [ArticleCategoryResult(article_id=a["id"], categories=[]) for a in articles]
-
-        async def score(self, *_args, **_kwargs):
             raise asyncio.CancelledError()
 
     monkeypatch.setattr(scoring_queue_module, "evaluate_task_readiness", fake_readiness)
     monkeypatch.setattr(
         scoring_queue_module, "get_provider", lambda _name: FakeProvider()
     )
+    monkeypatch.setattr(
+        scoring_queue_module, "is_categorization_rate_limited", lambda: False
+    )
 
-    queue = ScoringQueue()
+    worker = CategorizationWorker()
     with pytest.raises(asyncio.CancelledError):
-        await queue.process_next_batch(test_session, batch_size=1)
+        await worker.process_next_batch(test_session, batch_size=1)
 
     updated = test_session.get(Article, article.id)
     assert updated is not None
-    assert updated.scoring_state == "queued"
-    assert get_scoring_activity()["article_id"] is None
+    assert updated.categorization_state == "queued"
+    assert get_categorization_activity()["article_id"] is None
 
 
 @pytest.mark.asyncio
-async def test_scheduler_handles_cancelled_scoring_job(
+async def test_scheduler_handles_cancelled_pipeline_job(
     test_engine,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    async def fake_process_next_batch(*_args, **_kwargs):
+    """CancelledError during pipeline doesn't propagate."""
+
+    async def fake_cat_batch(*_args, **_kwargs):
+        raise asyncio.CancelledError()
+
+    async def fake_score_batch(*_args, **_kwargs):
         raise asyncio.CancelledError()
 
     monkeypatch.setattr(scheduler_module, "engine", test_engine)
     monkeypatch.setattr(
-        scheduler_module.scoring_queue,
+        scheduler_module.categorization_worker,
         "process_next_batch",
-        fake_process_next_batch,
+        fake_cat_batch,
+    )
+    monkeypatch.setattr(
+        scheduler_module.scoring_worker,
+        "process_next_batch",
+        fake_score_batch,
     )
 
-    await scheduler_module.process_scoring_queue()
+    await scheduler_module.process_pipeline()
 
 
 def test_create_db_and_tables_recovers_stuck_scoring_every_start(

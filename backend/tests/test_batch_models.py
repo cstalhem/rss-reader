@@ -36,7 +36,11 @@ class TestBatchCategoryResponse:
         data = {
             "results": [
                 {"article_id": 1, "categories": ["Tech"]},
-                {"article_id": 2, "categories": ["Science"], "suggested_new": ["Quantum"]},
+                {
+                    "article_id": 2,
+                    "categories": ["Science"],
+                    "suggested_new": ["Quantum"],
+                },
             ]
         }
         resp = BatchCategoryResponse.model_validate(data)
@@ -72,8 +76,18 @@ class TestBatchScoringResponse:
     def test_parses_from_dict(self):
         data = {
             "results": [
-                {"article_id": 1, "interest_score": 7, "quality_score": 8, "reasoning": "Great"},
-                {"article_id": 2, "interest_score": 3, "quality_score": 5, "reasoning": "Meh"},
+                {
+                    "article_id": 1,
+                    "interest_score": 7,
+                    "quality_score": 8,
+                    "reasoning": "Great",
+                },
+                {
+                    "article_id": 2,
+                    "interest_score": 3,
+                    "quality_score": 5,
+                    "reasoning": "Meh",
+                },
             ]
         }
         resp = BatchScoringResponse.model_validate(data)

@@ -140,6 +140,7 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
               <ScoreBadge
                 score={article.composite_score}
                 scoringState={article.scoring_state}
+                reEvaluating={article.re_evaluating}
                 size="sm"
               />
             </Box>
@@ -219,6 +220,7 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
             <ScoreBadge
               score={article.composite_score}
               scoringState={article.scoring_state}
+              reEvaluating={article.re_evaluating}
               size="sm"
             />
           </Box>

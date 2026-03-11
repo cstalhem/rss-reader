@@ -53,6 +53,7 @@ def extract_google_error_message(exc: Exception) -> str:
             pass
     return raw
 
+
 # --- Config model ---
 
 
@@ -244,7 +245,9 @@ class GoogleProvider:
 
                 client = genai.Client(api_key=config.api_key)
                 models = []
-                async for model in await client.aio.models.list(config={"page_size": 100}):
+                async for model in await client.aio.models.list(
+                    config={"page_size": 100}
+                ):
                     methods = model.supported_actions or []
                     if "generateContent" not in methods:
                         continue
@@ -263,7 +266,11 @@ class GoogleProvider:
                 from google.genai.errors import ServerError
 
                 if isinstance(e, ServerError):
-                    logger.warning("Google API unavailable (%s %s), returning cached or empty model list", e.code, e.status)
+                    logger.warning(
+                        "Google API unavailable (%s %s), returning cached or empty model list",
+                        e.code,
+                        e.status,
+                    )
                 else:
                     logger.exception("Failed to list Google models")
                 return []
@@ -311,7 +318,9 @@ class GoogleProvider:
             category_hierarchy,
             hidden_categories=hidden_categories,
         )
-        result = await self._generate(config, system_prompt, user_message, BatchCategoryResponse)
+        result = await self._generate(
+            config, system_prompt, user_message, BatchCategoryResponse
+        )
         logger.info("Google categorized %d articles", len(result.results))
         return result.results
 
@@ -325,7 +334,9 @@ class GoogleProvider:
         system_prompt, user_message = build_batch_scoring_prompt(
             articles, interests, anti_interests
         )
-        result = await self._generate(config, system_prompt, user_message, BatchScoringResponse)
+        result = await self._generate(
+            config, system_prompt, user_message, BatchScoringResponse
+        )
         logger.info("Google scored %d articles", len(result.results))
         return result.results
 

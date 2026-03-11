@@ -125,5 +125,3 @@ async def list_google_available_models(session: Session = Depends(get_session)):
         )
         for m in models
     ]
-
-

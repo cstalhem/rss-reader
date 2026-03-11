@@ -54,10 +54,7 @@ def test_format_single_article():
     articles = [{"id": 42, "title": "Test Title", "content_markdown": "Some content"}]
     result = format_articles_block(articles, max_chars=4000)
     assert result == (
-        "<article id:42>\n"
-        "Title: Test Title\n"
-        "Content: Some content\n"
-        "</article>"
+        "<article id:42>\nTitle: Test Title\nContent: Some content\n</article>"
     )
 
 
@@ -79,8 +76,10 @@ def test_format_truncates_content():
     articles = [{"id": 1, "title": "T", "content_markdown": long_content}]
     result = format_articles_block(articles, max_chars=100)
     # Content should be truncated to 100 chars
-    content_line = [line for line in result.split("\n") if line.startswith("Content:")][0]
-    content_value = content_line[len("Content: "):]
+    content_line = [line for line in result.split("\n") if line.startswith("Content:")][
+        0
+    ]
+    content_value = content_line[len("Content: ") :]
     assert len(content_value) == 100
 
 

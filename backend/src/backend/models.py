@@ -115,6 +115,11 @@ class Article(SQLModel, table=True):
     scoring_priority: int = Field(default=0)
     rescore_mode: str | None = Field(default=None)
 
+    # Categorization pipeline
+    categorization_state: str = Field(default="uncategorized", index=True)
+    categorization_attempts: int = Field(default=0)
+    scoring_attempts: int = Field(default=0)
+
     # Relationships
     categories_rel: list[Category] = Relationship(
         back_populates="articles",
@@ -162,4 +167,5 @@ class LLMTaskRoute(SQLModel, table=True):
         index=True,
     )
     model: str | None = Field(default=None)
+    batch_size: int | None = Field(default=None)
     updated_at: datetime = Field(default_factory=datetime.now)

@@ -17,6 +17,7 @@ from tenacity import (
 )
 
 from backend import ollama_service
+from backend.scoring import set_categorization_phase, set_scoring_phase
 
 if TYPE_CHECKING:
     from sqlmodel import Session
@@ -127,8 +128,6 @@ async def categorize_article(
     Raises:
         Exception: On LLM call failure after retries
     """
-    from backend.scoring import _scoring_activity
-
     prompt = build_categorization_prompt(
         article_title,
         article_text,
@@ -149,9 +148,9 @@ async def categorize_article(
         think=True if thinking else None,
     ):
         if chunk["message"].get("thinking"):
-            _scoring_activity["phase"] = "thinking"
+            set_categorization_phase("thinking")
         if chunk["message"].get("content"):
-            _scoring_activity["phase"] = "categorizing"
+            set_categorization_phase("categorizing")
         content += chunk["message"].get("content") or ""
 
     # Parse accumulated structured response
@@ -196,8 +195,6 @@ async def score_article(
     Raises:
         Exception: On LLM call failure after retries
     """
-    from backend.scoring import _scoring_activity
-
     prompt = build_scoring_prompt(
         article_title, article_text, interests, anti_interests
     )
@@ -214,9 +211,9 @@ async def score_article(
         think=True if thinking else None,
     ):
         if chunk["message"].get("thinking"):
-            _scoring_activity["phase"] = "thinking"
+            set_scoring_phase("thinking")
         if chunk["message"].get("content"):
-            _scoring_activity["phase"] = "scoring"
+            set_scoring_phase("scoring")
         content += chunk["message"].get("content") or ""
 
     # Parse accumulated structured response
@@ -258,8 +255,6 @@ async def categorize_articles(
     Returns:
         List of ArticleCategoryResult for each article
     """
-    from backend.scoring import _scoring_activity
-
     system_prompt, user_message = build_batch_categorization_prompt(
         articles,
         existing_categories,
@@ -281,9 +276,9 @@ async def categorize_articles(
         think=True if thinking else None,
     ):
         if chunk["message"].get("thinking"):
-            _scoring_activity["phase"] = "thinking"
+            set_categorization_phase("thinking")
         if chunk["message"].get("content"):
-            _scoring_activity["phase"] = "categorizing"
+            set_categorization_phase("categorizing")
         content += chunk["message"].get("content") or ""
 
     result = BatchCategoryResponse.model_validate_json(content)
@@ -317,8 +312,6 @@ async def score_articles(
     Returns:
         List of ArticleScoringResult for each article
     """
-    from backend.scoring import _scoring_activity
-
     system_prompt, user_message = build_batch_scoring_prompt(
         articles, interests, anti_interests
     )
@@ -337,9 +330,9 @@ async def score_articles(
         think=True if thinking else None,
     ):
         if chunk["message"].get("thinking"):
-            _scoring_activity["phase"] = "thinking"
+            set_scoring_phase("thinking")
         if chunk["message"].get("content"):
-            _scoring_activity["phase"] = "scoring"
+            set_scoring_phase("scoring")
         content += chunk["message"].get("content") or ""
 
     result = BatchScoringResponse.model_validate_json(content)

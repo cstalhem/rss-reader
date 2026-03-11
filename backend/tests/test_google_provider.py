@@ -20,7 +20,9 @@ def _google_config_json(
 ) -> str:
     return GoogleProviderConfig(
         api_key_encrypted=api_key_encrypted,
-        selected_models=["gemini-2.5-flash"] if selected_models is None else selected_models,
+        selected_models=["gemini-2.5-flash"]
+        if selected_models is None
+        else selected_models,
     ).model_dump_json()
 
 
@@ -133,7 +135,9 @@ def test_save_google_config_and_read_back(test_client, monkeypatch, tmp_path):
     from types import SimpleNamespace
 
     # Redirect settings.database.path to temp dir so keyfile goes there
-    fake_settings = SimpleNamespace(database=SimpleNamespace(path=str(tmp_path / "test.db")))
+    fake_settings = SimpleNamespace(
+        database=SimpleNamespace(path=str(tmp_path / "test.db"))
+    )
     monkeypatch.setattr("backend.config.get_settings", lambda: fake_settings)
 
     response = test_client.put(
@@ -159,7 +163,10 @@ def test_extract_google_error_message_with_dict():
     exc = Exception(
         "400 INVALID_ARGUMENT. {'error': {'code': 400, 'message': 'API key not valid. Please pass a valid API key.', 'status': 'INVALID_ARGUMENT', 'details': []}}"
     )
-    assert extract_google_error_message(exc) == "API key not valid. Please pass a valid API key."
+    assert (
+        extract_google_error_message(exc)
+        == "API key not valid. Please pass a valid API key."
+    )
 
 
 def test_extract_google_error_message_fallback():

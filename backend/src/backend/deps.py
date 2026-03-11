@@ -82,11 +82,15 @@ def get_task_route(session: Session, task: TaskName) -> LLMTaskRoute | None:
 _DEFAULT_BATCH_SIZE = 5
 
 
-def get_scoring_batch_size(session: Session) -> int:
-    """Read batch_size from the active scoring provider's config."""
-    route = get_task_route(session, TASK_SCORING)
+def get_task_batch_size(session: Session, task: TaskName) -> int:
+    """Read batch_size for a task: route override > provider config > default."""
+    route = get_task_route(session, task)
     if not route:
         return _DEFAULT_BATCH_SIZE
+    # Per-task override takes precedence
+    if route.batch_size is not None:
+        return route.batch_size
+    # Fall back to provider's batch_size from config_json
     row = get_provider_config_row(session, route.provider)
     if not row:
         return _DEFAULT_BATCH_SIZE
@@ -94,19 +98,34 @@ def get_scoring_batch_size(session: Session) -> int:
     return raw.get("batch_size", _DEFAULT_BATCH_SIZE)
 
 
+def get_scoring_batch_size(session: Session) -> int:
+    """Backward compat — delegates to get_task_batch_size for scoring."""
+    return get_task_batch_size(session, TASK_SCORING)
+
+
+_SENTINEL = object()
+
+
 def upsert_task_route(
     session: Session,
     task: TaskName,
     provider: str,
     model: str | None,
+    batch_size: int | None | object = _SENTINEL,
 ) -> LLMTaskRoute:
-    """Create or update a task route row."""
+    """Create or update a task route row.
+
+    batch_size uses a sentinel default so callers that don't pass it
+    leave the existing value untouched.
+    """
     route = get_task_route(session, task)
     if not route:
         route = LLMTaskRoute(task=task, provider=provider, model=model)
 
     route.provider = provider
     route.model = model
+    if batch_size is not _SENTINEL:
+        route.batch_size = batch_size  # pyright: ignore[reportAttributeAccessIssue]
     route.updated_at = datetime.now()
     session.add(route)
     return route
