@@ -13,6 +13,7 @@ const defaultProps = {
   isMarkingRead: false,
   scoringCount: 0,
   blockedCount: 0,
+  failedCount: 0,
 };
 
 describe("MobileArticleActionBar", () => {
