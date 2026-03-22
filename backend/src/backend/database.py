@@ -271,11 +271,13 @@ def create_db_and_tables():
                 )
             _set_schema_version(conn, 2)
 
-        # Always recover orphaned "scoring" rows at startup in case the process
-        # was interrupted mid-stream.
+    _run_alembic_migrations()
+
+    # Recover orphaned "scoring"/"categorizing" rows after migrations,
+    # since the categorization_state column is added by Alembic.
+    with engine.begin() as conn:
         _recover_stuck_scoring(conn)
 
-    _run_alembic_migrations()
     _backfill_content_markdown()
 
     logger.info(f"Database ready at schema version {CURRENT_SCHEMA_VERSION}")
