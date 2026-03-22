@@ -25,7 +25,7 @@ export function CategoryActionBar({
 }: CategoryActionBarProps) {
   return (
     <>
-      {/* Desktop: static header */}
+      {/* Desktop: sticky header */}
       <Flex
         display={{ base: "none", sm: "flex" }}
         alignItems="center"
@@ -33,6 +33,8 @@ export function CategoryActionBar({
         px={3}
         bg="bg.subtle"
         borderRadius="sm"
+        borderBottomWidth="1px"
+        borderColor="border.subtle"
         position="sticky"
         top={0}
         zIndex={1}
