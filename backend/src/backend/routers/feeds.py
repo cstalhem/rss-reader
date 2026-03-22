@@ -123,14 +123,16 @@ async def create_feed(
     session.refresh(feed)
 
     article_count, new_article_ids = save_articles(
-        session, feed.id, parsed_feed.entries  # pyright: ignore[reportArgumentType]
+        session,
+        feed.id,
+        parsed_feed.entries,  # pyright: ignore[reportArgumentType]
     )
     logger.info(f"Created feed {feed.title} with {article_count} articles")
 
     if new_article_ids:
-        from backend.scheduler import scoring_queue
+        from backend.scheduler import categorization_worker
 
-        scoring_queue.enqueue_articles(session, new_article_ids)
+        categorization_worker.enqueue_articles(session, new_article_ids)
 
     return FeedResponse(
         id=feed.id,  # pyright: ignore[reportArgumentType]

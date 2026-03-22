@@ -5,12 +5,12 @@ import { LuSettings, LuRss, LuHeart, LuTag, LuBot, LuMessageSquare } from "react
 export const SIDEBAR_WIDTH_COLLAPSED = "48px";
 /** Sidebar width when expanded (full navigation) */
 export const SIDEBAR_WIDTH_EXPANDED = "240px";
+/** Polling interval for feed and folder unread counts used by article navigation and settings */
+export const FEED_STATE_POLL_INTERVAL = 10_000;
 /** Polling interval for new category count badge (used in Header, SettingsSidebar, useCategories) */
 export const NEW_COUNT_POLL_INTERVAL = 30_000;
 /** Score threshold for accent-colored score badge */
 export const HIGH_SCORE_THRESHOLD = 15;
-/** Default page size for article list pagination */
-export const ARTICLE_LIST_PAGE_SIZE = 50;
 
 export type SettingsSection =
   | "general"

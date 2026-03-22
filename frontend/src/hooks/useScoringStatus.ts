@@ -16,7 +16,8 @@ export function useScoringStatus() {
       const data = query.state.data;
       if (!data) return SCORING_STATUS_IDLE_INTERVAL;
       // Poll faster when articles are actively being scored
-      const activeCount = (data.unscored ?? 0) + (data.queued ?? 0) + (data.scoring ?? 0);
+      const activeCount = (data.unscored ?? 0) + (data.queued ?? 0) + (data.scoring ?? 0)
+        + (data.categorization?.queued ?? 0) + (data.categorization?.categorizing ?? 0);
       return activeCount > 0 ? SCORING_STATUS_ACTIVE_INTERVAL : SCORING_STATUS_IDLE_INTERVAL;
     },
   });

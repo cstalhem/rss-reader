@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchCategories,
@@ -16,8 +15,10 @@ import {
   batchHideCategories as apiBatchHideCategories,
   batchDeleteCategories as apiBatchDeleteCategories,
   ungroupParent as apiUngroupParent,
+  autoGroupSuggest as apiAutoGroupSuggest,
+  autoGroupApply as apiAutoGroupApply,
 } from "@/lib/api";
-import { Category } from "@/lib/types";
+import type { Category, GroupSuggestion } from "@/lib/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { NEW_COUNT_POLL_INTERVAL } from "@/lib/constants";
 import { toaster } from "@/components/ui/toaster";
@@ -155,15 +156,27 @@ export function useCategories() {
     },
   });
 
-  // Stable helper with auto-acknowledge logic — useCallback ensures consumers
-  // get a referentially stable function (critical for React.memo on row components)
-  const updateCategory = useCallback(
-    (id: number, data: Partial<Pick<Category, "display_name" | "parent_id" | "weight" | "is_hidden" | "is_seen">>) => {
-      const payload = data.weight !== undefined ? { ...data, is_seen: true } : data;
-      updateCategoryMutation.mutate({ id, data: payload });
+  const autoGroupSuggestMutation = useMutation({
+    mutationFn: (options?: { provider?: string; model?: string }) =>
+      apiAutoGroupSuggest(options),
+    meta: { errorTitle: "Failed to generate category groupings" },
+  });
+
+  const autoGroupApplyMutation = useMutation({
+    mutationFn: (groups: GroupSuggestion[]) => apiAutoGroupApply(groups),
+    meta: { errorTitle: "Failed to apply category groupings" },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
     },
-    [updateCategoryMutation.mutate]
-  );
+  });
+
+  const updateCategory = (
+    id: number,
+    data: Partial<Pick<Category, "display_name" | "parent_id" | "weight" | "is_hidden" | "is_seen">>
+  ) => {
+    const payload = data.weight !== undefined ? { ...data, is_seen: true } : data;
+    updateCategoryMutation.mutate({ id, data: payload });
+  };
 
   return {
     categories: categoriesQuery.data ?? [],
@@ -181,5 +194,7 @@ export function useCategories() {
     batchHideMutation,
     batchDeleteMutation,
     ungroupParentMutation,
+    autoGroupSuggestMutation,
+    autoGroupApplyMutation,
   };
 }

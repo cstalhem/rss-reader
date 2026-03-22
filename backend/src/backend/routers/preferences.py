@@ -64,9 +64,9 @@ async def update_preferences(
     session.refresh(preferences)
 
     if rescoring_needed:
-        from backend.scheduler import scoring_queue
+        from backend.scheduler import categorization_worker
 
-        scoring_queue.enqueue_recent_for_rescoring(session)
+        categorization_worker.enqueue_recent_for_rescoring(session, score_only=True)
 
     if update.feed_refresh_interval is not None:
         from backend.scheduler import reschedule_feed_refresh

@@ -36,7 +36,8 @@ export default function SettingsLayout({
             : SIDEBAR_WIDTH_EXPANDED,
         }}
         px={{ base: 4, md: 8 }}
-        py={8}
+        pt={4}
+        pb={8}
         transition="margin-left 0.2s ease"
       >
         <Box maxW="4xl" mx="auto" w="full">
@@ -45,7 +46,7 @@ export default function SettingsLayout({
             display={{ base: "flex", md: "none" }}
             alignItems="center"
             gap={2}
-            mb={2}
+            mb={4}
           >
             <Link href="/">
               <Flex
@@ -67,7 +68,7 @@ export default function SettingsLayout({
           </Flex>
 
           {/* Mobile dropdown nav */}
-          <Box display={{ base: "block", md: "none" }} mb={4}>
+          <Box display={{ base: "block", md: "none" }} mb={6}>
             <SettingsMobileNav />
           </Box>
 

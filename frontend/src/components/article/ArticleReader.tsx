@@ -6,15 +6,8 @@ import {
   Flex,
   Link,
   Text,
-  IconButton,
   Spinner,
 } from "@chakra-ui/react";
-import {
-  LuExternalLink,
-  LuChevronUp,
-  LuChevronDown,
-  LuX,
-} from "react-icons/lu";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArticleListItem } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
@@ -24,6 +17,7 @@ import { useAutoMarkAsRead } from "@/hooks/useAutoMarkAsRead";
 import { TagChip } from "./TagChip";
 import { ScoreBadge } from "./ScoreBadge";
 import { ArticleContent } from "./ArticleContent";
+import { ReaderNavControls } from "./ReaderNavControls";
 
 interface ArticleReaderProps {
   article: ArticleListItem;
@@ -127,44 +121,15 @@ export function ArticleReader({
           >
             {article.title}
           </Text>
-          <IconButton
-            aria-label="Open original"
-            title="Open original"
-            size="sm"
-            variant="ghost"
-            onClick={() => window.open(article.url, "_blank", "noopener,noreferrer")}
-          >
-            <LuExternalLink />
-          </IconButton>
-          <IconButton
-            aria-label="Previous article"
-            title="Previous article"
-            size="sm"
-            variant="ghost"
-            disabled={!prevArticle}
-            onClick={() => prevArticle && onNavigate(prevArticle)}
-          >
-            <LuChevronUp />
-          </IconButton>
-          <IconButton
-            aria-label="Next article"
-            title="Next article"
-            size="sm"
-            variant="ghost"
-            disabled={!nextArticle}
-            onClick={() => nextArticle && onNavigate(nextArticle)}
-          >
-            <LuChevronDown />
-          </IconButton>
-          <IconButton
-            aria-label="Close reader"
-            title="Close reader"
-            size="sm"
-            variant="ghost"
-            onClick={onClose}
-          >
-            <LuX />
-          </IconButton>
+          <ReaderNavControls
+            gap={2}
+            onOpenOriginal={() =>
+              window.open(article.url, "_blank", "noopener,noreferrer")
+            }
+            onNavigatePrev={prevArticle ? () => onNavigate(prevArticle) : null}
+            onNavigateNext={nextArticle ? () => onNavigate(nextArticle) : null}
+            onClose={onClose}
+          />
         </Flex>
       )}
 
@@ -215,12 +180,13 @@ export function ArticleReader({
         )}
 
         {/* Score Display */}
-        {article.scoring_state === "scored" ? (
+        {(article.scoring_state === "scored" || article.re_evaluating) ? (
           <Box mb={8}>
             <Flex gap={3} alignItems="center">
               <ScoreBadge
                 score={article.composite_score}
                 scoringState={article.scoring_state}
+                reEvaluating={article.re_evaluating}
                 size="md"
               />
               <Text fontSize="md" color="fg.muted">
@@ -250,8 +216,8 @@ export function ArticleReader({
         ) : (
           <Box mb={8}>
             <Text fontSize="sm" color="fg.muted">
-              {article.scoring_state === "scoring" && "Scoring in progress..."}
-              {article.scoring_state === "queued" && "Queued for scoring..."}
+              {article.scoring_state === "scoring" && "Processing..."}
+              {article.scoring_state === "queued" && "Pending..."}
               {article.scoring_state === "unscored" && "Not yet scored"}
               {article.scoring_state === "failed" && "Scoring failed"}
             </Text>

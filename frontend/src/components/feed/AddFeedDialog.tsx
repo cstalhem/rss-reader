@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   Input,
@@ -27,24 +27,19 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
   const [editedTitle, setEditedTitle] = useState("");
   const [feedId, setFeedId] = useState<number | null>(null);
   const [articleCount, setArticleCount] = useState(0);
-  const [titleSaved, setTitleSaved] = useState(false);
-
   const addFeed = useAddFeed();
   const updateFeed = useUpdateFeed();
 
-  // Reset state when dialog closes
-  useEffect(() => {
-    if (!isOpen) {
-      setStep("url");
-      setUrl("");
-      setError("");
-      setFeedTitle("");
-      setEditedTitle("");
-      setFeedId(null);
-      setArticleCount(0);
-      setTitleSaved(false);
-    }
-  }, [isOpen]);
+  const handleClose = () => {
+    setStep("url");
+    setUrl("");
+    setError("");
+    setFeedTitle("");
+    setEditedTitle("");
+    setFeedId(null);
+    setArticleCount(0);
+    onClose();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,13 +64,14 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
       setEditedTitle(feed.title);
       setArticleCount(feed.unread_count);
       setStep("success");
-    } catch (err: any) {
+    } catch (err) {
       setStep("url");
-      if (err.message.includes("already exists")) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes("already exists")) {
         setError("This feed already exists");
-      } else if (err.message.includes("not a valid RSS feed")) {
+      } else if (message.includes("not a valid RSS feed")) {
         setError("URL is not a valid RSS feed");
-      } else if (err.message.includes("Failed to fetch")) {
+      } else if (message.includes("Failed to fetch")) {
         setError("Failed to fetch URL. Please check the URL and try again.");
       } else {
         setError("Failed to add feed. Please try again.");
@@ -83,20 +79,19 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
     }
   };
 
-  const handleSaveName = async () => {
+  const saveName = async () => {
     if (feedId && editedTitle !== feedTitle) {
-      try {
-        await updateFeed.mutateAsync({ id: feedId, data: { title: editedTitle } });
-        setFeedTitle(editedTitle);
-        setTitleSaved(true);
-        setTimeout(() => setTitleSaved(false), 2000);
-      } catch (err) {
-        setError("Failed to update feed name");
-      }
+      await updateFeed.mutateAsync({ id: feedId, data: { title: editedTitle } });
     }
   };
 
-  const handleAddAnother = () => {
+  const handleDone = async () => {
+    await saveName();
+    handleClose();
+  };
+
+  const handleAddAnother = async () => {
+    await saveName();
     setStep("url");
     setUrl("");
     setError("");
@@ -104,11 +99,10 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
     setEditedTitle("");
     setFeedId(null);
     setArticleCount(0);
-    setTitleSaved(false);
   };
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={({ open }) => !open && onClose()} placement="center">
+    <Dialog.Root open={isOpen} onOpenChange={({ open }) => !open && handleClose()} placement="center">
       <Dialog.Backdrop />
       <Dialog.Positioner>
         <Dialog.Content maxW="md">
@@ -131,7 +125,7 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
                 </Field.Root>
 
                 <Flex justifyContent="flex-end" mt={4} gap={2}>
-                  <Button variant="ghost" onClick={onClose}>
+                  <Button variant="ghost" onClick={handleClose}>
                     Cancel
                   </Button>
                   <Button type="submit" colorPalette="accent">
@@ -149,45 +143,30 @@ export function AddFeedDialog({ isOpen, onClose }: AddFeedDialogProps) {
             )}
 
             {step === "success" && (
-              <Flex direction="column" gap={4}>
-                <Text color="fg.muted">
-                  Found {articleCount} article{articleCount !== 1 ? "s" : ""}
-                </Text>
-
-                <Field.Root>
-                  <Field.Label>Feed Name</Field.Label>
-                  <Input
-                    value={editedTitle}
-                    onChange={(e) => setEditedTitle(e.target.value)}
-                  />
-                </Field.Root>
-
-                {editedTitle !== feedTitle && (
-                  <Button
-                    size="sm"
-                    colorPalette="accent"
-                    onClick={handleSaveName}
-                    disabled={updateFeed.isPending}
-                  >
-                    {updateFeed.isPending ? "Saving..." : "Save Name"}
-                  </Button>
-                )}
-
-                {titleSaved && (
-                  <Text fontSize="sm" color="fg.success">
-                    Name saved!
+              <form onSubmit={(e) => { e.preventDefault(); handleDone(); }}>
+                <Flex direction="column" gap={4}>
+                  <Text color="fg.muted">
+                    Found {articleCount} article{articleCount !== 1 ? "s" : ""}
                   </Text>
-                )}
 
-                <Flex justifyContent="flex-end" gap={2} mt={2}>
-                  <Button variant="ghost" onClick={handleAddAnother}>
-                    Add Another
-                  </Button>
-                  <Button colorPalette="accent" onClick={onClose}>
-                    Done
-                  </Button>
+                  <Field.Root>
+                    <Field.Label>Feed Name</Field.Label>
+                    <Input
+                      value={editedTitle}
+                      onChange={(e) => setEditedTitle(e.target.value)}
+                    />
+                  </Field.Root>
+
+                  <Flex justifyContent="flex-end" gap={2} mt={2}>
+                    <Button variant="ghost" onClick={handleAddAnother} type="button">
+                      Add Another
+                    </Button>
+                    <Button colorPalette="accent" type="submit" disabled={updateFeed.isPending}>
+                      Done
+                    </Button>
+                  </Flex>
                 </Flex>
-              </Flex>
+              </form>
             )}
           </Dialog.Body>
 

@@ -24,6 +24,7 @@ const parserOptions: HTMLReactParserOptions = {
         domNode.parent instanceof Element && domNode.parent.name === "a";
 
       const img = (
+        // eslint-disable-next-line @next/next/no-img-element -- RSS content: arbitrary external domains
         <img
           src={src}
           alt={alt}

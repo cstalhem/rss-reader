@@ -51,6 +51,7 @@ class ArticleListItem(BaseModel):
     summary_preview: str | None
     scoring_state: str
     scored_at: datetime | None
+    re_evaluating: bool = False
 
 
 class ArticleResponse(BaseModel):
@@ -72,6 +73,7 @@ class ArticleResponse(BaseModel):
     score_reasoning: str | None
     scoring_state: str
     scored_at: datetime | None
+    re_evaluating: bool = False
 
 
 # --- Feeds ---
@@ -213,6 +215,7 @@ class TaskRouteItem(BaseModel):
     task: str
     provider: str
     model: str | None = None
+    batch_size: int | None = None
 
 
 class TaskRoutesResponse(BaseModel):
@@ -223,9 +226,37 @@ class TaskRoutesResponse(BaseModel):
 class TaskRouteAssignment(BaseModel):
     provider: str
     model: str
+    batch_size: int | None = None
 
 
 class TaskRoutesUpdate(BaseModel):
     categorization: TaskRouteAssignment
     scoring: TaskRouteAssignment
     use_separate_models: bool
+
+
+# --- Auto-Group ---
+
+
+class AutoGroupRequest(BaseModel):
+    provider: str | None = None
+    model: str | None = None
+
+
+class GroupSuggestionItem(BaseModel):
+    parent: str
+    children: list[str]
+
+
+class AutoGroupSuggestResponse(BaseModel):
+    groups: list[GroupSuggestionItem]
+
+
+class AutoGroupApplyRequest(BaseModel):
+    groups: list[GroupSuggestionItem]
+
+
+class AutoGroupApplyResponse(BaseModel):
+    ok: bool
+    groups_applied: int
+    categories_moved: int

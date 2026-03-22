@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { Box, Flex, Text, Badge, IconButton, Input } from "@chakra-ui/react";
+import { useState, useCallback, useRef } from "react";
+import { Box, Flex, Text, IconButton, Input } from "@chakra-ui/react";
 import { LuCheckCheck, LuFolderInput, LuGripVertical, LuTrash2 } from "react-icons/lu";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useSwipeable } from "react-swipeable";
 import { Feed } from "@/lib/types";
 import { useRenameState } from "@/hooks/useRenameState";
+import { UnreadCountBadge } from "@/components/ui/unread-count-badge";
 
 interface FeedRowProps {
   feed: Feed;
@@ -36,7 +37,7 @@ export function FeedRow({
 }: FeedRowProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isRevealed, setIsRevealed] = useState(false);
-  const [longPressTimer, setLongPressTimer] = useState<NodeJS.Timeout | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleRename = useCallback(
     (newName: string) => onRename(feed.id, newName),
@@ -77,23 +78,22 @@ export function FeedRow({
 
   // Mobile long-press for rename
   const handleTouchStart = () => {
-    const timer = setTimeout(() => {
+    longPressTimer.current = setTimeout(() => {
       startRename();
     }, 500);
-    setLongPressTimer(timer);
   };
 
   const handleTouchEnd = () => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
     }
   };
 
   const handleTouchMove = () => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
     }
   };
 
@@ -178,16 +178,12 @@ export function FeedRow({
 
         {/* Unread count badge */}
         <Box position="relative">
-          {feed.unread_count > 0 && (
-            <Badge
-              colorPalette="accent"
-              size="sm"
-              opacity={isHovered && showDesktopActions ? 0 : 1}
-              transition="opacity 0.2s ease"
-            >
-              {feed.unread_count}
-            </Badge>
-          )}
+          <Box
+            opacity={isHovered && showDesktopActions ? 0 : 1}
+            transition="opacity 0.2s ease"
+          >
+            <UnreadCountBadge count={feed.unread_count} />
+          </Box>
 
           {/* Desktop hover actions */}
           {showDesktopActions && isHovered && (

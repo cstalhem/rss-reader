@@ -68,6 +68,7 @@ def make_article_fixture(test_session: Session):
             "published_at": datetime.now(),
             "is_read": False,
             "scoring_state": "scored",
+            "categorization_state": "categorized",
             "composite_score": 1.0,
         }
         defaults.update(overrides)
@@ -162,6 +163,7 @@ def sample_articles_fixture(test_session: Session, sample_feed: Feed):
             content="Full content of recent article",
             is_read=False,
             scoring_state="scored",
+            categorization_state="categorized",
             composite_score=1.0,
         ),
         Article(
@@ -174,6 +176,7 @@ def sample_articles_fixture(test_session: Session, sample_feed: Feed):
             content="Full content of older article",
             is_read=False,
             scoring_state="scored",
+            categorization_state="categorized",
             composite_score=1.0,
         ),
         Article(
@@ -186,6 +189,7 @@ def sample_articles_fixture(test_session: Session, sample_feed: Feed):
             content="Full content of read article",
             is_read=True,
             scoring_state="scored",
+            categorization_state="categorized",
             composite_score=1.0,
         ),
     ]

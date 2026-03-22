@@ -1,14 +1,19 @@
 "use client";
 
 import React, { useState } from "react";
-import { Box, Flex, Text, Spinner, IconButton } from "@chakra-ui/react";
+import { Box, Flex, Text, Spinner } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
-import { LuClock, LuSparkles, LuExternalLink, LuChevronUp, LuChevronDown, LuX } from "react-icons/lu";
+import { LuClock, LuSparkles } from "react-icons/lu";
 import { ArticleListItem } from "@/lib/types";
 import { formatRelativeDate } from "@/lib/utils";
 import { TagChip } from "./TagChip";
 import { ScoreBadge } from "./ScoreBadge";
 import { ArticleRowContextMenu } from "./ArticleRowContextMenu";
+import { ReaderNavControls } from "./ReaderNavControls";
+import {
+  getArticleScoringPhaseColorPalette,
+  getArticleScoringPhaseLabel,
+} from "./viewConfig";
 
 const MAX_VISIBLE_TAGS = 3;
 
@@ -97,14 +102,23 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
 
       {/* Main content */}
       <Flex flex={1} direction="column" gap={2} minW={0}>
-        {/* Title - truncated */}
+        {/* Title - 2-line clamp on mobile, single-line ellipsis on desktop */}
         <Text
           fontSize={isExpanded ? "sm" : "md"}
           fontWeight={isExpanded ? "medium" : (article.is_read ? "normal" : "semibold")}
           color="fg.default"
-          whiteSpace="nowrap"
           overflow="hidden"
-          textOverflow="ellipsis"
+          css={{
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            display: "-webkit-box",
+            "@media (min-width: 48em)": {
+              WebkitLineClamp: 1,
+              display: "block",
+              whiteSpace: "nowrap",
+              textOverflow: "ellipsis",
+            },
+          }}
         >
           {article.title}
         </Text>
@@ -115,11 +129,22 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
           gap={2}
           overflow="hidden"
           transition="max-height 0.2s ease, opacity 0.15s ease"
-          {...(isExpanded ? { maxH: 0, opacity: 0 } : { maxH: "24", opacity: 1 })}
+          {...(isExpanded ? { maxH: 0, opacity: 0 } : { maxH: { base: "none", md: "24" }, opacity: 1 })}
         >
-          <Text fontSize="sm" color="fg.muted">
-            {feedName ? `${feedName} \u2022 ` : ""}{formatRelativeDate(article.published_at)}
-          </Text>
+          <Flex alignItems="center" gap={2}>
+            <Text fontSize="sm" color="fg.muted">
+              {feedName ? `${feedName} \u2022 ` : ""}{formatRelativeDate(article.published_at)}
+            </Text>
+            {/* Score badge inline on mobile, hidden on desktop (shown in right column there) */}
+            <Box display={{ base: "inline-flex", md: "none" }}>
+              <ScoreBadge
+                score={article.composite_score}
+                scoringState={article.scoring_state}
+                reEvaluating={article.re_evaluating}
+                size="sm"
+              />
+            </Box>
+          </Flex>
           {article.categories && article.categories.length > 0 && (
             <Flex gap={2} alignItems="center" flexWrap="wrap">
               {article.categories.slice(0, MAX_VISIBLE_TAGS).map((cat) => (
@@ -163,30 +188,25 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
           opacity={1}
         >
           {/* Scoring state indicators for non-scored states */}
-          {article.scoring_state === "scoring" && (
+          {article.scoring_state === "categorizing" && (
             <Flex alignItems="center" gap={1.5}>
               <Text fontSize="xs" color="fg.muted">
-                {scoringPhase === "thinking"
-                  ? "Thinking\u2026"
-                  : scoringPhase === "categorizing"
-                    ? "Categorizing\u2026"
-                    : scoringPhase === "scoring"
-                      ? "Scoring\u2026"
-                      : scoringPhase === "starting"
-                        ? "Starting\u2026"
-                        : "Scoring complete"}
+                Categorizing…
               </Text>
               <Spinner
                 size="xs"
-                colorPalette={
-                  scoringPhase === "thinking"
-                    ? "blue"
-                    : scoringPhase === "categorizing" || scoringPhase === "scoring"
-                      ? "accent"
-                      : scoringPhase
-                        ? "gray"
-                        : "green"
-                }
+                colorPalette="accent"
+              />
+            </Flex>
+          )}
+          {article.scoring_state === "scoring" && (
+            <Flex alignItems="center" gap={1.5}>
+              <Text fontSize="xs" color="fg.muted">
+                {getArticleScoringPhaseLabel(scoringPhase)}
+              </Text>
+              <Spinner
+                size="xs"
+                colorPalette={getArticleScoringPhaseColorPalette(scoringPhase)}
               />
             </Flex>
           )}
@@ -206,64 +226,62 @@ export const ArticleRow = React.memo(React.forwardRef<HTMLDivElement, ArticleRow
             <Text fontSize="xs" color="red.fg">&#10005; Failed</Text>
           )}
 
-          {/* Score badge for scored articles */}
-          <ScoreBadge
-            score={article.composite_score}
-            scoringState={article.scoring_state}
-            size="sm"
-          />
+          {/* Score badge for scored articles — desktop only (mobile renders inline in metadata) */}
+          <Box display={{ base: "none", md: "inline-flex" }}>
+            <ScoreBadge
+              score={article.composite_score}
+              scoringState={article.scoring_state}
+              reEvaluating={article.re_evaluating}
+              size="sm"
+            />
+          </Box>
 
-          {/* Context menu for read articles (hover-reveal) */}
-          {isHovered && article.is_read && onRescore && (
+          {/* Context menu (hover-reveal) */}
+          {isHovered && onRescore && (
             <ArticleRowContextMenu
               article={article}
-              onMarkUnread={() => onToggleRead(article)}
+              isRead={article.is_read}
+              onToggleRead={() => onToggleRead(article)}
               onRescore={() => onRescore(article)}
             />
           )}
         </Flex>
       )}
       {isExpanded && (
-        <Flex flexShrink={0} alignItems="center" gap={1}>
-          <IconButton
-            aria-label="Open original"
-            title="Open original"
-            size="sm"
-            variant="ghost"
-            onClick={(e) => { e.stopPropagation(); onOpenOriginal?.(); }}
-          >
-            <LuExternalLink />
-          </IconButton>
-          <IconButton
-            aria-label="Previous article"
-            title="Previous article"
-            size="sm"
-            variant="ghost"
-            disabled={!onNavigatePrev}
-            onClick={(e) => { e.stopPropagation(); onNavigatePrev?.(); }}
-          >
-            <LuChevronUp />
-          </IconButton>
-          <IconButton
-            aria-label="Next article"
-            title="Next article"
-            size="sm"
-            variant="ghost"
-            disabled={!onNavigateNext}
-            onClick={(e) => { e.stopPropagation(); onNavigateNext?.(); }}
-          >
-            <LuChevronDown />
-          </IconButton>
-          <IconButton
-            aria-label="Close reader"
-            title="Close reader"
-            size="sm"
-            variant="ghost"
-            onClick={(e) => { e.stopPropagation(); onClose?.(); }}
-          >
-            <LuX />
-          </IconButton>
-        </Flex>
+        <ReaderNavControls
+          onOpenOriginal={
+            onOpenOriginal
+              ? (event) => {
+                  event.stopPropagation();
+                  onOpenOriginal();
+                }
+              : null
+          }
+          onNavigatePrev={
+            onNavigatePrev
+              ? (event) => {
+                  event.stopPropagation();
+                  onNavigatePrev();
+                }
+              : null
+          }
+          onNavigateNext={
+            onNavigateNext
+              ? (event) => {
+                  event.stopPropagation();
+                  onNavigateNext();
+                }
+              : null
+          }
+          onClose={
+            onClose
+              ? (event) => {
+                  event.stopPropagation();
+                  onClose();
+                }
+              : null
+          }
+        />
       )}
     </Flex>
   );

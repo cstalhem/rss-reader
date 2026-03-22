@@ -12,10 +12,37 @@ logger = logging.getLogger(__name__)
 
 MAX_COMPOSITE_SCORE = 20.0
 
-# Ephemeral in-memory state for real-time scoring phase tracking.
+# Ephemeral in-memory state for real-time phase tracking, per task.
 # Safe in single-worker asyncio — no threading concerns.
 # Shape: {"article_id": int | None, "phase": str}
+_categorization_activity: dict = {"article_id": None, "phase": "idle"}
 _scoring_activity: dict = {"article_id": None, "phase": "idle"}
+
+# Per-task rate-limit tracking: timestamp (time.time()) until which we're throttled.
+_categorization_rate_limited_until: float = 0.0
+_scoring_rate_limited_until: float = 0.0
+
+
+# --- Categorization activity ---
+
+
+def set_categorization_context(article_id: int | None) -> None:
+    """Set the article currently being categorized."""
+    _categorization_activity["article_id"] = article_id
+    _categorization_activity["phase"] = "starting" if article_id else "idle"
+
+
+def set_categorization_phase(phase: str) -> None:
+    """Set the current categorization phase without changing article_id."""
+    _categorization_activity["phase"] = phase
+
+
+def get_categorization_activity() -> dict:
+    """Get current categorization activity state."""
+    return _categorization_activity.copy()
+
+
+# --- Scoring activity ---
 
 
 def set_scoring_context(article_id: int | None) -> None:
@@ -24,9 +51,71 @@ def set_scoring_context(article_id: int | None) -> None:
     _scoring_activity["phase"] = "starting" if article_id else "idle"
 
 
+def set_scoring_phase(phase: str) -> None:
+    """Set the current scoring phase without changing article_id."""
+    _scoring_activity["phase"] = phase
+
+
 def get_scoring_activity() -> dict:
     """Get current scoring activity state. Called by API endpoint."""
     return _scoring_activity.copy()
+
+
+# --- Categorization rate-limit ---
+
+
+def set_categorization_rate_limited(retry_after_seconds: float) -> None:
+    """Record that the categorization provider is rate-limited."""
+    import time
+
+    global _categorization_rate_limited_until
+    _categorization_rate_limited_until = time.time() + retry_after_seconds
+
+
+def is_categorization_rate_limited() -> bool:
+    """Check if categorization is currently in a rate-limit window."""
+    import time
+
+    return time.time() < _categorization_rate_limited_until
+
+
+def get_categorization_rate_limit_remaining() -> float:
+    """Seconds remaining in categorization rate-limit window, or 0."""
+    import time
+
+    return max(0.0, _categorization_rate_limited_until - time.time())
+
+
+# --- Scoring rate-limit ---
+
+
+def set_scoring_rate_limited(retry_after_seconds: float) -> None:
+    """Record that the scoring provider is rate-limited."""
+    import time
+
+    global _scoring_rate_limited_until
+    _scoring_rate_limited_until = time.time() + retry_after_seconds
+
+
+def is_scoring_rate_limited() -> bool:
+    """Check if scoring is currently in a rate-limit window."""
+    import time
+
+    return time.time() < _scoring_rate_limited_until
+
+
+def get_scoring_rate_limit_remaining() -> float:
+    """Seconds remaining in scoring rate-limit window, or 0."""
+    import time
+
+    return max(0.0, _scoring_rate_limited_until - time.time())
+
+
+# --- Backward-compatible aliases (remove when callers are updated) ---
+
+set_rate_limited = set_scoring_rate_limited
+is_rate_limited = is_scoring_rate_limited
+get_rate_limit_remaining = get_scoring_rate_limit_remaining
 
 
 def get_or_create_category(
@@ -177,10 +266,7 @@ def get_active_categories(
     hierarchy: dict[str, list[str]] = {}
     for cat in categories:
         if cat.parent_id is not None and cat.parent is not None:
-            parent_name = cat.parent.display_name
-            if parent_name not in hierarchy:
-                hierarchy[parent_name] = []
-            hierarchy[parent_name].append(cat.display_name)
+            hierarchy.setdefault(cat.parent.display_name, []).append(cat.display_name)
 
     # Sort children lists for consistency
     for children in hierarchy.values():

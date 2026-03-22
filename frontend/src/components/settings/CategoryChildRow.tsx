@@ -12,7 +12,6 @@ interface CategoryChildRowProps {
   category: Category;
   weight: string;
   isOverridden: boolean;
-  parentWeight: string;
 }
 
 const CategoryChildRowComponent = ({
@@ -42,7 +41,6 @@ const CategoryChildRowComponent = ({
       onWeightChange={handleWeightChange}
       onRename={handleRename}
       isOverridden={isOverridden}
-      onReset={handleResetWeight}
       badge={
         isNew
           ? (isHovered: boolean) => <NewCategoryBadge isHovered={isHovered} onDismiss={handleBadgeDismiss} />

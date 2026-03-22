@@ -10,9 +10,7 @@ import React, {
 import NextLink from "next/link";
 import {
   Alert,
-  Badge,
   Box,
-  createListCollection,
   Flex,
   Button,
   Heading,
@@ -26,9 +24,6 @@ import {
 } from "@chakra-ui/react";
 import {
   LuCheckCheck,
-  LuInbox,
-  LuClock,
-  LuBan,
   LuBrainCog,
   LuMenu,
 } from "react-icons/lu";
@@ -52,9 +47,11 @@ import { ArticleRowSkeleton } from "./ArticleRowSkeleton";
 import { ArticleReader } from "./ArticleReader";
 import { SortSelect } from "./SortSelect";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { UnreadCountBadge } from "@/components/ui/unread-count-badge";
 import { MobileArticleActionBar } from "./MobileArticleActionBar";
 import { ArticleListItem, FeedSelection, FilterTab } from "@/lib/types";
 import { parseSortOption } from "@/lib/utils";
+import { ARTICLE_EMPTY_STATES, createArticleFilterCollection } from "./viewConfig";
 
 interface ArticleListProps {
   selection: FeedSelection;
@@ -76,16 +73,38 @@ export function ArticleList({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const rowRefs = useRef<Map<number, HTMLElement>>(new Map());
   const pendingOpenRef = useRef<ArticleListItem | null>(null);
+  const openScrollTopRef = useRef(0);
   const { sortOption, setSortOption } = useSortPreference();
   const { data: scoringStatus } = useScoringStatus();
   const queryClient = useQueryClient();
+  const serverRetryAfter = scoringStatus?.rate_limit_retry_after ?? 0;
+  const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
+  const prevRetryAfterRef = useRef(0);
+
+  // Seed countdown from server value when it changes (derived, no effect needed)
+  if (serverRetryAfter !== prevRetryAfterRef.current) {
+    prevRetryAfterRef.current = serverRetryAfter;
+    setRateLimitCountdown(serverRetryAfter);
+  }
+
+  // Tick down locally for smooth display
+  useEffect(() => {
+    if (rateLimitCountdown <= 0) return;
+    const interval = setInterval(() => {
+      setRateLimitCountdown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [rateLimitCountdown > 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate tab counts (needed before useArticles for scoringActive)
   const scoringCount =
     (scoringStatus?.unscored ?? 0) +
     (scoringStatus?.queued ?? 0) +
-    (scoringStatus?.scoring ?? 0);
+    (scoringStatus?.scoring ?? 0) +
+    (scoringStatus?.categorization?.queued ?? 0) +
+    (scoringStatus?.categorization?.categorizing ?? 0);
   const blockedCount = scoringStatus?.blocked ?? 0;
+  const failedCount = scoringStatus?.failed ?? 0;
 
   // Derive useArticles options from filter state
   const showAll = filter !== "unread";
@@ -94,7 +113,9 @@ export function ArticleList({
       ? "pending"
       : filter === "blocked"
         ? "blocked"
-        : undefined;
+        : filter === "failed"
+          ? "failed"
+          : undefined;
   const excludeBlocked = filter === "unread" || filter === "all";
 
   // Parse sort option for backend
@@ -214,6 +235,9 @@ export function ArticleList({
         const onScrollEnd = () => {
           mainRef.current?.removeEventListener("scrollend", onScrollEnd);
           clearTimeout(fallback);
+          if (mainRef.current) {
+            openScrollTopRef.current = mainRef.current.scrollTop;
+          }
           setSelectedArticle(article);
           setIsReaderOpen(true);
         };
@@ -253,19 +277,11 @@ export function ArticleList({
   );
 
   const handleCloseReader = useCallback(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTop = openScrollTopRef.current;
+    }
     setIsReaderOpen(false);
-  }, []);
-
-  // Escape key to close the reader
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isReaderOpen) {
-        handleCloseReader();
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [isReaderOpen, handleCloseReader]);
+  }, [mainRef]);
 
   const handleExitComplete = useCallback(() => {
     // If there's a pending article to open (user clicked a different article), open it
@@ -300,51 +316,15 @@ export function ArticleList({
 
   // Filter dropdown collection with counts
   const filterCollection = useMemo(() => {
-    const unreadCount = filter === "unread" ? articleCount : undefined;
-    const allCount = filter === "all" ? articleCount : undefined;
-
-    return createListCollection({
-      items: [
-        {
-          label: `Unread${unreadCount !== undefined ? ` (${unreadCount})` : ""}`,
-          value: "unread",
-        },
-        {
-          label: `All${allCount !== undefined ? ` (${allCount})` : ""}`,
-          value: "all",
-        },
-        {
-          label: `Scoring${scoringCount > 0 ? ` (${scoringCount})` : ""}`,
-          value: "scoring",
-          disabled: scoringCount === 0,
-        },
-        {
-          label: `Blocked${blockedCount > 0 ? ` (${blockedCount})` : ""}`,
-          value: "blocked",
-          disabled: blockedCount === 0,
-        },
-      ],
+    return createArticleFilterCollection({
+      unreadCount,
+      scoringCount,
+      blockedCount,
+      failedCount,
     });
-  }, [filter, articleCount, scoringCount, blockedCount]);
+  }, [unreadCount, scoringCount, blockedCount, failedCount]);
 
-  // Empty state messages and icons by filter
-  const emptyMessage =
-    filter === "unread"
-      ? "No unread articles. You're all caught up!"
-      : filter === "all"
-        ? "No articles yet"
-        : filter === "scoring"
-          ? "No articles awaiting scoring."
-          : "No blocked articles.";
-
-  const emptyIcon =
-    filter === "unread"
-      ? LuCheckCheck
-      : filter === "all"
-        ? LuInbox
-        : filter === "scoring"
-          ? LuClock
-          : LuBan;
+  const emptyState = ARTICLE_EMPTY_STATES[filter];
 
   return (
     <Box pb={{ base: 16, md: 0 }}>
@@ -357,7 +337,9 @@ export function ArticleList({
                 <LuBrainCog />
               </Alert.Indicator>
               <Alert.Title fontSize='xs'>
-                {scoringStatus.scoring_ready_reason}
+                {rateLimitCountdown > 0
+                  ? `API rate limit exceeded. Will retry automatically in ${rateLimitCountdown} seconds.`
+                  : scoringStatus.scoring_ready_reason}
                 {scoringStatus.scoring_ready_reason.includes(
                   "LLM Providers",
                 ) && (
@@ -391,11 +373,7 @@ export function ArticleList({
           {feedName}
         </Heading>
         <Box flex={1} />
-        {unreadCount > 0 && (
-          <Badge colorPalette='accent' variant='solid' size='sm'>
-            {unreadCount}
-          </Badge>
-        )}
+        <UnreadCountBadge count={unreadCount} />
       </Flex>
 
       {/* Controls bar (desktop only) */}
@@ -470,26 +448,24 @@ export function ArticleList({
         {/* Sort dropdown */}
         <SortSelect value={sortOption} onChange={setSortOption} />
 
-        <Box flex={1} />
-
         {/* Mark all read icon button */}
         {filter === "unread" && articleCount > 0 && (
-          <IconButton
-            aria-label='Mark all as read'
-            title='Mark all as read'
-            size='sm'
-            variant='ghost'
-            onClick={handleMarkAllAsRead}
-            disabled={markAllRead.isPending || markAllArticlesRead.isPending}
-          >
-            <LuCheckCheck />
-          </IconButton>
+          <>
+            <Box w='1px' alignSelf='stretch' my={1} bg='border.subtle' />
+            <IconButton
+              aria-label='Mark all as read'
+              title='Mark all as read'
+              size='sm'
+              variant='outline'
+              onClick={handleMarkAllAsRead}
+              disabled={markAllRead.isPending || markAllArticlesRead.isPending}
+            >
+              <LuCheckCheck />
+            </IconButton>
+          </>
         )}
 
-        {/* Count label */}
-        <Text fontSize='sm' color='fg.muted' flexShrink={0}>
-          {articleCount}
-        </Text>
+        <Box flex={1} />
       </Flex>
 
       {/* New articles pill */}
@@ -549,8 +525,8 @@ export function ArticleList({
                     }
                     scoringPhase={
                       article.scoring_state === "scoring" &&
-                      scoringStatus?.current_article_id === article.id
-                        ? scoringStatus.phase
+                      scoringStatus?.phase === "thinking"
+                        ? "thinking"
                         : undefined
                     }
                   />
@@ -601,9 +577,9 @@ export function ArticleList({
           py={16}
           px={8}
         >
-          <Icon as={emptyIcon} boxSize={12} color='fg.subtle' />
+          <Icon as={emptyState.icon} boxSize={12} color='fg.subtle' />
           <Text fontSize='lg' color='fg.muted' textAlign='center'>
-            {emptyMessage}
+            {emptyState.message}
           </Text>
           {filter === "all" && (
             <Text fontSize='sm' color='fg.subtle' textAlign='center'>
@@ -624,6 +600,7 @@ export function ArticleList({
         isMarkingRead={markAllRead.isPending || markAllArticlesRead.isPending}
         scoringCount={scoringCount}
         blockedCount={blockedCount}
+        failedCount={failedCount}
       />
 
       {/* Confirm mark all articles read dialog */}

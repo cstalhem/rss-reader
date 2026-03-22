@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Box,
   Button,
@@ -9,7 +9,6 @@ import {
   Stack,
   Text,
 } from "@chakra-ui/react";
-import { keyframes } from "@emotion/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LuCheck } from "react-icons/lu";
 import {
@@ -28,15 +27,10 @@ import { ModelManagement } from "@/components/settings/ModelManagement";
 import { queryKeys } from "@/lib/queryKeys";
 import type { OllamaConfig } from "@/lib/types";
 import type { ProviderPanelProps } from "../types";
+import { checkReveal } from "../shared";
 
 const DEFAULT_HOST = "http://localhost";
 const DEFAULT_PORT = 11434;
-
-const checkReveal = keyframes`
-  0% { opacity: 0; transform: scale(0.5); }
-  50% { opacity: 1; transform: scale(1.15); }
-  100% { opacity: 1; transform: scale(1); }
-`;
 
 export function OllamaProviderPanel({
   onDisconnect,
@@ -57,8 +51,22 @@ export function OllamaProviderPanel({
   const [localPort, setLocalPort] = useState(
     isNew ? DEFAULT_PORT : (serverConfig?.port ?? DEFAULT_PORT)
   );
+  const [localBatchSize, setLocalBatchSize] = useState(
+    isNew ? 1 : (serverConfig?.batch_size ?? 1)
+  );
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [showCheck, setShowCheck] = useState(false);
+  const [prevServerConfig, setPrevServerConfig] = useState(serverConfig);
+
+  // Sync local form state when server config loads (replaces useEffect)
+  if (serverConfig !== prevServerConfig) {
+    setPrevServerConfig(serverConfig);
+    if (!isNew && serverConfig) {
+      setLocalHost(serverConfig.base_url);
+      setLocalPort(serverConfig.port);
+      setLocalBatchSize(serverConfig.batch_size);
+    }
+  }
 
   const testMutation = useMutation({
     mutationFn: () => testOllamaConnection(localHost, localPort),
@@ -88,14 +96,6 @@ export function OllamaProviderPanel({
     },
   });
 
-  // Sync local state when server config loads (useState initializer misses async data)
-  useEffect(() => {
-    if (!isNew && serverConfig) {
-      setLocalHost(serverConfig.base_url);
-      setLocalPort(serverConfig.port);
-    }
-  }, [isNew, serverConfig]);
-
   const hostEmpty = localHost.trim() === "";
   const hostError =
     !hostEmpty &&
@@ -107,15 +107,18 @@ export function OllamaProviderPanel({
   const isDirty =
     !isNew &&
     serverConfig &&
-    (localHost !== serverConfig.base_url || localPort !== serverConfig.port);
+    (localHost !== serverConfig.base_url ||
+      localPort !== serverConfig.port ||
+      localBatchSize !== serverConfig.batch_size);
 
-  const handleSave = useCallback(() => {
+  const handleSave = () => {
     const configToSave: OllamaConfig = {
       base_url: localHost,
       port: localPort,
       categorization_model: serverConfig?.categorization_model ?? null,
       scoring_model: serverConfig?.scoring_model ?? null,
       use_separate_models: serverConfig?.use_separate_models ?? false,
+      batch_size: localBatchSize,
     };
 
     saveMutation.mutate(configToSave, {
@@ -140,15 +143,7 @@ export function OllamaProviderPanel({
         }
       },
     });
-  }, [
-    localHost,
-    localPort,
-    serverConfig,
-    saveMutation.mutate,
-    queryClient,
-    isNew,
-    onCancelSetup,
-  ]);
+  };
 
   return (
     <SettingsPanel>
@@ -206,6 +201,33 @@ export function OllamaProviderPanel({
             pullHook={pullHook}
           />
         </>
+      )}
+
+      {/* Scoring batch size */}
+      {!isNew && (
+        <Box mt={6}>
+          <SettingsPanelHeading>Scoring</SettingsPanelHeading>
+          <Box>
+            <Text fontSize="xs" color="fg.muted" mb={1}>
+              Batch size
+            </Text>
+            <Input
+              size="sm"
+              type="number"
+              value={localBatchSize}
+              onChange={(e) => {
+                const v = Math.max(1, Math.min(10, Number(e.target.value) || 1));
+                setLocalBatchSize(v);
+              }}
+              width="80px"
+              min={1}
+              max={10}
+            />
+            <Text fontSize="xs" color="fg.muted" mt={1}>
+              Articles scored per cycle. Local models are slower — keep this low.
+            </Text>
+          </Box>
+        </Box>
       )}
 
       {/* Action buttons */}
@@ -286,7 +308,7 @@ export function OllamaProviderPanel({
         body={
           <Text>
             Disconnecting will delete the provider configuration and remove any
-            model assignments using Ollama. You'll need to set it up again if
+            model assignments using Ollama. You&apos;ll need to set it up again if
             you re-add it.
           </Text>
         }

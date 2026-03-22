@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo, useState } from "react";
 import {
-  Badge,
   Box,
   Button,
   EmptyState,
@@ -64,6 +63,7 @@ import { EditFolderDialog } from "@/components/feed/EditFolderDialog";
 import { MoveToFolderDialog } from "@/components/feed/MoveToFolderDialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toaster } from "@/components/ui/toaster";
+import { UnreadCountBadge } from "@/components/ui/unread-count-badge";
 import { Feed, FeedFolder } from "@/lib/types";
 
 interface SortableFeedRowProps {
@@ -130,11 +130,7 @@ function SortableFeedRow({
         </Text>
       </Flex>
 
-      {feed.unread_count > 0 && (
-        <Badge colorPalette="accent" size="sm">
-          {feed.unread_count}
-        </Badge>
-      )}
+      <UnreadCountBadge count={feed.unread_count} />
 
       <IconButton
         aria-label="Move feed to folder"
@@ -224,11 +220,7 @@ function SortableFolderHeader({
       <Text fontSize="sm" fontWeight="semibold" flex={1} truncate>
         {folder.name}
       </Text>
-      {folder.unread_count > 0 && (
-        <Badge colorPalette="accent" size="sm">
-          {folder.unread_count}
-        </Badge>
-      )}
+      <UnreadCountBadge count={folder.unread_count} />
       <IconButton
         aria-label="Rename folder"
         title="Rename folder"
@@ -249,6 +241,197 @@ function SortableFolderHeader({
         <LuTrash2 size={16} />
       </IconButton>
     </Flex>
+  );
+}
+
+interface FolderBlockProps {
+  folder: FeedFolder;
+  onDeleteFeed: (feed: Feed) => void;
+  onDeleteFolder: (folder: FeedFolder) => void;
+  onFolderFeedDragEnd: (folderId: number, event: DragEndEvent) => void;
+  onMoveFeed: (feed: Feed) => void;
+  onRenameFeed: (feed: Feed) => void;
+  onRenameFolder: (folder: FeedFolder) => void;
+  sensors: ReturnType<typeof useSensors>;
+  visibleFeeds: Feed[];
+}
+
+function FolderBlock({
+  folder,
+  onDeleteFeed,
+  onDeleteFolder,
+  onFolderFeedDragEnd,
+  onMoveFeed,
+  onRenameFeed,
+  onRenameFolder,
+  sensors,
+  visibleFeeds,
+}: FolderBlockProps) {
+  return (
+    <Stack gap={2}>
+      <SortableFolderHeader
+        dragId={`folder-${folder.id}`}
+        folder={folder}
+        onRename={onRenameFolder}
+        onDelete={onDeleteFolder}
+      />
+
+      <Box pl={4}>
+        {visibleFeeds.length > 0 ? (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={(event) => onFolderFeedDragEnd(folder.id, event)}
+          >
+            <SortableContext
+              items={visibleFeeds.map(
+                (feed) => `folder-${folder.id}-feed-${feed.id}`,
+              )}
+              strategy={verticalListSortingStrategy}
+            >
+              <Stack gap={2}>
+                {visibleFeeds.map((feed) => (
+                  <SortableFeedRow
+                    key={`folder-${folder.id}-feed-${feed.id}`}
+                    dragId={`folder-${folder.id}-feed-${feed.id}`}
+                    feed={feed}
+                    onDelete={onDeleteFeed}
+                    onMove={onMoveFeed}
+                    onRename={onRenameFeed}
+                    showRenameAction={true}
+                  />
+                ))}
+              </Stack>
+            </SortableContext>
+          </DndContext>
+        ) : (
+          <Text fontSize="sm" color="fg.muted" py={2}>
+            No feeds in this folder
+          </Text>
+        )}
+      </Box>
+    </Stack>
+  );
+}
+
+interface FeedsSectionDialogsProps {
+  deleteFolderFeedsToo: boolean;
+  feedToDelete: Feed | null;
+  feedToMove: Feed | null;
+  feedToRename: Feed | null;
+  folderToDelete: FeedFolder | null;
+  folderToRename: FeedFolder | null;
+  onCloseAddDialog: () => void;
+  onCloseCreateFolderDialog: () => void;
+  onCloseDeleteFeed: () => void;
+  onCloseDeleteFolder: () => void;
+  onCloseRenameFeed: () => void;
+  onCloseRenameFolder: () => void;
+  onConfirmDeleteFeed: (feedId: number) => void;
+  onConfirmDeleteFolder: () => void;
+  onCreateAndMove: (folderName: string) => Promise<void>;
+  onMove: (folderId: number | null) => void;
+  onMoveDialogOpenChange: (open: boolean) => void;
+  onSelectDeleteFolderMode: (deleteFeeds: boolean) => void;
+  orderedFolders: FeedFolder[];
+  showAddDialog: boolean;
+  showCreateFolderDialog: boolean;
+}
+
+function FeedsSectionDialogs({
+  deleteFolderFeedsToo,
+  feedToDelete,
+  feedToMove,
+  feedToRename,
+  folderToDelete,
+  folderToRename,
+  onCloseAddDialog,
+  onCloseCreateFolderDialog,
+  onCloseDeleteFeed,
+  onCloseDeleteFolder,
+  onCloseRenameFeed,
+  onCloseRenameFolder,
+  onConfirmDeleteFeed,
+  onConfirmDeleteFolder,
+  onCreateAndMove,
+  onMove,
+  onMoveDialogOpenChange,
+  onSelectDeleteFolderMode,
+  orderedFolders,
+  showAddDialog,
+  showCreateFolderDialog,
+}: FeedsSectionDialogsProps) {
+  return (
+    <>
+      <AddFeedDialog isOpen={showAddDialog} onClose={onCloseAddDialog} />
+      <CreateFolderDialog
+        isOpen={showCreateFolderDialog}
+        onClose={onCloseCreateFolderDialog}
+      />
+      <MoveToFolderDialog
+        open={!!feedToMove}
+        onOpenChange={onMoveDialogOpenChange}
+        folders={orderedFolders}
+        onMove={onMove}
+        onCreateAndMove={onCreateAndMove}
+      />
+
+      <DeleteFeedDialog
+        feed={feedToDelete}
+        onClose={onCloseDeleteFeed}
+        onConfirm={onConfirmDeleteFeed}
+      />
+      {feedToRename && (
+        <EditFeedDialog
+          key={feedToRename.id}
+          feed={feedToRename}
+          onClose={onCloseRenameFeed}
+        />
+      )}
+      {folderToRename && (
+        <EditFolderDialog
+          key={folderToRename.id}
+          folder={folderToRename}
+          onClose={onCloseRenameFolder}
+        />
+      )}
+
+      <ConfirmDialog
+        open={!!folderToDelete}
+        onOpenChange={({ open }) => {
+          if (!open) onCloseDeleteFolder();
+        }}
+        title="Delete folder"
+        body={
+          <Stack gap={3}>
+            <Text>
+              Delete <strong>{folderToDelete?.name}</strong>.
+            </Text>
+            <Stack gap={2}>
+              <Button
+                variant={deleteFolderFeedsToo ? "outline" : "solid"}
+                colorPalette="accent"
+                justifyContent="flex-start"
+                onClick={() => onSelectDeleteFolderMode(false)}
+              >
+                Delete folder and ungroup feeds
+              </Button>
+              <Button
+                variant={deleteFolderFeedsToo ? "solid" : "outline"}
+                colorPalette="red"
+                justifyContent="flex-start"
+                onClick={() => onSelectDeleteFolderMode(true)}
+              >
+                Delete folder and delete all folder feeds
+              </Button>
+            </Stack>
+          </Stack>
+        }
+        confirmLabel="Delete folder"
+        confirmColorPalette="red"
+        onConfirm={onConfirmDeleteFolder}
+      />
+    </>
   );
 }
 
@@ -422,6 +605,11 @@ export function FeedsSection() {
     setFeedToRename(feed);
   };
 
+  const handleDeleteFolder = (folder: FeedFolder) => {
+    setFolderToDelete(folder);
+    setDeleteFolderFeedsToo(false);
+  };
+
   const handleDeleteFeedConfirm = (feedId: number) => {
     deleteFeed.mutate(feedId, {
       onSuccess: () => {
@@ -482,11 +670,16 @@ export function FeedsSection() {
     setDeleteFolderFeedsToo(false);
   };
 
+  const handleCloseDeleteFolder = () => {
+    setFolderToDelete(null);
+    setDeleteFolderFeedsToo(false);
+  };
+
   const hasVisibleRows =
     filteredFolderBlocks.length > 0 || filteredRootFeeds.length > 0;
 
   return (
-    <Stack as="section" aria-label="Feeds" gap={6}>
+    <Stack as="section" aria-label="Feeds" gap={8}>
       <SettingsPageHeader title="Feeds">
         <Flex gap={2}>
           <Button
@@ -542,59 +735,20 @@ export function FeedsSection() {
                       strategy={verticalListSortingStrategy}
                     >
                       <Stack gap={3}>
-                        {filteredFolderBlocks.map(
-                          ({ folder, feeds: visibleFeeds }) => (
-                            <Stack key={`folder-block-${folder.id}`} gap={2}>
-                              <SortableFolderHeader
-                                dragId={`folder-${folder.id}`}
-                                folder={folder}
-                                onRename={handleRenameFolder}
-                                onDelete={(nextFolder) => {
-                                  setFolderToDelete(nextFolder);
-                                  setDeleteFolderFeedsToo(false);
-                                }}
-                              />
-
-                              <Box pl={4}>
-                                {visibleFeeds.length > 0 ? (
-                                  <DndContext
-                                    sensors={sensors}
-                                    collisionDetection={closestCenter}
-                                    onDragEnd={(event) =>
-                                      handleFolderFeedDragEnd(folder.id, event)
-                                    }
-                                  >
-                                    <SortableContext
-                                      items={visibleFeeds.map(
-                                        (feed) =>
-                                          `folder-${folder.id}-feed-${feed.id}`
-                                      )}
-                                      strategy={verticalListSortingStrategy}
-                                    >
-                                      <Stack gap={2}>
-                                        {visibleFeeds.map((feed) => (
-                                          <SortableFeedRow
-                                            key={`folder-${folder.id}-feed-${feed.id}`}
-                                            dragId={`folder-${folder.id}-feed-${feed.id}`}
-                                            feed={feed}
-                                            onDelete={setFeedToDelete}
-                                            onMove={setFeedToMove}
-                                            onRename={handleRenameFeed}
-                                            showRenameAction={true}
-                                          />
-                                        ))}
-                                      </Stack>
-                                    </SortableContext>
-                                  </DndContext>
-                                ) : (
-                                  <Text fontSize="sm" color="fg.muted" py={2}>
-                                    No feeds in this folder
-                                  </Text>
-                                )}
-                              </Box>
-                            </Stack>
-                          )
-                        )}
+                        {filteredFolderBlocks.map(({ folder, feeds: visibleFeeds }) => (
+                          <FolderBlock
+                            key={`folder-block-${folder.id}`}
+                            folder={folder}
+                            visibleFeeds={visibleFeeds}
+                            sensors={sensors}
+                            onFolderFeedDragEnd={handleFolderFeedDragEnd}
+                            onRenameFolder={handleRenameFolder}
+                            onDeleteFolder={handleDeleteFolder}
+                            onDeleteFeed={setFeedToDelete}
+                            onMoveFeed={setFeedToMove}
+                            onRenameFeed={handleRenameFeed}
+                          />
+                        ))}
                       </Stack>
                     </SortableContext>
                   </DndContext>
@@ -657,78 +811,30 @@ export function FeedsSection() {
         </EmptyState.Root>
       )}
 
-      <AddFeedDialog isOpen={showAddDialog} onClose={() => setShowAddDialog(false)} />
-      <CreateFolderDialog
-        isOpen={showCreateFolderDialog}
-        onClose={() => setShowCreateFolderDialog(false)}
-      />
-      <MoveToFolderDialog
-        open={!!feedToMove}
-        onOpenChange={(open) => {
+      <FeedsSectionDialogs
+        showAddDialog={showAddDialog}
+        showCreateFolderDialog={showCreateFolderDialog}
+        orderedFolders={orderedFolders}
+        feedToMove={feedToMove}
+        feedToDelete={feedToDelete}
+        feedToRename={feedToRename}
+        folderToRename={folderToRename}
+        folderToDelete={folderToDelete}
+        deleteFolderFeedsToo={deleteFolderFeedsToo}
+        onCloseAddDialog={() => setShowAddDialog(false)}
+        onCloseCreateFolderDialog={() => setShowCreateFolderDialog(false)}
+        onMoveDialogOpenChange={(open) => {
           if (!open) setFeedToMove(null);
         }}
-        folders={orderedFolders}
         onMove={handleMoveFeed}
         onCreateAndMove={handleCreateFolderAndMove}
-      />
-
-      <DeleteFeedDialog
-        feed={feedToDelete}
-        onClose={() => setFeedToDelete(null)}
-        onConfirm={handleDeleteFeedConfirm}
-      />
-      {feedToRename && (
-        <EditFeedDialog
-          key={feedToRename.id}
-          feed={feedToRename}
-          onClose={() => setFeedToRename(null)}
-        />
-      )}
-      {folderToRename && (
-        <EditFolderDialog
-          key={folderToRename.id}
-          folder={folderToRename}
-          onClose={() => setFolderToRename(null)}
-        />
-      )}
-
-      <ConfirmDialog
-        open={!!folderToDelete}
-        onOpenChange={({ open }) => {
-          if (!open) {
-            setFolderToDelete(null);
-            setDeleteFolderFeedsToo(false);
-          }
-        }}
-        title="Delete folder"
-        body={
-          <Stack gap={3}>
-            <Text>
-              Delete <strong>{folderToDelete?.name}</strong>.
-            </Text>
-            <Stack gap={2}>
-              <Button
-                variant={deleteFolderFeedsToo ? "outline" : "solid"}
-                colorPalette="accent"
-                justifyContent="flex-start"
-                onClick={() => setDeleteFolderFeedsToo(false)}
-              >
-                Delete folder and ungroup feeds
-              </Button>
-              <Button
-                variant={deleteFolderFeedsToo ? "solid" : "outline"}
-                colorPalette="red"
-                justifyContent="flex-start"
-                onClick={() => setDeleteFolderFeedsToo(true)}
-              >
-                Delete folder and delete all folder feeds
-              </Button>
-            </Stack>
-          </Stack>
-        }
-        confirmLabel="Delete folder"
-        confirmColorPalette="red"
-        onConfirm={handleConfirmDeleteFolder}
+        onCloseDeleteFeed={() => setFeedToDelete(null)}
+        onConfirmDeleteFeed={handleDeleteFeedConfirm}
+        onCloseRenameFeed={() => setFeedToRename(null)}
+        onCloseRenameFolder={() => setFolderToRename(null)}
+        onCloseDeleteFolder={handleCloseDeleteFolder}
+        onSelectDeleteFolderMode={setDeleteFolderFeedsToo}
+        onConfirmDeleteFolder={handleConfirmDeleteFolder}
       />
     </Stack>
   );

@@ -333,7 +333,7 @@ export function TopLevelModelSelector() {
           <Flex alignItems="center" gap={2} color="fg.warning">
             <LuTriangleAlert size={14} />
             <Text fontSize="xs">
-              Both models need to fit in available memory when loaded
+              If both models are local (Ollama), they must fit in memory
               simultaneously.
             </Text>
           </Flex>

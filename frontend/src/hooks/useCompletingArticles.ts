@@ -6,6 +6,9 @@ import { ArticleListItem } from "@/lib/types";
 
 const COMPLETING_ARTICLE_DURATION = 3_000;
 
+// Re-evaluating articles have display scoring_state='scored' and stay in the
+// scored list, so they never appear in (or disappear from) the Scoring tab.
+// First-time articles flow through the Scoring tab normally.
 /**
  * Tracks articles that just finished scoring while viewing the Scoring tab.
  *
@@ -23,14 +26,15 @@ export function useCompletingArticles(
   currentArticles: ArticleListItem[] | undefined,
   isActive: boolean
 ) {
-  const prevOrderRef = useRef<number[]>([]);
+  const [prevOrder, setPrevOrder] = useState<number[]>([]);
   const prevDataRef = useRef<Map<number, ArticleListItem>>(new Map());
   const detectedRef = useRef<Set<number>>(new Set());
   const [completing, setCompleting] = useState<Map<number, ArticleListItem>>(new Map());
 
   useLayoutEffect(() => {
     if (!isActive || !currentArticles) {
-      prevOrderRef.current = [];
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- cleanup reset when deactivated
+      setPrevOrder([]);
       prevDataRef.current = new Map();
       detectedRef.current = new Set();
       setCompleting(new Map());
@@ -42,7 +46,7 @@ export function useCompletingArticles(
 
     // Skip first render — nothing to compare against
     if (prevData.size === 0) {
-      prevOrderRef.current = currentArticles.map((a) => a.id);
+      setPrevOrder(currentArticles.map((a) => a.id));
       prevDataRef.current = new Map(currentArticles.map((a) => [a.id, a]));
       return;
     }
@@ -95,14 +99,16 @@ export function useCompletingArticles(
     prevDataRef.current = new Map(currentArticles.map((a) => [a.id, a]));
     // Don't overwrite order — keep completing article positions intact
     // Only add new articles that appeared since last render
-    const prevOrderSet = new Set(prevOrderRef.current);
-    const newOrder = [...prevOrderRef.current];
-    for (const article of currentArticles) {
-      if (!prevOrderSet.has(article.id)) {
-        newOrder.push(article.id);
+    setPrevOrder((currentOrder) => {
+      const orderSet = new Set(currentOrder);
+      const newOrder = [...currentOrder];
+      for (const article of currentArticles) {
+        if (!orderSet.has(article.id)) {
+          newOrder.push(article.id);
+        }
       }
-    }
-    prevOrderRef.current = newOrder;
+      return newOrder;
+    });
   }, [currentArticles, isActive]);
 
   // Build merged display list preserving original positions
@@ -118,7 +124,7 @@ export function useCompletingArticles(
     const result: ArticleListItem[] = [];
 
     // Walk stored order to preserve positions
-    for (const id of prevOrderRef.current) {
+    for (const id of prevOrder) {
       if (currentMap.has(id)) {
         result.push(currentMap.get(id)!);
       } else if (completing.has(id)) {
@@ -127,7 +133,7 @@ export function useCompletingArticles(
     }
 
     // Add any new articles not yet in order
-    const seen = new Set(prevOrderRef.current);
+    const seen = new Set(prevOrder);
     for (const article of currentArticles) {
       if (!seen.has(article.id)) {
         result.push(article);

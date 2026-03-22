@@ -53,8 +53,37 @@ def _create_pre_feature_schema(db_path: Path) -> None:
               1,
               1800
             );
+
             """
         )
+        _create_articles_table(conn)
+
+
+def _create_articles_table(conn) -> None:
+    """Create the articles table required by migrations."""
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS articles (
+          id INTEGER PRIMARY KEY,
+          feed_id INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          url TEXT NOT NULL UNIQUE,
+          author TEXT,
+          published_at TIMESTAMP,
+          summary TEXT,
+          content TEXT,
+          is_read BOOLEAN NOT NULL DEFAULT 0,
+          interest_score INTEGER,
+          quality_score INTEGER,
+          composite_score FLOAT,
+          score_reasoning TEXT,
+          scoring_state TEXT NOT NULL DEFAULT 'unscored',
+          scored_at TIMESTAMP,
+          scoring_priority INTEGER NOT NULL DEFAULT 0,
+          rescore_mode TEXT
+        );
+        """
+    )
 
 
 def _create_category_dup_schema_at_dff(db_path: Path) -> None:
@@ -163,6 +192,8 @@ def _create_category_dup_schema_at_dff(db_path: Path) -> None:
             links,
         )
 
+        _create_articles_table(conn)
+
 
 def _create_schema_at_8c6f_without_feed_folders(db_path: Path) -> None:
     with sqlite3.connect(db_path) as conn:
@@ -183,6 +214,7 @@ def _create_schema_at_8c6f_without_feed_folders(db_path: Path) -> None:
             INSERT INTO alembic_version (version_num) VALUES ('8c6f3c9b8f70');
             """
         )
+        _create_articles_table(conn)
 
 
 def test_upgrade_head_backfills_provider_and_routes() -> None:
@@ -349,6 +381,128 @@ def test_upgrade_head_feed_folder_migration_is_idempotent() -> None:
             assert unique_lower_indexes == (1,)
 
 
+def _create_schema_at_154075_with_articles(db_path: Path) -> None:
+    """Create schema at revision 154075cd3c1a with test articles in various scoring states."""
+    with sqlite3.connect(db_path) as conn:
+        _create_articles_table(conn)
+
+        conn.executescript(
+            """
+            CREATE TABLE feeds (
+              id INTEGER PRIMARY KEY,
+              url TEXT NOT NULL UNIQUE,
+              title TEXT NOT NULL,
+              display_order INTEGER NOT NULL DEFAULT 0,
+              last_fetched_at TIMESTAMP
+            );
+
+            INSERT INTO feeds (id, url, title) VALUES (1, 'https://example.com/feed.xml', 'Test Feed');
+
+            CREATE TABLE llm_task_routes (
+              id INTEGER PRIMARY KEY,
+              task TEXT NOT NULL UNIQUE,
+              provider TEXT NOT NULL,
+              model TEXT,
+              updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE alembic_version (
+              version_num VARCHAR(32) NOT NULL,
+              CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
+            );
+            INSERT INTO alembic_version (version_num) VALUES ('154075cd3c1a');
+            """
+        )
+
+        articles = [
+            (
+                1,
+                1,
+                "Scored Article",
+                "https://example.com/1",
+                "scored",
+                "2026-03-01 00:00:00",
+            ),
+            (2, 1, "Queued Article", "https://example.com/2", "queued", None),
+            (3, 1, "Scoring Article", "https://example.com/3", "scoring", None),
+            (4, 1, "Unscored Article", "https://example.com/4", "unscored", None),
+            (5, 1, "Failed Article", "https://example.com/5", "failed", None),
+        ]
+        conn.executemany(
+            """
+            INSERT INTO articles (id, feed_id, title, url, scoring_state, scored_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            articles,
+        )
+
+
+def test_upgrade_adds_categorization_state_and_backfills() -> None:
+    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
+        db_path = Path(tmp.name)
+        _create_schema_at_154075_with_articles(db_path)
+
+        cfg = _make_alembic_config(db_path)
+        command.upgrade(cfg, "head")
+
+        with sqlite3.connect(db_path) as conn:
+            # Verify new columns exist on articles
+            article_cols = {
+                row[1] for row in conn.execute("PRAGMA table_info(articles)")
+            }
+            assert "categorization_state" in article_cols
+            assert "categorization_attempts" in article_cols
+            assert "scoring_attempts" in article_cols
+
+            # Verify batch_size column on llm_task_routes
+            route_cols = {
+                row[1] for row in conn.execute("PRAGMA table_info(llm_task_routes)")
+            }
+            assert "batch_size" in route_cols
+
+            # Verify defaults for new integer columns
+            unscored_row = conn.execute(
+                "SELECT categorization_attempts, scoring_attempts FROM articles WHERE id = 4"
+            ).fetchone()
+            assert unscored_row == (0, 0)
+
+            # Verify backfill: scored → categorized
+            row = conn.execute(
+                "SELECT categorization_state FROM articles WHERE id = 1"
+            ).fetchone()
+            assert row[0] == "categorized"
+
+            # Verify backfill: queued → categorization_state='queued', scoring_state='unscored'
+            row = conn.execute(
+                "SELECT categorization_state, scoring_state FROM articles WHERE id = 2"
+            ).fetchone()
+            assert row == ("queued", "unscored")
+
+            # Verify backfill: scoring → categorization_state='queued', scoring_state='unscored'
+            row = conn.execute(
+                "SELECT categorization_state, scoring_state FROM articles WHERE id = 3"
+            ).fetchone()
+            assert row == ("queued", "unscored")
+
+            # Verify backfill: unscored → uncategorized (default)
+            row = conn.execute(
+                "SELECT categorization_state FROM articles WHERE id = 4"
+            ).fetchone()
+            assert row[0] == "uncategorized"
+
+            # Verify backfill: failed → uncategorized
+            row = conn.execute(
+                "SELECT categorization_state FROM articles WHERE id = 5"
+            ).fetchone()
+            assert row[0] == "uncategorized"
+
+            # Verify index exists on categorization_state
+            indexes = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='index' AND sql LIKE '%categorization_state%'"
+            ).fetchall()
+            assert len(indexes) >= 1
+
+
 def test_upgrade_preserves_custom_ollama_host_from_env(monkeypatch) -> None:
     """Migration should read OLLAMA__HOST env var instead of hardcoding localhost."""
     monkeypatch.setenv("OLLAMA__HOST", "http://ollama-server:11434")
@@ -362,8 +516,7 @@ def test_upgrade_preserves_custom_ollama_host_from_env(monkeypatch) -> None:
 
         with sqlite3.connect(db_path) as conn:
             provider_row = conn.execute(
-                "SELECT config_json FROM llm_provider_configs "
-                "WHERE provider = 'ollama'"
+                "SELECT config_json FROM llm_provider_configs WHERE provider = 'ollama'"
             ).fetchone()
             assert provider_row is not None
 

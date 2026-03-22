@@ -10,18 +10,14 @@ export function useCountdown(targetIso: string | null): number | null {
   const [remaining, setRemaining] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!targetIso) {
-      setRemaining(null);
-      return;
-    }
-
+    if (!targetIso) return;
     const target = new Date(targetIso).getTime();
     const tick = () => setRemaining(Math.max(0, Math.round((target - Date.now()) / 1000)));
-
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [targetIso]);
 
+  if (!targetIso) return null;
   return remaining;
 }

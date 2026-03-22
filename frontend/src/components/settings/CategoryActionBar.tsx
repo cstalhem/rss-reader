@@ -78,32 +78,37 @@ export function CategoryActionBar({
         </Flex>
       </Flex>
 
-      {/* Mobile: floating action bar */}
+      {/* Mobile: floating pill action bar */}
       <ActionBar.Root open={selectedCount > 0}>
         <Portal>
-          <ActionBar.Positioner display={{ base: "block", sm: "none" }}>
-            <ActionBar.Content>
-              <ActionBar.SelectionTrigger>
+          <ActionBar.Positioner display={{ base: "block", sm: "none" }} px={4}>
+            <ActionBar.Content
+              borderRadius="2xl"
+              css={{ flexDirection: "column", alignItems: "stretch", gap: 0, py: 4 }}
+            >
+              <Text fontSize="xs" color="fg.muted" px={3} pb={1.5}>
                 {selectedCount} selected
-              </ActionBar.SelectionTrigger>
-              <ActionBar.Separator />
-              <Button variant="outline" size="sm" onClick={onMoveToGroup}>
-                <LuListTree /> Move to group
-              </Button>
-              <Button variant="outline" size="sm" onClick={onUngroup}>
-                <LuIndentDecrease /> Ungroup
-              </Button>
-              <Button variant="outline" size="sm" onClick={onHide}>
-                <LuEyeOff /> Hide
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                colorPalette="red"
-                onClick={onDelete}
-              >
-                <LuTrash2 /> Delete
-              </Button>
+              </Text>
+              <Flex gap={1} px={2} flexWrap="wrap">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  colorPalette="red"
+                  onClick={onDelete}
+                  flex="1 1 40%"
+                >
+                  <LuTrash2 /> Delete
+                </Button>
+                <Button variant="ghost" size="sm" onClick={onHide} flex="1 1 40%">
+                  <LuEyeOff /> Hide
+                </Button>
+                <Button variant="ghost" size="sm" onClick={onUngroup} flex="1 1 40%">
+                  <LuIndentDecrease /> Ungroup
+                </Button>
+                <Button variant="ghost" size="sm" onClick={onMoveToGroup} flex="1 1 40%">
+                  <LuListTree /> Group
+                </Button>
+              </Flex>
             </ActionBar.Content>
           </ActionBar.Positioner>
         </Portal>

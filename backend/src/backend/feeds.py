@@ -6,6 +6,7 @@ import feedparser
 import httpx
 from sqlmodel import Session, select
 
+from backend.markdown import html_to_markdown
 from backend.models import Article, Feed
 
 logger = logging.getLogger(__name__)
@@ -96,6 +97,18 @@ def save_articles(
             is_read=False,
         )
 
+        raw_html = article.content or article.summary or ""
+        if raw_html:
+            try:
+                article.content_markdown = html_to_markdown(raw_html)
+                logger.info(
+                    "Converted article %s to markdown", article.id or article.title
+                )
+            except Exception as e:
+                logger.warning(
+                    "Markdown conversion failed for article '%s': %s", article.title, e
+                )
+
         session.add(article)
         session.flush()  # Flush to get ID without committing
         new_article_ids.append(article.id)
@@ -130,15 +143,17 @@ async def refresh_feed(session: Session, feed: Feed) -> int:
 
         # Save articles and enqueue for scoring
         new_count, new_article_ids = save_articles(
-            session, feed.id, parsed_feed.entries  # pyright: ignore[reportArgumentType]
+            session,
+            feed.id,
+            parsed_feed.entries,  # pyright: ignore[reportArgumentType]
         )
 
         # Enqueue new articles for scoring
         if new_article_ids:
             # Import here to avoid circular dependency
-            from backend.scheduler import scoring_queue
+            from backend.scheduler import categorization_worker
 
-            scoring_queue.enqueue_articles(session, new_article_ids)
+            categorization_worker.enqueue_articles(session, new_article_ids)
 
         return new_count
 

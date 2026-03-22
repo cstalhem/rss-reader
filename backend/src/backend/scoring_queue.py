@@ -1,4 +1,4 @@
-"""Queue manager for processing article scoring in background."""
+"""Queue workers for categorization and scoring pipelines."""
 
 import asyncio
 import logging
@@ -20,24 +20,47 @@ from backend.scoring import (
     get_active_categories,
     get_or_create_category,
     is_blocked,
+    is_categorization_rate_limited,
+    is_scoring_rate_limited,
+    set_categorization_context,
+    set_categorization_phase,
+    set_categorization_rate_limited,
     set_scoring_context,
+    set_scoring_phase,
+    set_scoring_rate_limited,
 )
 
 logger = logging.getLogger(__name__)
 
 RESCORE_LOOKBACK_DAYS = 7
 RESCORE_MAX_ARTICLES = 100
+MAX_TASK_RETRIES = 3
+_DEFAULT_RATE_LIMIT_BACKOFF = 60.0  # seconds
 
 
-class ScoringQueue:
-    """Manages the article scoring queue and processing pipeline."""
+def _extract_rate_limit_delay(exc: Exception) -> float | None:
+    """If exc is a transient server error (429/503), return retry-after seconds (or default)."""
+    import re
+
+    exc_str = str(exc)
+    # Treat both 429 (rate limit) and 503 (service unavailable/high demand) as transient
+    if "429" not in exc_str and "503" not in exc_str:
+        return None
+    # Try to extract retryDelay from Google-style error messages
+    match = re.search(r"retryDelay.*?(\d+(?:\.\d+)?)s", exc_str)
+    if match:
+        return float(match.group(1))
+    return _DEFAULT_RATE_LIMIT_BACKOFF
+
+
+class CategorizationWorker:
+    """Categorizes articles via LLM and routes them to scoring queue."""
 
     def enqueue_articles(self, session: Session, article_ids: list[int]) -> int:
-        """Enqueue articles for scoring.
+        """Enqueue articles for categorization.
 
-        Args:
-            session: Database session
-            article_ids: List of article IDs to enqueue
+        Sets categorization_state='queued' for articles where
+        categorization_state in ('uncategorized', 'failed'). Resets attempts.
 
         Returns:
             Number of articles enqueued
@@ -45,13 +68,14 @@ class ScoringQueue:
         count = 0
         for article_id in article_ids:
             article = session.get(Article, article_id)
-            if article and article.scoring_state in ["unscored", "failed"]:
-                article.scoring_state = "queued"
+            if article and article.categorization_state in ("uncategorized", "failed"):
+                article.categorization_state = "queued"
+                article.categorization_attempts = 0
                 session.add(article)
                 count += 1
 
         session.commit()
-        logger.info(f"Enqueued {count} articles for scoring")
+        logger.info(f"Enqueued {count} articles for categorization")
         return count
 
     def enqueue_recent_for_rescoring(
@@ -59,22 +83,21 @@ class ScoringQueue:
         session: Session,
         days: int = RESCORE_LOOKBACK_DAYS,
         max_articles: int = RESCORE_MAX_ARTICLES,
+        score_only: bool = False,
     ) -> int:
         """Enqueue recent unread articles for re-scoring.
-
-        Called when user preferences change.
 
         Args:
             session: Database session
             days: Look back this many days
             max_articles: Maximum articles to re-score
+            score_only: If True, skip categorization and go straight to scoring
 
         Returns:
-            Number of articles enqueued for re-scoring
+            Number of articles enqueued
         """
         cutoff_date = datetime.now() - timedelta(days=days)
 
-        # Find unread articles from last N days
         articles = session.exec(
             select(Article)
             .where(~Article.is_read)  # pyright: ignore[reportArgumentType]
@@ -85,56 +108,307 @@ class ScoringQueue:
 
         count = 0
         for article in articles:
-            article.scoring_state = "queued"
+            if score_only:
+                article.scoring_state = "queued"
+                article.scoring_attempts = 0
+                article.rescore_mode = "score_only"
+            else:
+                article.categorization_state = "queued"
+                article.categorization_attempts = 0
             session.add(article)
             count += 1
 
         session.commit()
-        logger.info(f"Enqueued {count} articles for re-scoring")
+        logger.info(
+            f"Enqueued {count} articles for re-scoring (score_only={score_only})"
+        )
         return count
 
+    def enqueue_single_for_rescoring(self, session: Session, article: Article) -> None:
+        """Enqueue a single article for full re-scoring with high priority."""
+        article.categorization_state = "queued"
+        article.categorization_attempts = 0
+        article.scoring_priority = 1
+        session.add(article)
+        session.commit()
+
     async def process_next_batch(self, session: Session, batch_size: int = 1) -> int:
-        """Process next batch of queued articles.
-
-        Two-step pipeline:
-        1. Categorize article (skip if rescore_mode == "score_only")
-        2. Score article (skip if blocked)
-
-        Task provider/model/endpoint are resolved from task routes and provider configs.
-
-        Args:
-            session: Database session
-            batch_size: Number of articles to process
+        """Process next batch of articles needing categorization.
 
         Returns:
-            Number of articles processed
+            Number of articles successfully categorized
         """
+        # Check task readiness
         categorization_runtime = await evaluate_task_readiness(
             session, TASK_CATEGORIZATION
         )
         if not categorization_runtime.ready:
             logger.warning(
-                "Scoring skipped: categorization not ready (%s)",
+                "Categorization skipped: not ready (%s)",
                 format_readiness_reason(categorization_runtime),
             )
             return 0
 
+        # Check rate limit
+        if is_categorization_rate_limited():
+            logger.info("Categorization skipped: rate limited")
+            return 0
+
+        try:
+            provider = get_provider(categorization_runtime.provider)
+        except KeyError:
+            logger.warning("Categorization skipped: unsupported provider")
+            return 0
+
+        # Fetch queued articles
+        articles = session.exec(
+            select(Article)
+            .where(Article.categorization_state == "queued")
+            .order_by(Article.scoring_priority.desc(), Article.published_at.asc())  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+            .limit(batch_size)
+        ).all()
+
+        if not articles:
+            return 0
+
+        # Separate score_only articles from those needing categorization
+        score_only_articles: list[Article] = []
+        needs_cat_articles: list[Article] = []
+        for art in articles:
+            if art.rescore_mode == "score_only":
+                score_only_articles.append(art)
+            else:
+                needs_cat_articles.append(art)
+
+        # Route score_only articles directly to scoring queue
+        for art in score_only_articles:
+            art.categorization_state = "categorized"
+            art.scoring_state = "queued"
+            art.scoring_attempts = 0
+            session.add(art)
+        if score_only_articles:
+            session.commit()
+
+        if not needs_cat_articles:
+            return len(score_only_articles)
+
+        # Transition to 'categorizing'
+        batch_ids: set[int] = set()
+        article_map: dict[int, Article] = {}
+        for art in needs_cat_articles:
+            art.categorization_state = "categorizing"
+            session.add(art)
+            batch_ids.add(art.id)  # pyright: ignore[reportArgumentType]
+            article_map[art.id] = art  # pyright: ignore[reportArgumentType]
+        session.commit()
+
+        set_categorization_context(next(iter(batch_ids)))
+
+        # Build article dicts
+        article_dicts: list[dict] = []
+        for art in needs_cat_articles:
+            text = art.content_markdown or art.content or art.summary or ""
+            article_dicts.append(
+                {
+                    "id": art.id,
+                    "title": art.title,
+                    "content_markdown": text,
+                }
+            )
+
+        # Get active categories
+        active_categories, category_hierarchy, hidden_categories = (
+            get_active_categories(session)
+        )
+
+        from backend.llm_providers.base import ProviderTaskConfig
+
+        cat_config = ProviderTaskConfig(
+            endpoint=categorization_runtime.endpoint,
+            model=categorization_runtime.model,
+            thinking=categorization_runtime.thinking,
+            api_key=categorization_runtime.api_key,
+        )
+
+        set_categorization_phase("categorizing")
+        try:
+            cat_results = await provider.categorize(
+                article_dicts,
+                active_categories,
+                config=cat_config,
+                category_hierarchy=category_hierarchy,
+                hidden_categories=hidden_categories or None,
+            )
+        except asyncio.CancelledError:
+            logger.info("Categorization cancelled; re-queueing batch")
+            set_categorization_context(None)
+            session.rollback()
+            for art in needs_cat_articles:
+                art.categorization_state = "queued"
+                session.add(art)
+            session.commit()
+            raise
+        except Exception as e:
+            set_categorization_context(None)
+            rate_limit_delay = _extract_rate_limit_delay(e)
+            if rate_limit_delay is not None:
+                logger.warning(
+                    "Categorization rate-limited; re-queueing (retry in %.0fs)",
+                    rate_limit_delay,
+                )
+                set_categorization_rate_limited(rate_limit_delay)
+
+            else:
+                logger.error("Categorization failed: %s", e, exc_info=True)
+
+            # Increment attempts and re-queue or fail
+            for art in needs_cat_articles:
+                art.categorization_attempts += 1
+                if art.categorization_attempts >= MAX_TASK_RETRIES:
+                    art.categorization_state = "failed"
+                else:
+                    art.categorization_state = "queued"
+                session.add(art)
+            session.commit()
+            return len(score_only_articles)
+
+        # Build result map, ignoring hallucinated IDs
+        cat_result_map: dict[int, object] = {}
+        for result in cat_results:
+            if result.article_id in batch_ids:
+                cat_result_map[result.article_id] = result
+
+        # Delete old category links and persist new ones
+        categories_by_article: dict[int, list[Category]] = {
+            aid: [] for aid in batch_ids
+        }
+
+        seen_slugs: dict[str, Category] = {}
+        with session.no_autoflush:
+            for aid, categorization in cat_result_map.items():
+                for cat_name in categorization.categories:
+                    slug = slugify(cat_name)
+                    if slug not in seen_slugs:
+                        seen_slugs[slug] = get_or_create_category(session, cat_name)
+                    categories_by_article[aid].append(seen_slugs[slug])
+
+                for cat_name in categorization.suggested_new:
+                    slug = slugify(cat_name)
+                    if slug not in seen_slugs:
+                        seen_slugs[slug] = get_or_create_category(
+                            session,
+                            cat_name,
+                            suggested_parent=categorization.suggested_parent,
+                        )
+                    categories_by_article[aid].append(seen_slugs[slug])
+
+        session.commit()  # persist new categories, get IDs
+
+        # Delete old links, write new links, unhide categories
+        for aid, cat_list in categories_by_article.items():
+            if aid not in cat_result_map:
+                continue  # unmatched — will be re-queued below
+
+            # Delete old links for this article
+            old_links = session.exec(
+                select(ArticleCategoryLink).where(
+                    ArticleCategoryLink.article_id == aid,
+                )
+            ).all()
+            for old_link in old_links:
+                session.delete(old_link)
+
+            # Insert new links
+            for category in cat_list:
+                link = ArticleCategoryLink(
+                    article_id=aid,  # pyright: ignore[reportArgumentType]
+                    category_id=category.id,  # pyright: ignore[reportArgumentType]
+                )
+                session.add(link)
+
+            # Unhide returned categories
+            for cat in cat_list:
+                if cat.is_hidden:
+                    cat.is_hidden = False
+                    cat.is_seen = False
+                    session.add(cat)
+                    logger.info(
+                        f"Article {aid}: unhid returned category '{cat.display_name}'"
+                    )
+
+        session.commit()
+
+        # Route categorized articles: blocked → scored with zero, non-blocked → scoring queue
+        processed = len(score_only_articles)
+        for aid, cat_list in categories_by_article.items():
+            if aid not in cat_result_map:
+                # No categorization result — re-queue
+                art = article_map[aid]
+                art.categorization_attempts += 1
+                if art.categorization_attempts >= MAX_TASK_RETRIES:
+                    art.categorization_state = "failed"
+                else:
+                    art.categorization_state = "queued"
+                session.add(art)
+                logger.warning("Article %s: no categorization result, re-queued", aid)
+                continue
+
+            art = article_map[aid]
+            art.categorization_state = "categorized"
+
+            if is_blocked(cat_list):
+                art.interest_score = 0
+                art.quality_score = 0
+                art.composite_score = 0.0
+                blocked_cats = ", ".join(c.display_name for c in cat_list)
+                art.score_reasoning = f"Blocked: {blocked_cats}"
+                art.scoring_state = "scored"
+                art.scored_at = datetime.now()
+                art.scoring_priority = 0
+                art.rescore_mode = None
+                logger.info(f"Article {aid} blocked by categories: {blocked_cats}")
+            else:
+                art.scoring_state = "queued"
+                art.scoring_attempts = 0
+
+            session.add(art)
+            processed += 1
+
+        session.commit()
+        set_categorization_context(None)
+        return processed
+
+
+class ScoringWorker:
+    """Scores categorized articles via LLM."""
+
+    async def process_next_batch(self, session: Session, batch_size: int = 1) -> int:
+        """Process next batch of articles needing scoring.
+
+        Returns:
+            Number of articles successfully scored
+        """
+        # Check task readiness
         scoring_runtime = await evaluate_task_readiness(session, TASK_SCORING)
         if not scoring_runtime.ready:
             logger.warning(
-                "Scoring skipped: scoring not ready (%s)",
+                "Scoring skipped: not ready (%s)",
                 format_readiness_reason(scoring_runtime),
             )
             return 0
 
-        try:
-            categorization_provider = get_provider(categorization_runtime.provider)
-            scoring_provider = get_provider(scoring_runtime.provider)
-        except KeyError:
-            logger.warning("Scoring skipped: unsupported configured provider")
+        # Check rate limit
+        if is_scoring_rate_limited():
+            logger.info("Scoring skipped: rate limited")
             return 0
 
-        # Get next batch -- priority articles first, then oldest
+        try:
+            provider = get_provider(scoring_runtime.provider)
+        except KeyError:
+            logger.warning("Scoring skipped: unsupported provider")
+            return 0
+
+        # Fetch queued articles
         articles = session.exec(
             select(Article)
             .where(Article.scoring_state == "queued")
@@ -145,207 +419,145 @@ class ScoringQueue:
         if not articles:
             return 0
 
-        # Load preferences once for the batch
+        # Load preferences
         preferences = session.exec(select(UserPreferences)).first()
         if not preferences:
-            # Create default preferences
-            preferences = UserPreferences(
-                interests="",
-                anti_interests="",
-            )
+            preferences = UserPreferences(interests="", anti_interests="")
             session.add(preferences)
             session.commit()
 
-        categorization_model = categorization_runtime.model
-        scoring_model = scoring_runtime.model
-        categorization_endpoint = categorization_runtime.endpoint
-        scoring_endpoint = scoring_runtime.endpoint
-        categorization_thinking = categorization_runtime.thinking
-        scoring_thinking = scoring_runtime.thinking
-        if (
-            categorization_model is None
-            or scoring_model is None
-            or categorization_endpoint is None
-            or scoring_endpoint is None
-        ):
-            logger.warning("Scoring skipped: unresolved provider runtime configuration")
+        from backend.llm_providers.base import ProviderTaskConfig
+
+        score_config = ProviderTaskConfig(
+            endpoint=scoring_runtime.endpoint,
+            model=scoring_runtime.model,
+            thinking=scoring_runtime.thinking,
+            api_key=scoring_runtime.api_key,
+        )
+        if score_config.model is None:
+            logger.warning("Scoring skipped: unresolved provider configuration")
             return 0
 
-        # Get active categories list, hierarchy, and hidden categories
-        active_categories, category_hierarchy, hidden_categories = (
-            get_active_categories(session)
-        )
+        # Transition to 'scoring'
+        batch_ids: set[int] = set()
+        article_map: dict[int, Article] = {}
+        for art in articles:
+            art.scoring_state = "scoring"
+            session.add(art)
+            batch_ids.add(art.id)  # pyright: ignore[reportArgumentType]
+            article_map[art.id] = art  # pyright: ignore[reportArgumentType]
+        session.commit()
 
-        processed = 0
-        for article in articles:
-            try:
-                # Mark as scoring
-                article.scoring_state = "scoring"
-                session.add(article)
-                session.commit()
+        set_scoring_context(next(iter(batch_ids)))
 
-                set_scoring_context(article.id)
+        # Build article dicts
+        article_dicts: list[dict] = []
+        for art in articles:
+            text = art.content_markdown or art.content or art.summary or ""
+            article_dicts.append(
+                {
+                    "id": art.id,
+                    "title": art.title,
+                    "content_markdown": text,
+                }
+            )
 
-                article_text = article.content or article.summary or ""
-                skip_categorization = article.rescore_mode == "score_only"
+        # Load categories from DB for each article
+        categories_by_article: dict[int, list[Category]] = {}
+        for aid in batch_ids:
+            cats = list(
+                session.exec(
+                    select(Category)
+                    .join(ArticleCategoryLink)
+                    .where(ArticleCategoryLink.article_id == aid)
+                ).all()
+            )
+            categories_by_article[aid] = cats
 
-                # Step 1: Categorize (unless score_only re-score)
-                article_categories: list[Category] = []
-
-                if skip_categorization:
-                    # Load existing categories from junction table
-                    article_categories = list(
-                        session.exec(
-                            select(Category)
-                            .join(ArticleCategoryLink)
-                            .where(ArticleCategoryLink.article_id == article.id)
-                        ).all()
-                    )
-                    if article_categories:
-                        logger.info(
-                            f"Article {article.id}: score-only re-score, keeping existing categories"
-                        )
-
-                if not skip_categorization or not article_categories:
-                    categorization = await categorization_provider.categorize(
-                        article.title,
-                        article_text,
-                        active_categories,
-                        endpoint=categorization_endpoint,
-                        model=categorization_model,
-                        thinking=categorization_thinking,
-                        category_hierarchy=category_hierarchy,
-                        hidden_categories=hidden_categories or None,
-                    )
-
-                    # Phase A: Resolve categories, then commit to get IDs
-                    # Use no_autoflush to prevent SELECTs from starting
-                    # implicit write transactions during category lookup.
-                    seen_slugs: dict[str, Category] = {}
-                    with session.no_autoflush:
-                        for cat_name in categorization.categories:
-                            slug = slugify(cat_name)
-                            if slug not in seen_slugs:
-                                category = get_or_create_category(session, cat_name)
-                                seen_slugs[slug] = category
-                            article_categories.append(seen_slugs[slug])
-
-                        for cat_name in categorization.suggested_new:
-                            slug = slugify(cat_name)
-                            if slug not in seen_slugs:
-                                category = get_or_create_category(
-                                    session,
-                                    cat_name,
-                                    suggested_parent=categorization.suggested_parent,
-                                )
-                                seen_slugs[slug] = category
-                            article_categories.append(seen_slugs[slug])
-
-                    session.commit()  # ~1ms: persist new categories, get IDs
-
-                    # Phase B: Write links + unhide, then commit
-                    for category in article_categories:
-                        existing_link = session.exec(
-                            select(ArticleCategoryLink).where(
-                                ArticleCategoryLink.article_id == article.id,
-                                ArticleCategoryLink.category_id == category.id,
-                            )
-                        ).first()
-                        if not existing_link:
-                            link = ArticleCategoryLink(
-                                article_id=article.id,  # pyright: ignore[reportArgumentType]
-                                category_id=category.id,  # pyright: ignore[reportArgumentType]
-                            )
-                            session.add(link)
-
-                    if not skip_categorization:
-                        for cat in article_categories:
-                            if cat.is_hidden:
-                                cat.is_hidden = False
-                                cat.is_seen = False
-                                session.add(cat)
-                                logger.info(
-                                    f"Article {article.id}: unhid returned category '{cat.display_name}'"
-                                )
-
-                    session.commit()  # ~1ms: persist links + unhide mutations
-
-                # Phase C: Score with no write lock held
-                # Step 2: Check if blocked
-                if is_blocked(article_categories):
-                    # Auto-score 0 for blocked articles
-                    article.interest_score = 0
-                    article.quality_score = 0
-                    article.composite_score = 0.0
-                    blocked_cats = ", ".join(
-                        cat.display_name for cat in article_categories
-                    )
-                    article.score_reasoning = f"Blocked: {blocked_cats}"
-                    article.scoring_state = "scored"
-                    article.scored_at = datetime.now()
-
-                    logger.info(
-                        f"Article {article.id} blocked by categories: {blocked_cats}"
-                    )
-                else:
-                    # Step 3: Score non-blocked articles
-                    scoring = await scoring_provider.score(
-                        article.title,
-                        article_text,
-                        preferences.interests,
-                        preferences.anti_interests,
-                        endpoint=scoring_endpoint,
-                        model=scoring_model,
-                        thinking=scoring_thinking,
-                    )
-
-                    article.interest_score = scoring.interest_score
-                    article.quality_score = scoring.quality_score
-                    article.score_reasoning = scoring.reasoning
-
-                    # Compute composite score
-                    article.composite_score = compute_composite_score(
-                        scoring.interest_score,
-                        scoring.quality_score,
-                        article_categories,
-                    )
-
-                    article.scoring_state = "scored"
-                    article.scored_at = datetime.now()
-
-                    logger.info(
-                        f"Article {article.id} scored: "
-                        f"interest={article.interest_score}, "
-                        f"quality={article.quality_score}, "
-                        f"composite={article.composite_score:.2f}"
-                    )
-
-                # Clear re-scoring fields
-                article.scoring_priority = 0
-                article.rescore_mode = None
-
-                session.add(article)
-                session.commit()
-                processed += 1
-
-            except asyncio.CancelledError:
-                logger.info("Scoring cancelled for article %s; re-queueing", article.id)
-                session.rollback()
-                article.scoring_state = "queued"
-                session.add(article)
-                session.commit()
-                raise
-            except Exception as e:
-                logger.error(
-                    f"Failed to score article {article.id}: {e}", exc_info=True
+        set_scoring_phase("scoring")
+        try:
+            score_results = await provider.score(
+                article_dicts,
+                preferences.interests,
+                preferences.anti_interests,
+                config=score_config,
+            )
+        except asyncio.CancelledError:
+            logger.info("Scoring cancelled; re-queueing batch")
+            set_scoring_context(None)
+            session.rollback()
+            for art in articles:
+                art.scoring_state = "queued"
+                session.add(art)
+            session.commit()
+            raise
+        except Exception as e:
+            set_scoring_context(None)
+            rate_limit_delay = _extract_rate_limit_delay(e)
+            if rate_limit_delay is not None:
+                logger.warning(
+                    "Scoring rate-limited; re-queueing (retry in %.0fs)",
+                    rate_limit_delay,
                 )
-                # Mark as failed and continue
-                article.scoring_state = "failed"
-                article.scoring_priority = 0
-                article.rescore_mode = None
-                session.add(article)
-                session.commit()
-            finally:
-                set_scoring_context(None)
+                set_scoring_rate_limited(rate_limit_delay)
+            else:
+                logger.error("Scoring failed: %s", e, exc_info=True)
 
+            # Increment attempts and re-queue or fail
+            for art in articles:
+                art.scoring_attempts += 1
+                if art.scoring_attempts >= MAX_TASK_RETRIES:
+                    art.scoring_state = "failed"
+                else:
+                    art.scoring_state = "queued"
+                session.add(art)
+            session.commit()
+            return 0
+
+        # Build result map, ignoring hallucinated IDs
+        score_result_map: dict[int, object] = {}
+        for result in score_results:
+            if result.article_id in batch_ids:
+                score_result_map[result.article_id] = result
+
+        # Apply scores
+        processed = 0
+        for aid, scoring in score_result_map.items():
+            art = article_map[aid]
+            art.interest_score = scoring.interest_score
+            art.quality_score = scoring.quality_score
+            art.score_reasoning = scoring.reasoning
+            art.composite_score = compute_composite_score(
+                scoring.interest_score,
+                scoring.quality_score,
+                categories_by_article.get(aid, []),
+            )
+            art.scoring_state = "scored"
+            art.scored_at = datetime.now()
+            art.scoring_priority = 0
+            art.scoring_attempts = 0
+            art.rescore_mode = None
+            session.add(art)
+            logger.info(
+                f"Article {aid} scored: "
+                f"interest={art.interest_score}, "
+                f"quality={art.quality_score}, "
+                f"composite={art.composite_score:.2f}"
+            )
+            processed += 1
+
+        # Re-queue articles with no score result
+        for aid in batch_ids:
+            if aid not in score_result_map:
+                art = article_map[aid]
+                art.scoring_attempts += 1
+                if art.scoring_attempts >= MAX_TASK_RETRIES:
+                    art.scoring_state = "failed"
+                else:
+                    art.scoring_state = "queued"
+                session.add(art)
+                logger.warning("Article %s: no score result, re-queued", aid)
+
+        session.commit()
+        set_scoring_context(None)
         return processed

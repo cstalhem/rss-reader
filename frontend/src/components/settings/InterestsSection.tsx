@@ -98,23 +98,21 @@ export function InterestsSection() {
     updatePreferencesMutation,
   } = usePreferences();
 
-  if (isLoading || !preferences) {
-    return (
-      <Stack gap={4}>
-        <Skeleton height="120px" variant="shine" />
-        <Skeleton height="120px" variant="shine" />
-      </Stack>
-    );
-  }
-
   return (
-    <Stack as="section" aria-label="Interests" gap={6}>
-      <SettingsPageHeader title="Interest Preferences" />
+    <Stack as="section" aria-label="Interests" gap={8}>
+      <SettingsPageHeader title="Interests" />
 
-      <InterestsForm
-        preferences={preferences}
-        updatePreferencesMutation={updatePreferencesMutation}
-      />
+      {isLoading || !preferences ? (
+        <Stack gap={4}>
+          <Skeleton height="120px" variant="shine" />
+          <Skeleton height="120px" variant="shine" />
+        </Stack>
+      ) : (
+        <InterestsForm
+          preferences={preferences}
+          updatePreferencesMutation={updatePreferencesMutation}
+        />
+      )}
     </Stack>
   );
 }

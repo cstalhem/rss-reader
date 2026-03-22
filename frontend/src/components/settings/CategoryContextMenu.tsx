@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { IconButton, Menu, Portal } from "@chakra-ui/react";
 import {
   LuEllipsisVertical,
@@ -29,8 +30,22 @@ export function CategoryContextMenu({
   onHide,
   onDelete,
 }: CategoryContextMenuProps) {
+  const handleSelect = useCallback(
+    (details: { value: string }) => {
+      const actions: Record<string, (() => void) | undefined> = {
+        ungroup: onUngroup,
+        "reset-weight": onResetWeight,
+        rename: onRename,
+        hide: onHide,
+        delete: onDelete,
+      };
+      actions[details.value]?.();
+    },
+    [onUngroup, onResetWeight, onRename, onHide, onDelete],
+  );
+
   return (
-    <Menu.Root>
+    <Menu.Root lazyMount unmountOnExit immediate onSelect={handleSelect}>
       <Menu.Trigger asChild>
         <IconButton
           aria-label="Category actions"
@@ -45,7 +60,7 @@ export function CategoryContextMenu({
         <Menu.Positioner>
           <Menu.Content>
             {type === "parent" && (
-              <Menu.Item value="ungroup" onClick={onUngroup}>
+              <Menu.Item value="ungroup">
                 <LuIndentDecrease />
                 Ungroup
               </Menu.Item>
@@ -54,22 +69,21 @@ export function CategoryContextMenu({
               <Menu.Item
                 value="reset-weight"
                 disabled={!isWeightOverridden}
-                onClick={onResetWeight}
               >
                 <LuUndo2 />
                 Reset weight
               </Menu.Item>
             )}
-            <Menu.Item value="rename" onClick={onRename}>
+            <Menu.Item value="rename">
               <LuPencil />
               Edit name
             </Menu.Item>
-            <Menu.Item value="hide" onClick={onHide}>
+            <Menu.Item value="hide">
               <LuEyeOff />
               Hide
             </Menu.Item>
             <Menu.Separator />
-            <Menu.Item value="delete" color="fg.error" onClick={onDelete}>
+            <Menu.Item value="delete" color="fg.error">
               <LuTrash2 />
               Delete
             </Menu.Item>

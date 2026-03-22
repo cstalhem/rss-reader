@@ -1,8 +1,9 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, useTransition } from "react";
-import { Badge, EmptyState, Stack, Text, Input } from "@chakra-ui/react";
+import { Badge, Box, EmptyState, Flex, Stack, Text, Input } from "@chakra-ui/react";
 import { LuTag } from "react-icons/lu";
+import type { GroupSuggestion } from "@/lib/types";
 import { SettingsPageHeader } from "./SettingsPageHeader";
 import { useCategories } from "@/hooks/useCategories";
 import { useCategoryTree } from "@/hooks/useCategoryTree";
@@ -12,6 +13,8 @@ import { toaster } from "@/components/ui/toaster";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CategoryTree } from "./CategoryTree";
 import { CategoryActionBar } from "./CategoryActionBar";
+import { AutoGroupButton } from "./AutoGroupButton";
+import { AutoGroupDialog } from "./AutoGroupDialog";
 import { CreateCategoryPopover } from "./CreateCategoryPopover";
 import { DeleteCategoryDialog } from "./DeleteCategoryDialog";
 import { MoveToGroupDialog } from "./MoveToGroupDialog";
@@ -58,7 +61,13 @@ export function CategoriesSection() {
     batchHideMutation,
     batchDeleteMutation,
     ungroupParentMutation,
+    autoGroupSuggestMutation,
+    autoGroupApplyMutation,
   } = useCategories();
+
+  // Auto-group dialog state
+  const [autoGroupOpen, setAutoGroupOpen] = useState(false);
+  const [autoGroupSuggestions, setAutoGroupSuggestions] = useState<GroupSuggestion[] | null>(null);
 
   // Defer heavy tree render so the shell paints instantly
   const [treeReady, setTreeReady] = useState(false);
@@ -185,7 +194,7 @@ export function CategoriesSection() {
   if (!isLoading && categories.length === 0) {
     return (
       <Stack gap={8}>
-        <SettingsPageHeader title="Topic Categories" />
+        <SettingsPageHeader title="Categories" />
         <EmptyState.Root>
           <EmptyState.Content>
             <EmptyState.Indicator>
@@ -202,22 +211,30 @@ export function CategoriesSection() {
 
   return (
     <CategoryTreeContext.Provider value={contextValue}>
-      <Stack as="section" aria-label="Categories" gap={6} pb={{ base: selectedIds.size > 0 ? 16 : 0, sm: 0 }}>
-        <SettingsPageHeader
-          title="Topic Categories"
-          titleBadge={
-            newCount > 0 ? (
-              <Badge colorPalette="accent" size="sm">
-                {newCount} new
-              </Badge>
-            ) : undefined
-          }
-        >
-          <CreateCategoryPopover
-            onCreateCategory={(displayName) => createCategoryMutation.mutate({ displayName })}
-            existingCategories={categories}
-          />
-        </SettingsPageHeader>
+      <Stack as="section" aria-label="Categories" gap={8} pb={{ base: selectedIds.size > 0 ? 32 : 0, sm: 0 }}>
+        <Flex wrap="wrap" alignItems="center" columnGap={2} rowGap={4} minH={8}>
+          <Text fontSize="xl" fontWeight="semibold">Categories</Text>
+          {newCount > 0 && (
+            <Badge colorPalette="accent" size="sm">
+              {newCount} new
+            </Badge>
+          )}
+          <Box flex={1} />
+          <Flex gap={2} width={{ base: "100%", md: "auto" }}>
+            <Box flex={{ base: 1, md: "initial" }}>
+              <AutoGroupButton
+                onClick={() => setAutoGroupOpen(true)}
+                disabled={categories.filter((c) => !c.is_hidden).length < 2}
+              />
+            </Box>
+            <Box flex={{ base: 1, md: "initial" }}>
+              <CreateCategoryPopover
+                onCreateCategory={(displayName) => createCategoryMutation.mutate({ displayName })}
+                existingCategories={categories}
+              />
+            </Box>
+          </Flex>
+        </Flex>
 
         <CategoryActionBar
           selectedCount={selectedIds.size}
@@ -254,6 +271,32 @@ export function CategoriesSection() {
           isParent={dialogs.deleteDialogState.isParent}
           childCount={dialogs.deleteDialogState.childCount}
           onConfirm={dialogs.handleDeleteConfirm}
+        />
+
+        <AutoGroupDialog
+          open={autoGroupOpen}
+          onOpenChange={setAutoGroupOpen}
+          onSuggest={(options) =>
+            autoGroupSuggestMutation.mutate(options, {
+              onSuccess: (data) => setAutoGroupSuggestions(data.groups),
+            })
+          }
+          suggestions={autoGroupSuggestions}
+          isSuggesting={autoGroupSuggestMutation.isPending}
+          onApply={(groups) =>
+            autoGroupApplyMutation.mutate(groups, {
+              onSuccess: (data) => {
+                setAutoGroupOpen(false);
+                setAutoGroupSuggestions(null);
+                toaster.create({
+                  title: `Grouped ${data.categories_moved} categories into ${data.groups_applied} groups`,
+                  type: "success",
+                });
+              },
+            })
+          }
+          isApplying={autoGroupApplyMutation.isPending}
+          allCategories={categories}
         />
 
         <MoveToGroupDialog

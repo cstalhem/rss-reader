@@ -6,19 +6,20 @@ from sqlmodel import Session, select
 
 from backend.config import get_settings
 from backend.database import engine
+from backend.deps import TASK_CATEGORIZATION, TASK_SCORING, get_task_batch_size
 from backend.feeds import refresh_feed
 from backend.models import Feed, UserPreferences
-from backend.scoring_queue import ScoringQueue
+from backend.scoring_queue import CategorizationWorker, ScoringWorker
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
 DEFAULT_FEED_REFRESH_INTERVAL = 1800  # seconds
-SCORING_BATCH_SIZE = 5
 SCORING_INTERVAL_SECONDS = 30
 
 scheduler = AsyncIOScheduler()
-scoring_queue = ScoringQueue()
+categorization_worker = CategorizationWorker()
+scoring_worker = ScoringWorker()
 
 
 async def refresh_all_feeds():
@@ -44,26 +45,30 @@ async def refresh_all_feeds():
                 # Continue with other feeds
 
 
-async def process_scoring_queue():
-    """Background job to process scoring queue."""
+async def process_pipeline():
+    """Background job: run categorization then scoring sequentially."""
     if settings.scheduler.log_job_execution:
-        logger.info("Running scoring queue processor...")
+        logger.info("Running pipeline processor...")
 
     with Session(engine) as session:
-        # Prevent lazy-load after commit -- scoring reads article attributes
-        # post-commit outside request cycle
         session.expire_on_commit = False
         try:
-            processed = await scoring_queue.process_next_batch(
-                session,
-                batch_size=SCORING_BATCH_SIZE,
-            )
-            if settings.scheduler.log_job_execution and processed > 0:
-                logger.info(f"Processed {processed} articles from scoring queue")
+            cat_batch = get_task_batch_size(session, TASK_CATEGORIZATION)
+            await categorization_worker.process_next_batch(session, cat_batch)
         except asyncio.CancelledError:
-            logger.info("Scoring queue processing cancelled")
+            logger.info("Pipeline cancelled during categorization")
         except Exception as e:
-            logger.error(f"Failed to process scoring queue: {e}")
+            logger.error(f"Categorization failed: {e}")
+
+    with Session(engine) as session:
+        session.expire_on_commit = False
+        try:
+            score_batch = get_task_batch_size(session, TASK_SCORING)
+            await scoring_worker.process_next_batch(session, score_batch)
+        except asyncio.CancelledError:
+            logger.info("Pipeline cancelled during scoring")
+        except Exception as e:
+            logger.error(f"Scoring failed: {e}")
 
 
 def start_scheduler():
@@ -83,12 +88,12 @@ def start_scheduler():
         replace_existing=True,
     )
 
-    # Add job to process scoring queue
+    # Add job to process categorization + scoring pipeline
     scheduler.add_job(
-        process_scoring_queue,
+        process_pipeline,
         "interval",
         seconds=SCORING_INTERVAL_SECONDS,
-        id="process_scoring",
+        id="process_pipeline",
         replace_existing=True,
     )
 

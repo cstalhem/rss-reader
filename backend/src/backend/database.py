@@ -3,7 +3,7 @@ from pathlib import Path
 
 from slugify import slugify
 from sqlalchemy import event, text
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
 
 from backend.config import get_settings
 
@@ -109,7 +109,7 @@ def _set_schema_version(conn, version: int):
 
 
 def _recover_stuck_scoring(conn):
-    """Reset articles orphaned in 'scoring' state back to 'queued'."""
+    """Reset articles orphaned in 'scoring' or 'categorizing' state back to queued."""
     result = conn.execute(
         text(
             "UPDATE articles SET scoring_state = 'queued' WHERE scoring_state = 'scoring'"
@@ -117,6 +117,16 @@ def _recover_stuck_scoring(conn):
     )
     if result.rowcount > 0:
         logger.info(f"Recovered {result.rowcount} articles stuck in scoring state")
+
+    result2 = conn.execute(
+        text(
+            "UPDATE articles SET categorization_state = 'queued' WHERE categorization_state = 'categorizing'"
+        )
+    )
+    if result2.rowcount > 0:
+        logger.info(
+            f"Recovered {result2.rowcount} articles stuck in categorizing state"
+        )
 
 
 def _seed_default_categories(conn):
@@ -128,7 +138,7 @@ def _seed_default_categories(conn):
     from backend.prompts import DEFAULT_CATEGORY_HIERARCHY
 
     count = conn.execute(text("SELECT COUNT(*) FROM categories")).scalar()
-    if count and count > 0:
+    if count:
         return
 
     hierarchy = DEFAULT_CATEGORY_HIERARCHY
@@ -191,6 +201,41 @@ def _run_alembic_migrations():
     command.upgrade(alembic_cfg, "head")
 
 
+def _backfill_content_markdown():
+    """Backfill content_markdown for existing articles that lack it."""
+    from backend.markdown import html_to_markdown
+    from backend.models import Article
+
+    with Session(engine) as session:
+        articles = session.exec(
+            select(Article).where(  # pyright: ignore[reportArgumentType]
+                Article.content_markdown.is_(None),  # pyright: ignore[reportAttributeAccessIssue]
+                (Article.content.is_not(None)) | (Article.summary.is_not(None)),  # pyright: ignore[reportAttributeAccessIssue]
+            )
+        ).all()
+
+        if not articles:
+            return
+
+        converted = 0
+        for i, article in enumerate(articles):
+            raw_html = article.content or article.summary or ""
+            if raw_html:
+                try:
+                    article.content_markdown = html_to_markdown(raw_html)
+                    converted += 1
+                except Exception as e:
+                    logger.warning(
+                        "Backfill markdown failed for article %s: %s", article.id, e
+                    )
+
+            if (i + 1) % 100 == 0:
+                session.commit()
+
+        session.commit()
+        logger.info("Backfilled content_markdown for %d articles", converted)
+
+
 # --- Startup ---
 
 
@@ -231,5 +276,6 @@ def create_db_and_tables():
         _recover_stuck_scoring(conn)
 
     _run_alembic_migrations()
+    _backfill_content_markdown()
 
     logger.info(f"Database ready at schema version {CURRENT_SCHEMA_VERSION}")

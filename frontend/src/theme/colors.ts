@@ -34,7 +34,10 @@ export const semanticTokens = defineSemanticTokens.colors({
       value: { _light: "{colors.accent.600}", _dark: "{colors.accent.400}" },
     },
     fg: {
-      value: { _light: "white", _dark: "white" },
+      value: { _light: "{colors.accent.500}", _dark: "{colors.accent.500}" },
+    },
+    border: {
+      value: { _light: "{colors.accent.500}", _dark: "{colors.accent.400}" },
     },
     muted: {
       value: { _light: "{colors.accent.100}", _dark: "{colors.accent.950}" },

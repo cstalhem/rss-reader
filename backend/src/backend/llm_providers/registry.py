@@ -1,10 +1,12 @@
 """Static provider registry for this release."""
 
 from backend.llm_providers.base import LLMProvider
+from backend.llm_providers.google import GoogleProvider
 from backend.llm_providers.ollama import OllamaProvider
 
 PROVIDERS: dict[str, LLMProvider] = {
     "ollama": OllamaProvider(),
+    "google": GoogleProvider(),
 }
 
 

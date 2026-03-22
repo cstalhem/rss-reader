@@ -13,8 +13,7 @@ interface CategoryRowShellProps {
   onWeightChange: (weight: string) => void;
   onRename: (newName: string) => void;
   renderContextMenu: (startRename: () => void) => React.ReactNode;
-  isOverridden?: boolean; // For WeightPresetStrip opacity + reset button
-  onReset?: () => void; // Reset to parent weight
+  isOverridden?: boolean; // For WeightPresetStrip opacity
   badge?: React.ReactNode | ((isHovered: boolean) => React.ReactNode); // Render prop for hover-aware badges, or plain ReactNode
   trailingContent?: React.ReactNode; // Child count text (for parent rows)
   onNameClick?: () => void; // Category name click handler (for parent expand/collapse)
@@ -30,7 +29,6 @@ export function CategoryRowShell({
   onRename,
   renderContextMenu,
   isOverridden,
-  onReset,
   badge,
   trailingContent,
   onNameClick,
@@ -101,12 +99,13 @@ export function CategoryRowShell({
         <Box
           width={{ base: "100%", sm: "auto" }}
           order={{ base: 99, sm: 0 }}
+          display="flex"
+          justifyContent="flex-end"
         >
           <WeightPresetStrip
             value={weight}
             onChange={onWeightChange}
             isOverridden={isOverridden}
-            onReset={onReset}
           />
         </Box>
 

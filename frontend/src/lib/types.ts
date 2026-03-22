@@ -36,6 +36,7 @@ export interface Article {
   score_reasoning: string | null;
   scoring_state: string;
   scored_at: string | null;
+  re_evaluating?: boolean;
 }
 
 /** Lightweight article for list views (no content/full summary). */
@@ -55,6 +56,7 @@ export interface ArticleListItem {
   summary_preview: string | null;
   scoring_state: string;
   scored_at: string | null;
+  re_evaluating?: boolean;
 }
 
 export interface Feed {
@@ -117,6 +119,25 @@ export interface OllamaConfig {
   categorization_model: string | null;
   scoring_model: string | null;
   use_separate_models: boolean;
+  batch_size: number;
+}
+
+export interface GoogleConfig {
+  api_key_set: boolean;
+  api_key_preview: string;
+  selected_models: string[];
+  batch_size: number;
+}
+
+export interface GoogleModelItem {
+  name: string;
+  display_name: string;
+  description: string;
+}
+
+export interface TestKeyResponse {
+  valid: boolean;
+  error: string | null;
 }
 
 export interface ProviderListItem {
@@ -136,6 +157,7 @@ export interface TaskRouteItem {
   task: string;
   provider: string;
   model: string | null;
+  batch_size?: number | null;
 }
 
 export interface TaskRoutesResponse {
@@ -144,8 +166,8 @@ export interface TaskRoutesResponse {
 }
 
 export interface TaskRoutesUpdate {
-  categorization: { provider: string; model: string };
-  scoring: { provider: string; model: string };
+  categorization: { provider: string; model: string; batch_size?: number | null };
+  scoring: { provider: string; model: string; batch_size?: number | null };
   use_separate_models: boolean;
 }
 
@@ -167,7 +189,7 @@ export type TimeUnit = "seconds" | "minutes" | "hours";
 
 export type SortOption = "score_desc" | "score_asc" | "date_desc" | "date_asc";
 
-export type FilterTab = "unread" | "all" | "scoring" | "blocked";
+export type FilterTab = "unread" | "all" | "scoring" | "blocked" | "failed";
 
 export interface ScoringStatus {
   unscored: number;
@@ -184,6 +206,24 @@ export interface ScoringStatus {
   score_ready_reason: string | null;
   scoring_ready: boolean;
   scoring_ready_reason: string | null;
+  rate_limit_retry_after: number | null;
+  categorization?: {
+    uncategorized: number;
+    queued: number;
+    categorizing: number;
+    categorized: number;
+    failed: number;
+    ready: boolean;
+    ready_reason: string | null;
+    phase: string;
+    rate_limit_retry_after: number | null;
+  };
+  scoring_worker?: {
+    ready: boolean;
+    ready_reason: string | null;
+    phase: string;
+    rate_limit_retry_after: number | null;
+  };
 }
 
 export interface DownloadStatus {
@@ -192,6 +232,21 @@ export interface DownloadStatus {
   completed: number;
   total: number;
   status: string | null;
+}
+
+export interface GroupSuggestion {
+  parent: string;
+  children: string[];
+}
+
+export interface AutoGroupSuggestResponse {
+  groups: GroupSuggestion[];
+}
+
+export interface AutoGroupApplyResponse {
+  ok: boolean;
+  groups_applied: number;
+  categories_moved: number;
 }
 
 export interface FetchArticlesParams {
