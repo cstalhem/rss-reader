@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from datetime import datetime
@@ -291,18 +292,44 @@ class GoogleProvider:
         from google import genai
         from google.genai import types
 
+        from backend.llm_providers.base import LLMValidationError, validate_llm_response
+
         client = genai.Client(api_key=config.api_key)
-        response = await client.aio.models.generate_content(
-            model=config.model,  # pyright: ignore[reportArgumentType]
-            contents=user_message,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                response_mime_type="application/json",
-                response_schema=schema.model_json_schema(),
-                temperature=0,
-            ),
-        )
-        return schema.model_validate_json(response.text)  # pyright: ignore[reportArgumentType]
+
+        last_error: LLMValidationError | None = None
+        for attempt in range(2):
+            response = await client.aio.models.generate_content(
+                model=config.model,  # pyright: ignore[reportArgumentType]
+                contents=user_message,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    response_mime_type="application/json",
+                    response_schema=schema.model_json_schema(),
+                    temperature=0,
+                ),
+            )
+
+            if response.text is None:
+                logger.debug(
+                    "Google returned null text; candidates=%s",
+                    response.candidates,
+                )
+
+            try:
+                return validate_llm_response(response.text, schema)
+            except LLMValidationError as e:
+                last_error = e
+                logger.warning(
+                    "Google LLM validation failed (attempt %d/2): %s",
+                    attempt + 1,
+                    e,
+                )
+                if not e.is_retryable or attempt > 0:
+                    break
+                await asyncio.sleep(1)
+
+        assert last_error is not None  # loop always runs at least once
+        raise last_error
 
     async def categorize(
         self,
