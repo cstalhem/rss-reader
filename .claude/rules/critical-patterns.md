@@ -63,3 +63,21 @@ except (ValueError, TypeError, OSError):  # fmt: skip  # parens required for <3.
 ```
 
 Why: Ruff with `target-version = "py314"` applies PEP 758 and removes parens. The unparenthesized form is a SyntaxError on Python < 3.14 and visually ambiguous with the old Py2 `except Type, name:` pattern. Use `# fmt: skip` to preserve parens.
+
+## Startup code must not reference migration-added columns before migrations run
+
+WRONG:
+```python
+with engine.begin() as conn:
+    _recover_stuck_scoring(conn)  # references categorization_state
+_run_alembic_migrations()          # column created here — too late
+```
+
+CORRECT:
+```python
+_run_alembic_migrations()
+with engine.begin() as conn:
+    _recover_stuck_scoring(conn)  # column now exists
+```
+
+Why: Production DB may not have new columns until Alembic runs. Works on dev because the column already exists from prior migrations.
