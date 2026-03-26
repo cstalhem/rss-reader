@@ -29,6 +29,7 @@ type StableState = {
   order: number[];
   pendingOrder: number[];
   newlyExiting: number[];
+  newlyReactivated: number[];
   prevEnabled: boolean;
   prevResetKey: unknown;
   prevLimit: number;
@@ -46,6 +47,7 @@ function createEmptyState(
     order: [],
     pendingOrder: [],
     newlyExiting: [],
+    newlyReactivated: [],
     prevEnabled: enabled,
     prevResetKey: resetKey,
     prevLimit: limit,
@@ -71,6 +73,7 @@ function buildFromArticles(
     order,
     pendingOrder: [],
     newlyExiting: [],
+    newlyReactivated: [],
     prevEnabled: enabled,
     prevResetKey: resetKey,
     prevLimit: limit,
@@ -131,6 +134,7 @@ function computeNextState(
   let order = prev.order;
   let pendingOrder = prev.pendingOrder;
   const newlyExiting: number[] = [];
+  const newlyReactivated: number[] = [];
 
   // Helper to clone entries lazily
   const ensureEntriesMutable = () => {
@@ -201,31 +205,45 @@ function computeNextState(
     }
   }
 
-  // 5. DETECT REMOVALS — active entries not in freshMap
+  // 5. DETECT REMOVALS — active/pending entries not in freshMap
   for (const [id, entry] of prev.entries) {
-    if (entry.status === "active" && !freshMap.has(id)) {
-      if (removals === "retain") {
-        // Keep with cached data, status stays "active" — no change needed
-      } else if (typeof removals === "object") {
-        // animate
-        ensureEntriesMutable();
-        entries.set(id, { ...entry, status: "exiting" });
-        newlyExiting.push(id);
-      } else {
-        // drop
+    if (!freshMap.has(id)) {
+      if (entry.status === "pending") {
+        // P2 fix: prune stale pending entries
         ensureEntriesMutable();
         entries.delete(id);
-        ensureOrderMutable();
-        order = order.filter((oid) => oid !== id);
+        ensurePendingOrderMutable();
+        pendingOrder = pendingOrder.filter((pid) => pid !== id);
+      } else if (entry.status === "active") {
+        if (removals === "retain") {
+          // Keep with cached data, status stays "active" — no change needed
+        } else if (typeof removals === "object") {
+          // animate
+          ensureEntriesMutable();
+          entries.set(id, { ...entry, status: "exiting" });
+          newlyExiting.push(id);
+        } else {
+          // drop
+          ensureEntriesMutable();
+          entries.delete(id);
+          ensureOrderMutable();
+          order = order.filter((oid) => oid !== id);
+        }
       }
     }
   }
 
   // 6. REFRESH CACHED DATA — update article data for entries still in freshMap
+  //    Also reactivate exiting entries that reappear (P1 fix)
   for (const [id, entry] of prev.entries) {
     if (freshMap.has(id)) {
       const fresh = freshMap.get(id)!;
-      if (fresh !== entry.article) {
+      if (entry.status === "exiting") {
+        // Reappeared before timer fired — promote back to active
+        ensureEntriesMutable();
+        entries.set(id, { article: fresh, status: "active" });
+        newlyReactivated.push(id);
+      } else if (fresh !== entry.article) {
         ensureEntriesMutable();
         entries.set(id, { ...entry, article: fresh });
       }
@@ -249,7 +267,7 @@ function computeNextState(
   }
 
   // 8. SAME-REFERENCE CHECK
-  if (!changed && newlyExiting.length === 0) {
+  if (!changed && newlyExiting.length === 0 && newlyReactivated.length === 0) {
     return prev;
   }
 
@@ -258,6 +276,7 @@ function computeNextState(
     order,
     pendingOrder,
     newlyExiting,
+    newlyReactivated,
     prevEnabled: enabled,
     prevResetKey: resetKey,
     prevLimit,
@@ -326,6 +345,15 @@ export function useStableArticleList(
     // Timer cleanup on resetKey change
     if (nextState.prevResetKey !== prevState.prevResetKey) {
       clearAllTimers();
+    }
+
+    // Cancel timers for reactivated entries (P1 fix)
+    for (const id of nextState.newlyReactivated) {
+      const timerId = timersRef.current.get(id);
+      if (timerId) {
+        clearTimeout(timerId);
+        timersRef.current.delete(id);
+      }
     }
 
     // Schedule timers for newly exiting articles

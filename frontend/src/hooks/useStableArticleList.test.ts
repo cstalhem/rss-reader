@@ -1101,6 +1101,156 @@ describe("flush during exit animation", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// P1: reactivate exiting entries that reappear in server response
+// ---------------------------------------------------------------------------
+
+describe("reactivate exiting entries", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("promotes exiting entry back to active when server includes it again", () => {
+    const initial = [makeArticle(1), makeArticle(2), makeArticle(3)];
+    const { result, rerender } = renderStableList({
+      articles: initial,
+      enabled: true,
+      additions: "immediate",
+      removals: { animate: 3000 },
+      resetKey: 0,
+      limit: 50,
+    });
+
+    // article 2 disappears — enters exiting state
+    rerender({
+      articles: [makeArticle(1), makeArticle(3)],
+      enabled: true,
+      additions: "immediate",
+      removals: { animate: 3000 },
+      resetKey: 0,
+      limit: 50,
+    });
+
+    expect(result.current.exitingIds.has(2)).toBe(true);
+
+    // article 2 reappears before timer fires (polling race)
+    rerender({
+      articles: [makeArticle(1), makeArticle(2), makeArticle(3)],
+      enabled: true,
+      additions: "immediate",
+      removals: { animate: 3000 },
+      resetKey: 0,
+      limit: 50,
+    });
+
+    // should be active again, not exiting
+    expect(result.current.exitingIds.has(2)).toBe(false);
+    expect(result.current.displayArticles?.map((a) => a.id)).toContain(2);
+
+    // advance past animation duration — article should NOT be removed
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(result.current.displayArticles?.map((a) => a.id)).toContain(2);
+    expect(result.current.displayArticles?.length).toBe(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P2: prune stale pending entries
+// ---------------------------------------------------------------------------
+
+describe("prune stale pending entries", () => {
+  it("removes pending entry when it disappears from server response", () => {
+    const initial = [makeArticle(1)];
+    const { result, rerender } = renderStableList({
+      articles: initial,
+      enabled: true,
+      additions: "buffer",
+      removals: "drop",
+      resetKey: 0,
+      limit: 50,
+    });
+
+    // new article arrives — buffered as pending
+    const withNew = [makeArticle(2), makeArticle(1)];
+    rerender({
+      articles: withNew,
+      enabled: true,
+      additions: "buffer",
+      removals: "drop",
+      resetKey: 0,
+      limit: 50,
+    });
+
+    expect(result.current.pendingCount).toBe(1);
+
+    // article 2 disappears from server (e.g. marked read in another tab)
+    rerender({
+      articles: [makeArticle(1)],
+      enabled: true,
+      additions: "buffer",
+      removals: "drop",
+      resetKey: 0,
+      limit: 50,
+    });
+
+    // pending count should drop to 0
+    expect(result.current.pendingCount).toBe(0);
+  });
+
+  it("flush does not resurrect pruned pending entries", () => {
+    const initial = [makeArticle(1)];
+    const { result, rerender } = renderStableList({
+      articles: initial,
+      enabled: true,
+      additions: "buffer",
+      removals: "drop",
+      resetKey: 0,
+      limit: 50,
+    });
+
+    // two new articles arrive — buffered
+    const withNew = [makeArticle(2), makeArticle(3), makeArticle(1)];
+    rerender({
+      articles: withNew,
+      enabled: true,
+      additions: "buffer",
+      removals: "drop",
+      resetKey: 0,
+      limit: 50,
+    });
+
+    expect(result.current.pendingCount).toBe(2);
+
+    // article 2 disappears from server before flush
+    const withoutTwo = [makeArticle(3), makeArticle(1)];
+    rerender({
+      articles: withoutTwo,
+      enabled: true,
+      additions: "buffer",
+      removals: "drop",
+      resetKey: 0,
+      limit: 50,
+    });
+
+    expect(result.current.pendingCount).toBe(1);
+
+    // flush — only article 3 should appear, not ghost article 2
+    act(() => {
+      result.current.flush();
+    });
+
+    expect(result.current.displayArticles?.map((a) => a.id)).toEqual([1, 3]);
+    expect(result.current.pendingCount).toBe(0);
+  });
+});
+
 describe("re-enable after disable", () => {
   it("re-initializes from fresh articles after disable and re-enable", () => {
     const initial = [makeArticle(1), makeArticle(2)];
