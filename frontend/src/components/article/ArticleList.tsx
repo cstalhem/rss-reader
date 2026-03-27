@@ -29,7 +29,6 @@ import {
 } from "react-icons/lu";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useArticles, useMarkAsRead } from "@/hooks/useArticles";
-import { useBufferedArticles } from "@/hooks/useBufferedArticles";
 import {
   useMarkAllRead,
   useMarkAllArticlesRead,
@@ -38,8 +37,8 @@ import { useFeeds } from "@/hooks/useFeeds";
 import { useFeedFolders } from "@/hooks/useFeedFolders";
 import { useSortPreference } from "@/hooks/useSortPreference";
 import { useScoringStatus } from "@/hooks/useScoringStatus";
-import { useCompletingArticles } from "@/hooks/useCompletingArticles";
-import { rescoreArticle } from "@/lib/api";
+import { useStableArticleList } from "@/hooks/useStableArticleList";
+import { fetchArticle, rescoreArticle } from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
 import { NewArticlesPill } from "./NewArticlesPill";
 import { ArticleRow } from "./ArticleRow";
@@ -49,9 +48,29 @@ import { SortSelect } from "./SortSelect";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { UnreadCountBadge } from "@/components/ui/unread-count-badge";
 import { MobileArticleActionBar } from "./MobileArticleActionBar";
-import { ArticleListItem, FeedSelection, FilterTab } from "@/lib/types";
+import { Article, ArticleListItem, FeedSelection, FilterTab } from "@/lib/types";
 import { parseSortOption } from "@/lib/utils";
 import { ARTICLE_EMPTY_STATES, createArticleFilterCollection } from "./viewConfig";
+
+function toArticleListItem(article: Article): ArticleListItem {
+  return {
+    id: article.id,
+    feed_id: article.feed_id,
+    title: article.title,
+    url: article.url,
+    author: article.author,
+    published_at: article.published_at,
+    is_read: article.is_read,
+    categories: article.categories,
+    interest_score: article.interest_score,
+    quality_score: article.quality_score,
+    composite_score: article.composite_score,
+    score_reasoning: article.score_reasoning,
+    summary_preview: null,
+    scoring_state: article.scoring_state,
+    scored_at: article.scored_at,
+  };
+}
 
 interface ArticleListProps {
   selection: FeedSelection;
@@ -65,8 +84,8 @@ export function ArticleList({
   mainRef,
 }: ArticleListProps) {
   const [filter, setFilter] = useState<FilterTab>("unread");
-  const [selectedArticle, setSelectedArticle] =
-    useState<ArticleListItem | null>(null);
+  const [selectedArticleId, setSelectedArticleId] =
+    useState<number | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isReaderOpen, setIsReaderOpen] = useState(false);
   const [isConfirmMarkAllOpen, setIsConfirmMarkAllOpen] = useState(false);
@@ -138,26 +157,55 @@ export function ArticleList({
     scoringActive: scoringCount > 0,
   });
 
-  // Buffer new articles on Unread tab to prevent list shift during scoring
-  const isBuffering = filter === "unread" && scoringCount > 0;
-  const resetKey = `${selection.kind}:${selection.kind === "feed" ? selection.feedId : selection.kind === "folder" ? selection.folderId : "all"}:${sortOption}`;
-  const { displayArticles: bufferedArticles, newCount, flush } = useBufferedArticles(
+  // Stability options depend on tab + scoring state
+  const isScoring = scoringCount > 0;
+  const stabilityEnabled = (filter === "unread" && isScoring) || filter === "scoring";
+  const stabilityAdditions = filter === "scoring" ? "immediate" as const : "buffer" as const;
+  const stabilityRemovals = filter === "scoring"
+    ? { animate: 3000 } as const
+    : filter === "unread" && isScoring
+      ? "retain" as const
+      : "drop" as const;
+
+  // Per D6: include filter in resetKey so tab switches trigger hard reset
+  const resetKey = `${filter}:${selection.kind}:${selection.kind === "feed" ? selection.feedId : selection.kind === "folder" ? selection.folderId : "all"}:${sortOption}`;
+
+  const handleArticleExiting = useCallback(
+    (id: number, updateEntry: (article: ArticleListItem) => void) => {
+      fetchArticle(id).then((updated) => {
+        if (updated.scoring_state === "scored") {
+          updateEntry(toArticleListItem(updated));
+        }
+      }).catch(() => {
+        // Fetch failed — exiting article keeps cached data, timer completes normally
+      });
+    },
+    [],
+  );
+
+  const { displayArticles, pendingCount, exitingIds, flush } = useStableArticleList(
     articles,
-    isBuffering,
+    stabilityEnabled,
+    stabilityAdditions,
+    stabilityRemovals,
     resetKey,
     limit,
+    filter === "scoring" ? handleArticleExiting : undefined,
   );
 
-  // Track articles completing scoring (for animation in Scoring tab)
-  // Pass raw `articles` — not bufferedArticles — to avoid referential instability
-  // triggering useCompletingArticles' useLayoutEffect setState loop.
-  const { displayArticles: completedArticles, completingIds } = useCompletingArticles(
-    articles,
-    filter === "scoring",
+  // Derive selectedArticle from displayArticles (D7 — prevents reader staleness)
+  const selectedArticle = useMemo(
+    () => displayArticles?.find((a) => a.id === selectedArticleId) ?? null,
+    [displayArticles, selectedArticleId],
   );
 
-  // The two hooks are mutually exclusive by tab — pick the right output
-  const displayArticles = isBuffering ? bufferedArticles : completedArticles;
+  // D7 defensive guard: if selected article disappeared from display, close reader.
+  // Safe as render-time setState because the hook uses useRef (no setState-during-render
+  // interaction), and this converges in 1 re-render (selectedArticleId becomes null).
+  if (selectedArticleId !== null && !selectedArticle && isReaderOpen) {
+    setIsReaderOpen(false);
+    setSelectedArticleId(null);
+  }
 
   const { data: feeds } = useFeeds();
   const { data: folders } = useFeedFolders();
@@ -238,7 +286,7 @@ export function ArticleList({
           if (mainRef.current) {
             openScrollTopRef.current = mainRef.current.scrollTop;
           }
-          setSelectedArticle(article);
+          setSelectedArticleId(article.id);
           setIsReaderOpen(true);
         };
         mainRef.current.addEventListener("scrollend", onScrollEnd, {
@@ -248,7 +296,7 @@ export function ArticleList({
         const fallback = setTimeout(onScrollEnd, 400);
       } else {
         // No ref or no scroll container — just open immediately
-        setSelectedArticle(article);
+        setSelectedArticleId(article.id);
         setIsReaderOpen(true);
       }
     },
@@ -290,7 +338,7 @@ export function ArticleList({
       pendingOpenRef.current = null;
       openArticle(next);
     } else {
-      setSelectedArticle(null);
+      setSelectedArticleId(null);
     }
   }, [openArticle]);
 
@@ -469,7 +517,7 @@ export function ArticleList({
       </Flex>
 
       {/* New articles pill */}
-      {newCount > 0 && <NewArticlesPill count={newCount} onFlush={flush} />}
+      {pendingCount > 0 && <NewArticlesPill count={pendingCount} onFlush={flush} />}
 
       {/* Article list */}
       {isLoading ? (
@@ -500,7 +548,7 @@ export function ArticleList({
                     onSelect={handleSelect}
                     onToggleRead={handleToggleRead}
                     onRescore={handleRescore}
-                    isCompleting={completingIds.has(article.id)}
+                    isCompleting={exitingIds.has(article.id)}
                     isExpanded={isExpanded}
                     onClose={isExpanded ? handleCloseReader : undefined}
                     onOpenOriginal={
@@ -530,7 +578,7 @@ export function ArticleList({
                         : undefined
                     }
                   />
-                  {selectedArticle?.id === article.id && (
+                  {selectedArticle != null && selectedArticle.id === article.id && (
                     <Collapsible.Root
                       open={isReaderOpen}
                       lazyMount

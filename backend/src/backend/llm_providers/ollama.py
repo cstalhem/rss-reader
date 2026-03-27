@@ -11,12 +11,14 @@ from ollama import AsyncClient
 from pydantic import BaseModel, Field, field_validator
 from tenacity import (
     retry,
+    retry_if_exception,
     retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
 )
 
 from backend import ollama_service
+from backend.llm_providers.base import LLMValidationError, validate_llm_response
 from backend.scoring import set_categorization_phase, set_scoring_phase
 
 if TYPE_CHECKING:
@@ -91,14 +93,19 @@ TRANSIENT_ERRORS = (
     httpx.ConnectTimeout,
 )
 
+_RETRYABLE = retry_if_exception_type(TRANSIENT_ERRORS) | retry_if_exception(
+    lambda e: isinstance(e, LLMValidationError) and e.is_retryable
+)
+
 
 # --- Scoring / categorization functions ---
 
 
 @retry(
-    retry=retry_if_exception_type(TRANSIENT_ERRORS),
+    retry=_RETRYABLE,
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
+    reraise=True,
 )
 async def categorize_article(
     article_title: str,
@@ -154,7 +161,7 @@ async def categorize_article(
         content += chunk["message"].get("content") or ""
 
     # Parse accumulated structured response
-    result = CategoryResponse.model_validate_json(content)
+    result = validate_llm_response(content, CategoryResponse)
 
     logger.info(
         f"Categorized article: {len(result.categories)} categories, "
@@ -165,9 +172,10 @@ async def categorize_article(
 
 
 @retry(
-    retry=retry_if_exception_type(TRANSIENT_ERRORS),
+    retry=_RETRYABLE,
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
+    reraise=True,
 )
 async def score_article(
     article_title: str,
@@ -217,7 +225,7 @@ async def score_article(
         content += chunk["message"].get("content") or ""
 
     # Parse accumulated structured response
-    result = ScoringResponse.model_validate_json(content)
+    result = validate_llm_response(content, ScoringResponse)
 
     logger.info(
         f"Scored article: interest={result.interest_score}, "
@@ -228,9 +236,10 @@ async def score_article(
 
 
 @retry(
-    retry=retry_if_exception_type(TRANSIENT_ERRORS),
+    retry=_RETRYABLE,
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
+    reraise=True,
 )
 async def categorize_articles(
     articles: list[dict],
@@ -281,15 +290,16 @@ async def categorize_articles(
             set_categorization_phase("categorizing")
         content += chunk["message"].get("content") or ""
 
-    result = BatchCategoryResponse.model_validate_json(content)
+    result = validate_llm_response(content, BatchCategoryResponse)
     logger.info("Categorized %d articles in batch", len(result.results))
     return result.results
 
 
 @retry(
-    retry=retry_if_exception_type(TRANSIENT_ERRORS),
+    retry=_RETRYABLE,
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
+    reraise=True,
 )
 async def score_articles(
     articles: list[dict],
@@ -335,7 +345,7 @@ async def score_articles(
             set_scoring_phase("scoring")
         content += chunk["message"].get("content") or ""
 
-    result = BatchScoringResponse.model_validate_json(content)
+    result = validate_llm_response(content, BatchScoringResponse)
     logger.info("Scored %d articles in batch", len(result.results))
     return result.results
 
@@ -497,7 +507,7 @@ class OllamaProvider:
         ):
             content += chunk["message"].get("content") or ""
 
-        result = GroupingResponse.model_validate_json(content)
+        result = validate_llm_response(content, GroupingResponse)
         logger.info("Suggested %d category groups", len(result.groups))
         return result
 
