@@ -1251,6 +1251,62 @@ describe("prune stale pending entries", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// P3: transient markers must be consumed once, not re-processed on re-renders
+// ---------------------------------------------------------------------------
+
+describe("transient marker cleanup", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("does not call onExiting again on unrelated re-render after exit transition", () => {
+    const onExiting = vi.fn();
+    const initial = [makeArticle(1), makeArticle(2)];
+    const { rerender } = renderStableList({
+      articles: initial,
+      enabled: true,
+      additions: "immediate",
+      removals: { animate: 3000 },
+      resetKey: 0,
+      limit: 50,
+      onExiting,
+    });
+
+    // article 2 disappears — triggers exit
+    const without2 = [makeArticle(1)];
+    rerender({
+      articles: without2,
+      enabled: true,
+      additions: "immediate",
+      removals: { animate: 3000 },
+      resetKey: 0,
+      limit: 50,
+      onExiting,
+    });
+
+    expect(onExiting).toHaveBeenCalledTimes(1);
+    expect(onExiting).toHaveBeenCalledWith(2, expect.any(Function));
+
+    // Unrelated re-render with same articles ref — should NOT re-trigger onExiting
+    rerender({
+      articles: without2,
+      enabled: true,
+      additions: "immediate",
+      removals: { animate: 3000 },
+      resetKey: 0,
+      limit: 50,
+      onExiting,
+    });
+
+    expect(onExiting).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("re-enable after disable", () => {
   it("re-initializes from fresh articles after disable and re-enable", () => {
     const initial = [makeArticle(1), makeArticle(2)];

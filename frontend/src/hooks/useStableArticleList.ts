@@ -389,6 +389,11 @@ export function useStableArticleList(
         }
       }
     }
+
+    // Clear transient markers after consumption to prevent re-processing on unrelated re-renders
+    if (nextState.newlyExiting.length > 0 || nextState.newlyReactivated.length > 0) {
+      stateRef.current = { ...stateRef.current, newlyExiting: [], newlyReactivated: [] };
+    }
   });
 
   // Unmount cleanup
