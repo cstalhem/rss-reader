@@ -102,6 +102,14 @@ class TestBuildGroupingPrompt:
         # Structural rules carried over
         assert "at least two children" in prompt.lower()
 
+    def test_build_assignment_prompt_no_existing_children(self):
+        from backend.prompts.grouping import build_assignment_prompt
+
+        prompt = build_assignment_prompt(["AI", "Programming"], ["Tech"])
+        # The ">" format is used in build_grouping_prompt for existing group children
+        # Assignment prompt should NOT show pre-existing assignments
+        assert ">" not in prompt or prompt.count(">") == 0
+
 
 # --- Cycle 2: POST /api/categories/auto-group/apply ---
 
