@@ -47,3 +47,22 @@ class TestGoogleTwoPhase:
         # Second call should use GroupingResponse schema
         assert mock_gen.call_args_list[1].args[-1] is GroupingResponse
         assert result == grouping_response
+
+    @pytest.mark.asyncio
+    async def test_empty_themes_returns_empty_grouping(self):
+        """If Phase 1 returns no themes, short-circuit with empty groups."""
+        from backend.llm_providers.google import GoogleProvider
+
+        provider = GoogleProvider()
+
+        with patch.object(provider, "_generate", new_callable=AsyncMock) as mock_gen:
+            mock_gen.return_value = ThemeResponse(themes=[])
+
+            result = await provider.suggest_groups(
+                all_categories=["AI", "ML"],
+                existing_groups={},
+                config=MOCK_CONFIG,
+            )
+
+        assert mock_gen.call_count == 1  # Only Phase 1 called
+        assert result.groups == []
