@@ -36,12 +36,14 @@ class TestBuildGroupingPrompt:
         assert "- Programming" in prompt
         assert "- Science" in prompt
 
-    def test_includes_existing_groups(self):
+    def test_includes_existing_groups_with_incomplete_framing(self):
         prompt = build_grouping_prompt(
             ["AI", "Programming", "Technology"],
             {"Technology": ["AI", "Programming"]},
         )
         assert "Technology > AI, Programming" in prompt
+        assert "incomplete" in prompt.lower()
+        assert "not yet assigned" in prompt.lower()
 
     def test_omits_existing_groups_section_when_empty(self):
         prompt = build_grouping_prompt(["AI", "Science"], {})
@@ -67,6 +69,15 @@ class TestBuildGroupingPrompt:
     def test_grouping_response_empty_groups(self):
         resp = GroupingResponse.model_validate({"groups": []})
         assert resp.groups == []
+
+    def test_build_theme_proposal_prompt_includes_all_categories(self):
+        from backend.prompts.grouping import build_theme_proposal_prompt
+
+        prompt = build_theme_proposal_prompt(["AI", "Programming", "Science"])
+        assert "- AI" in prompt
+        assert "- Programming" in prompt
+        assert "- Science" in prompt
+        assert "Current groups" not in prompt  # No anchoring on existing groups
 
 
 # --- Cycle 2: POST /api/categories/auto-group/apply ---
