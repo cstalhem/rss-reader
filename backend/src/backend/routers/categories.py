@@ -375,7 +375,15 @@ def auto_group_apply(
         parent_slug = slugify(group.parent)
         parent_cat = slug_map.get(parent_slug)
         if not parent_cat:
-            continue
+            # Create new parent category for novel theme names
+            parent_cat = Category(
+                display_name=group.parent,
+                slug=parent_slug,
+                is_seen=True,
+            )
+            session.add(parent_cat)
+            session.flush()
+            slug_map[parent_slug] = parent_cat
 
         moved_in_group = 0
         for child_name in group.children:

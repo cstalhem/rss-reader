@@ -259,13 +259,13 @@ class TestAutoGroupApply:
 
     # --- Cycle 3: Edge cases ---
 
-    def test_skips_nonexistent_category_names(
+    def test_creates_new_parent_skips_nonexistent_children(
         self,
         test_client: TestClient,
         test_session: Session,
         make_category: Callable[..., Category],
     ):
-        """Groups referencing non-existent categories are silently skipped."""
+        """Novel parent names create new categories; non-existent children are skipped."""
         real = make_category(display_name="Real", slug="real")
 
         response = test_client.post(
@@ -279,12 +279,12 @@ class TestAutoGroupApply:
         )
         assert response.status_code == 200
         body = response.json()
-        # Neither group could be fully applied
-        assert body["groups_applied"] == 0
-        assert body["categories_moved"] == 0
+        # "Ghost Parent" is created and "Real" moved under it; "Ghost Child" skipped
+        assert body["groups_applied"] == 1
+        assert body["categories_moved"] == 1
 
         test_session.refresh(real)
-        assert real.parent_id is None
+        assert real.parent_id is not None
 
     def test_skips_self_reference(
         self,
@@ -313,6 +313,43 @@ class TestAutoGroupApply:
         test_session.refresh(other)
         assert cat.parent_id is None
         assert other.parent_id == cat.id
+
+    def test_apply_creates_new_parent_category(
+        self,
+        test_client: TestClient,
+        test_session: Session,
+        make_category: Callable[..., Category],
+    ):
+        """Apply with a novel parent name creates a new Category row."""
+        ai = make_category(display_name="AI", slug="ai")
+        prog = make_category(display_name="Programming", slug="programming")
+
+        response = test_client.post(
+            "/api/categories/auto-group/apply",
+            json={
+                "groups": [
+                    {"parent": "Technology", "children": ["AI", "Programming"]},
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["groups_applied"] == 1
+        assert body["categories_moved"] == 2
+
+        from sqlmodel import select
+
+        new_parent = test_session.exec(
+            select(Category).where(Category.slug == "technology")
+        ).first()
+        assert new_parent is not None
+        assert new_parent.display_name == "Technology"
+        assert new_parent.is_seen is True
+
+        test_session.refresh(ai)
+        test_session.refresh(prog)
+        assert ai.parent_id == new_parent.id
+        assert prog.parent_id == new_parent.id
 
 
 # --- Cycle 4: POST /api/categories/auto-group/suggest ---
