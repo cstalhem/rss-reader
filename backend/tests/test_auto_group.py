@@ -88,6 +88,20 @@ class TestBuildGroupingPrompt:
         zebra_pos = prompt.index("- Zebra")
         assert alpha_pos < middle_pos < zebra_pos
 
+    def test_build_assignment_prompt_includes_categories_and_themes(self):
+        from backend.prompts.grouping import build_assignment_prompt
+
+        prompt = build_assignment_prompt(
+            ["AI", "Programming", "Science"], ["Technology", "Research"]
+        )
+        assert "- AI" in prompt
+        assert "- Programming" in prompt
+        assert "- Science" in prompt
+        assert "Technology" in prompt
+        assert "Research" in prompt
+        # Structural rules carried over
+        assert "at least two children" in prompt.lower()
+
 
 # --- Cycle 2: POST /api/categories/auto-group/apply ---
 

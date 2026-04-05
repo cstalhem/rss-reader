@@ -42,6 +42,35 @@ def build_theme_proposal_prompt(all_categories: list[str]) -> str:
 Propose the themes now."""
 
 
+def build_assignment_prompt(all_categories: list[str], themes: list[str]) -> str:
+    """Build prompt asking the LLM to assign categories to proposed themes.
+
+    Takes the themes from phase 1 and asks the model to create parent-child
+    assignments using those themes as group parents.
+    """
+    categories_list = "\n".join(f"- {name}" for name in sorted(all_categories))
+    themes_list = "\n".join(f"- {theme}" for theme in themes)
+
+    return f"""Assign each category to the best-fitting theme. Each theme becomes a parent group.
+
+**All categories:**
+{categories_list}
+
+**Proposed themes:**
+{themes_list}
+
+**Rules (follow strictly):**
+1. Use the provided category names exactly as written for children.
+2. Use the proposed theme names as parent group names.
+3. Each group must have at least two children. Never create a group with only one child — leave those categories ungrouped instead.
+4. Categories that do not clearly fit any theme may remain ungrouped.
+5. No nested groups — only one level of parent-child.
+6. Each category may appear in at most one group.
+7. If a group would have more than 15-20 children, break it into multiple smaller, more focused groups.
+
+Assign the categories now."""
+
+
 def build_grouping_prompt(
     all_categories: list[str],
     existing_groups: dict[str, list[str]],
