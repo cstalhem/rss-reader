@@ -18,7 +18,12 @@ from backend.prompts import (
     build_batch_categorization_prompt,
     build_batch_scoring_prompt,
 )
-from backend.prompts.grouping import GroupingResponse, build_grouping_prompt
+from backend.prompts.grouping import (
+    GroupingResponse,
+    ThemeResponse,
+    build_assignment_prompt,
+    build_theme_proposal_prompt,
+)
 
 if TYPE_CHECKING:
     from sqlmodel import Session
@@ -373,9 +378,16 @@ class GoogleProvider:
         existing_groups: dict[str, list[str]],
         config: ProviderTaskConfig,
     ) -> GroupingResponse:
-        prompt = build_grouping_prompt(all_categories, existing_groups)
-        # Grouping uses a single prompt — pass it as user message with empty system prompt
-        result = await self._generate(config, "", prompt, GroupingResponse)
+        # Phase 1: Propose themes
+        theme_prompt = build_theme_proposal_prompt(all_categories)
+        theme_result = await self._generate(config, "", theme_prompt, ThemeResponse)
+
+        if not theme_result.themes:
+            return GroupingResponse(groups=[])
+
+        # Phase 2: Assign categories to themes
+        assignment_prompt = build_assignment_prompt(all_categories, theme_result.themes)
+        result = await self._generate(config, "", assignment_prompt, GroupingResponse)
         logger.info("Google suggested %d category groups", len(result.groups))
         return result
 
