@@ -111,6 +111,24 @@ class TestBuildGroupingPrompt:
         assert ">" not in prompt or prompt.count(">") == 0
 
 
+class TestThemeResponse:
+    def test_theme_response_schema(self):
+        from backend.prompts.grouping import ThemeResponse
+
+        data = {"themes": ["Technology", "Science", "Culture"]}
+        resp = ThemeResponse.model_validate(data)
+        assert len(resp.themes) == 3
+        assert resp.themes[0] == "Technology"
+
+    def test_theme_response_requires_themes(self):
+        from backend.prompts.grouping import ThemeResponse
+
+        import pytest
+
+        with pytest.raises(Exception):
+            ThemeResponse.model_validate({})
+
+
 # --- Cycle 2: POST /api/categories/auto-group/apply ---
 
 
