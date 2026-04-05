@@ -435,3 +435,43 @@ class TestAutoGroupSuggest:
         assert len(body["groups"]) == 1
         assert body["groups"][0]["parent"] == "Technology"
         assert set(body["groups"][0]["children"]) == {"AI", "Programming"}
+
+    def test_suggest_deduplicates_children_across_groups(
+        self,
+        test_client: TestClient,
+        make_category: Callable[..., Category],
+    ):
+        """A child claimed by multiple groups should only appear in the first."""
+        make_category(display_name="AI", slug="ai")
+        make_category(display_name="ML", slug="ml")
+        make_category(display_name="Robotics", slug="robotics")
+
+        mock_response = GroupingResponse(
+            groups=[
+                GroupSuggestion(parent="Tech", children=["AI", "ML"]),
+                GroupSuggestion(parent="Engineering", children=["AI", "Robotics"]),
+            ]
+        )
+
+        with (
+            patch(
+                "backend.routers.categories.resolve_task_runtime",
+                return_value=MOCK_RUNTIME,
+            ),
+            patch("backend.routers.categories.get_provider") as mock_get_provider,
+        ):
+            mock_provider = AsyncMock()
+            mock_provider.suggest_groups.return_value = mock_response
+            mock_get_provider.return_value = mock_provider
+
+            response = test_client.post(
+                "/api/categories/auto-group/suggest",
+                json={},
+            )
+
+        assert response.status_code == 200
+        groups = response.json()["groups"]
+        assert len(groups) == 2
+        assert groups[0]["children"] == ["AI", "ML"]
+        # AI should NOT appear in the second group
+        assert groups[1]["children"] == ["Robotics"]
