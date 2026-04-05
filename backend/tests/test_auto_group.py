@@ -79,6 +79,15 @@ class TestBuildGroupingPrompt:
         assert "- Science" in prompt
         assert "Current groups" not in prompt  # No anchoring on existing groups
 
+    def test_build_theme_proposal_prompt_categories_sorted(self):
+        from backend.prompts.grouping import build_theme_proposal_prompt
+
+        prompt = build_theme_proposal_prompt(["Zebra", "Alpha", "Middle"])
+        alpha_pos = prompt.index("- Alpha")
+        middle_pos = prompt.index("- Middle")
+        zebra_pos = prompt.index("- Zebra")
+        assert alpha_pos < middle_pos < zebra_pos
+
 
 # --- Cycle 2: POST /api/categories/auto-group/apply ---
 
