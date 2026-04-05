@@ -478,9 +478,7 @@ class TestAutoGroupSuggest:
 
         mock_response = GroupingResponse(
             groups=[
-                GroupSuggestion(
-                    parent="Technology", children=["AI", "Programming"]
-                ),
+                GroupSuggestion(parent="Technology", children=["AI", "Programming"]),
             ]
         )
 
