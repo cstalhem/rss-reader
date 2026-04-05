@@ -121,11 +121,11 @@ class TestThemeResponse:
         assert resp.themes[0] == "Technology"
 
     def test_theme_response_requires_themes(self):
-        from backend.prompts.grouping import ThemeResponse
-
         import pytest
 
-        with pytest.raises(Exception):
+        from backend.prompts.grouping import ThemeResponse
+
+        with pytest.raises(ValueError):
             ThemeResponse.model_validate({})
 
 
