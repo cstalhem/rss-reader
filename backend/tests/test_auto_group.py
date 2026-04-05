@@ -395,3 +395,43 @@ class TestAutoGroupSuggest:
             json={},
         )
         assert response.status_code == 400
+
+    def test_suggest_allows_new_parent_names(
+        self,
+        test_client: TestClient,
+        make_category: Callable[..., Category],
+    ):
+        """Groups with novel parent names (not in DB) should pass through."""
+        make_category(display_name="AI", slug="ai")
+        make_category(display_name="Programming", slug="programming")
+        make_category(display_name="Science", slug="science")
+
+        mock_response = GroupingResponse(
+            groups=[
+                GroupSuggestion(
+                    parent="Technology", children=["AI", "Programming"]
+                ),
+            ]
+        )
+
+        with (
+            patch(
+                "backend.routers.categories.resolve_task_runtime",
+                return_value=MOCK_RUNTIME,
+            ),
+            patch("backend.routers.categories.get_provider") as mock_get_provider,
+        ):
+            mock_provider = AsyncMock()
+            mock_provider.suggest_groups.return_value = mock_response
+            mock_get_provider.return_value = mock_provider
+
+            response = test_client.post(
+                "/api/categories/auto-group/suggest",
+                json={},
+            )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert len(body["groups"]) == 1
+        assert body["groups"][0]["parent"] == "Technology"
+        assert set(body["groups"][0]["children"]) == {"AI", "Programming"}

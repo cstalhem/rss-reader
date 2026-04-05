@@ -314,22 +314,28 @@ async def auto_group_suggest(
     slug_to_name = {slugify(c.display_name): c.display_name for c in all_categories}
     valid_slugs = set(slug_to_name.keys())
 
-    # Filter groups: drop unknown parent/children, keep groups with ≥1 valid child.
-    # Resolve names back to canonical DB display_name via slug_to_name.
+    # Filter groups: drop unknown children, keep groups with ≥1 valid child.
+    # Allow new parent names (not in DB) — use canonical DB name if exists.
     valid_groups = []
+    seen_child_slugs: set[str] = set()
     for group in response.groups:
         parent_slug = slugify(group.parent)
-        if parent_slug not in valid_slugs:
-            continue
-        valid_children = [
-            slug_to_name[slugify(c)]
-            for c in group.children
-            if slugify(c) in valid_slugs and slugify(c) != parent_slug
-        ]
+        parent_display = slug_to_name.get(parent_slug, group.parent)
+
+        valid_children = []
+        for c in group.children:
+            child_slug = slugify(c)
+            if child_slug not in valid_slugs or child_slug == parent_slug:
+                continue
+            if child_slug in seen_child_slugs:
+                continue
+            seen_child_slugs.add(child_slug)
+            valid_children.append(slug_to_name[child_slug])
+
         if valid_children:
             valid_groups.append(
                 GroupSuggestionItem(
-                    parent=slug_to_name[parent_slug],
+                    parent=parent_display,
                     children=valid_children,
                 )
             )
