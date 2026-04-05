@@ -66,3 +66,48 @@ class TestGoogleTwoPhase:
 
         assert mock_gen.call_count == 1  # Only Phase 1 called
         assert result.groups == []
+
+
+class TestOllamaTwoPhase:
+    @pytest.mark.asyncio
+    async def test_suggest_groups_calls_two_phases(self):
+        """suggest_groups should stream twice: ThemeResponse then GroupingResponse."""
+        from backend.llm_providers.ollama import OllamaProvider
+
+        provider = OllamaProvider()
+
+        theme_json = '{"themes": ["Tech", "Science"]}'
+        grouping_json = '{"groups": [{"parent": "Tech", "children": ["AI", "ML"]}]}'
+
+        call_count = 0
+
+        async def mock_chat(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            content = theme_json if call_count == 1 else grouping_json
+
+            async def chunk_gen():
+                yield {"message": {"content": content}}
+
+            return chunk_gen()
+
+        mock_client = AsyncMock()
+        mock_client.chat = mock_chat
+
+        with patch(
+            "backend.llm_providers.ollama.get_ollama_client",
+            return_value=mock_client,
+        ):
+            result = await provider.suggest_groups(
+                all_categories=["AI", "ML", "Biology"],
+                existing_groups={},
+                config=ProviderTaskConfig(
+                    endpoint="http://localhost:11434",
+                    model="test-model",
+                    thinking=False,
+                ),
+            )
+
+        assert call_count == 2
+        assert len(result.groups) == 1
+        assert result.groups[0].parent == "Tech"
