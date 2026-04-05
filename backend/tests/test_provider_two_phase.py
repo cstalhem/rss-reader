@@ -111,3 +111,41 @@ class TestOllamaTwoPhase:
         assert call_count == 2
         assert len(result.groups) == 1
         assert result.groups[0].parent == "Tech"
+
+    @pytest.mark.asyncio
+    async def test_empty_themes_returns_empty_grouping(self):
+        """If Phase 1 returns no themes, short-circuit."""
+        from backend.llm_providers.ollama import OllamaProvider
+
+        provider = OllamaProvider()
+
+        call_count = 0
+
+        async def mock_chat(**kwargs):
+            nonlocal call_count
+            call_count += 1
+
+            async def chunk_gen():
+                yield {"message": {"content": '{"themes": []}'}}
+
+            return chunk_gen()
+
+        mock_client = AsyncMock()
+        mock_client.chat = mock_chat
+
+        with patch(
+            "backend.llm_providers.ollama.get_ollama_client",
+            return_value=mock_client,
+        ):
+            result = await provider.suggest_groups(
+                all_categories=["AI", "ML"],
+                existing_groups={},
+                config=ProviderTaskConfig(
+                    endpoint="http://localhost:11434",
+                    model="test-model",
+                    thinking=False,
+                ),
+            )
+
+        assert call_count == 1
+        assert result.groups == []
