@@ -351,6 +351,39 @@ class TestAutoGroupApply:
         assert ai.parent_id == new_parent.id
         assert prog.parent_id == new_parent.id
 
+    def test_apply_reuses_existing_on_slug_collision(
+        self,
+        test_client: TestClient,
+        test_session: Session,
+        make_category: Callable[..., Category],
+    ):
+        """If LLM returns same slug as existing, reuse existing category."""
+        existing = make_category(display_name="Dev Tools", slug="dev-tools")
+        child1 = make_category(display_name="VS Code", slug="vs-code")
+        child2 = make_category(display_name="Git", slug="git")
+
+        response = test_client.post(
+            "/api/categories/auto-group/apply",
+            json={
+                "groups": [
+                    {"parent": "Dev Tools", "children": ["VS Code", "Git"]},
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["groups_applied"] == 1
+
+        test_session.refresh(child1)
+        test_session.refresh(child2)
+        assert child1.parent_id == existing.id
+        assert child2.parent_id == existing.id
+
+        from sqlmodel import func, select
+
+        count = test_session.exec(select(func.count()).select_from(Category)).one()
+        assert count == 3  # existing + child1 + child2
+
 
 # --- Cycle 4: POST /api/categories/auto-group/suggest ---
 
