@@ -35,6 +35,20 @@ def build_theme_proposal_prompt(all_categories: list[str]) -> str:
 3. Each theme should cover a distinct topic. If a theme would span multiple clearly different sub-domains, split it into separate, more specific themes.
 4. Propose enough themes to cover as many categories as possible. No single theme should need more than ~25 children.
 
+**Examples of good vs bad theme splitting:**
+
+Given categories: Piano, Drums, Oil Painting, Sculpture, Ballet, Jazz, Hip Hop
+- Bad: "Arts" (too broad — music, visual arts, and dance are distinct)
+- Good: "Music", "Visual Arts", "Dance"
+
+Given categories: Python, Docker, PostgreSQL, React, Kubernetes, MongoDB
+- Bad: "Software" (covers everything)
+- Good: "Programming Languages", "DevOps", "Databases", "Frontend"
+
+Given categories: Cycling, Nutrition, Yoga, Surgery, Pharmacy, Marathon
+- Bad: "Health" (mixes fitness, medicine, and diet)
+- Good: "Fitness", "Medicine", "Nutrition"
+
 **All categories:**
 {categories_list}
 
@@ -57,6 +71,23 @@ def build_assignment_prompt(all_categories: list[str], themes: list[str]) -> str
 
 **All categories:**
 {categories_list}
+
+**Examples of good vs bad assignment:**
+
+Themes: "Fitness", "Cooking", "Medicine"
+Categories: Yoga, Running, Recipes, Baking, Surgery, Pharmacy, Meal Prep, Stretching
+- Bad: leaving "Meal Prep" ungrouped because it's not exactly "Cooking"
+- Good: Fitness → Yoga, Running, Stretching | Cooking → Recipes, Baking, Meal Prep | Medicine → Surgery, Pharmacy
+
+Themes: "Programming Languages", "DevOps", "Databases"
+Categories: Python, Docker, PostgreSQL, CI/CD, Git, MySQL, Terraform, Ruby
+- Bad: leaving "Git" and "CI/CD" ungrouped because they aren't exactly "DevOps tools"
+- Good: Programming Languages → Python, Ruby | DevOps → Docker, CI/CD, Git, Terraform | Databases → PostgreSQL, MySQL
+
+Themes: "Wildlife", "Agriculture", "Climate"
+Categories: Bears, Farming, Drought, Irrigation, Wolves, Coral Reefs, Soil
+- Bad: leaving "Irrigation" and "Soil" ungrouped
+- Good: Wildlife → Bears, Wolves, Coral Reefs | Agriculture → Farming, Irrigation, Soil | Climate → Drought
 
 **Rules (follow strictly):**
 1. Use the provided category names exactly as written for children.
