@@ -27,17 +27,16 @@ def build_theme_proposal_prompt(all_categories: list[str]) -> str:
     """
     categories_list = "\n".join(f"- {name}" for name in sorted(all_categories))
 
-    return f"""Propose broad thematic group names that could organize these categories.
+    return f"""Propose parent group names that could organize the categories listed below.
+
+**Rules:**
+1. Theme names should be concise (1-2 words).
+2. Themes may reuse a category name if it works as a broader parent.
+3. Each theme should cover a distinct topic. If a theme would span multiple clearly different sub-domains, split it into separate, more specific themes.
+4. Propose enough themes to cover as many categories as possible. No single theme should need more than ~25 children.
 
 **All categories:**
 {categories_list}
-
-**Rules:**
-1. Themes should be broader than individual categories — each theme is a potential parent group name.
-2. Aim for themes that could each contain 2-20 categories.
-3. Propose enough themes to cover most categories.
-4. Theme names should be concise and descriptive (1-3 words).
-5. Do not reuse exact category names as themes — create broader labels.
 
 Propose the themes now."""
 
@@ -51,22 +50,21 @@ def build_assignment_prompt(all_categories: list[str], themes: list[str]) -> str
     categories_list = "\n".join(f"- {name}" for name in sorted(all_categories))
     themes_list = "\n".join(f"- {theme}" for theme in themes)
 
-    return f"""Assign each category to the best-fitting theme. Each theme becomes a parent group.
-
-**All categories:**
-{categories_list}
+    return f"""Assign each category below to the best-fitting theme. Each theme becomes a parent group.
 
 **Proposed themes:**
 {themes_list}
 
+**All categories:**
+{categories_list}
+
 **Rules (follow strictly):**
 1. Use the provided category names exactly as written for children.
 2. Use the proposed theme names as parent group names.
-3. Each group must have at least two children. Never create a group with only one child — leave those categories ungrouped instead.
-4. Categories that do not clearly fit any theme may remain ungrouped.
+3. Each group must have at least two children.
+4. Prefer assigning categories to a theme. Only leave a category ungrouped if it truly does not fit any theme. However, do not force unrelated categories into the same group just because the theme name is broad enough.
 5. No nested groups — only one level of parent-child.
 6. Each category may appear in at most one group.
-7. If a group would have more than 15-20 children, break it into multiple smaller, more focused groups.
 
 Assign the categories now."""
 
