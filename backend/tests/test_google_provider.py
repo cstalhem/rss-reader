@@ -221,10 +221,22 @@ async def test_list_models_empty_selected_returns_empty(monkeypatch):
     from backend.llm_providers import google
 
     # Seed the module-level cache with some models
-    monkeypatch.setattr(google, "_model_cache", [
-        {"name": "gemini-2.5-flash", "display_name": "Gemini 2.5 Flash", "description": ""},
-        {"name": "gemini-2.5-pro", "display_name": "Gemini 2.5 Pro", "description": ""},
-    ])
+    monkeypatch.setattr(
+        google,
+        "_model_cache",
+        [
+            {
+                "name": "gemini-2.5-flash",
+                "display_name": "Gemini 2.5 Flash",
+                "description": "",
+            },
+            {
+                "name": "gemini-2.5-pro",
+                "display_name": "Gemini 2.5 Pro",
+                "description": "",
+            },
+        ],
+    )
     monkeypatch.setattr(google, "_model_cache_time", time.time())
 
     provider = GoogleProvider()
