@@ -275,7 +275,10 @@ export function CategoriesSection() {
 
         <AutoGroupDialog
           open={autoGroupOpen}
-          onOpenChange={setAutoGroupOpen}
+          onOpenChange={(open) => {
+            setAutoGroupOpen(open);
+            if (!open) setAutoGroupSuggestions(null);
+          }}
           onSuggest={(options) =>
             autoGroupSuggestMutation.mutate(options, {
               onSuccess: (data) => setAutoGroupSuggestions(data.groups),

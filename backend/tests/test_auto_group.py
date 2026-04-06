@@ -36,12 +36,14 @@ class TestBuildGroupingPrompt:
         assert "- Programming" in prompt
         assert "- Science" in prompt
 
-    def test_includes_existing_groups(self):
+    def test_includes_existing_groups_with_incomplete_framing(self):
         prompt = build_grouping_prompt(
             ["AI", "Programming", "Technology"],
             {"Technology": ["AI", "Programming"]},
         )
         assert "Technology > AI, Programming" in prompt
+        assert "incomplete" in prompt.lower()
+        assert "not yet assigned" in prompt.lower()
 
     def test_omits_existing_groups_section_when_empty(self):
         prompt = build_grouping_prompt(["AI", "Science"], {})
@@ -67,6 +69,64 @@ class TestBuildGroupingPrompt:
     def test_grouping_response_empty_groups(self):
         resp = GroupingResponse.model_validate({"groups": []})
         assert resp.groups == []
+
+    def test_build_theme_proposal_prompt_includes_all_categories(self):
+        from backend.prompts.grouping import build_theme_proposal_prompt
+
+        prompt = build_theme_proposal_prompt(["AI", "Programming", "Science"])
+        assert "- AI" in prompt
+        assert "- Programming" in prompt
+        assert "- Science" in prompt
+        assert "Current groups" not in prompt  # No anchoring on existing groups
+
+    def test_build_theme_proposal_prompt_categories_sorted(self):
+        from backend.prompts.grouping import build_theme_proposal_prompt
+
+        prompt = build_theme_proposal_prompt(["Zebra", "Alpha", "Middle"])
+        alpha_pos = prompt.index("- Alpha")
+        middle_pos = prompt.index("- Middle")
+        zebra_pos = prompt.index("- Zebra")
+        assert alpha_pos < middle_pos < zebra_pos
+
+    def test_build_assignment_prompt_includes_categories_and_themes(self):
+        from backend.prompts.grouping import build_assignment_prompt
+
+        prompt = build_assignment_prompt(
+            ["AI", "Programming", "Science"], ["Technology", "Research"]
+        )
+        assert "- AI" in prompt
+        assert "- Programming" in prompt
+        assert "- Science" in prompt
+        assert "Technology" in prompt
+        assert "Research" in prompt
+        # Structural rules carried over
+        assert "at least two children" in prompt.lower()
+
+    def test_build_assignment_prompt_no_existing_children(self):
+        from backend.prompts.grouping import build_assignment_prompt
+
+        prompt = build_assignment_prompt(["AI", "Programming"], ["Tech"])
+        # The ">" format is used in build_grouping_prompt for existing group children
+        # Assignment prompt should NOT show pre-existing assignments
+        assert ">" not in prompt or prompt.count(">") == 0
+
+
+class TestThemeResponse:
+    def test_theme_response_schema(self):
+        from backend.prompts.grouping import ThemeResponse
+
+        data = {"themes": ["Technology", "Science", "Culture"]}
+        resp = ThemeResponse.model_validate(data)
+        assert len(resp.themes) == 3
+        assert resp.themes[0] == "Technology"
+
+    def test_theme_response_requires_themes(self):
+        import pytest
+
+        from backend.prompts.grouping import ThemeResponse
+
+        with pytest.raises(ValueError):
+            ThemeResponse.model_validate({})
 
 
 # --- Cycle 2: POST /api/categories/auto-group/apply ---
@@ -199,13 +259,13 @@ class TestAutoGroupApply:
 
     # --- Cycle 3: Edge cases ---
 
-    def test_skips_nonexistent_category_names(
+    def test_creates_new_parent_skips_nonexistent_children(
         self,
         test_client: TestClient,
         test_session: Session,
         make_category: Callable[..., Category],
     ):
-        """Groups referencing non-existent categories are silently skipped."""
+        """Novel parent names create new categories; non-existent children are skipped."""
         real = make_category(display_name="Real", slug="real")
 
         response = test_client.post(
@@ -219,12 +279,12 @@ class TestAutoGroupApply:
         )
         assert response.status_code == 200
         body = response.json()
-        # Neither group could be fully applied
-        assert body["groups_applied"] == 0
-        assert body["categories_moved"] == 0
+        # "Ghost Parent" is created and "Real" moved under it; "Ghost Child" skipped
+        assert body["groups_applied"] == 1
+        assert body["categories_moved"] == 1
 
         test_session.refresh(real)
-        assert real.parent_id is None
+        assert real.parent_id is not None
 
     def test_skips_self_reference(
         self,
@@ -253,6 +313,76 @@ class TestAutoGroupApply:
         test_session.refresh(other)
         assert cat.parent_id is None
         assert other.parent_id == cat.id
+
+    def test_apply_creates_new_parent_category(
+        self,
+        test_client: TestClient,
+        test_session: Session,
+        make_category: Callable[..., Category],
+    ):
+        """Apply with a novel parent name creates a new Category row."""
+        ai = make_category(display_name="AI", slug="ai")
+        prog = make_category(display_name="Programming", slug="programming")
+
+        response = test_client.post(
+            "/api/categories/auto-group/apply",
+            json={
+                "groups": [
+                    {"parent": "Technology", "children": ["AI", "Programming"]},
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["groups_applied"] == 1
+        assert body["categories_moved"] == 2
+
+        from sqlmodel import select
+
+        new_parent = test_session.exec(
+            select(Category).where(Category.slug == "technology")
+        ).first()
+        assert new_parent is not None
+        assert new_parent.display_name == "Technology"
+        assert new_parent.is_seen is True
+
+        test_session.refresh(ai)
+        test_session.refresh(prog)
+        assert ai.parent_id == new_parent.id
+        assert prog.parent_id == new_parent.id
+
+    def test_apply_reuses_existing_on_slug_collision(
+        self,
+        test_client: TestClient,
+        test_session: Session,
+        make_category: Callable[..., Category],
+    ):
+        """If LLM returns same slug as existing, reuse existing category."""
+        existing = make_category(display_name="Dev Tools", slug="dev-tools")
+        child1 = make_category(display_name="VS Code", slug="vs-code")
+        child2 = make_category(display_name="Git", slug="git")
+
+        response = test_client.post(
+            "/api/categories/auto-group/apply",
+            json={
+                "groups": [
+                    {"parent": "Dev Tools", "children": ["VS Code", "Git"]},
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["groups_applied"] == 1
+
+        test_session.refresh(child1)
+        test_session.refresh(child2)
+        assert child1.parent_id == existing.id
+        assert child2.parent_id == existing.id
+
+        from sqlmodel import func, select
+
+        count = test_session.exec(select(func.count()).select_from(Category)).one()
+        assert count == 3  # existing + child1 + child2
 
 
 # --- Cycle 4: POST /api/categories/auto-group/suggest ---
@@ -335,3 +465,81 @@ class TestAutoGroupSuggest:
             json={},
         )
         assert response.status_code == 400
+
+    def test_suggest_allows_new_parent_names(
+        self,
+        test_client: TestClient,
+        make_category: Callable[..., Category],
+    ):
+        """Groups with novel parent names (not in DB) should pass through."""
+        make_category(display_name="AI", slug="ai")
+        make_category(display_name="Programming", slug="programming")
+        make_category(display_name="Science", slug="science")
+
+        mock_response = GroupingResponse(
+            groups=[
+                GroupSuggestion(parent="Technology", children=["AI", "Programming"]),
+            ]
+        )
+
+        with (
+            patch(
+                "backend.routers.categories.resolve_task_runtime",
+                return_value=MOCK_RUNTIME,
+            ),
+            patch("backend.routers.categories.get_provider") as mock_get_provider,
+        ):
+            mock_provider = AsyncMock()
+            mock_provider.suggest_groups.return_value = mock_response
+            mock_get_provider.return_value = mock_provider
+
+            response = test_client.post(
+                "/api/categories/auto-group/suggest",
+                json={},
+            )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert len(body["groups"]) == 1
+        assert body["groups"][0]["parent"] == "Technology"
+        assert set(body["groups"][0]["children"]) == {"AI", "Programming"}
+
+    def test_suggest_deduplicates_children_across_groups(
+        self,
+        test_client: TestClient,
+        make_category: Callable[..., Category],
+    ):
+        """A child claimed by multiple groups should only appear in the first."""
+        make_category(display_name="AI", slug="ai")
+        make_category(display_name="ML", slug="ml")
+        make_category(display_name="Robotics", slug="robotics")
+
+        mock_response = GroupingResponse(
+            groups=[
+                GroupSuggestion(parent="Tech", children=["AI", "ML"]),
+                GroupSuggestion(parent="Engineering", children=["AI", "Robotics"]),
+            ]
+        )
+
+        with (
+            patch(
+                "backend.routers.categories.resolve_task_runtime",
+                return_value=MOCK_RUNTIME,
+            ),
+            patch("backend.routers.categories.get_provider") as mock_get_provider,
+        ):
+            mock_provider = AsyncMock()
+            mock_provider.suggest_groups.return_value = mock_response
+            mock_get_provider.return_value = mock_provider
+
+            response = test_client.post(
+                "/api/categories/auto-group/suggest",
+                json={},
+            )
+
+        assert response.status_code == 200
+        groups = response.json()["groups"]
+        assert len(groups) == 2
+        assert groups[0]["children"] == ["AI", "ML"]
+        # AI should NOT appear in the second group
+        assert groups[1]["children"] == ["Robotics"]

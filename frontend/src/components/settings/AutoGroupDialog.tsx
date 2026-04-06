@@ -122,7 +122,10 @@ export function AutoGroupDialog({
   };
 
   const handleRegroup = () => {
-    onSuggest();
+    onSuggest({
+      ...(selectedProvider && { provider: selectedProvider }),
+      ...(selectedModel && { model: selectedModel }),
+    });
   };
 
   // --- Render phases ---

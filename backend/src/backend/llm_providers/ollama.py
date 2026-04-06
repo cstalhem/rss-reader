@@ -38,7 +38,12 @@ from backend.prompts import (
     build_categorization_prompt,
     build_scoring_prompt,
 )
-from backend.prompts.grouping import GroupingResponse, build_grouping_prompt
+from backend.prompts.grouping import (
+    GroupingResponse,
+    ThemeResponse,
+    build_assignment_prompt,
+    build_theme_proposal_prompt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -494,13 +499,31 @@ class OllamaProvider:
         existing_groups: dict[str, list[str]],
         config: ProviderTaskConfig,
     ) -> GroupingResponse:
-        prompt = build_grouping_prompt(all_categories, existing_groups)
-
         client = get_ollama_client(config.endpoint)
+
+        # Phase 1: Propose themes
+        theme_prompt = build_theme_proposal_prompt(all_categories)
         content = ""
         async for chunk in await client.chat(
             model=config.model,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[{"role": "user", "content": theme_prompt}],
+            format=ThemeResponse.model_json_schema(),
+            options={"temperature": 0},
+            stream=True,
+        ):
+            content += chunk["message"].get("content") or ""
+
+        theme_result = validate_llm_response(content, ThemeResponse)
+
+        if not theme_result.themes:
+            return GroupingResponse(groups=[])
+
+        # Phase 2: Assign categories to themes
+        assignment_prompt = build_assignment_prompt(all_categories, theme_result.themes)
+        content = ""
+        async for chunk in await client.chat(
+            model=config.model,
+            messages=[{"role": "user", "content": assignment_prompt}],
             format=GroupingResponse.model_json_schema(),
             options={"temperature": 0},
             stream=True,
