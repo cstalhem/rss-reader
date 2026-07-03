@@ -2,9 +2,11 @@
 
 ## Project Overview
 
-A personal RSS reader with LLM-powered relevance scoring. Local-first, simple, maintainable.
+A personal RSS reader with LLM-powered relevance scoring. Self-hosted, simple, maintainable.
 
-**Stack:** FastAPI + SQLModel (backend) | Next.js + Chakra UI v3 (frontend) | SQLite | Ollama
+**Stack (v2 target):** FastAPI + SQLModel (backend) | Next.js + shadcn/ui (frontend) | SQLite | Azure AI Foundry
+
+> **v2 rewrite in progress** — plan of record: [issue #87](https://github.com/cstalhem/rss-reader/issues/87). The v1 frontend (Chakra UI v3) and LLM provider plugin system (Ollama/Google) still exist in the tree until replaced — do not extend them. v1 is preserved at tag `v1.1.2`.
 
 ---
 
@@ -13,10 +15,10 @@ A personal RSS reader with LLM-powered relevance scoring. Local-first, simple, m
 | Directory            | Contents                                                     |
 | -------------------- | ------------------------------------------------------------ |
 | `backend/`           | Python/FastAPI API server with SQLModel models               |
-| `frontend/`          | Next.js App Router with Chakra UI v3 components              |
+| `frontend/`          | Next.js App Router frontend (v1 Chakra UI, being replaced with shadcn/ui) |
 | `config/`            | Production YAML configuration (`app.yaml`)                   |
 | `spec/`              | PRD and milestone implementation plans                       |
-| `.planning/`         | GSD workflow: roadmap, phase plans, research, state tracking |
+| `docs/archive/`      | Archived v1 planning record (GSD workflow, retired)          |
 | `.claude/rules/`     | Concise do/don't rules, loaded by file path context          |
 | `.claude/skills/`    | Deep reference: examples, anti-patterns, decision aids       |
 | `.github/workflows/` | CI/CD: Docker image builds pushed to GHCR                    |
@@ -48,7 +50,7 @@ bun run build         # Production build
 ## Design Assumptions
 
 - **Single-user app** — No authentication, no multi-tenancy. One UserPreferences row, one SQLite database.
-- **Local-first** — All data and processing stays on the user's machine. No external APIs or telemetry.
+- **Self-hosted, cloud LLM** — All data lives on the user's machine (SQLite, Docker volume). LLM scoring/categorization calls Azure AI Foundry (v2 decision — supersedes v1's "no external APIs" rule). No telemetry.
 - **Let package managers manage dependency files** — Don't manually edit `pyproject.toml` or `package.json`. Use `uv add`, `bun add`, etc.
 
 ---
@@ -56,7 +58,8 @@ bun run build         # Production build
 ## Branching
 
 - **`main`** — Production. Always deployable. Docker images are built and pushed to GHCR on every push here.
-- **`dev`** — Development. All day-to-day work (GSD phases, bug fixes, features) happens here.
+- **`dev`** — Development. Day-to-day v1 maintenance happens here.
+- **`v2`** — Long-lived rewrite branch (branched from `dev`). All v2 work targets this branch; it merges to `main` when 2.0 reaches parity-plus.
 - Merge `dev` → `main` when ready to deploy. **Always use "Create a merge commit"** (never squash or rebase) to preserve shared history between branches. Pushes to `dev` trigger CI builds (validation only, no image push).
 
 ## Pull Requests
@@ -168,5 +171,4 @@ When you discover something worth capturing during work:
 
 ## Available MCP Tools
 
-1. **Chakra UI MCP** — Look up Chakra UI v3 component docs, props, and examples
-2. **Context7 MCP** — Look up documentation for other libraries (TanStack Query, Next.js, etc.)
+1. **Context7 MCP** — Look up documentation for libraries (TanStack Query, Next.js, shadcn/ui, etc.)
