@@ -172,3 +172,19 @@ When you discover something worth capturing during work:
 ## Available MCP Tools
 
 1. **Context7 MCP** — Look up documentation for libraries (TanStack Query, Next.js, shadcn/ui, etc.)
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in this repo's GitHub Issues via the `gh` CLI. External PRs are not a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical triage roles map 1:1 to same-named GitHub labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root, created lazily by `/domain-modeling`. See `docs/agents/domain.md`.
