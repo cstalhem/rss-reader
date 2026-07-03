@@ -18,7 +18,7 @@ A personal RSS reader with LLM-powered relevance scoring. Self-hosted, simple, m
 | `frontend/`          | Next.js App Router frontend (v1 Chakra UI, being replaced with shadcn/ui) |
 | `config/`            | Production YAML configuration (`app.yaml`)                   |
 | `spec/`              | PRD and milestone implementation plans                       |
-| `docs/archive/`      | Archived v1 planning record (GSD workflow, retired)          |
+| `docs/agents/`       | Agent process config: issue tracker, triage labels, domain docs |
 | `.claude/rules/`     | Concise do/don't rules, loaded by file path context          |
 | `.claude/skills/`    | Deep reference: examples, anti-patterns, decision aids       |
 | `.github/workflows/` | CI/CD: Docker image builds pushed to GHCR                    |
