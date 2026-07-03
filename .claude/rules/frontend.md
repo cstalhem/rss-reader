@@ -4,28 +4,10 @@ paths: ["frontend/**"]
 
 # Frontend Rules
 
-## Chakra UI v3
-
-- Select, Menu, Tooltip, Popover MUST use `Portal > Positioner > Content`. Dialog handles portalling internally — do NOT wrap in Portal.
-- Always use `@/components/ui/tooltip` wrapper — never raw `Tooltip.Root`.
-- Use `ConfirmDialog` from `@/components/ui/confirm-dialog` for all confirmation flows. Do not inline `Dialog.Root` for confirm/cancel.
-- Dialog cancel buttons: use `Dialog.ActionTrigger asChild` + `<Button variant="ghost">` in `Dialog.Footer`. `CloseTrigger` is only for the corner X icon.
-- Set `color` on the nearest Chakra parent for react-icons — CSS inheritance flows to SVG `currentColor`. Do NOT use `var(--chakra-colors-*)` on icon props.
-- Semantic tokens only — never hardcode color values or raw palette refs. Missing token → create in `theme/colors.ts`.
-- `colorPalette="accent"` per-component on CTAs. Do NOT set as global default.
-- `colorPalette` requires all 8 semantic tokens to resolve across variants: `solid`, `contrast`, `fg`, `subtle`, `muted`, `emphasized`, `focusRing`, `border`.
-- Theme built with `createSystem(defaultConfig, {...})` in `frontend/src/theme/index.ts`.
-- Emotion `keyframes` cannot be defined inline in `css` prop — use `keyframes` tagged template from `@emotion/react`.
-- Don't fight variants with `color`/`_hover` — set `colorPalette` and pick the right variant. The variant owns all state styling.
-- In lists: avoid `Tooltip.Root`, `Menu.Root`, `Checkbox.Root` per row — each creates 1-2 Zag state machines. Use native `title` for tooltips.
-- `useBreakpointValue` registers 2 MQL listeners per call — hoist outside lists, pass result as prop.
-- CSS `max-width: auto` cannot be transitioned — use a Chakra sizing token (e.g. `"8"`) or specific value.
-
 ## Next.js
 
 - After creating a new worktree, run `cd frontend && bun install` — `node_modules` is not shared across worktrees.
-- Dev and build scripts use `--webpack` flag — Turbopack breaks Emotion SSR. Do NOT remove.
-- `suppressHydrationWarning` on `<html>` in `layout.tsx` is required. Do NOT remove.
+- `suppressHydrationWarning` on `<html>` in `layout.tsx` is required (next-themes). Do NOT remove.
 - Never read `localStorage` in `useState` initializer — causes hydration mismatch. Use the `useLocalStorage` hook.
 - Server Components cannot pass functions to Client Components. Only serializable data crosses the boundary.
 - `NEXT_PUBLIC_*` env vars are baked at build time via string replacement. Runtime `environment` in docker-compose has no effect on client code.
@@ -49,15 +31,9 @@ paths: ["frontend/**"]
 - Cross-file constants → `lib/constants.ts`. Single-use constants → named `const` at top of file.
 - Query keys → `lib/queryKeys.ts`. Custom hooks → `hooks/use*.ts`. Shared UI → `components/ui/`.
 
-## Typography & Styling
+## Performance
 
-- **Inter** for UI text, **Lora** for reader content (defined in `theme/typography.ts`).
-- Dark mode default with orange accent (`oklch(64.6% 0.222 41.116)`).
-
-## Settings Sections
-
-- Root element: `<Stack as="section" aria-label="..." gap={6}>` — all settings sections use this for landmark navigation.
-- Use `SettingsPanel` for card wrappers, `SettingsPageHeader` for page headers, `SettingsPanelHeading` for sub-headings inside panels. Don't inline these styles.
+- In lists: avoid per-row component instances that each own state machines, portals, or media-query listeners — hoist shared state/listeners out of the row and pass results as props. Use native `title` for row tooltips.
 
 ## UI Patterns
 
@@ -65,6 +41,7 @@ paths: ["frontend/**"]
 - Unread-first default view, sorted by composite score descending.
 - 12-second auto-mark-as-read in the reader drawer.
 - Full opacity + accent dot for unread, 0.6 opacity + hollow dot for read.
+- **Inter** for UI text, **Lora** for reader content. Dark mode default with orange accent (`oklch(64.6% 0.222 41.116)`).
 
 ## Testing
 
@@ -74,4 +51,4 @@ paths: ["frontend/**"]
 - Use `waitFor` for all async assertions — never assert synchronously on query results.
 - Add `next/navigation` and `next-themes` mocks per-file, not in global setup.
 - Co-locate tests as siblings (e.g. `Foo.test.tsx` next to `Foo.tsx`).
-- No snapshot tests for Chakra components (dynamic class names make them noisy).
+- No snapshot tests for styled components (dynamic class names make them noisy).
