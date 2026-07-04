@@ -3,18 +3,14 @@ import {
   ArticleListItem,
   AutoGroupApplyResponse,
   AutoGroupSuggestResponse,
-  AvailableModel,
   Category,
   Feed,
   FeedFolder,
   FetchArticlesParams,
   GroupSuggestion,
-  ProviderListItem,
   RefreshStatus,
   RescoreResult,
   ScoringStatus,
-  TaskRoutesResponse,
-  TaskRoutesUpdate,
   UserPreferences,
 } from "./types";
 
@@ -340,7 +336,7 @@ export async function fetchCategories(): Promise<Category[]> {
 
 export async function updateCategory(
   id: number,
-  data: { display_name?: string; parent_id?: number | null; weight?: string | null; is_hidden?: boolean; is_seen?: boolean }
+  data: { display_name?: string; parent_id?: number | null; weight?: string; needs_triage?: boolean }
 ): Promise<Category> {
   const response = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
     method: "PATCH",
@@ -385,14 +381,6 @@ export async function mergeCategories(
   return response.json();
 }
 
-export async function hideCategory(id: number): Promise<Category> {
-  return updateCategory(id, { is_hidden: true });
-}
-
-export async function unhideCategory(id: number): Promise<Category> {
-  return updateCategory(id, { is_hidden: false });
-}
-
 export async function fetchNewCategoryCount(): Promise<{ count: number }> {
   const response = await fetch(`${API_BASE_URL}/api/categories/unseen-count`);
   if (!response.ok) await throwApiError(response, "Failed to fetch new category count");
@@ -416,65 +404,6 @@ export async function fetchScoringStatus(): Promise<ScoringStatus> {
     await throwApiError(response, "Failed to fetch scoring status");
   }
 
-  return response.json();
-}
-
-// --- Provider API ---
-
-export async function fetchProviders(): Promise<ProviderListItem[]> {
-  const response = await fetch(`${API_BASE_URL}/api/providers`);
-  if (!response.ok) await throwApiError(response, "Failed to fetch providers");
-  return response.json();
-}
-
-export async function disconnectProvider(
-  provider: string
-): Promise<{ ok: boolean }> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/providers/${encodeURIComponent(provider)}`,
-    { method: "DELETE" }
-  );
-  if (!response.ok) await throwApiError(response, "Failed to disconnect provider");
-  return response.json();
-}
-
-export async function saveProviderConfig<T>(
-  provider: string,
-  config: T
-): Promise<T> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/providers/${encodeURIComponent(provider)}/config`,
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(config),
-    }
-  );
-  if (!response.ok) await throwApiError(response, "Failed to save provider config");
-  return response.json();
-}
-
-export async function fetchAvailableModels(): Promise<AvailableModel[]> {
-  const response = await fetch(`${API_BASE_URL}/api/models`);
-  if (!response.ok) await throwApiError(response, "Failed to fetch available models");
-  return response.json();
-}
-
-export async function fetchTaskRoutes(): Promise<TaskRoutesResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/task-routes`);
-  if (!response.ok) await throwApiError(response, "Failed to fetch task routes");
-  return response.json();
-}
-
-export async function saveTaskRoutes(
-  data: TaskRoutesUpdate
-): Promise<{ ok: boolean }> {
-  const response = await fetch(`${API_BASE_URL}/api/task-routes`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) await throwApiError(response, "Failed to save task routes");
   return response.json();
 }
 
@@ -508,18 +437,6 @@ export async function batchMoveCategories(
   return response.json();
 }
 
-export async function batchHideCategories(
-  categoryIds: number[]
-): Promise<{ ok: boolean; updated: number }> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/batch-hide`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ category_ids: categoryIds }),
-  });
-  if (!response.ok) await throwApiError(response, "Failed to hide categories");
-  return response.json();
-}
-
 export async function batchDeleteCategories(
   categoryIds: number[]
 ): Promise<{ ok: boolean; deleted: number }> {
@@ -542,13 +459,9 @@ export async function ungroupParent(
   return response.json();
 }
 
-export async function autoGroupSuggest(
-  options?: { provider?: string; model?: string }
-): Promise<AutoGroupSuggestResponse> {
+export async function autoGroupSuggest(): Promise<AutoGroupSuggestResponse> {
   const response = await fetch(`${API_BASE_URL}/api/categories/auto-group/suggest`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(options ?? {}),
   });
   if (!response.ok) await throwApiError(response, "Failed to suggest category groupings");
   return response.json();

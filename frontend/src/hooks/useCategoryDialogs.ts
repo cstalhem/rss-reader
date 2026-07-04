@@ -144,15 +144,6 @@ export function useCategoryDialogs({
         (c) => normalizeCategoryName(c.display_name) === normalized
       );
 
-      if (matchingCategory?.is_hidden) {
-        toaster.create({
-          title: "Cannot use hidden category as a group target",
-          description: "Unhide it first.",
-          type: "error",
-        });
-        return;
-      }
-
       if (matchingCategory && matchingCategory.parent_id !== null) {
         toaster.create({
           title: "Only root categories can be group targets",

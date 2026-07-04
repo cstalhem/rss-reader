@@ -10,11 +10,9 @@ export interface Category {
   id: number;
   display_name: string;
   slug: string;
-  weight: string | null;
+  weight: string;
   parent_id: number | null;
-  is_hidden: boolean;
-  is_seen: boolean;
-  is_manually_created: boolean;
+  needs_triage: boolean;
   article_count: number;
 }
 
@@ -99,85 +97,8 @@ export interface UserPreferences {
   updated_at: string;
 }
 
-export interface OllamaHealth {
-  connected: boolean;
-  version: string | null;
-  latency_ms: number | null;
-}
-
-export interface OllamaModel {
-  name: string;
-  size: number;
-  parameter_size: string | null;
-  quantization_level: string | null;
-  is_loaded: boolean;
-}
-
-export interface OllamaConfig {
-  base_url: string;
-  port: number;
-  categorization_model: string | null;
-  scoring_model: string | null;
-  use_separate_models: boolean;
-  batch_size: number;
-}
-
-export interface GoogleConfig {
-  api_key_set: boolean;
-  api_key_preview: string;
-  selected_models: string[];
-  batch_size: number;
-}
-
-export interface GoogleModelItem {
-  name: string;
-  display_name: string;
-  description: string;
-}
-
-export interface TestKeyResponse {
-  valid: boolean;
-  error: string | null;
-}
-
-export interface ProviderListItem {
-  provider: string;
-}
-
-export interface AvailableModel {
-  provider: string;
-  name: string;
-  size: number | null;
-  parameter_size: string | null;
-  quantization_level: string | null;
-  is_loaded: boolean | null;
-}
-
-export interface TaskRouteItem {
-  task: string;
-  provider: string;
-  model: string | null;
-  batch_size?: number | null;
-}
-
-export interface TaskRoutesResponse {
-  routes: TaskRouteItem[];
-  use_separate_models: boolean;
-}
-
-export interface TaskRoutesUpdate {
-  categorization: { provider: string; model: string; batch_size?: number | null };
-  scoring: { provider: string; model: string; batch_size?: number | null };
-  use_separate_models: boolean;
-}
-
 export interface RefreshStatus {
   next_refresh_at: string | null;
-}
-
-export interface OllamaPrompts {
-  categorization_prompt: string;
-  scoring_prompt: string;
 }
 
 export interface RescoreResult {
@@ -224,14 +145,6 @@ export interface ScoringStatus {
     phase: string;
     rate_limit_retry_after: number | null;
   };
-}
-
-export interface DownloadStatus {
-  active: boolean;
-  model: string | null;
-  completed: number;
-  total: number;
-  status: string | null;
 }
 
 export interface GroupSuggestion {

@@ -21,13 +21,11 @@ const WEIGHT_OPTIONS = [
 interface WeightPresetStripProps {
   value: string;
   onChange: (weight: string) => void;
-  isOverridden?: boolean; // true = explicit override, false = inherited, undefined = root
 }
 
 const WeightPresetStripComponent = ({
   value,
   onChange,
-  isOverridden,
 }: WeightPresetStripProps) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
@@ -37,7 +35,6 @@ const WeightPresetStripComponent = ({
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
       onClick={(e) => e.stopPropagation()}
-      opacity={isOverridden === false ? 0.5 : 1}
     >
       <Flex gap={0} alignItems="center">
         {WEIGHT_OPTIONS.map((option) => {

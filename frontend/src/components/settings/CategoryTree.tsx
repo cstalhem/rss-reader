@@ -16,12 +16,6 @@ interface CategoryTreeProps {
   onToggleParent: (parentId: number) => void;
 }
 
-function getEffectiveWeight(category: Category, parent?: Category): string {
-  if (category.weight !== null) return category.weight;
-  if (parent?.weight !== null && parent?.weight !== undefined) return parent.weight;
-  return "normal";
-}
-
 const CategoryTreeComponent = ({
   parents,
   childrenMap,
@@ -35,7 +29,6 @@ const CategoryTreeComponent = ({
     <Stack gap={1}>
       {parents.map((parent) => {
         const children = childrenMap[parent.id] ?? [];
-        const parentWeight = parent.weight ?? "normal";
         const isExpanded = expandedParents[parent.id] ?? false;
 
         // Count new children for collapsed badge
@@ -48,7 +41,6 @@ const CategoryTreeComponent = ({
             key={parent.id}
             parent={parent}
             childCategories={children}
-            parentWeight={parentWeight}
             isExpanded={isExpanded}
             onToggleParent={onToggleParent}
             newChildCount={newChildCount}
@@ -57,16 +49,13 @@ const CategoryTreeComponent = ({
       })}
 
       {/* Ungrouped categories as simple leaf nodes */}
-      {ungroupedCategories.map((category) => {
-        const weight = category.weight ?? "normal";
-        return (
-          <CategoryUngroupedRow
-            key={category.id}
-            category={category}
-            weight={weight}
-          />
-        );
-      })}
+      {ungroupedCategories.map((category) => (
+        <CategoryUngroupedRow
+          key={category.id}
+          category={category}
+          weight={category.weight}
+        />
+      ))}
     </Stack>
   );
 };
@@ -75,14 +64,12 @@ const CategoryTreeComponent = ({
 function CategoryTreeParent({
   parent,
   childCategories,
-  parentWeight,
   isExpanded,
   onToggleParent,
   newChildCount,
 }: {
   parent: Category;
   childCategories: Category[];
-  parentWeight: string;
   isExpanded: boolean;
   onToggleParent: (parentId: number) => void;
   newChildCount: number;
@@ -99,7 +86,7 @@ function CategoryTreeParent({
     <Box>
       <CategoryParentRow
         category={parent}
-        weight={parentWeight}
+        weight={parent.weight}
         childCount={childCategories.length}
         isExpanded={isExpanded}
         onToggleExpand={onToggleParent}
@@ -112,8 +99,6 @@ function CategoryTreeParent({
         <Box ml={6} pl={3} position="relative">
           <Stack gap={1}>
             {childCategories.map((child, idx) => {
-              const effectiveWeight = getEffectiveWeight(child, parent);
-              const isOverridden = child.weight !== null;
               const isLast = idx === childCategories.length - 1;
 
               return (
@@ -141,8 +126,7 @@ function CategoryTreeParent({
                 >
                   <CategoryChildRow
                     category={child}
-                    weight={effectiveWeight}
-                    isOverridden={isOverridden}
+                    weight={child.weight}
                   />
                 </Box>
               );

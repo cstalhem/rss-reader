@@ -3,17 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Box, Flex, Heading, IconButton, Stack, Text } from "@chakra-ui/react";
-import { keyframes } from "@emotion/react";
 import { useQuery } from "@tanstack/react-query";
 import {
   LuArrowLeft,
   LuChevronLeft,
   LuChevronRight,
-  LuDownload,
   LuRss,
 } from "react-icons/lu";
 import { fetchNewCategoryCount } from "@/lib/api";
-import { fetchDownloadStatus } from "@/lib/providers/ollama";
 import { SidebarSettingsTheme } from "@/components/ui/sidebar-settings-theme";
 import { queryKeys } from "@/lib/queryKeys";
 import {
@@ -22,15 +19,6 @@ import {
   SIDEBAR_WIDTH_COLLAPSED,
   SIDEBAR_WIDTH_EXPANDED,
 } from "@/lib/constants";
-import { DownloadStatus } from "@/lib/types";
-
-const SIDEBAR_DOWNLOAD_POLL_INTERVAL = 3_000;
-
-const pulse = keyframes`
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; }
-`;
-
 interface SettingsSidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
@@ -42,24 +30,12 @@ export function SettingsSidebar({
 }: SettingsSidebarProps) {
   const pathname = usePathname();
 
-  const { data: downloadStatus } = useQuery<DownloadStatus>({
-    queryKey: queryKeys.ollama.downloadStatus,
-    queryFn: fetchDownloadStatus,
-    refetchInterval: SIDEBAR_DOWNLOAD_POLL_INTERVAL,
-  });
-
   const { data: newCategoryCount } = useQuery({
     queryKey: queryKeys.categories.newCount,
     queryFn: fetchNewCategoryCount,
     refetchInterval: NEW_COUNT_POLL_INTERVAL,
   });
 
-  const isDownloadActive = downloadStatus?.active ?? false;
-  const downloadModel = downloadStatus?.model ?? null;
-  const downloadPct =
-    isDownloadActive && downloadStatus && downloadStatus.total > 0
-      ? Math.round((downloadStatus.completed / downloadStatus.total) * 100)
-      : null;
   const categoryBadgeCount = newCategoryCount?.count ?? 0;
 
   return (
@@ -128,8 +104,6 @@ export function SettingsSidebar({
               const isActive =
                 pathname === item.href || pathname.startsWith(item.href + "/");
               const Icon = item.icon;
-              const showDownloadIndicator =
-                item.id === "llm-providers" && isDownloadActive;
               const showCategoryBadge =
                 item.id === "categories" && categoryBadgeCount > 0;
 
@@ -160,12 +134,6 @@ export function SettingsSidebar({
                         <Text fontSize="sm" fontWeight="medium">
                           {item.label}
                         </Text>
-                        {showDownloadIndicator && downloadModel && (
-                          <Text fontSize="xs" color="fg.muted" truncate>
-                            {downloadModel}
-                            {downloadPct != null && ` ${downloadPct}%`}
-                          </Text>
-                        )}
                       </Box>
                     )}
                     {!isCollapsed && showCategoryBadge && (
@@ -183,18 +151,6 @@ export function SettingsSidebar({
                         textAlign="center"
                       >
                         {categoryBadgeCount}
-                      </Box>
-                    )}
-                    {!isCollapsed && showDownloadIndicator && (
-                      <Box
-                        ml={showCategoryBadge ? undefined : "auto"}
-                        css={{
-                          animation: `${pulse} 2s ease-in-out infinite`,
-                        }}
-                      >
-                        <Box color="accent.solid" display="inline-flex">
-                          <LuDownload size={16} />
-                        </Box>
                       </Box>
                     )}
                   </Flex>

@@ -11,16 +11,14 @@ import { NewCategoryBadge } from "./NewCategoryBadge";
 interface CategoryChildRowProps {
   category: Category;
   weight: string;
-  isOverridden: boolean;
 }
 
 const CategoryChildRowComponent = ({
   category,
   weight,
-  isOverridden,
 }: CategoryChildRowProps) => {
   const {
-    onWeightChange, onResetWeight, onHide, onBadgeDismiss,
+    onWeightChange, onBadgeDismiss,
     onRename, onDelete, selectedIds, onToggleSelection, newCategoryIds,
   } = useCategoryTreeContext();
 
@@ -29,8 +27,6 @@ const CategoryChildRowComponent = ({
 
   const handleRename = useCallback((newName: string) => onRename(category.id, newName), [category.id, onRename]);
   const handleWeightChange = useCallback((w: string) => onWeightChange(category.id, w), [category.id, onWeightChange]);
-  const handleResetWeight = useCallback(() => onResetWeight(category.id), [category.id, onResetWeight]);
-  const handleHide = useCallback(() => onHide(category.id), [category.id, onHide]);
   const handleDelete = useCallback(() => onDelete(category.id), [category.id, onDelete]);
   const handleBadgeDismiss = useCallback(() => onBadgeDismiss(category.id), [category.id, onBadgeDismiss]);
 
@@ -40,7 +36,6 @@ const CategoryChildRowComponent = ({
       weight={weight}
       onWeightChange={handleWeightChange}
       onRename={handleRename}
-      isOverridden={isOverridden}
       badge={
         isNew
           ? (isHovered: boolean) => <NewCategoryBadge isHovered={isHovered} onDismiss={handleBadgeDismiss} />
@@ -49,10 +44,7 @@ const CategoryChildRowComponent = ({
       renderContextMenu={(startRename) => (
         <CategoryContextMenu
           type="child"
-          isWeightOverridden={isOverridden}
-          onResetWeight={handleResetWeight}
           onRename={startRename}
-          onHide={handleHide}
           onDelete={handleDelete}
         />
       )}

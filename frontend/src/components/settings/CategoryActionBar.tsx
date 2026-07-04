@@ -2,7 +2,6 @@
 
 import { ActionBar, Button, Flex, Portal, Text } from "@chakra-ui/react";
 import {
-  LuEyeOff,
   LuIndentDecrease,
   LuListTree,
   LuTrash2,
@@ -12,7 +11,6 @@ interface CategoryActionBarProps {
   selectedCount: number;
   onMoveToGroup: () => void;
   onUngroup: () => void;
-  onHide: () => void;
   onDelete: () => void;
 }
 
@@ -20,7 +18,6 @@ export function CategoryActionBar({
   selectedCount,
   onMoveToGroup,
   onUngroup,
-  onHide,
   onDelete,
 }: CategoryActionBarProps) {
   return (
@@ -63,14 +60,6 @@ export function CategoryActionBar({
           <Button
             variant="outline"
             size="sm"
-            disabled={selectedCount === 0}
-            onClick={onHide}
-          >
-            <LuEyeOff /> Hide
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
             colorPalette="red"
             disabled={selectedCount === 0}
             onClick={onDelete}
@@ -100,9 +89,6 @@ export function CategoryActionBar({
                   flex="1 1 40%"
                 >
                   <LuTrash2 /> Delete
-                </Button>
-                <Button variant="ghost" size="sm" onClick={onHide} flex="1 1 40%">
-                  <LuEyeOff /> Hide
                 </Button>
                 <Button variant="ghost" size="sm" onClick={onUngroup} flex="1 1 40%">
                   <LuIndentDecrease /> Ungroup

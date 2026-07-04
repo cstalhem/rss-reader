@@ -18,15 +18,12 @@ import { AutoGroupDialog } from "./AutoGroupDialog";
 import { CreateCategoryPopover } from "./CreateCategoryPopover";
 import { DeleteCategoryDialog } from "./DeleteCategoryDialog";
 import { MoveToGroupDialog } from "./MoveToGroupDialog";
-import { HiddenCategoriesSection } from "./HiddenCategoriesSection";
 import { CategoriesTreeSkeleton } from "./CategoriesTreeSkeleton";
 
 // --- CategoryTreeContext (co-located: single consumer) ---
 
 export interface CategoryTreeContextValue {
   onWeightChange: (categoryId: number, weight: string) => void;
-  onResetWeight: (categoryId: number) => void;
-  onHide: (categoryId: number) => void;
   onBadgeDismiss: (categoryId: number) => void;
   onRename: (categoryId: number, newName: string) => void;
   onDelete: (categoryId: number) => void;
@@ -54,11 +51,8 @@ export function CategoriesSection() {
     updateCategory,
     createCategoryMutation,
     deleteCategoryMutation,
-    hideMutation,
-    unhideMutation,
     acknowledgeMutation,
     batchMoveMutation,
-    batchHideMutation,
     batchDeleteMutation,
     ungroupParentMutation,
     autoGroupSuggestMutation,
@@ -77,12 +71,12 @@ export function CategoriesSection() {
   }, [startTransition]);
 
   // Tree building + search
-  const { parents, childrenMap, ungroupedCategories, newCategoryIds, hiddenCategories, searchQuery, setSearchQuery } =
+  const { parents, childrenMap, ungroupedCategories, newCategoryIds, searchQuery, setSearchQuery } =
     useCategoryTree(categories);
   const rootMoveTargets = useMemo(
     () =>
       categories
-        .filter((c) => c.parent_id === null && !c.is_hidden)
+        .filter((c) => c.parent_id === null)
         .sort((a, b) => a.display_name.localeCompare(b.display_name)),
     [categories]
   );
@@ -131,22 +125,8 @@ export function CategoriesSection() {
     (categoryId: number, weight: string) => updateCategory(categoryId, { weight }),
     [updateCategory]
   );
-  const handleResetWeight = useCallback(
-    (categoryId: number) => updateCategory(categoryId, { weight: "inherit" as string | null }),
-    [updateCategory]
-  );
-  const { mutate: hideCategory } = hideMutation;
   const { mutate: acknowledgeCategory } = acknowledgeMutation;
-  const { mutate: unhideCategory } = unhideMutation;
-  const { mutate: batchHide } = batchHideMutation;
 
-  const handleHideCategory = useCallback(
-    (categoryId: number) => {
-      hideCategory(categoryId);
-      toaster.create({ title: "Category hidden", type: "info" });
-    },
-    [hideCategory]
-  );
   const handleBadgeDismiss = useCallback(
     (categoryId: number) => acknowledgeCategory([categoryId]),
     [acknowledgeCategory]
@@ -155,29 +135,10 @@ export function CategoriesSection() {
     (categoryId: number, newName: string) => updateCategory(categoryId, { display_name: newName }),
     [updateCategory]
   );
-  const handleUnhideCategory = useCallback(
-    (categoryId: number) => {
-      unhideCategory(categoryId);
-      toaster.create({ title: "Category unhidden", type: "info" });
-    },
-    [unhideCategory]
-  );
-
-  // Action bar: hide
-  const handleActionHide = useCallback(() => {
-    batchHide(Array.from(selectedIds));
-    toaster.create({
-      title: `${selectedIds.size} ${selectedIds.size === 1 ? "category" : "categories"} hidden`,
-      type: "info",
-    });
-    clearSelection();
-  }, [selectedIds, batchHide, clearSelection]);
 
   // Context value (memoized to prevent spurious re-renders)
   const contextValue = useMemo<CategoryTreeContextValue>(() => ({
     onWeightChange: handleWeightChange,
-    onResetWeight: handleResetWeight,
-    onHide: handleHideCategory,
     onBadgeDismiss: handleBadgeDismiss,
     onRename: handleRenameCategory,
     onDelete: dialogs.handleDeleteCategory,
@@ -186,7 +147,7 @@ export function CategoriesSection() {
     onToggleSelection: toggleSelection,
     newCategoryIds,
   }), [
-    handleWeightChange, handleResetWeight, handleHideCategory, handleBadgeDismiss,
+    handleWeightChange, handleBadgeDismiss,
     handleRenameCategory, dialogs.handleDeleteCategory, dialogs.handleUngroupParent,
     selectedIds, toggleSelection, newCategoryIds,
   ]);
@@ -224,7 +185,7 @@ export function CategoriesSection() {
             <Box flex={{ base: 1, md: "initial" }}>
               <AutoGroupButton
                 onClick={() => setAutoGroupOpen(true)}
-                disabled={categories.filter((c) => !c.is_hidden).length < 2}
+                disabled={categories.length < 2}
               />
             </Box>
             <Box flex={{ base: 1, md: "initial" }}>
@@ -240,7 +201,6 @@ export function CategoriesSection() {
           selectedCount={selectedIds.size}
           onMoveToGroup={dialogs.handleActionMoveToGroup}
           onUngroup={dialogs.handleActionUngroup}
-          onHide={handleActionHide}
           onDelete={dialogs.handleActionDelete}
         />
 
@@ -276,8 +236,8 @@ export function CategoriesSection() {
         <AutoGroupDialog
           open={autoGroupOpen}
           onOpenChange={setAutoGroupOpen}
-          onSuggest={(options) =>
-            autoGroupSuggestMutation.mutate(options, {
+          onSuggest={() =>
+            autoGroupSuggestMutation.mutate(undefined, {
               onSuccess: (data) => setAutoGroupSuggestions(data.groups),
             })
           }
@@ -344,13 +304,6 @@ export function CategoriesSection() {
           confirmColorPalette="accent"
           onConfirm={dialogs.handleUngroupParentConfirm}
         />
-
-        {!isLoading && treeReady && (
-          <HiddenCategoriesSection
-            hiddenCategories={hiddenCategories}
-            onUnhide={handleUnhideCategory}
-          />
-        )}
       </Stack>
     </CategoryTreeContext.Provider>
   );
