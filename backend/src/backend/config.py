@@ -56,9 +56,11 @@ class LLMConfig(BaseModel):
 
     Deployment routing and batch sizes live here; endpoint and API key
     come from env vars only (AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_API_KEY).
+    Uses Azure's v1 API — no api-version to maintain.
     """
 
-    api_version: str = "2024-10-21"
+    model_config = ConfigDict(extra="ignore")
+
     tasks: dict[str, LLMTaskConfig] = {}
 
 

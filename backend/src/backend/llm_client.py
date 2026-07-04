@@ -13,7 +13,7 @@ import time
 from openai import (
     APIConnectionError,
     APIStatusError,
-    AsyncAzureOpenAI,
+    AsyncOpenAI,
     OpenAIError,
     RateLimitError,
 )
@@ -49,6 +49,19 @@ class LLMCallFailed(LLMError):
     """The call was made and failed deterministically (4xx, refusal)."""
 
 
+def _v1_base_url(endpoint: str) -> str:
+    """Normalize an Azure endpoint to the v1 API base URL.
+
+    Accepts both forms the Azure portal displays — the bare resource host
+    and the full '.../openai/v1' URL — so either works verbatim in
+    AZURE_OPENAI_ENDPOINT.
+    """
+    base = endpoint.rstrip("/")
+    if not base.endswith("/openai/v1"):
+        base = f"{base}/openai/v1"
+    return base + "/"
+
+
 def _retry_after_seconds(exc: RateLimitError) -> float:
     """Extract Retry-After from a 429 response; fall back to the default."""
     headers = exc.response.headers
@@ -75,7 +88,7 @@ class AzureLLMClient:
 
     def __init__(self, settings: Settings | None = None):
         self._settings = settings
-        self._client: AsyncAzureOpenAI | None = None
+        self._client: AsyncOpenAI | None = None
         # deployment name -> time.time() timestamp until which it is paused
         self._pause_until: dict[str, float] = {}
 
@@ -110,13 +123,15 @@ class AzureLLMClient:
     def _pause(self, deployment: str, retry_in: float) -> None:
         self._pause_until[deployment] = time.time() + retry_in
 
-    def _get_client(self) -> AsyncAzureOpenAI:
+    def _get_client(self) -> AsyncOpenAI:
         if self._client is None:
             s = self.settings
-            self._client = AsyncAzureOpenAI(
-                azure_endpoint=s.azure_openai_endpoint,  # pyright: ignore[reportArgumentType]
+            # Azure's v1 API (GA): OpenAI-compatible surface, no api-version.
+            # The Azure API key is accepted via the client's standard
+            # Authorization: Bearer header.
+            self._client = AsyncOpenAI(
+                base_url=_v1_base_url(s.azure_openai_endpoint),  # pyright: ignore[reportArgumentType]
                 api_key=s.azure_openai_api_key,
-                api_version=s.llm.api_version,
             )
         return self._client
 
