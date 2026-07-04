@@ -7,6 +7,7 @@ without counting an attempt; LLMCallFailed counts toward MAX_TASK_RETRIES.
 
 import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -70,6 +71,39 @@ def get_activity(task: str) -> TaskActivity:
 def _set_activity(task: str, article_id: int | None, phase: str) -> None:
     _activity[task].article_id = article_id
     _activity[task].phase = phase
+
+
+def _recover_failed_batch(
+    task: str,
+    noun: str,
+    session: Session,
+    exc: Exception,
+    requeue: Callable[[bool], None],
+) -> None:
+    """Shared error-path policy for an in-flight batch.
+
+    LLMNotConfigured/LLMUnavailable park the batch without burning an
+    attempt; LLMCallFailed counts one toward MAX_TASK_RETRIES; anything
+    unexpected is requeued attempt-free and re-raised — a batch must never
+    strand in a live state (stuck until restart).
+    """
+    _set_activity(task, None, "idle")
+    session.rollback()
+    if isinstance(exc, LLMNotConfigured):
+        logger.info("%s skipped: %s", noun, exc)
+        requeue(False)
+    elif isinstance(exc, LLMUnavailable):
+        logger.warning(
+            "%s unavailable; re-queueing (retry in %.0fs)", noun, exc.retry_in
+        )
+        requeue(False)
+    elif isinstance(exc, LLMCallFailed):
+        logger.error("%s failed: %s", noun, exc)
+        requeue(True)
+    else:
+        logger.exception("Unexpected %s failure; re-queueing batch", noun.lower())
+        requeue(False)
+        raise exc
 
 
 class CategorizationWorker:
@@ -344,40 +378,13 @@ class CategorizationWorker:
             logger.info("Categorization cancelled; re-queueing batch")
             _set_activity(TASK_CATEGORIZATION, None, "idle")
             session.rollback()
-            for art in needs_cat_articles:
-                art.categorization_state = "queued"
-                session.add(art)
-            session.commit()
+            _requeue_batch(count_attempt=False)
             raise
-        except LLMNotConfigured as e:
-            _set_activity(TASK_CATEGORIZATION, None, "idle")
-            logger.info("Categorization skipped: %s", e)
-            session.rollback()
-            for art in needs_cat_articles:
-                art.categorization_state = "queued"
-                session.add(art)
-            session.commit()
-            return len(score_only_articles)
-        except LLMUnavailable as e:
-            _set_activity(TASK_CATEGORIZATION, None, "idle")
-            logger.warning(
-                "Categorization unavailable; re-queueing (retry in %.0fs)", e.retry_in
+        except Exception as e:
+            _recover_failed_batch(
+                TASK_CATEGORIZATION, "Categorization", session, e, _requeue_batch
             )
-            _requeue_batch(count_attempt=False)
             return len(score_only_articles)
-        except LLMCallFailed as e:
-            _set_activity(TASK_CATEGORIZATION, None, "idle")
-            logger.error("Categorization failed: %s", e)
-            _requeue_batch(count_attempt=True)
-            return len(score_only_articles)
-        except Exception:
-            # Safety net: never strand a batch in 'categorizing' (stuck until
-            # restart) — requeue without burning an attempt, then propagate.
-            _set_activity(TASK_CATEGORIZATION, None, "idle")
-            logger.exception("Unexpected categorization failure; re-queueing batch")
-            session.rollback()
-            _requeue_batch(count_attempt=False)
-            raise
 
 
 class ScoringWorker:
@@ -431,17 +438,17 @@ class ScoringWorker:
                 }
             )
 
-        # Load categories from DB for each article
-        categories_by_article: dict[int, list[Category]] = {}
-        for aid in batch_ids:
-            cats = list(
-                session.exec(
-                    select(Category)
-                    .join(ArticleCategoryLink)
-                    .where(ArticleCategoryLink.article_id == aid)
-                ).all()
-            )
-            categories_by_article[aid] = cats
+        # Load categories for the whole batch in one query
+        categories_by_article: dict[int, list[Category]] = {
+            aid: [] for aid in batch_ids
+        }
+        link_rows = session.exec(
+            select(ArticleCategoryLink.article_id, Category)  # pyright: ignore[reportArgumentType]
+            .join(Category, Category.id == ArticleCategoryLink.category_id)  # pyright: ignore[reportArgumentType]
+            .where(ArticleCategoryLink.article_id.in_(batch_ids))  # pyright: ignore[reportAttributeAccessIssue]
+        ).all()
+        for aid, category in link_rows:
+            categories_by_article[aid].append(category)
 
         system_prompt, user_message = build_batch_scoring_prompt(
             article_dicts,
@@ -529,37 +536,8 @@ class ScoringWorker:
             logger.info("Scoring cancelled; re-queueing batch")
             _set_activity(TASK_SCORING, None, "idle")
             session.rollback()
-            for art in articles:
-                art.scoring_state = "queued"
-                session.add(art)
-            session.commit()
-            raise
-        except LLMNotConfigured as e:
-            _set_activity(TASK_SCORING, None, "idle")
-            logger.info("Scoring skipped: %s", e)
-            session.rollback()
-            for art in articles:
-                art.scoring_state = "queued"
-                session.add(art)
-            session.commit()
-            return 0
-        except LLMUnavailable as e:
-            _set_activity(TASK_SCORING, None, "idle")
-            logger.warning(
-                "Scoring unavailable; re-queueing (retry in %.0fs)", e.retry_in
-            )
-            _requeue_batch(count_attempt=False)
-            return 0
-        except LLMCallFailed as e:
-            _set_activity(TASK_SCORING, None, "idle")
-            logger.error("Scoring failed: %s", e)
-            _requeue_batch(count_attempt=True)
-            return 0
-        except Exception:
-            # Safety net: never strand a batch in 'scoring' (stuck until
-            # restart) — requeue without burning an attempt, then propagate.
-            _set_activity(TASK_SCORING, None, "idle")
-            logger.exception("Unexpected scoring failure; re-queueing batch")
-            session.rollback()
             _requeue_batch(count_attempt=False)
             raise
+        except Exception as e:
+            _recover_failed_batch(TASK_SCORING, "Scoring", session, e, _requeue_batch)
+            return 0
