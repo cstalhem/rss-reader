@@ -1,7 +1,14 @@
-import re
-from datetime import datetime, timedelta
+import os
 
-import pytest
+# Isolate tests from the repo's config/app.yaml BEFORE any backend import:
+# backend modules call get_settings() at import time, so a fixture is too late.
+# os.devnull parses as an empty YAML document (no settings).
+os.environ["CONFIG_FILE"] = os.devnull
+
+import re  # noqa: E402
+from datetime import datetime, timedelta  # noqa: E402
+
+import pytest  # noqa: E402
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine

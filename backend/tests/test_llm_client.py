@@ -37,7 +37,10 @@ def _settings(
                 "categorization": LLMTaskConfig(deployment="cat-deploy", batch_size=10),
             },
         )
+    # _env_file=None: don't let a developer's real .env override these kwargs
+    # (env sources outrank init kwargs in this Settings class)
     return Settings(
+        _env_file=None,  # pyright: ignore[reportCallIssue]
         azure_openai_endpoint=endpoint,
         azure_openai_api_key=api_key,
         llm=llm,
