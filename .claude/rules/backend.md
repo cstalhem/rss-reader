@@ -41,6 +41,8 @@ paths: ["backend/**"]
 - Config priority: env vars > `.env` file > YAML config (`CONFIG_FILE`) > defaults in `config.py`.
 - Nested env vars use double-underscore notation (e.g., `OLLAMA__HOST`).
 - Settings cached via `@lru_cache` — requires restart to pick up changes.
+- Values in `.env` populate Settings fields only — they are NEVER visible to `os.getenv()`. Anything read via `os.environ` (like `CONFIG_FILE`) must be a real environment variable.
+- Dev config resolution is source-anchored: `config/app.yaml` and the root `.env` are found via `Path(__file__)`, not the CWD.
 
 ## Testing
 
