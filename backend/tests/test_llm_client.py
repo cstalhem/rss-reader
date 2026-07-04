@@ -256,6 +256,39 @@ async def test_refusal_fails_hard():
         await client.complete("scoring", "sys", "user", FakeResult)
 
 
+@pytest.mark.asyncio
+async def test_truncated_output_fails_typed():
+    """LengthFinishReasonError (truncated structured output) must not escape untyped."""
+    from openai import LengthFinishReasonError
+    from openai.types.chat import ChatCompletion
+
+    completion = ChatCompletion(
+        id="x",
+        choices=[],
+        created=0,
+        model="gpt-4o-mini",
+        object="chat.completion",
+    )
+    fake = FakeParse(error=LengthFinishReasonError(completion=completion))
+    client = _client_with(fake, _settings())
+
+    with pytest.raises(LLMCallFailed):
+        await client.complete("scoring", "sys", "user", FakeResult)
+    assert client.pause_remaining("score-deploy") == 0.0
+
+
+@pytest.mark.asyncio
+async def test_other_openai_errors_fail_typed():
+    """Any remaining OpenAIError translates to LLMCallFailed, never escapes raw."""
+    from openai import OpenAIError
+
+    fake = FakeParse(error=OpenAIError("unexpected SDK failure"))
+    client = _client_with(fake, _settings())
+
+    with pytest.raises(LLMCallFailed):
+        await client.complete("scoring", "sys", "user", FakeResult)
+
+
 def test_batch_size_comes_from_config():
     client = AzureLLMClient(settings=_settings())
     assert client.batch_size("scoring") == 5
