@@ -15,7 +15,6 @@ scheduler:
 # Azure OpenAI task routing (endpoint/key come from env:
 # AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_API_KEY)
 llm:
-  api_version: "2024-10-21"
   tasks:
     scoring:
       deployment: gpt-5.4

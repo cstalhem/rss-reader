@@ -31,7 +31,6 @@ def _settings(
 ) -> Settings:
     if llm is None:
         llm = LLMConfig(
-            api_version="2024-10-21",
             tasks={
                 "scoring": LLMTaskConfig(deployment="score-deploy", batch_size=5),
                 "categorization": LLMTaskConfig(deployment="cat-deploy", batch_size=10),
@@ -296,6 +295,22 @@ def test_batch_size_comes_from_config():
     client = AzureLLMClient(settings=_settings())
     assert client.batch_size("scoring") == 5
     assert client.batch_size("categorization") == 10
+
+
+def test_v1_base_url_accepts_both_portal_endpoint_forms():
+    """Both strings the Azure portal shows must work verbatim."""
+    from backend.llm_client import _v1_base_url
+
+    expected = "https://res.openai.azure.com/openai/v1/"
+    assert _v1_base_url("https://res.openai.azure.com") == expected
+    assert _v1_base_url("https://res.openai.azure.com/") == expected
+    assert _v1_base_url("https://res.openai.azure.com/openai/v1") == expected
+    assert _v1_base_url("https://res.openai.azure.com/openai/v1/") == expected
+    # Foundry-style host works the same way
+    assert (
+        _v1_base_url("https://res.services.ai.azure.com")
+        == "https://res.services.ai.azure.com/openai/v1/"
+    )
 
 
 def test_pause_remaining_for_task_reports_deployment_pause():
