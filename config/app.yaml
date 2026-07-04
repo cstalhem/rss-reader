@@ -1,8 +1,9 @@
 # RSS Reader Configuration
 # Environment variables override these settings (e.g., DATABASE__PATH)
-
-database:
-  path: /data/rss-reader.db
+#
+# This file is loaded automatically in development (defaults put the
+# database at backend/data/). Deployment-specific paths belong in the
+# deployment environment: Docker sets DATABASE__PATH=/data/rss-reader.db.
 
 logging:
   level: INFO
@@ -17,11 +18,11 @@ llm:
   api_version: "2024-10-21"
   tasks:
     scoring:
-      deployment: gpt-4o-mini
+      deployment: gpt-5.4
       batch_size: 5
     categorization:
-      deployment: gpt-4o-mini
+      deployment: gpt-5-mini
       batch_size: 10
     grouping:
-      deployment: gpt-4o-mini
+      deployment: gpt-5.4
       batch_size: 1
