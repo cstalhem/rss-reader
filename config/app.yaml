@@ -24,4 +24,3 @@ llm:
       batch_size: 10
     grouping:
       deployment: gpt-5.4
-      batch_size: 1
