@@ -6,8 +6,9 @@ from sqlmodel import Session, select
 
 from backend.config import get_settings
 from backend.database import engine
-from backend.deps import TASK_CATEGORIZATION, TASK_SCORING, get_task_batch_size
+from backend.deps import TASK_CATEGORIZATION, TASK_SCORING
 from backend.feeds import refresh_feed
+from backend.llm_client import LLMNotConfigured, llm_client
 from backend.models import Feed, UserPreferences
 from backend.scoring_queue import CategorizationWorker, ScoringWorker
 
@@ -45,6 +46,17 @@ async def refresh_all_feeds():
                 # Continue with other feeds
 
 
+DEFAULT_BATCH_SIZE = 5
+
+
+def _task_batch_size(task: str) -> int:
+    """Batch size for a task from config, defaulting when the task is unrouted."""
+    try:
+        return llm_client.batch_size(task)
+    except LLMNotConfigured:
+        return DEFAULT_BATCH_SIZE
+
+
 async def process_pipeline():
     """Background job: run categorization then scoring sequentially."""
     if settings.scheduler.log_job_execution:
@@ -53,7 +65,7 @@ async def process_pipeline():
     with Session(engine) as session:
         session.expire_on_commit = False
         try:
-            cat_batch = get_task_batch_size(session, TASK_CATEGORIZATION)
+            cat_batch = _task_batch_size(TASK_CATEGORIZATION)
             await categorization_worker.process_next_batch(session, cat_batch)
         except asyncio.CancelledError:
             logger.info("Pipeline cancelled during categorization")
@@ -63,7 +75,7 @@ async def process_pipeline():
     with Session(engine) as session:
         session.expire_on_commit = False
         try:
-            score_batch = get_task_batch_size(session, TASK_SCORING)
+            score_batch = _task_batch_size(TASK_SCORING)
             await scoring_worker.process_next_batch(session, score_batch)
         except asyncio.CancelledError:
             logger.info("Pipeline cancelled during scoring")

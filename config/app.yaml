@@ -10,3 +10,18 @@ logging:
 
 scheduler:
   log_job_execution: false
+
+# Azure OpenAI task routing (endpoint/key come from env:
+# AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_API_KEY)
+llm:
+  api_version: "2024-10-21"
+  tasks:
+    scoring:
+      deployment: gpt-4o-mini
+      batch_size: 5
+    categorization:
+      deployment: gpt-4o-mini
+      batch_size: 10
+    grouping:
+      deployment: gpt-4o-mini
+      batch_size: 1

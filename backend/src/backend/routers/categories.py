@@ -5,13 +5,13 @@ from slugify import slugify
 from sqlmodel import Session, func, select
 
 from backend.database import smart_case
-from backend.deps import get_session, resolve_task_runtime
-from backend.llm_providers.registry import get_provider
+from backend.deps import TASK_GROUPING, get_session
+from backend.llm_client import LLMError, llm_client
 from backend.models import ArticleCategoryLink, Category
+from backend.prompts import GroupingResponse, build_grouping_prompt
 from backend.schemas import (
     AutoGroupApplyRequest,
     AutoGroupApplyResponse,
-    AutoGroupRequest,
     AutoGroupSuggestResponse,
     CategoryAcknowledgeRequest,
     CategoryBatchAction,
@@ -45,9 +45,7 @@ def _category_to_response(session: Session, category: Category) -> CategoryRespo
         slug=category.slug,
         weight=category.weight,
         parent_id=category.parent_id,
-        is_hidden=category.is_hidden,
-        is_seen=category.is_seen,
-        is_manually_created=category.is_manually_created,
+        needs_triage=category.needs_triage,
         article_count=_category_article_count(session, category.id),  # pyright: ignore[reportArgumentType]
     )
 
@@ -75,9 +73,7 @@ def list_categories(
             slug=cat.slug,
             weight=cat.weight,
             parent_id=cat.parent_id,
-            is_hidden=cat.is_hidden,
-            is_seen=cat.is_seen,
-            is_manually_created=cat.is_manually_created,
+            needs_triage=cat.needs_triage,
             article_count=count,
         )
         for cat, count in results
@@ -106,39 +102,28 @@ def create_category(
         if not parent:
             raise HTTPException(status_code=404, detail="Parent category not found")
 
+    # User-created categories never need triage
     category = Category(
         display_name=smart_case(body.display_name),
         slug=slug,
         parent_id=body.parent_id,
-        is_manually_created=True,
-        is_seen=True,
     )
     session.add(category)
     session.commit()
     session.refresh(category)
 
-    return CategoryResponse(
-        id=category.id,  # pyright: ignore[reportArgumentType]
-        display_name=category.display_name,
-        slug=category.slug,
-        weight=category.weight,
-        parent_id=category.parent_id,
-        is_hidden=category.is_hidden,
-        is_seen=category.is_seen,
-        is_manually_created=category.is_manually_created,
-        article_count=0,
-    )
+    return _category_to_response(session, category)
 
 
 @router.get("/unseen-count")
 def get_unseen_count(
     session: Session = Depends(get_session),
 ):
-    """Get count of unseen, non-hidden categories (for badges)."""
+    """Get count of categories awaiting triage (for badges)."""
     count = session.exec(
-        select(func.count(Category.id))  # pyright: ignore[reportArgumentType]
-        .where(Category.is_seen.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
-        .where(Category.is_hidden.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
+        select(func.count(Category.id)).where(  # pyright: ignore[reportArgumentType]
+            Category.needs_triage.is_(True)  # pyright: ignore[reportAttributeAccessIssue]
+        )
     ).one()
 
     return {"count": count}
@@ -149,11 +134,11 @@ def mark_seen(
     body: CategoryAcknowledgeRequest,
     session: Session = Depends(get_session),
 ):
-    """Mark categories as seen by ID."""
+    """Mark categories as triaged by ID."""
     for cat_id in body.category_ids:
         category = session.get(Category, cat_id)
         if category:
-            category.is_seen = True
+            category.needs_triage = False
             session.add(category)
 
     session.commit()
@@ -228,10 +213,6 @@ def batch_move_categories(
             category = session.get(Category, cat_id)
             if not category:
                 continue
-            if category.weight is None and category.parent_id is not None:
-                parent = session.get(Category, category.parent_id)
-                if parent and parent.weight is not None:
-                    category.weight = parent.weight
             category.parent_id = None
             session.add(category)
             updated += 1
@@ -268,49 +249,33 @@ def batch_move_categories(
 
 @router.post("/auto-group/suggest", response_model=AutoGroupSuggestResponse)
 async def auto_group_suggest(
-    body: AutoGroupRequest,
     session: Session = Depends(get_session),
 ):
     """Ask LLM to suggest category groupings. No DB writes."""
     from backend.scoring import get_active_categories
 
-    display_names, hierarchy, _hidden = get_active_categories(session)
+    display_names, hierarchy = get_active_categories(session)
 
     if len(display_names) < 2:
         raise HTTPException(
             status_code=400,
-            detail="Need at least 2 non-hidden categories to suggest groupings",
+            detail="Need at least 2 categories to suggest groupings",
         )
 
-    # Resolve provider/model for categorization task
-    runtime = resolve_task_runtime(session, "categorization")
-    provider_name = body.provider or runtime.provider
-    model_name = body.model or runtime.model
-
-    if not model_name:
-        raise HTTPException(status_code=400, detail="No model configured")
-
-    provider = get_provider(provider_name)
-
-    from backend.llm_providers.base import ProviderTaskConfig
-
-    config = ProviderTaskConfig(
-        endpoint=runtime.endpoint,
-        model=model_name,
-        thinking=False,
-        api_key=runtime.api_key,
-    )
-
-    response = await provider.suggest_groups(
+    system_prompt, user_message = build_grouping_prompt(
         all_categories=display_names,
         existing_groups=hierarchy or {},
-        config=config,
     )
 
+    try:
+        response = await llm_client.complete(
+            TASK_GROUPING, system_prompt, user_message, GroupingResponse
+        )
+    except LLMError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
+
     # Build slug lookup for validation
-    all_categories = session.exec(
-        select(Category).where(Category.is_hidden == False)  # noqa: E712
-    ).all()
+    all_categories = session.exec(select(Category)).all()
     slug_to_name = {slugify(c.display_name): c.display_name for c in all_categories}
     valid_slugs = set(slug_to_name.keys())
 
@@ -348,11 +313,6 @@ def auto_group_apply(
         select(Category).where(Category.parent_id.isnot(None))  # type: ignore[union-attr]
     ).all()
     for child in children_with_parents:
-        # Inherit parent weight if child has no explicit weight
-        if child.weight is None and child.parent_id is not None:
-            parent = session.get(Category, child.parent_id)
-            if parent and parent.weight is not None:
-                child.weight = parent.weight
         child.parent_id = None
         session.add(child)
     session.flush()
@@ -399,26 +359,6 @@ def auto_group_apply(
     )
 
 
-@router.post("/batch-hide")
-def batch_hide_categories(
-    body: CategoryBatchAction,
-    session: Session = Depends(get_session),
-):
-    """Hide multiple categories. Sets is_hidden=True and clears parent_id."""
-    updated = 0
-    for cat_id in body.category_ids:
-        category = session.get(Category, cat_id)
-        if not category:
-            continue
-        category.is_hidden = True
-        category.parent_id = None
-        session.add(category)
-        updated += 1
-
-    session.commit()
-    return {"ok": True, "updated": updated}
-
-
 @router.post("/batch-delete")
 def batch_delete_categories(
     body: CategoryBatchAction,
@@ -436,8 +376,6 @@ def batch_delete_categories(
             select(Category).where(Category.parent_id == cat_id)
         ).all()
         for child in children:
-            if child.weight is None and category.weight is not None:
-                child.weight = category.weight
             child.parent_id = None
             session.add(child)
         session.exec(
@@ -458,7 +396,7 @@ def update_category(
     body: CategoryUpdate,
     session: Session = Depends(get_session),
 ):
-    """Update a category (rename, reparent, weight change, hide/unhide, etc.)."""
+    """Update a category (rename, reparent, weight change, triage, etc.)."""
     category = session.get(Category, category_id)
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
@@ -501,28 +439,15 @@ def update_category(
         category.parent_id = None
 
     if body.weight is not None:
-        if body.weight == "inherit":
-            category.weight = None
-        elif body.weight not in VALID_WEIGHTS:
+        if body.weight not in VALID_WEIGHTS:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid weight '{body.weight}'. Must be one of: {', '.join(VALID_WEIGHTS)} or 'inherit'",
+                detail=f"Invalid weight '{body.weight}'. Must be one of: {', '.join(sorted(VALID_WEIGHTS))}",
             )
-        else:
-            category.weight = body.weight
+        category.weight = body.weight
 
-    if body.is_hidden is not None:
-        category.is_hidden = body.is_hidden
-        if body.is_hidden:
-            # Hide: leave group (clear parent_id)
-            category.parent_id = None
-        else:
-            # Unhide: reset block weight to inherit
-            if category.weight == "block":
-                category.weight = None
-
-    if body.is_seen is not None:
-        category.is_seen = body.is_seen
+    if body.needs_triage is not None:
+        category.needs_triage = body.needs_triage
 
     session.add(category)
     session.commit()
@@ -567,7 +492,7 @@ def ungroup_parent(
     category_id: int,
     session: Session = Depends(get_session),
 ):
-    """Ungroup a parent category: release all children to root, preserving inherited weights."""
+    """Ungroup a parent category: release all children to root."""
     parent = session.get(Category, category_id)
     if not parent:
         raise HTTPException(status_code=404, detail="Category not found")
@@ -577,8 +502,6 @@ def ungroup_parent(
     ).all()
 
     for child in children:
-        if child.weight is None and parent.weight is not None:
-            child.weight = parent.weight
         child.parent_id = None
         session.add(child)
 

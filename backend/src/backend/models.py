@@ -4,6 +4,22 @@ from typing import Optional
 from sqlalchemy import CheckConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
+CATEGORY_WEIGHTS = ("block", "reduce", "normal", "boost", "max")
+FEEDBACK_EVENT_TYPES = ("opened", "marked_read", "rated", "rescued")
+CATEGORIZATION_STATES = (
+    "uncategorized",
+    "queued",
+    "categorizing",
+    "categorized",
+    "failed",
+)
+SCORING_STATES = ("unscored", "queued", "scoring", "scored", "blocked", "failed")
+
+
+def _in_clause(column: str, values: tuple[str, ...]) -> str:
+    quoted = ", ".join(f"'{v}'" for v in values)
+    return f"{column} IN ({quoted})"
+
 
 class FeedFolder(SQLModel, table=True):
     """Folder grouping for RSS feeds."""
@@ -30,6 +46,7 @@ class Feed(SQLModel, table=True):
     title: str
     display_order: int = Field(default=0)
     last_fetched_at: datetime | None = None
+    is_aggregator: bool = Field(default=False)
     folder_id: int | None = Field(
         default=None,
         foreign_key="feed_folders.id",
@@ -54,18 +71,24 @@ class ArticleCategoryLink(SQLModel, table=True):
 
 
 class Category(SQLModel, table=True):
-    """A topic category for articles."""
+    """A topic category for articles.
+
+    Weight is the only suppression axis (ADR-0001): there is no hidden state.
+    """
 
     __tablename__ = "categories"  # pyright: ignore[reportAssignmentType]
+    __table_args__ = (
+        CheckConstraint(
+            _in_clause("weight", CATEGORY_WEIGHTS), name="ck_categories_weight"
+        ),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     display_name: str = Field(index=True)
     slug: str = Field(unique=True, index=True)
     parent_id: int | None = Field(default=None, foreign_key="categories.id")
-    weight: str | None = Field(default=None)
-    is_hidden: bool = Field(default=False)
-    is_seen: bool = Field(default=False)
-    is_manually_created: bool = Field(default=False)
+    weight: str = Field(default="normal")
+    needs_triage: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.now)
 
     # Relationships
@@ -87,10 +110,47 @@ class Category(SQLModel, table=True):
     )
 
 
+class CategoryAlias(SQLModel, table=True):
+    """Alias memory for merged/renamed/deleted category names (ADR-0001).
+
+    A NULL target means "discard": proposals matching alias_slug are dropped.
+    ON DELETE SET NULL degrades aliases into discards when their target dies.
+    """
+
+    __tablename__ = "category_aliases"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    alias_slug: str = Field(unique=True, index=True)
+    target_id: int | None = Field(
+        default=None,
+        foreign_key="categories.id",
+        ondelete="SET NULL",
+    )
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
 class Article(SQLModel, table=True):
     """Article from an RSS feed."""
 
     __tablename__ = "articles"  # pyright: ignore[reportAssignmentType]
+    __table_args__ = (
+        CheckConstraint(
+            _in_clause("categorization_state", CATEGORIZATION_STATES),
+            name="ck_articles_categorization_state",
+        ),
+        CheckConstraint(
+            _in_clause("scoring_state", SCORING_STATES),
+            name="ck_articles_scoring_state",
+        ),
+        CheckConstraint(
+            "rescore_mode IS NULL OR rescore_mode IN ('score_only')",
+            name="ck_articles_rescore_mode",
+        ),
+        CheckConstraint(
+            "rating IS NULL OR rating IN (-1, 1)",
+            name="ck_articles_rating",
+        ),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     feed_id: int = Field(foreign_key="feeds.id", index=True, ondelete="CASCADE")
@@ -102,6 +162,7 @@ class Article(SQLModel, table=True):
     content: str | None = None
     content_markdown: str | None = None
     is_read: bool = Field(default=False)
+    rating: int | None = Field(default=None)
 
     # LLM scoring fields
     interest_score: int | None = Field(default=None)
@@ -127,6 +188,32 @@ class Article(SQLModel, table=True):
     )
 
 
+class FeedbackEvent(SQLModel, table=True):
+    """Append-only record of a fact about user behavior.
+
+    Events record facts only; interpreting them into preference signals
+    is the learning layer's job. Only 'rated' carries a value (+1/-1).
+    """
+
+    __tablename__ = "feedback_events"  # pyright: ignore[reportAssignmentType]
+    __table_args__ = (
+        CheckConstraint(
+            _in_clause("event_type", FEEDBACK_EVENT_TYPES),
+            name="ck_feedback_events_event_type",
+        ),
+        CheckConstraint(
+            "value IS NULL OR value IN (-1, 1)",
+            name="ck_feedback_events_value",
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    article_id: int = Field(foreign_key="articles.id", index=True, ondelete="CASCADE")
+    event_type: str
+    value: int | None = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+
 class UserPreferences(SQLModel, table=True):
     """User preferences for content curation (single-row table)."""
 
@@ -135,37 +222,7 @@ class UserPreferences(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     interests: str = Field(default="")
     anti_interests: str = Field(default="")
-    use_separate_models: bool = Field(default=False)
     updated_at: datetime = Field(default_factory=datetime.now)
 
     # Scheduler configuration
     feed_refresh_interval: int = Field(default=1800)  # seconds
-
-
-class LLMProviderConfig(SQLModel, table=True):
-    """Provider-specific runtime configuration."""
-
-    __tablename__ = "llm_provider_configs"  # pyright: ignore[reportAssignmentType]
-    __table_args__ = (CheckConstraint("json_valid(config_json)"),)
-
-    id: int | None = Field(default=None, primary_key=True)
-    provider: str = Field(unique=True, index=True)
-    enabled: bool = Field(default=True)
-    config_json: str
-    updated_at: datetime = Field(default_factory=datetime.now)
-
-
-class LLMTaskRoute(SQLModel, table=True):
-    """Route each LLM task to a specific provider and model."""
-
-    __tablename__ = "llm_task_routes"  # pyright: ignore[reportAssignmentType]
-
-    id: int | None = Field(default=None, primary_key=True)
-    task: str = Field(unique=True, index=True)
-    provider: str = Field(
-        foreign_key="llm_provider_configs.provider",
-        index=True,
-    )
-    model: str | None = Field(default=None)
-    batch_size: int | None = Field(default=None)
-    updated_at: datetime = Field(default_factory=datetime.now)

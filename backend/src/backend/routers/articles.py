@@ -35,14 +35,13 @@ def _build_category_embeds(article: Article) -> list[ArticleCategoryEmbed] | Non
     """Build category embed list from an Article with loaded categories_rel."""
     if not article.categories_rel:
         return None
-    from backend.scoring import get_effective_weight
 
     return [
         ArticleCategoryEmbed(
             id=cat.id,  # pyright: ignore[reportArgumentType]
             display_name=cat.display_name,
             slug=cat.slug,
-            effective_weight=get_effective_weight(cat),
+            effective_weight=cat.weight,
             parent_display_name=cat.parent.display_name if cat.parent else None,
         )
         for cat in article.categories_rel
@@ -153,9 +152,7 @@ def list_articles(
             ),
         )
     elif scoring_state == "blocked":
-        statement = statement.where(Article.scoring_state == "scored").where(
-            Article.composite_score == 0
-        )
+        statement = statement.where(Article.scoring_state == "blocked")
         exclude_blocked = False
     elif scoring_state == "failed":
         statement = statement.where(
@@ -167,9 +164,7 @@ def list_articles(
         statement = statement.where(Article.scoring_state == scoring_state)
 
     if exclude_blocked and scoring_state is None:
-        statement = statement.where(Article.scoring_state == "scored").where(
-            Article.composite_score != 0
-        )
+        statement = statement.where(Article.scoring_state == "scored")
 
     if scoring_state == "pending" and sort_by == "composite_score":
         sort_by = "published_at"
@@ -204,7 +199,6 @@ def mark_all_read(session: Session = Depends(get_session)):
         update(Article)
         .where(Article.is_read.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
         .where(Article.scoring_state == "scored")  # pyright: ignore[reportArgumentType]
-        .where(Article.composite_score != 0)  # pyright: ignore[reportArgumentType]
         .values(is_read=True)
     )
     session.commit()

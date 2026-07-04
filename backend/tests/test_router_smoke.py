@@ -56,14 +56,6 @@ def test_scoring_status(test_client: TestClient):
     assert "phase" in data
 
 
-def test_ollama_health(test_client: TestClient):
-    """GET /api/ollama/health -> 200 (connected=false if Ollama not running)."""
-    response = test_client.get("/api/ollama/health")
-    assert response.status_code == 200
-    data = response.json()
-    assert "connected" in data
-
-
 def test_articles_invalid_sort(test_client: TestClient):
     """GET /api/articles?sort_by=invalid -> 422 (Literal type validation)."""
     response = test_client.get("/api/articles?sort_by=invalid")

@@ -1,7 +1,5 @@
 """Tests for article display state derivation and scoring status per-worker detail."""
 
-from unittest.mock import patch
-
 
 def test_first_time_categorizing_article_shows_actual_state(
     test_client, test_engine, make_feed, make_article
@@ -137,23 +135,7 @@ def test_scoring_status_includes_categorization_counts(
         composite_score=5.0,
     )
 
-    with (
-        patch(
-            "backend.scoring.get_categorization_activity",
-            return_value={"article_id": None, "phase": "idle"},
-        ),
-        patch(
-            "backend.scoring.get_scoring_activity",
-            return_value={"article_id": None, "phase": "idle"},
-        ),
-        patch("backend.scoring.is_categorization_rate_limited", return_value=False),
-        patch("backend.scoring.is_scoring_rate_limited", return_value=False),
-        patch(
-            "backend.scoring.get_categorization_rate_limit_remaining", return_value=0.0
-        ),
-        patch("backend.scoring.get_scoring_rate_limit_remaining", return_value=0.0),
-    ):
-        resp = test_client.get("/api/scoring/status")
+    resp = test_client.get("/api/scoring/status")
 
     assert resp.status_code == 200
     data = resp.json()
