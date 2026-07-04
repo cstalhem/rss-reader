@@ -20,12 +20,12 @@ export function useCategoryTree(categories: Category[]) {
 
     // Parents: root-level categories that have children
     const parentCats = categories
-      .filter((c) => c.parent_id === null && parentIds.has(c.id) && !c.is_hidden)
+      .filter((c) => c.parent_id === null && parentIds.has(c.id))
       .sort((a, b) => a.display_name.localeCompare(b.display_name));
 
-    // Ungrouped: root-level categories that have no children and are not hidden
+    // Ungrouped: root-level categories that have no children
     const ungrouped = categories
-      .filter((c) => c.parent_id === null && !parentIds.has(c.id) && !c.is_hidden)
+      .filter((c) => c.parent_id === null && !parentIds.has(c.id))
       .sort((a, b) => a.display_name.localeCompare(b.display_name));
 
     // Sort children within each parent
@@ -36,23 +36,10 @@ export function useCategoryTree(categories: Category[]) {
     return { parents: parentCats, childrenMap: cMap, ungroupedCategories: ungrouped };
   }, [categories]);
 
-  // New categories: unseen and not hidden
+  // New categories: awaiting triage
   const newCategoryIds = useMemo(() => {
-    return new Set(
-      categories
-        .filter((c) => !c.is_seen && !c.is_hidden)
-        .map((c) => c.id)
-    );
+    return new Set(categories.filter((c) => c.needs_triage).map((c) => c.id));
   }, [categories]);
-
-  // Hidden categories
-  const hiddenCategories = useMemo(
-    () =>
-      categories
-        .filter((c) => c.is_hidden)
-        .sort((a, b) => a.display_name.localeCompare(b.display_name)),
-    [categories]
-  );
 
   // Search filtering — return filtered versions as primary names
   const { filteredParents, filteredChildrenMap, filteredUngrouped } = useMemo(() => {
@@ -100,7 +87,6 @@ export function useCategoryTree(categories: Category[]) {
     childrenMap: filteredChildrenMap,
     ungroupedCategories: filteredUngrouped,
     newCategoryIds,
-    hiddenCategories,
     searchQuery,
     setSearchQuery,
   };

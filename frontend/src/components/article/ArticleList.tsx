@@ -7,15 +7,12 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import NextLink from "next/link";
 import {
-  Alert,
   Box,
   Flex,
   Button,
   Heading,
   IconButton,
-  Link,
   Portal,
   Select,
   Text,
@@ -24,7 +21,6 @@ import {
 } from "@chakra-ui/react";
 import {
   LuCheckCheck,
-  LuBrainCog,
   LuMenu,
 } from "react-icons/lu";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -96,24 +92,6 @@ export function ArticleList({
   const { sortOption, setSortOption } = useSortPreference();
   const { data: scoringStatus } = useScoringStatus();
   const queryClient = useQueryClient();
-  const serverRetryAfter = scoringStatus?.rate_limit_retry_after ?? 0;
-  const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
-  const prevRetryAfterRef = useRef(0);
-
-  // Seed countdown from server value when it changes (derived, no effect needed)
-  if (serverRetryAfter !== prevRetryAfterRef.current) {
-    prevRetryAfterRef.current = serverRetryAfter;
-    setRateLimitCountdown(serverRetryAfter);
-  }
-
-  // Tick down locally for smooth display
-  useEffect(() => {
-    if (rateLimitCountdown <= 0) return;
-    const interval = setInterval(() => {
-      setRateLimitCountdown((prev) => (prev <= 1 ? 0 : prev - 1));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [rateLimitCountdown > 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Calculate tab counts (needed before useArticles for scoringActive)
   const scoringCount =
@@ -376,35 +354,6 @@ export function ArticleList({
 
   return (
     <Box pb={{ base: 16, md: 0 }}>
-      {/* Scoring readiness warning */}
-      {scoringStatus?.scoring_ready === false &&
-        scoringStatus.scoring_ready_reason && (
-          <Box px={4} pt={4} pb={0}>
-            <Alert.Root status='warning' variant='surface' size='sm'>
-              <Alert.Indicator>
-                <LuBrainCog />
-              </Alert.Indicator>
-              <Alert.Title fontSize='xs'>
-                {rateLimitCountdown > 0
-                  ? `API rate limit exceeded. Will retry automatically in ${rateLimitCountdown} seconds.`
-                  : scoringStatus.scoring_ready_reason}
-                {scoringStatus.scoring_ready_reason.includes(
-                  "LLM Providers",
-                ) && (
-                  <>
-                    {" "}
-                    <Link asChild color='fg.warning' textDecoration='underline'>
-                      <NextLink href='/settings/llm-providers'>
-                        Configure &rarr;
-                      </NextLink>
-                    </Link>
-                  </>
-                )}
-              </Alert.Title>
-            </Alert.Root>
-          </Box>
-        )}
-
       {/* Feed name heading */}
       <Flex px={4} pt={4} pb={2} alignItems='center' gap={2}>
         {/* Mobile hamburger */}

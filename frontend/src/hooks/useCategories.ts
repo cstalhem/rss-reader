@@ -7,12 +7,9 @@ import {
   updateCategory as apiUpdateCategory,
   createCategory as apiCreateCategory,
   deleteCategory as apiDeleteCategory,
-  hideCategory as apiHideCategory,
-  unhideCategory as apiUnhideCategory,
   acknowledgeCategories as apiAcknowledgeCategories,
   mergeCategories as apiMergeCategories,
   batchMoveCategories as apiBatchMoveCategories,
-  batchHideCategories as apiBatchHideCategories,
   batchDeleteCategories as apiBatchDeleteCategories,
   ungroupParent as apiUngroupParent,
   autoGroupSuggest as apiAutoGroupSuggest,
@@ -38,7 +35,7 @@ export function useCategories() {
   });
 
   const updateCategoryMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Pick<Category, "display_name" | "parent_id" | "weight" | "is_hidden" | "is_seen">> }) =>
+    mutationFn: ({ id, data }: { id: number; data: Partial<Pick<Category, "display_name" | "parent_id" | "weight" | "needs_triage">> }) =>
       apiUpdateCategory(id, data),
     meta: { handlesOwnErrors: true },
     onMutate: async ({ id, data }) => {
@@ -85,23 +82,6 @@ export function useCategories() {
     },
   });
 
-  const hideMutation = useMutation({
-    mutationFn: (id: number) => apiHideCategory(id),
-    meta: { errorTitle: "Failed to hide category" },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
-    },
-  });
-
-  const unhideMutation = useMutation({
-    mutationFn: (id: number) => apiUnhideCategory(id),
-    meta: { errorTitle: "Failed to unhide category" },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
-    },
-  });
-
   const acknowledgeMutation = useMutation({
     mutationFn: (categoryIds: number[]) => apiAcknowledgeCategories(categoryIds),
     meta: { errorTitle: "Failed to acknowledge categories" },
@@ -130,15 +110,6 @@ export function useCategories() {
     },
   });
 
-  const batchHideMutation = useMutation({
-    mutationFn: (categoryIds: number[]) => apiBatchHideCategories(categoryIds),
-    meta: { errorTitle: "Failed to hide categories" },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.categories.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
-    },
-  });
-
   const batchDeleteMutation = useMutation({
     mutationFn: (categoryIds: number[]) => apiBatchDeleteCategories(categoryIds),
     meta: { errorTitle: "Failed to delete categories" },
@@ -157,8 +128,7 @@ export function useCategories() {
   });
 
   const autoGroupSuggestMutation = useMutation({
-    mutationFn: (options?: { provider?: string; model?: string }) =>
-      apiAutoGroupSuggest(options),
+    mutationFn: () => apiAutoGroupSuggest(),
     meta: { errorTitle: "Failed to generate category groupings" },
   });
 
@@ -172,9 +142,9 @@ export function useCategories() {
 
   const updateCategory = (
     id: number,
-    data: Partial<Pick<Category, "display_name" | "parent_id" | "weight" | "is_hidden" | "is_seen">>
+    data: Partial<Pick<Category, "display_name" | "parent_id" | "weight" | "needs_triage">>
   ) => {
-    const payload = data.weight !== undefined ? { ...data, is_seen: true } : data;
+    const payload = data.weight !== undefined ? { ...data, needs_triage: false } : data;
     updateCategoryMutation.mutate({ id, data: payload });
   };
 
@@ -186,12 +156,9 @@ export function useCategories() {
     updateCategoryMutation,
     createCategoryMutation,
     deleteCategoryMutation,
-    hideMutation,
-    unhideMutation,
     acknowledgeMutation,
     mergeMutation,
     batchMoveMutation,
-    batchHideMutation,
     batchDeleteMutation,
     ungroupParentMutation,
     autoGroupSuggestMutation,

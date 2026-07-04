@@ -1,5 +1,5 @@
 import type { ElementType } from "react";
-import { LuSettings, LuRss, LuHeart, LuTag, LuBot, LuMessageSquare } from "react-icons/lu";
+import { LuSettings, LuRss, LuHeart, LuTag, LuMessageSquare } from "react-icons/lu";
 
 /** Sidebar width when collapsed (icons only) */
 export const SIDEBAR_WIDTH_COLLAPSED = "48px";
@@ -17,7 +17,6 @@ export type SettingsSection =
   | "feeds"
   | "interests"
   | "categories"
-  | "llm-providers"
   | "feedback";
 
 export interface SettingsSectionItem {
@@ -32,11 +31,5 @@ export const SETTINGS_SECTIONS: SettingsSectionItem[] = [
   { id: "feeds", href: "/settings/feeds", icon: LuRss, label: "Feeds" },
   { id: "interests", href: "/settings/interests", icon: LuHeart, label: "Interests" },
   { id: "categories", href: "/settings/categories", icon: LuTag, label: "Categories" },
-  {
-    id: "llm-providers",
-    href: "/settings/llm-providers",
-    icon: LuBot,
-    label: "LLM Providers",
-  },
   { id: "feedback", href: "/settings/feedback", icon: LuMessageSquare, label: "Feedback" },
 ];

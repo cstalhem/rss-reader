@@ -18,7 +18,7 @@ const CategoryUngroupedRowComponent = ({
   weight,
 }: CategoryUngroupedRowProps) => {
   const {
-    onWeightChange, onHide, onBadgeDismiss,
+    onWeightChange, onBadgeDismiss,
     onRename, onDelete, selectedIds, onToggleSelection, newCategoryIds,
   } = useCategoryTreeContext();
 
@@ -27,7 +27,6 @@ const CategoryUngroupedRowComponent = ({
 
   const handleRename = useCallback((newName: string) => onRename(category.id, newName), [category.id, onRename]);
   const handleWeightChange = useCallback((w: string) => onWeightChange(category.id, w), [category.id, onWeightChange]);
-  const handleHide = useCallback(() => onHide(category.id), [category.id, onHide]);
   const handleDelete = useCallback(() => onDelete(category.id), [category.id, onDelete]);
   const handleBadgeDismiss = useCallback(() => onBadgeDismiss(category.id), [category.id, onBadgeDismiss]);
 
@@ -46,7 +45,6 @@ const CategoryUngroupedRowComponent = ({
         <CategoryContextMenu
           type="ungrouped"
           onRename={startRename}
-          onHide={handleHide}
           onDelete={handleDelete}
         />
       )}

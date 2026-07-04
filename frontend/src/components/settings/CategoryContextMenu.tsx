@@ -4,44 +4,34 @@ import { useCallback } from "react";
 import { IconButton, Menu, Portal } from "@chakra-ui/react";
 import {
   LuEllipsisVertical,
-  LuEyeOff,
   LuIndentDecrease,
   LuPencil,
   LuTrash2,
-  LuUndo2,
 } from "react-icons/lu";
 
 interface CategoryContextMenuProps {
   type: "parent" | "child" | "ungrouped";
-  isWeightOverridden?: boolean;
   onUngroup?: () => void;
-  onResetWeight?: () => void;
   onRename: () => void;
-  onHide: () => void;
   onDelete: () => void;
 }
 
 export function CategoryContextMenu({
   type,
-  isWeightOverridden,
   onUngroup,
-  onResetWeight,
   onRename,
-  onHide,
   onDelete,
 }: CategoryContextMenuProps) {
   const handleSelect = useCallback(
     (details: { value: string }) => {
       const actions: Record<string, (() => void) | undefined> = {
         ungroup: onUngroup,
-        "reset-weight": onResetWeight,
         rename: onRename,
-        hide: onHide,
         delete: onDelete,
       };
       actions[details.value]?.();
     },
-    [onUngroup, onResetWeight, onRename, onHide, onDelete],
+    [onUngroup, onRename, onDelete],
   );
 
   return (
@@ -65,22 +55,9 @@ export function CategoryContextMenu({
                 Ungroup
               </Menu.Item>
             )}
-            {type === "child" && (
-              <Menu.Item
-                value="reset-weight"
-                disabled={!isWeightOverridden}
-              >
-                <LuUndo2 />
-                Reset weight
-              </Menu.Item>
-            )}
             <Menu.Item value="rename">
               <LuPencil />
               Edit name
-            </Menu.Item>
-            <Menu.Item value="hide">
-              <LuEyeOff />
-              Hide
             </Menu.Item>
             <Menu.Separator />
             <Menu.Item value="delete" color="fg.error">

@@ -27,13 +27,12 @@ const CategoryParentRowComponent = ({
   newChildCount,
   onDismissNewChildren,
 }: CategoryParentRowProps) => {
-  const { onWeightChange, onRename, onDelete, onUngroup, onHide } = useCategoryTreeContext();
+  const { onWeightChange, onRename, onDelete, onUngroup } = useCategoryTreeContext();
 
   const handleRename = useCallback((newName: string) => onRename(category.id, newName), [category.id, onRename]);
   const handleWeightChange = useCallback((w: string) => onWeightChange(category.id, w), [category.id, onWeightChange]);
   const handleDelete = useCallback(() => onDelete(category.id), [category.id, onDelete]);
   const handleUngroup = useCallback(() => onUngroup(category.id), [category.id, onUngroup]);
-  const handleHide = useCallback(() => onHide(category.id), [category.id, onHide]);
   const handleToggleExpand = useCallback(() => onToggleExpand(category.id), [category.id, onToggleExpand]);
 
   return (
@@ -70,7 +69,6 @@ const CategoryParentRowComponent = ({
           type="parent"
           onUngroup={handleUngroup}
           onRename={startRename}
-          onHide={handleHide}
           onDelete={handleDelete}
         />
       )}
