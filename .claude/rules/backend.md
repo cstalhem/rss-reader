@@ -27,6 +27,8 @@ paths: ["backend/**"]
 ## Dependencies & Background Jobs
 
 - **feedparser** for RSS/Atom parsing. **APScheduler** for background jobs (feed refresh, scoring queue).
+- The Azure wrapper must catch `openai.OpenAIError` as its last handler — `LengthFinishReasonError`/`ContentFilterFinishReasonError` subclass `OpenAIError` directly (not `APIError`) and otherwise escape untyped, stranding queue batches.
+- Queue workers must keep the catch-all `except Exception` that requeues the in-flight batch — a batch committed to 'categorizing'/'scoring' with no handler is stuck until restart.
 - `ollama.AsyncClient` is NOT an async context manager — use `client = AsyncClient(...)` directly, never `async with`.
 - `httpx.Timeout` requires either a positional default or all four params (connect, read, write, pool) — use `httpx.Timeout(default, connect=override)` pattern.
 
