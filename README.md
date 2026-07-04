@@ -67,6 +67,7 @@ services:
       - ./config:/config:ro
     environment:
       - CONFIG_FILE=/config/app.yaml
+      - DATABASE__PATH=/data/rss-reader.db
       - OLLAMA__HOST=http://ollama:11434
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
