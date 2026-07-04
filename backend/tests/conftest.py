@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta
 
 import pytest
@@ -5,9 +6,17 @@ from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
+from backend.config import LLMTaskConfig
 from backend.deps import get_session
+from backend.llm_client import LLMNotConfigured
 from backend.main import app
 from backend.models import Article, Category, Feed
+from backend.prompts import (
+    ArticleCategoryResult,
+    ArticleScoringResult,
+    BatchCategoryResponse,
+    BatchScoringResponse,
+)
 
 
 @pytest.fixture(name="test_engine")
@@ -92,7 +101,6 @@ def make_category_fixture(test_session: Session):
         defaults = {
             "display_name": f"Category {_counter}",
             "slug": f"category-{_counter}",
-            "is_seen": True,
         }
         defaults.update(overrides)
         category = Category(**defaults)
@@ -102,6 +110,104 @@ def make_category_fixture(test_session: Session):
         return category
 
     return _make
+
+
+class FakeLLMClient:
+    """Canned typed responses standing in for the Azure wrapper.
+
+    The wrapper is the single test seam (issue #89): queue an object to
+    return it, queue an exception to raise it. With nothing queued, one
+    plausible result is generated per article id found in the user message.
+    """
+
+    def __init__(self):
+        self.queued: dict[str, list] = {}
+        self.calls: list[dict] = []
+        self.configured = True
+        self.pauses: dict[str, float] = {}
+        self.batch_sizes = {"scoring": 5, "categorization": 10, "grouping": 1}
+
+    def queue(self, task: str, item) -> None:
+        """Queue a canned response (or exception) for the next call of a task."""
+        self.queued.setdefault(task, []).append(item)
+
+    # --- wrapper interface ---
+
+    def is_configured(self) -> bool:
+        return self.configured
+
+    def task_config(self, task: str) -> LLMTaskConfig:
+        if task not in self.batch_sizes:
+            raise LLMNotConfigured(f"No llm.tasks entry for task '{task}'")
+        return LLMTaskConfig(
+            deployment=f"{task}-deploy", batch_size=self.batch_sizes[task]
+        )
+
+    def batch_size(self, task: str) -> int:
+        return self.task_config(task).batch_size
+
+    def pause_remaining_for_task(self, task: str) -> float:
+        return self.pauses.get(task, 0.0)
+
+    async def close(self) -> None:
+        pass
+
+    async def complete(self, task, system_prompt, user_message, response_schema):
+        self.calls.append(
+            {
+                "task": task,
+                "system": system_prompt,
+                "user": user_message,
+                "schema": response_schema,
+            }
+        )
+        items = self.queued.get(task)
+        if items:
+            item = items.pop(0)
+            # BaseException covers asyncio.CancelledError too
+            if isinstance(item, BaseException):
+                raise item
+            return item
+
+        ids = [int(m) for m in re.findall(r"<article id:(\d+)>", user_message)]
+        if response_schema is BatchCategoryResponse:
+            return BatchCategoryResponse(
+                results=[
+                    ArticleCategoryResult(
+                        article_id=i,
+                        categories=["Technology"],
+                        suggested_new=[],
+                        suggested_parent=None,
+                    )
+                    for i in ids
+                ]
+            )
+        if response_schema is BatchScoringResponse:
+            return BatchScoringResponse(
+                results=[
+                    ArticleScoringResult(
+                        article_id=i,
+                        interest_score=7,
+                        quality_score=8,
+                        reasoning="test",
+                    )
+                    for i in ids
+                ]
+            )
+        raise AssertionError(
+            f"No canned response queued for task '{task}' ({response_schema})"
+        )
+
+
+@pytest.fixture(name="fake_llm")
+def fake_llm_fixture(monkeypatch):
+    """Replace the Azure wrapper singleton with a FakeLLMClient everywhere."""
+    fake = FakeLLMClient()
+    monkeypatch.setattr("backend.scoring_queue.llm_client", fake)
+    monkeypatch.setattr("backend.routers.scoring.llm_client", fake)
+    monkeypatch.setattr("backend.routers.categories.llm_client", fake)
+    monkeypatch.setattr("backend.scheduler.llm_client", fake)
+    return fake
 
 
 @pytest.fixture(name="test_client")
@@ -118,7 +224,7 @@ def test_client_fixture(test_engine, monkeypatch):
     async def _noop_close():
         pass
 
-    monkeypatch.setattr("backend.main.close_all_providers", _noop_close)
+    monkeypatch.setattr("backend.main.llm_client.close", _noop_close)
 
     def get_test_session():
         with Session(test_engine) as session:

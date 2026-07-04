@@ -156,11 +156,9 @@ class CategoryResponse(BaseModel):
     id: int
     display_name: str
     slug: str
-    weight: str | None
+    weight: str
     parent_id: int | None
-    is_hidden: bool
-    is_seen: bool
-    is_manually_created: bool
+    needs_triage: bool
     article_count: int
 
 
@@ -173,8 +171,7 @@ class CategoryUpdate(BaseModel):
     display_name: str | None = None
     parent_id: int | None = None
     weight: str | None = None
-    is_hidden: bool | None = None
-    is_seen: bool | None = None
+    needs_triage: bool | None = None
 
 
 class CategoryMerge(BaseModel):
@@ -195,52 +192,7 @@ class CategoryBatchAction(BaseModel):
     category_ids: list[int]
 
 
-# --- Providers ---
-
-
-class ProviderListItem(BaseModel):
-    provider: str
-
-
-class AvailableModel(BaseModel):
-    provider: str
-    name: str
-    size: int | None = None
-    parameter_size: str | None = None
-    quantization_level: str | None = None
-    is_loaded: bool | None = None
-
-
-class TaskRouteItem(BaseModel):
-    task: str
-    provider: str
-    model: str | None = None
-    batch_size: int | None = None
-
-
-class TaskRoutesResponse(BaseModel):
-    routes: list[TaskRouteItem]
-    use_separate_models: bool
-
-
-class TaskRouteAssignment(BaseModel):
-    provider: str
-    model: str
-    batch_size: int | None = None
-
-
-class TaskRoutesUpdate(BaseModel):
-    categorization: TaskRouteAssignment
-    scoring: TaskRouteAssignment
-    use_separate_models: bool
-
-
 # --- Auto-Group ---
-
-
-class AutoGroupRequest(BaseModel):
-    provider: str | None = None
-    model: str | None = None
 
 
 class GroupSuggestionItem(BaseModel):

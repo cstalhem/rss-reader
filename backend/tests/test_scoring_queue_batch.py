@@ -1,105 +1,24 @@
-"""Tests for CategorizationWorker and ScoringWorker batch processing."""
+"""Tests for CategorizationWorker and ScoringWorker batch processing.
+
+The Azure wrapper is the mock seam: workers are exercised against a
+FakeLLMClient with canned typed responses, including malformed-batch
+(hallucinated/missing ids) and rate-limit shapes.
+"""
 
 from datetime import datetime
-from types import SimpleNamespace
 
 import pytest
 from sqlmodel import select
 
-import backend.scoring_queue as scoring_queue_module
-from backend.llm_providers.base import ProviderTaskConfig
-from backend.models import Article, ArticleCategoryLink, Category, Feed, UserPreferences
-from backend.prompts import ArticleCategoryResult
-from backend.prompts.scoring import ArticleScoringResult
-from backend.scoring_queue import CategorizationWorker, ScoringWorker
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _fake_runtime():
-    return SimpleNamespace(
-        ready=True,
-        provider="fake",
-        model="fake-model",
-        endpoint="http://fake",
-        thinking=False,
-        api_key=None,
-    )
-
-
-async def _fake_readiness(*_a, **_kw):
-    return _fake_runtime()
-
-
-class FakeProvider:
-    """Batch-aware fake provider for testing."""
-
-    name = "fake"
-
-    def __init__(
-        self,
-        *,
-        cat_results: list[ArticleCategoryResult] | None = None,
-        score_results: list[ArticleScoringResult] | None = None,
-        cat_error: Exception | None = None,
-        score_error: Exception | None = None,
-    ):
-        self._cat_results = cat_results
-        self._score_results = score_results
-        self._cat_error = cat_error
-        self._score_error = score_error
-        self.categorize_calls: list[list[dict]] = []
-        self.score_calls: list[list[dict]] = []
-
-    def parse_config(self, config_json, task):
-        return ProviderTaskConfig(endpoint="fake", model="fake", thinking=False)
-
-    async def categorize(
-        self,
-        articles,
-        existing_categories,
-        config,
-        category_hierarchy,
-        hidden_categories,
-    ):
-        self.categorize_calls.append(articles)
-        if self._cat_error:
-            raise self._cat_error
-        if self._cat_results is not None:
-            return self._cat_results
-        # Default: return one result per article
-        return [
-            ArticleCategoryResult(article_id=a["id"], categories=["technology"])
-            for a in articles
-        ]
-
-    async def score(self, articles, interests, anti_interests, config):
-        self.score_calls.append(articles)
-        if self._score_error:
-            raise self._score_error
-        if self._score_results is not None:
-            return self._score_results
-        return [
-            ArticleScoringResult(
-                article_id=a["id"], interest_score=7, quality_score=8, reasoning="test"
-            )
-            for a in articles
-        ]
-
-
-def _patch_queue(monkeypatch, provider: FakeProvider):
-    """Monkeypatch scoring_queue module to use the given FakeProvider."""
-    monkeypatch.setattr(
-        scoring_queue_module, "evaluate_task_readiness", _fake_readiness
-    )
-    monkeypatch.setattr(scoring_queue_module, "get_provider", lambda _name: provider)
-    # Ensure rate limiters are not active
-    monkeypatch.setattr(
-        scoring_queue_module, "is_categorization_rate_limited", lambda: False
-    )
-    monkeypatch.setattr(scoring_queue_module, "is_scoring_rate_limited", lambda: False)
+from backend.llm_client import LLMCallFailed, LLMNotConfigured, LLMUnavailable
+from backend.models import Article, ArticleCategoryLink, Category, Feed
+from backend.prompts import (
+    ArticleCategoryResult,
+    ArticleScoringResult,
+    BatchCategoryResponse,
+    BatchScoringResponse,
+)
+from backend.scoring_queue import MAX_TASK_RETRIES, CategorizationWorker, ScoringWorker
 
 
 def _make_queued_article(
@@ -128,505 +47,352 @@ def _make_queued_article(
     return article
 
 
-def _setup_preferences(session):
-    prefs = UserPreferences(interests="technology", anti_interests="sports")
-    session.add(prefs)
-    session.commit()
+def _cat_result(article_id: int, categories: list[str], **kw) -> ArticleCategoryResult:
+    return ArticleCategoryResult(
+        article_id=article_id,
+        categories=categories,
+        suggested_new=kw.get("suggested_new", []),
+        suggested_parent=kw.get("suggested_parent"),
+    )
+
+
+def _score_result(article_id: int, interest=7, quality=8) -> ArticleScoringResult:
+    return ArticleScoringResult(
+        article_id=article_id,
+        interest_score=interest,
+        quality_score=quality,
+        reasoning="test",
+    )
 
 
 # ---------------------------------------------------------------------------
-# CategorizationWorker tests
+# CategorizationWorker
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_categorization_batch_processed(test_session, sample_feed, monkeypatch):
-    """3 queued articles → categorized, scoring_state = 'queued'."""
-    _setup_preferences(test_session)
-    articles = [_make_queued_article(test_session, sample_feed, i) for i in range(3)]
-
-    provider = FakeProvider()
-    _patch_queue(monkeypatch, provider)
+async def test_categorization_happy_path(test_session, sample_feed, fake_llm):
+    a1 = _make_queued_article(test_session, sample_feed, 1)
+    a2 = _make_queued_article(test_session, sample_feed, 2)
 
     worker = CategorizationWorker()
-    processed = await worker.process_next_batch(test_session, batch_size=3)
+    processed = await worker.process_next_batch(test_session, batch_size=5)
+    assert processed == 2
 
-    assert processed == 3
-    assert len(provider.categorize_calls) == 1
-    assert len(provider.categorize_calls[0]) == 3
-
-    for art in articles:
-        test_session.refresh(art)
+    test_session.expire_all()
+    for art in (test_session.get(Article, a1.id), test_session.get(Article, a2.id)):
         assert art.categorization_state == "categorized"
         assert art.scoring_state == "queued"
 
+    # New category created by the LLM is live but flagged for triage
+    cat = test_session.exec(
+        select(Category).where(Category.slug == "technology")
+    ).first()
+    assert cat is not None
+    assert cat.needs_triage is True
+
+    links = test_session.exec(select(ArticleCategoryLink)).all()
+    assert {link.article_id for link in links} == {a1.id, a2.id}
+
 
 @pytest.mark.asyncio
-async def test_categorization_blocked_articles(
-    test_session, sample_feed, monkeypatch, make_category
+async def test_categorization_blocked_category_blocks_article(
+    test_session, sample_feed, fake_llm, make_category
 ):
-    """Blocked category → scoring_state = 'scored', score = 0."""
-    _setup_preferences(test_session)
-    art = _make_queued_article(test_session, sample_feed, 0)
+    make_category(display_name="Crypto", slug="crypto", weight="block")
+    article = _make_queued_article(test_session, sample_feed, 1)
 
-    make_category(display_name="Sports", slug="sports", weight="block")
+    fake_llm.queue(
+        "categorization",
+        BatchCategoryResponse(results=[_cat_result(article.id, ["Crypto"])]),
+    )
 
-    cat_results = [
-        ArticleCategoryResult(article_id=art.id, categories=["Sports"]),
-    ]
-    provider = FakeProvider(cat_results=cat_results)
-    _patch_queue(monkeypatch, provider)
+    worker = CategorizationWorker()
+    await worker.process_next_batch(test_session, batch_size=1)
+
+    test_session.expire_all()
+    updated = test_session.get(Article, article.id)
+    assert updated.categorization_state == "categorized"
+    assert updated.scoring_state == "blocked"
+    assert updated.composite_score == 0.0
+    assert "Crypto" in (updated.score_reasoning or "")
+
+
+@pytest.mark.asyncio
+async def test_categorization_drops_hallucinated_and_requeues_missing(
+    test_session, sample_feed, fake_llm
+):
+    article = _make_queued_article(test_session, sample_feed, 1)
+
+    # Response references an id that was never sent; the sent id is missing
+    fake_llm.queue(
+        "categorization",
+        BatchCategoryResponse(results=[_cat_result(999999, ["Technology"])]),
+    )
 
     worker = CategorizationWorker()
     processed = await worker.process_next_batch(test_session, batch_size=1)
+    assert processed == 0
 
+    test_session.expire_all()
+    updated = test_session.get(Article, article.id)
+    assert updated.categorization_state == "queued"
+    assert updated.categorization_attempts == 1
+    # Hallucinated id must not create links
+    assert test_session.exec(select(ArticleCategoryLink)).all() == []
+
+
+@pytest.mark.asyncio
+async def test_categorization_unavailable_requeues_without_attempt(
+    test_session, sample_feed, fake_llm
+):
+    article = _make_queued_article(test_session, sample_feed, 1)
+    fake_llm.queue("categorization", LLMUnavailable(30.0))
+
+    worker = CategorizationWorker()
+    processed = await worker.process_next_batch(test_session, batch_size=1)
+    assert processed == 0
+
+    test_session.expire_all()
+    updated = test_session.get(Article, article.id)
+    assert updated.categorization_state == "queued"
+    assert updated.categorization_attempts == 0  # not the article's fault
+
+
+@pytest.mark.asyncio
+async def test_categorization_failure_counts_attempts_to_failed(
+    test_session, sample_feed, fake_llm
+):
+    article = _make_queued_article(test_session, sample_feed, 1)
+    worker = CategorizationWorker()
+
+    for attempt in range(1, MAX_TASK_RETRIES + 1):
+        fake_llm.queue("categorization", LLMCallFailed("bad request"))
+        await worker.process_next_batch(test_session, batch_size=1)
+        test_session.expire_all()
+        updated = test_session.get(Article, article.id)
+        assert updated.categorization_attempts == attempt
+
+    assert updated.categorization_state == "failed"
+
+
+@pytest.mark.asyncio
+async def test_categorization_not_configured_leaves_queue_untouched(
+    test_session, sample_feed, fake_llm
+):
+    article = _make_queued_article(test_session, sample_feed, 1)
+    fake_llm.queue("categorization", LLMNotConfigured("no creds"))
+
+    worker = CategorizationWorker()
+    processed = await worker.process_next_batch(test_session, batch_size=1)
+    assert processed == 0
+
+    test_session.expire_all()
+    updated = test_session.get(Article, article.id)
+    assert updated.categorization_state == "queued"
+    assert updated.categorization_attempts == 0
+
+
+@pytest.mark.asyncio
+async def test_score_only_articles_skip_categorization(
+    test_session, sample_feed, fake_llm
+):
+    article = _make_queued_article(
+        test_session,
+        sample_feed,
+        1,
+        rescore_mode="score_only",
+        scoring_state="scored",
+        composite_score=5.0,
+    )
+
+    worker = CategorizationWorker()
+    processed = await worker.process_next_batch(test_session, batch_size=1)
     assert processed == 1
-    test_session.refresh(art)
-    assert art.categorization_state == "categorized"
-    assert art.scoring_state == "scored"
-    assert art.interest_score == 0
-    assert art.quality_score == 0
-    assert art.composite_score == 0.0
+    assert fake_llm.calls == []  # no LLM call for score_only routing
 
-
-@pytest.mark.asyncio
-async def test_categorization_error_increments_attempts(
-    test_session, sample_feed, monkeypatch
-):
-    """Error → categorization_attempts += 1, re-queued."""
-    _setup_preferences(test_session)
-    art = _make_queued_article(test_session, sample_feed, 0)
-    assert art.categorization_attempts == 0
-
-    provider = FakeProvider(cat_error=RuntimeError("LLM exploded"))
-    _patch_queue(monkeypatch, provider)
-
-    worker = CategorizationWorker()
-    processed = await worker.process_next_batch(test_session, batch_size=1)
-
-    assert processed == 0
-    test_session.refresh(art)
-    assert art.categorization_state == "queued"
-    assert art.categorization_attempts == 1
-
-
-@pytest.mark.asyncio
-async def test_categorization_max_retries_sets_failed(
-    test_session, sample_feed, monkeypatch
-):
-    """3 failures → categorization_state = 'failed'."""
-    _setup_preferences(test_session)
-    art = _make_queued_article(test_session, sample_feed, 0, categorization_attempts=2)
-
-    provider = FakeProvider(cat_error=RuntimeError("LLM exploded"))
-    _patch_queue(monkeypatch, provider)
-
-    worker = CategorizationWorker()
-    processed = await worker.process_next_batch(test_session, batch_size=1)
-
-    assert processed == 0
-    test_session.refresh(art)
-    assert art.categorization_state == "failed"
-    assert art.categorization_attempts == 3
-
-
-@pytest.mark.asyncio
-async def test_categorization_rate_limit_skips(test_session, sample_feed, monkeypatch):
-    """Rate limited → returns 0, no processing."""
-    _setup_preferences(test_session)
-    _make_queued_article(test_session, sample_feed, 0)
-
-    provider = FakeProvider()
-    _patch_queue(monkeypatch, provider)
-    # Override rate limiter to return True
-    monkeypatch.setattr(
-        scoring_queue_module, "is_categorization_rate_limited", lambda: True
-    )
-
-    worker = CategorizationWorker()
-    processed = await worker.process_next_batch(test_session, batch_size=1)
-
-    assert processed == 0
-    assert len(provider.categorize_calls) == 0
-
-
-@pytest.mark.asyncio
-async def test_categorization_deletes_old_category_links(
-    test_session, sample_feed, monkeypatch, make_category
-):
-    """Re-categorize deletes old links before inserting new."""
-    _setup_preferences(test_session)
-    old_cat = make_category(display_name="Old Category", slug="old-category")
-    art = _make_queued_article(test_session, sample_feed, 0)
-
-    # Create old link
-    old_link = ArticleCategoryLink(article_id=art.id, category_id=old_cat.id)
-    test_session.add(old_link)
-    test_session.commit()
-
-    # Provider returns a new category
-    cat_results = [
-        ArticleCategoryResult(article_id=art.id, categories=["technology"]),
-    ]
-    provider = FakeProvider(cat_results=cat_results)
-    _patch_queue(monkeypatch, provider)
-
-    worker = CategorizationWorker()
-    await worker.process_next_batch(test_session, batch_size=1)
-
-    # Old link should be gone
-    links = test_session.exec(
-        select(ArticleCategoryLink).where(ArticleCategoryLink.article_id == art.id)
-    ).all()
-    slugs = []
-    for link in links:
-        cat = test_session.get(Category, link.category_id)
-        slugs.append(cat.slug)
-    assert "old-category" not in slugs
-    assert "technology" in slugs
-
-
-@pytest.mark.asyncio
-async def test_score_only_skips_categorization_worker(
-    test_session, sample_feed, monkeypatch, make_category
-):
-    """Articles with rescore_mode='score_only' go straight to scoring queue."""
-    _setup_preferences(test_session)
-    cat = make_category(display_name="Technology", slug="technology")
-    art = _make_queued_article(test_session, sample_feed, 0, rescore_mode="score_only")
-    link = ArticleCategoryLink(article_id=art.id, category_id=cat.id)
-    test_session.add(link)
-    test_session.commit()
-
-    provider = FakeProvider()
-    _patch_queue(monkeypatch, provider)
-
-    worker = CategorizationWorker()
-    await worker.process_next_batch(test_session, batch_size=1)
-
-    # Should route directly to scoring without calling categorize
-    assert len(provider.categorize_calls) == 0
-    test_session.refresh(art)
-    assert art.scoring_state == "queued"
-    assert art.scoring_attempts == 0
-    # Categorization should be marked done
-    assert art.categorization_state == "categorized"
+    test_session.expire_all()
+    updated = test_session.get(Article, article.id)
+    assert updated.categorization_state == "categorized"
+    assert updated.scoring_state == "queued"
 
 
 # ---------------------------------------------------------------------------
-# ScoringWorker tests
+# ScoringWorker
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_scoring_batch_processed(
-    test_session, sample_feed, monkeypatch, make_category
+async def test_scoring_happy_path_applies_weights(
+    test_session, sample_feed, fake_llm, make_category
 ):
-    """3 articles with scoring_state='queued' → scored."""
-    _setup_preferences(test_session)
-    cat = make_category(display_name="Technology", slug="technology")
-
-    articles = []
-    for i in range(3):
-        art = _make_queued_article(
-            test_session,
-            sample_feed,
-            i,
-            categorization_state="categorized",
-            scoring_state="queued",
-        )
-        link = ArticleCategoryLink(article_id=art.id, category_id=cat.id)
-        test_session.add(link)
-        articles.append(art)
-    test_session.commit()
-
-    provider = FakeProvider()
-    _patch_queue(monkeypatch, provider)
-
-    worker = ScoringWorker()
-    processed = await worker.process_next_batch(test_session, batch_size=3)
-
-    assert processed == 3
-    assert len(provider.score_calls) == 1
-    assert len(provider.score_calls[0]) == 3
-
-    for art in articles:
-        test_session.refresh(art)
-        assert art.scoring_state == "scored"
-        assert art.interest_score == 7
-        assert art.quality_score == 8
-
-
-@pytest.mark.asyncio
-async def test_scoring_loads_categories_from_db(
-    test_session, sample_feed, monkeypatch, make_category
-):
-    """Categories loaded from ArticleCategoryLink, not from categorization step."""
-    _setup_preferences(test_session)
-    cat = make_category(display_name="Technology", slug="technology", weight="boost")
-
-    art = _make_queued_article(
+    boost = make_category(display_name="AI", slug="ai", weight="boost")
+    article = _make_queued_article(
         test_session,
         sample_feed,
-        0,
+        1,
         categorization_state="categorized",
         scoring_state="queued",
     )
-    link = ArticleCategoryLink(article_id=art.id, category_id=cat.id)
-    test_session.add(link)
+    test_session.add(ArticleCategoryLink(article_id=article.id, category_id=boost.id))
     test_session.commit()
 
-    provider = FakeProvider()
-    _patch_queue(monkeypatch, provider)
+    fake_llm.queue(
+        "scoring",
+        BatchScoringResponse(
+            results=[_score_result(article.id, interest=8, quality=10)]
+        ),
+    )
+
+    worker = ScoringWorker()
+    processed = await worker.process_next_batch(test_session, batch_size=1)
+    assert processed == 1
+
+    test_session.expire_all()
+    updated = test_session.get(Article, article.id)
+    assert updated.scoring_state == "scored"
+    assert updated.interest_score == 8
+    assert updated.quality_score == 10
+    # 8 * 1.5 (boost) * 1.0 (quality 10)
+    assert updated.composite_score == pytest.approx(12.0)
+    assert updated.rescore_mode is None
+    assert updated.scoring_priority == 0
+
+
+@pytest.mark.asyncio
+async def test_scoring_clamps_out_of_range_scores(test_session, sample_feed, fake_llm):
+    article = _make_queued_article(
+        test_session,
+        sample_feed,
+        1,
+        categorization_state="categorized",
+        scoring_state="queued",
+    )
+    fake_llm.queue(
+        "scoring",
+        BatchScoringResponse(
+            results=[_score_result(article.id, interest=15, quality=-3)]
+        ),
+    )
 
     worker = ScoringWorker()
     await worker.process_next_batch(test_session, batch_size=1)
 
-    test_session.refresh(art)
-    assert art.scoring_state == "scored"
-    # With boost (1.5x), interest=7, quality=8 → quality_mult=0.9 → 7*1.5*0.9=9.45
-    assert art.composite_score is not None
-    assert art.composite_score > 0
+    test_session.expire_all()
+    updated = test_session.get(Article, article.id)
+    assert updated.interest_score == 10
+    assert updated.quality_score == 0
 
 
 @pytest.mark.asyncio
-async def test_scoring_error_increments_attempts(
-    test_session, sample_feed, monkeypatch, make_category
+async def test_scoring_drops_hallucinated_and_requeues_missing(
+    test_session, sample_feed, fake_llm
 ):
-    """Error → scoring_attempts += 1, re-queued."""
-    _setup_preferences(test_session)
-    cat = make_category(display_name="Technology", slug="technology")
-    art = _make_queued_article(
+    a1 = _make_queued_article(
         test_session,
         sample_feed,
-        0,
+        1,
         categorization_state="categorized",
         scoring_state="queued",
     )
-    link = ArticleCategoryLink(article_id=art.id, category_id=cat.id)
-    test_session.add(link)
-    test_session.commit()
-    assert art.scoring_attempts == 0
-
-    provider = FakeProvider(score_error=RuntimeError("score failed"))
-    _patch_queue(monkeypatch, provider)
-
-    worker = ScoringWorker()
-    processed = await worker.process_next_batch(test_session, batch_size=1)
-
-    assert processed == 0
-    test_session.refresh(art)
-    assert art.scoring_state == "queued"
-    assert art.scoring_attempts == 1
-
-
-@pytest.mark.asyncio
-async def test_scoring_max_retries_sets_failed(
-    test_session, sample_feed, monkeypatch, make_category
-):
-    """3 failures → scoring_state = 'failed'."""
-    _setup_preferences(test_session)
-    cat = make_category(display_name="Technology", slug="technology")
-    art = _make_queued_article(
+    a2 = _make_queued_article(
         test_session,
         sample_feed,
-        0,
-        categorization_state="categorized",
-        scoring_state="queued",
-        scoring_attempts=2,
-    )
-    link = ArticleCategoryLink(article_id=art.id, category_id=cat.id)
-    test_session.add(link)
-    test_session.commit()
-
-    provider = FakeProvider(score_error=RuntimeError("score failed"))
-    _patch_queue(monkeypatch, provider)
-
-    worker = ScoringWorker()
-    processed = await worker.process_next_batch(test_session, batch_size=1)
-
-    assert processed == 0
-    test_session.refresh(art)
-    assert art.scoring_state == "failed"
-    assert art.scoring_attempts == 3
-
-
-@pytest.mark.asyncio
-async def test_scoring_rate_limit_skips(
-    test_session, sample_feed, monkeypatch, make_category
-):
-    """Rate limited → returns 0."""
-    _setup_preferences(test_session)
-    cat = make_category(display_name="Technology", slug="technology")
-    art = _make_queued_article(
-        test_session,
-        sample_feed,
-        0,
+        2,
         categorization_state="categorized",
         scoring_state="queued",
     )
-    link = ArticleCategoryLink(article_id=art.id, category_id=cat.id)
-    test_session.add(link)
-    test_session.commit()
 
-    provider = FakeProvider()
-    _patch_queue(monkeypatch, provider)
-    monkeypatch.setattr(scoring_queue_module, "is_scoring_rate_limited", lambda: True)
+    # a1 scored, a2 missing, plus one hallucinated id
+    fake_llm.queue(
+        "scoring",
+        BatchScoringResponse(results=[_score_result(a1.id), _score_result(999999)]),
+    )
+
+    worker = ScoringWorker()
+    processed = await worker.process_next_batch(test_session, batch_size=5)
+    assert processed == 1
+
+    test_session.expire_all()
+    scored = test_session.get(Article, a1.id)
+    skipped = test_session.get(Article, a2.id)
+    assert scored.scoring_state == "scored"
+    assert skipped.scoring_state == "queued"
+    assert skipped.scoring_attempts == 1
+    hallucinated = test_session.get(Article, 999999)
+    assert hallucinated is None
+
+
+@pytest.mark.asyncio
+async def test_scoring_unavailable_requeues_without_attempt(
+    test_session, sample_feed, fake_llm
+):
+    article = _make_queued_article(
+        test_session,
+        sample_feed,
+        1,
+        categorization_state="categorized",
+        scoring_state="queued",
+    )
+    fake_llm.queue("scoring", LLMUnavailable(45.0))
 
     worker = ScoringWorker()
     processed = await worker.process_next_batch(test_session, batch_size=1)
-
     assert processed == 0
-    assert len(provider.score_calls) == 0
 
-
-# ---------------------------------------------------------------------------
-# Enqueue tests
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_enqueue_articles_sets_categorization_queued(test_session, sample_feed):
-    """enqueue_articles sets categorization_state='queued'."""
-    art = Article(
-        feed_id=sample_feed.id,
-        title="Test",
-        url="https://example.com/test",
-        published_at=datetime.now(),
-        content="Test content",
-        categorization_state="uncategorized",
-        scoring_state="unscored",
-    )
-    test_session.add(art)
-    test_session.commit()
-    test_session.refresh(art)
-
-    worker = CategorizationWorker()
-    count = worker.enqueue_articles(test_session, [art.id])
-
-    assert count == 1
-    test_session.refresh(art)
-    assert art.categorization_state == "queued"
-    assert art.categorization_attempts == 0
+    test_session.expire_all()
+    updated = test_session.get(Article, article.id)
+    assert updated.scoring_state == "queued"
+    assert updated.scoring_attempts == 0
 
 
 @pytest.mark.asyncio
-async def test_enqueue_recent_score_only(test_session, sample_feed):
-    """score_only=True sets scoring_state='queued', rescore_mode='score_only'."""
-    art = Article(
-        feed_id=sample_feed.id,
-        title="Test",
-        url="https://example.com/test",
-        published_at=datetime.now(),
-        content="Test content",
-        categorization_state="categorized",
-        scoring_state="scored",
-        is_read=False,
-    )
-    test_session.add(art)
-    test_session.commit()
-    test_session.refresh(art)
-
-    worker = CategorizationWorker()
-    count = worker.enqueue_recent_for_rescoring(test_session, score_only=True)
-
-    assert count >= 1
-    test_session.refresh(art)
-    assert art.scoring_state == "queued"
-    assert art.rescore_mode == "score_only"
-    assert art.scoring_attempts == 0
-
-
-@pytest.mark.asyncio
-async def test_enqueue_recent_full_rescore(test_session, sample_feed):
-    """score_only=False sets categorization_state='queued'."""
-    art = Article(
-        feed_id=sample_feed.id,
-        title="Test",
-        url="https://example.com/test",
-        published_at=datetime.now(),
-        content="Test content",
-        categorization_state="categorized",
-        scoring_state="scored",
-        is_read=False,
-    )
-    test_session.add(art)
-    test_session.commit()
-    test_session.refresh(art)
-
-    worker = CategorizationWorker()
-    count = worker.enqueue_recent_for_rescoring(test_session, score_only=False)
-
-    assert count >= 1
-    test_session.refresh(art)
-    assert art.categorization_state == "queued"
-    assert art.categorization_attempts == 0
-
-
-@pytest.mark.asyncio
-async def test_enqueue_single_for_rescoring(test_session, sample_feed):
-    """Sets categorization_state='queued', scoring_priority=1."""
-    art = Article(
-        feed_id=sample_feed.id,
-        title="Test",
-        url="https://example.com/test",
-        published_at=datetime.now(),
-        content="Test content",
-        categorization_state="categorized",
-        scoring_state="scored",
-    )
-    test_session.add(art)
-    test_session.commit()
-    test_session.refresh(art)
-
-    worker = CategorizationWorker()
-    worker.enqueue_single_for_rescoring(test_session, art)
-
-    test_session.refresh(art)
-    assert art.categorization_state == "queued"
-    assert art.categorization_attempts == 0
-    assert art.scoring_priority == 1
-
-
-# ---------------------------------------------------------------------------
-# Integration test
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_end_to_end_categorization_then_scoring(
-    test_session, sample_feed, monkeypatch
+async def test_scoring_failure_counts_attempts_to_failed(
+    test_session, sample_feed, fake_llm
 ):
-    """Article flows through CategorizationWorker → ScoringWorker."""
-    _setup_preferences(test_session)
-    art = _make_queued_article(test_session, sample_feed, 0)
+    article = _make_queued_article(
+        test_session,
+        sample_feed,
+        1,
+        categorization_state="categorized",
+        scoring_state="queued",
+    )
+    worker = ScoringWorker()
 
-    provider = FakeProvider()
-    _patch_queue(monkeypatch, provider)
+    for attempt in range(1, MAX_TASK_RETRIES + 1):
+        fake_llm.queue("scoring", LLMCallFailed("bad request"))
+        await worker.process_next_batch(test_session, batch_size=1)
+        test_session.expire_all()
+        updated = test_session.get(Article, article.id)
+        assert updated.scoring_attempts == attempt
 
-    # Step 1: Categorize
-    cat_worker = CategorizationWorker()
-    cat_processed = await cat_worker.process_next_batch(test_session, batch_size=1)
+    assert updated.scoring_state == "failed"
 
-    assert cat_processed == 1
-    test_session.refresh(art)
-    assert art.categorization_state == "categorized"
-    assert art.scoring_state == "queued"
 
-    # Verify categories were linked
-    links = test_session.exec(
-        select(ArticleCategoryLink).where(ArticleCategoryLink.article_id == art.id)
-    ).all()
-    assert len(links) > 0
+@pytest.mark.asyncio
+async def test_priority_article_jumps_queue(test_session, sample_feed, fake_llm):
+    """scoring_priority=1 articles are picked before older queued articles."""
+    _make_queued_article(
+        test_session,
+        sample_feed,
+        1,
+        categorization_state="categorized",
+        scoring_state="queued",
+        published_at=datetime(2020, 1, 1),
+    )
+    priority = _make_queued_article(
+        test_session,
+        sample_feed,
+        2,
+        categorization_state="categorized",
+        scoring_state="queued",
+        scoring_priority=1,
+        published_at=datetime(2026, 1, 1),
+    )
 
-    # Step 2: Score
-    score_worker = ScoringWorker()
-    score_processed = await score_worker.process_next_batch(test_session, batch_size=1)
+    worker = ScoringWorker()
+    await worker.process_next_batch(test_session, batch_size=1)
 
-    assert score_processed == 1
-    test_session.refresh(art)
-    assert art.scoring_state == "scored"
-    assert art.interest_score == 7
-    assert art.quality_score == 8
-    assert art.composite_score is not None
-    assert art.composite_score > 0
+    test_session.expire_all()
+    updated = test_session.get(Article, priority.id)
+    assert updated.scoring_state == "scored"

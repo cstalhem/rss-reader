@@ -58,15 +58,6 @@ class TestBuildBatchCategorizationPrompt:
         )
         assert "Technology > AI, Programming" in system_prompt
 
-    def test_hidden_categories_included_when_provided(self):
-        system_prompt, _ = build_batch_categorization_prompt(
-            articles=SAMPLE_ARTICLES,
-            existing_categories=EXISTING_CATEGORIES,
-            hidden_categories=["Politics", "Sports"],
-        )
-        assert "Politics" in system_prompt
-        assert "Sports" in system_prompt
-
 
 class TestBuildBatchScoringPrompt:
     def test_returns_tuple(self):

@@ -35,6 +35,24 @@ class SchedulerConfig(BaseModel):
     log_job_execution: bool = False
 
 
+class LLMTaskConfig(BaseModel):
+    """Per-task Azure deployment routing."""
+
+    deployment: str
+    batch_size: int = 5
+
+
+class LLMConfig(BaseModel):
+    """Azure OpenAI configuration (ADR-0002).
+
+    Deployment routing and batch sizes live here; endpoint and API key
+    come from env vars only (AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_API_KEY).
+    """
+
+    api_version: str = "2024-10-21"
+    tasks: dict[str, LLMTaskConfig] = {}
+
+
 class Settings(BaseSettings):
     """Application settings with nested configuration sections.
 
@@ -57,6 +75,12 @@ class Settings(BaseSettings):
     database: DatabaseConfig = DatabaseConfig()
     logging: LoggingConfig = LoggingConfig()
     scheduler: SchedulerConfig = SchedulerConfig()
+    llm: LLMConfig = LLMConfig()
+
+    # Azure credentials — env only (AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_API_KEY),
+    # never the YAML file. Missing values degrade scoring, not the app.
+    azure_openai_endpoint: str | None = None
+    azure_openai_api_key: str | None = None
 
     @classmethod
     def settings_customise_sources(
