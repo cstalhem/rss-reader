@@ -239,6 +239,107 @@ class CategorizationWorker:
                 user_message,
                 BatchCategoryResponse,
             )
+
+            # Build result map, dropping hallucinated IDs
+            cat_result_map = {
+                result.article_id: result
+                for result in response.results
+                if result.article_id in batch_ids
+            }
+            dropped = len(response.results) - len(cat_result_map)
+            if dropped:
+                logger.warning(
+                    "Categorization returned %d result(s) with unknown article ids; dropped",
+                    dropped,
+                )
+
+            # Resolve categories, creating new ones flagged for triage
+            categories_by_article: dict[int, list[Category]] = {
+                aid: [] for aid in batch_ids
+            }
+
+            seen_slugs: dict[str, Category] = {}
+            with session.no_autoflush:
+                for aid, categorization in cat_result_map.items():
+                    for cat_name in categorization.categories:
+                        slug = slugify(cat_name)
+                        if slug not in seen_slugs:
+                            seen_slugs[slug] = get_or_create_category(session, cat_name)
+                        categories_by_article[aid].append(seen_slugs[slug])
+
+                    for cat_name in categorization.suggested_new:
+                        slug = slugify(cat_name)
+                        if slug not in seen_slugs:
+                            seen_slugs[slug] = get_or_create_category(
+                                session,
+                                cat_name,
+                                suggested_parent=categorization.suggested_parent,
+                            )
+                        categories_by_article[aid].append(seen_slugs[slug])
+
+            session.commit()  # persist new categories, get IDs
+
+            # Replace category links for matched articles
+            for aid in cat_result_map:
+                old_links = session.exec(
+                    select(ArticleCategoryLink).where(
+                        ArticleCategoryLink.article_id == aid,
+                    )
+                ).all()
+                for old_link in old_links:
+                    session.delete(old_link)
+
+                for category in categories_by_article[aid]:
+                    link = ArticleCategoryLink(
+                        article_id=aid,  # pyright: ignore[reportArgumentType]
+                        category_id=category.id,  # pyright: ignore[reportArgumentType]
+                    )
+                    session.add(link)
+
+            session.commit()
+
+            # Route categorized articles: blocked → 'blocked', others → scoring queue
+            processed = len(score_only_articles)
+            for aid in batch_ids:
+                art = article_map[aid]
+
+                if aid not in cat_result_map:
+                    # Missing from the response — the model skipped it
+                    art.categorization_attempts += 1
+                    if art.categorization_attempts >= MAX_TASK_RETRIES:
+                        art.categorization_state = "failed"
+                    else:
+                        art.categorization_state = "queued"
+                    session.add(art)
+                    logger.warning(
+                        "Article %s: no categorization result, re-queued", aid
+                    )
+                    continue
+
+                cat_list = categories_by_article[aid]
+                art.categorization_state = "categorized"
+
+                if is_blocked(cat_list):
+                    art.interest_score = 0
+                    art.quality_score = 0
+                    art.composite_score = 0.0
+                    blocked_cats = ", ".join(c.display_name for c in cat_list)
+                    art.score_reasoning = f"Blocked: {blocked_cats}"
+                    art.scoring_state = "blocked"
+                    art.scored_at = datetime.now()
+                    art.scoring_priority = 0
+                    art.rescore_mode = None
+                    logger.info(f"Article {aid} blocked by categories: {blocked_cats}")
+                else:
+                    art.scoring_state = "queued"
+                    art.scoring_attempts = 0
+
+                session.add(art)
+                processed += 1
+
+            session.commit()
+            _set_activity(TASK_CATEGORIZATION, None, "idle")
+            return processed
         except asyncio.CancelledError:
             logger.info("Categorization cancelled; re-queueing batch")
             _set_activity(TASK_CATEGORIZATION, None, "idle")
@@ -269,105 +370,14 @@ class CategorizationWorker:
             logger.error("Categorization failed: %s", e)
             _requeue_batch(count_attempt=True)
             return len(score_only_articles)
-
-        # Build result map, dropping hallucinated IDs
-        cat_result_map = {
-            result.article_id: result
-            for result in response.results
-            if result.article_id in batch_ids
-        }
-        dropped = len(response.results) - len(cat_result_map)
-        if dropped:
-            logger.warning(
-                "Categorization returned %d result(s) with unknown article ids; dropped",
-                dropped,
-            )
-
-        # Resolve categories, creating new ones flagged for triage
-        categories_by_article: dict[int, list[Category]] = {
-            aid: [] for aid in batch_ids
-        }
-
-        seen_slugs: dict[str, Category] = {}
-        with session.no_autoflush:
-            for aid, categorization in cat_result_map.items():
-                for cat_name in categorization.categories:
-                    slug = slugify(cat_name)
-                    if slug not in seen_slugs:
-                        seen_slugs[slug] = get_or_create_category(session, cat_name)
-                    categories_by_article[aid].append(seen_slugs[slug])
-
-                for cat_name in categorization.suggested_new:
-                    slug = slugify(cat_name)
-                    if slug not in seen_slugs:
-                        seen_slugs[slug] = get_or_create_category(
-                            session,
-                            cat_name,
-                            suggested_parent=categorization.suggested_parent,
-                        )
-                    categories_by_article[aid].append(seen_slugs[slug])
-
-        session.commit()  # persist new categories, get IDs
-
-        # Replace category links for matched articles
-        for aid in cat_result_map:
-            old_links = session.exec(
-                select(ArticleCategoryLink).where(
-                    ArticleCategoryLink.article_id == aid,
-                )
-            ).all()
-            for old_link in old_links:
-                session.delete(old_link)
-
-            for category in categories_by_article[aid]:
-                link = ArticleCategoryLink(
-                    article_id=aid,  # pyright: ignore[reportArgumentType]
-                    category_id=category.id,  # pyright: ignore[reportArgumentType]
-                )
-                session.add(link)
-
-        session.commit()
-
-        # Route categorized articles: blocked → 'blocked', others → scoring queue
-        processed = len(score_only_articles)
-        for aid in batch_ids:
-            art = article_map[aid]
-
-            if aid not in cat_result_map:
-                # Missing from the response — the model skipped it
-                art.categorization_attempts += 1
-                if art.categorization_attempts >= MAX_TASK_RETRIES:
-                    art.categorization_state = "failed"
-                else:
-                    art.categorization_state = "queued"
-                session.add(art)
-                logger.warning("Article %s: no categorization result, re-queued", aid)
-                continue
-
-            cat_list = categories_by_article[aid]
-            art.categorization_state = "categorized"
-
-            if is_blocked(cat_list):
-                art.interest_score = 0
-                art.quality_score = 0
-                art.composite_score = 0.0
-                blocked_cats = ", ".join(c.display_name for c in cat_list)
-                art.score_reasoning = f"Blocked: {blocked_cats}"
-                art.scoring_state = "blocked"
-                art.scored_at = datetime.now()
-                art.scoring_priority = 0
-                art.rescore_mode = None
-                logger.info(f"Article {aid} blocked by categories: {blocked_cats}")
-            else:
-                art.scoring_state = "queued"
-                art.scoring_attempts = 0
-
-            session.add(art)
-            processed += 1
-
-        session.commit()
-        _set_activity(TASK_CATEGORIZATION, None, "idle")
-        return processed
+        except Exception:
+            # Safety net: never strand a batch in 'categorizing' (stuck until
+            # restart) — requeue without burning an attempt, then propagate.
+            _set_activity(TASK_CATEGORIZATION, None, "idle")
+            logger.exception("Unexpected categorization failure; re-queueing batch")
+            session.rollback()
+            _requeue_batch(count_attempt=False)
+            raise
 
 
 class ScoringWorker:
@@ -457,6 +467,64 @@ class ScoringWorker:
                 user_message,
                 BatchScoringResponse,
             )
+
+            # Build result map, dropping hallucinated IDs
+            score_result_map = {
+                result.article_id: result
+                for result in response.results
+                if result.article_id in batch_ids
+            }
+            dropped = len(response.results) - len(score_result_map)
+            if dropped:
+                logger.warning(
+                    "Scoring returned %d result(s) with unknown article ids; dropped",
+                    dropped,
+                )
+
+            # Apply scores
+            processed = 0
+            for aid, scoring in score_result_map.items():
+                art = article_map[aid]
+                # Ranges are prompt-enforced, not schema-enforced — clamp defensively
+                interest = max(0, min(10, scoring.interest_score))
+                quality = max(0, min(10, scoring.quality_score))
+                art.interest_score = interest
+                art.quality_score = quality
+                art.score_reasoning = scoring.reasoning
+                art.composite_score = compute_composite_score(
+                    interest,
+                    quality,
+                    categories_by_article.get(aid, []),
+                )
+                art.scoring_state = "scored"
+                art.scored_at = datetime.now()
+                art.scoring_priority = 0
+                art.scoring_attempts = 0
+                art.rescore_mode = None
+                session.add(art)
+                logger.info(
+                    f"Article {aid} scored: "
+                    f"interest={art.interest_score}, "
+                    f"quality={art.quality_score}, "
+                    f"composite={art.composite_score:.2f}"
+                )
+                processed += 1
+
+            # Re-queue articles the model skipped
+            for aid in batch_ids:
+                if aid not in score_result_map:
+                    art = article_map[aid]
+                    art.scoring_attempts += 1
+                    if art.scoring_attempts >= MAX_TASK_RETRIES:
+                        art.scoring_state = "failed"
+                    else:
+                        art.scoring_state = "queued"
+                    session.add(art)
+                    logger.warning("Article %s: no score result, re-queued", aid)
+
+            session.commit()
+            _set_activity(TASK_SCORING, None, "idle")
+            return processed
         except asyncio.CancelledError:
             logger.info("Scoring cancelled; re-queueing batch")
             _set_activity(TASK_SCORING, None, "idle")
@@ -487,61 +555,11 @@ class ScoringWorker:
             logger.error("Scoring failed: %s", e)
             _requeue_batch(count_attempt=True)
             return 0
-
-        # Build result map, dropping hallucinated IDs
-        score_result_map = {
-            result.article_id: result
-            for result in response.results
-            if result.article_id in batch_ids
-        }
-        dropped = len(response.results) - len(score_result_map)
-        if dropped:
-            logger.warning(
-                "Scoring returned %d result(s) with unknown article ids; dropped",
-                dropped,
-            )
-
-        # Apply scores
-        processed = 0
-        for aid, scoring in score_result_map.items():
-            art = article_map[aid]
-            # Ranges are prompt-enforced, not schema-enforced — clamp defensively
-            interest = max(0, min(10, scoring.interest_score))
-            quality = max(0, min(10, scoring.quality_score))
-            art.interest_score = interest
-            art.quality_score = quality
-            art.score_reasoning = scoring.reasoning
-            art.composite_score = compute_composite_score(
-                interest,
-                quality,
-                categories_by_article.get(aid, []),
-            )
-            art.scoring_state = "scored"
-            art.scored_at = datetime.now()
-            art.scoring_priority = 0
-            art.scoring_attempts = 0
-            art.rescore_mode = None
-            session.add(art)
-            logger.info(
-                f"Article {aid} scored: "
-                f"interest={art.interest_score}, "
-                f"quality={art.quality_score}, "
-                f"composite={art.composite_score:.2f}"
-            )
-            processed += 1
-
-        # Re-queue articles the model skipped
-        for aid in batch_ids:
-            if aid not in score_result_map:
-                art = article_map[aid]
-                art.scoring_attempts += 1
-                if art.scoring_attempts >= MAX_TASK_RETRIES:
-                    art.scoring_state = "failed"
-                else:
-                    art.scoring_state = "queued"
-                session.add(art)
-                logger.warning("Article %s: no score result, re-queued", aid)
-
-        session.commit()
-        _set_activity(TASK_SCORING, None, "idle")
-        return processed
+        except Exception:
+            # Safety net: never strand a batch in 'scoring' (stuck until
+            # restart) — requeue without burning an attempt, then propagate.
+            _set_activity(TASK_SCORING, None, "idle")
+            logger.exception("Unexpected scoring failure; re-queueing batch")
+            session.rollback()
+            _requeue_batch(count_attempt=False)
+            raise

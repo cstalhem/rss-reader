@@ -14,6 +14,7 @@ from openai import (
     APIConnectionError,
     APIStatusError,
     AsyncAzureOpenAI,
+    OpenAIError,
     RateLimitError,
 )
 from pydantic import BaseModel
@@ -176,6 +177,11 @@ class AzureLLMClient:
             raise LLMCallFailed(
                 f"Azure call failed ({e.response.status_code}): {e}"
             ) from e
+        except OpenAIError as e:
+            # Covers LengthFinishReasonError (truncated structured output),
+            # ContentFilterFinishReasonError, APIResponseValidationError, and
+            # any other SDK error — nothing may escape the wrapper untyped.
+            raise LLMCallFailed(f"Azure call failed: {e}") from e
 
         message = completion.choices[0].message
         if message.parsed is None:

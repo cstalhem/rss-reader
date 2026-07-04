@@ -194,6 +194,48 @@ async def test_categorization_not_configured_leaves_queue_untouched(
 
 
 @pytest.mark.asyncio
+async def test_categorization_unexpected_error_requeues_batch(
+    test_session, sample_feed, fake_llm
+):
+    """An untyped exception must not strand the batch in 'categorizing'."""
+    article = _make_queued_article(test_session, sample_feed, 1)
+    fake_llm.queue("categorization", RuntimeError("wrapper bug"))
+
+    worker = CategorizationWorker()
+    with pytest.raises(RuntimeError):
+        await worker.process_next_batch(test_session, batch_size=1)
+
+    test_session.expire_all()
+    updated = test_session.get(Article, article.id)
+    assert updated.categorization_state == "queued"
+    assert updated.categorization_attempts == 0
+
+
+@pytest.mark.asyncio
+async def test_scoring_unexpected_error_requeues_batch(
+    test_session, sample_feed, fake_llm
+):
+    """An untyped exception must not strand the batch in 'scoring'."""
+    article = _make_queued_article(
+        test_session,
+        sample_feed,
+        1,
+        categorization_state="categorized",
+        scoring_state="queued",
+    )
+    fake_llm.queue("scoring", RuntimeError("wrapper bug"))
+
+    worker = ScoringWorker()
+    with pytest.raises(RuntimeError):
+        await worker.process_next_batch(test_session, batch_size=1)
+
+    test_session.expire_all()
+    updated = test_session.get(Article, article.id)
+    assert updated.scoring_state == "queued"
+    assert updated.scoring_attempts == 0
+
+
+@pytest.mark.asyncio
 async def test_score_only_articles_skip_categorization(
     test_session, sample_feed, fake_llm
 ):
