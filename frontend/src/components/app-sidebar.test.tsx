@@ -1,9 +1,21 @@
+import { useState } from "react";
 import { http, HttpResponse } from "msw";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import type { Feed, FeedFolder } from "@/lib/types";
-import { renderWithProviders, screen, waitFor, within } from "@/test/utils";
+import {
+  ALL_ARTICLES_SELECTION,
+  type Feed,
+  type FeedFolder,
+  type FeedSelection,
+} from "@/lib/types";
+import {
+  renderWithProviders,
+  screen,
+  userEvent,
+  waitFor,
+  within,
+} from "@/test/utils";
 import { server } from "@/test/mocks/server";
 
 // next-themes reads matchMedia/localStorage; stub the hook the theme toggle uses.
@@ -58,26 +70,38 @@ const feeds: Feed[] = [
   },
 ];
 
-function renderSidebar() {
-  return renderWithProviders(
-    <SidebarProvider>
-      <AppSidebar />
-    </SidebarProvider>,
+/**
+ * Renders the sidebar with real selection state (like HomeShell does), plus a
+ * heading that echoes the current selection so tests can assert what's active.
+ */
+function ControlledSidebar() {
+  const [selection, setSelection] = useState<FeedSelection>(
+    ALL_ARTICLES_SELECTION,
   );
+  return (
+    <SidebarProvider>
+      <div data-testid="selection">{JSON.stringify(selection)}</div>
+      <AppSidebar selection={selection} onSelect={setSelection} />
+    </SidebarProvider>
+  );
+}
+
+function renderSidebar() {
+  server.use(
+    http.get("/api/feeds", () => HttpResponse.json(feeds)),
+    http.get("/api/feed-folders", () => HttpResponse.json(folders)),
+  );
+  return renderWithProviders(<ControlledSidebar />);
 }
 
 describe("AppSidebar", () => {
   it("renders folders, nested feeds, root feeds, and badge counts from the API", async () => {
-    server.use(
-      http.get("/api/feeds", () => HttpResponse.json(feeds)),
-      http.get("/api/feed-folders", () => HttpResponse.json(folders)),
-    );
-
     renderSidebar();
 
     // Folder label with its server unread count.
     const folderButton = await screen.findByRole("button", { name: /Tech/ });
     expect(within(folderButton).getByText("Tech")).toBeInTheDocument();
+    expect(folderButton).toHaveTextContent("12");
 
     // Nested feed under the folder.
     const nestedFeed = await screen.findByText("Hacker News");
@@ -92,5 +116,39 @@ describe("AppSidebar", () => {
         "16",
       ),
     );
+  });
+
+  it("defaults to All articles selected", async () => {
+    renderSidebar();
+
+    await screen.findByText("xkcd"); // wait for data
+    const allButton = screen.getByText("All articles").closest("button");
+    expect(allButton).toHaveAttribute("data-active", "true");
+    expect(screen.getByTestId("selection")).toHaveTextContent(
+      JSON.stringify({ type: "all" }),
+    );
+  });
+
+  it("selects a feed on click and updates the active state", async () => {
+    const user = userEvent.setup();
+    renderSidebar();
+
+    const rootFeed = await screen.findByText("xkcd");
+    await user.click(rootFeed);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("selection")).toHaveTextContent(
+        JSON.stringify({ type: "feed", id: 20 }),
+      ),
+    );
+
+    // The clicked feed is now active; All articles no longer is.
+    expect(rootFeed.closest("a, button")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    expect(
+      screen.getByText("All articles").closest("button"),
+    ).toHaveAttribute("data-active", "false");
   });
 });
