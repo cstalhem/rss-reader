@@ -36,14 +36,14 @@ export const queryKeys = {
 
 ### MutationCache Global Error Handler (`lib/queryClient.ts`)
 
-Instead of repeating `onError: () => toaster.create(...)` in every mutation, a single `MutationCache.onError` handler catches all unhandled mutation errors:
+Instead of repeating `onError: () => toast.error(...)` in every mutation, a single `MutationCache.onError` handler catches all unhandled mutation errors (toasts via sonner):
 
 ```typescript
 mutationCache: new MutationCache({
   onError: (error, _variables, _context, mutation) => {
     if (mutation.options.meta?.handlesOwnErrors) return;
     const title = mutation.options.meta?.errorTitle ?? "Operation failed";
-    toaster.create({ title, description: error.message, type: "error" });
+    toast.error(title, { description: error.message });
   },
 }),
 ```

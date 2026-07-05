@@ -1,6 +1,6 @@
 ---
 name: common-mistakes
-description: Cross-cutting mistakes discovered during development — useEffect misuse, query key drift, icon color props, mutation wrappers, Dialog portals, and process mistakes
+description: Cross-cutting mistakes discovered during development — useEffect misuse, query key drift, mutation wrappers, and process mistakes
 ---
 
 # Common Mistakes
@@ -33,17 +33,9 @@ Cross-cutting mistakes discovered during development. Check before implementing 
 
 **Fix:** Centralized all keys in `queryKeys.ts` factory. Grep for `queryKey: ["` should return zero matches across the codebase.
 
-**Detection:** Any inline query key string is a bug. The grep pattern `queryKey: ["` catches both hooks and components.
+**Detection:** Any inline query key string is a bug. The grep pattern `queryKey: ["` catches both hooks and components. When doing a codebase-wide migration, grep components too, not just hooks — a `useQuery` called directly in a component (rather than through a custom hook) is easy to miss.
 
-### 4. `var(--chakra-colors-*)` on react-icons
-
-**What went wrong:** 8 instances of `<LuIcon color="var(--chakra-colors-orange-400)" />` across component files. The CSS custom property string was passed as a prop, not as a CSS value, so it didn't resolve properly in all contexts and bypassed dark/light mode token resolution.
-
-**Fix:** Set `color` on the nearest Chakra parent element (`<Box color="fg.warning">`) and let CSS inheritance flow to the SVG's `currentColor`.
-
-**Lesson:** react-icons are SVGs with `fill="currentColor"`. They inherit color from CSS, not from React props. Always use a Chakra parent element to set the color.
-
-### 5. Thin Wrapper Functions Hiding Mutation State
+### 4. Thin Wrapper Functions Hiding Mutation State
 
 **What went wrong:** `useCategories` returned `deleteCategory: (id) => deleteMutation.mutate(id)` — a thin wrapper that hid `isPending`, `mutateAsync`, `status`, and other mutation metadata. Consumers couldn't show loading states or handle async flows.
 
@@ -51,21 +43,9 @@ Cross-cutting mistakes discovered during development. Check before implementing 
 
 **Exception:** Keep a wrapper when it adds **behavior**, not just delegation. `updateCategory` in `useCategories` adds auto-acknowledge logic (`is_seen: true` on weight changes) — that's a business rule worth encapsulating.
 
-### 6. Redundant Portal on Dialog Components
-
-**What went wrong:** `DeleteCategoryDialog` and `MoveToGroupDialog` wrapped their `<Dialog.Root>` in `<Portal>`. Dialog in Chakra v3 handles portalling internally. The extra Portal caused rendering issues or was simply dead code.
-
-**Fix:** Remove `<Portal>` wrapper from Dialog components. Only use Portal for Select, Menu, Tooltip, and Popover.
-
-### 7. SystemPrompts.tsx Missed During Query Key Migration
-
-**What went wrong:** During a codebase-wide query key migration, `SystemPrompts.tsx` was missed because it uses `useQuery` directly in a component rather than through a custom hook. The inline `queryKey: ["ollama-prompts"]` survived until a later sweep caught it.
-
-**Lesson:** When doing a codebase-wide migration, grep components too, not just hooks. The grep pattern `queryKey: ["` catches both.
-
 ## Process Mistakes
 
-### 8. Deferring Lint Errors Instead of Fixing Them
+### 5. Deferring Lint Errors Instead of Fixing Them
 
 **What went wrong:** When encountering pre-existing lint errors in files not being modified, the instinct was to document them as "out of scope" and move on. This creates a broken window effect — unaddressed errors accumulate and become harder to fix later.
 

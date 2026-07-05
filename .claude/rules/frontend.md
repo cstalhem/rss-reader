@@ -10,8 +10,9 @@ paths: ["frontend/**"]
 - `suppressHydrationWarning` on `<html>` in `layout.tsx` is required (next-themes). Do NOT remove.
 - Never read `localStorage` in `useState` initializer — causes hydration mismatch. Use the `useLocalStorage` hook.
 - Server Components cannot pass functions to Client Components. Only serializable data crosses the boundary.
-- `NEXT_PUBLIC_*` env vars are baked at build time via string replacement. Runtime `environment` in docker-compose has no effect on client code.
+- API URLs are relative everywhere (same-origin). Dev uses a phase-gated `rewrites()` proxy (`/api` → `localhost:8912`) in `next.config.ts`; prod uses the reverse proxy. No `NEXT_PUBLIC_*` API URL.
 - `"use client"` on interactive components only. `layout.tsx` and `page.tsx` are Server Components.
+- Builds and the dev server require network access for `next/font` (Google Fonts) — sandboxed/air-gapped runs fail; run unsandboxed.
 
 ## Data Layer
 
@@ -24,6 +25,7 @@ paths: ["frontend/**"]
 - `useCallback` deps: use `mutation.mutate` not `mutation` — the object is a new reference each render, `.mutate` is stable.
 - Custom hook helper functions with logic (not just delegation) must be `useCallback`-wrapped to maintain referential stability for consumers.
 - Every `useQuery` must include `queryFn` — cache may be empty on first render regardless of other components writing to the same key.
+- All read/unread/scoring/blocked counts come from the backend (single SQL definition). Never derive counts client-side from article data.
 
 ## File Organization
 
@@ -35,13 +37,19 @@ paths: ["frontend/**"]
 
 - In lists: avoid per-row component instances that each own state machines, portals, or media-query listeners — hoist shared state/listeners out of the row and pass results as props. Use native `title` for row tooltips.
 
+## Theming
+
+- Theme is system-decided (next-themes `defaultTheme="system"`, `enableSystem`) — not dark-default. Tokens live in the `:root`/`.dark` blocks in `src/app/globals.css`; do not hardcode token values in components.
+- Token → utility mapping uses `@theme inline` (not plain `@theme`) — plain `@theme` inlines values at parse time and breaks `var()` references.
+- Re-theme via a shadcn preset: build one at ui.shadcn.com/create, then from `frontend/` run `bunx --bun shadcn@latest apply --preset <id> --only theme -y` (theme-only — fonts stay project-owned). This overwrites the token blocks.
+
 ## UI Patterns
 
 - Load-more pagination, not infinite scroll.
 - Unread-first default view, sorted by composite score descending.
-- 12-second auto-mark-as-read in the reader drawer.
+- Mark-as-read timing is re-decided by the milestone-4 reader prototype (see PRD #88) — keep the auto-mark intent, no fixed number yet.
 - Full opacity + accent dot for unread, 0.6 opacity + hollow dot for read.
-- **Inter** for UI text, **Lora** for reader content. Dark mode default with orange accent (`oklch(64.6% 0.222 41.116)`).
+- **Inter** for UI text (`--font-sans`), **Lora** for reader content (`--font-serif`), via `next/font` + `@theme inline` mapping.
 
 ## Testing
 
@@ -49,6 +57,6 @@ paths: ["frontend/**"]
 - Fresh `QueryClient` per test — never import the singleton from `lib/queryClient.ts`.
 - Use MSW handlers for API mocking — never mock `fetch` or hook internals directly.
 - Use `waitFor` for all async assertions — never assert synchronously on query results.
-- Add `next/navigation` and `next-themes` mocks per-file, not in global setup.
+- Add `next/navigation`, `next-themes`, and `matchMedia` (for `useIsMobile`) stubs per-file, not in global setup. MSW handlers are path-only (no API base URL exists).
 - Co-locate tests as siblings (e.g. `Foo.test.tsx` next to `Foo.tsx`).
 - No snapshot tests for styled components (dynamic class names make them noisy).

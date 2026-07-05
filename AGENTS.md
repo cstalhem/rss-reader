@@ -6,7 +6,7 @@ A personal RSS reader with LLM-powered relevance scoring. Self-hosted, simple, m
 
 **Stack (v2 target):** FastAPI + SQLModel (backend) | Next.js + shadcn/ui (frontend) | SQLite | Azure AI Foundry
 
-> **v2 rewrite in progress** — plan of record: [issue #87](https://github.com/cstalhem/rss-reader/issues/87). The v1 frontend (Chakra UI v3) and LLM provider plugin system (Ollama/Google) still exist in the tree until replaced — do not extend them. v1 is preserved at tag `v1.1.2`.
+> **v2 rewrite in progress** — plan of record: [issue #87](https://github.com/cstalhem/rss-reader/issues/87). The v1 Chakra frontend has been replaced by the v2 stack (Next.js App Router + Tailwind v4 + shadcn/ui + TanStack Query). v1 is preserved at tag `v1.1.2`.
 
 ---
 
@@ -15,7 +15,7 @@ A personal RSS reader with LLM-powered relevance scoring. Self-hosted, simple, m
 | Directory            | Contents                                                     |
 | -------------------- | ------------------------------------------------------------ |
 | `backend/`           | Python/FastAPI API server with SQLModel models               |
-| `frontend/`          | Next.js App Router frontend (v1 Chakra UI, being replaced with shadcn/ui) |
+| `frontend/`          | Next.js App Router frontend (v2: shadcn/ui + Tailwind v4 + TanStack Query) |
 | `config/`            | Production YAML configuration (`app.yaml`)                   |
 | `spec/`              | PRD and milestone implementation plans                       |
 | `docs/agents/`       | Agent process config: issue tracker, triage labels, domain docs |
@@ -40,7 +40,8 @@ uv run ruff format .                                   # Format
 ### Frontend (`cd frontend`)
 
 ```bash
-bun dev --port 3210   # Dev server (uses --webpack, NOT turbopack)
+bun dev               # Dev server (next dev -p 3210 -H 0.0.0.0, Turbopack)
+bun run test          # Vitest
 bun run lint          # ESLint
 bun run build         # Production build
 ```
@@ -117,7 +118,7 @@ The frontend image is built with relative API URLs — a reverse proxy routes `P
 4. **Async-first** — Use `pytest-asyncio` for FastAPI endpoints
 5. **Test important paths** — Feed fetching, article display, read/unread state
 6. **Don't over-invest** — Skip exhaustive CRUD unit tests and UI snapshots
-7. **Use the Rodney-cli** — Always verify UI implementations with `uvx rodney --help` interactively
+7. **Verify UI manually** — The user reviews UI changes on the running dev server (phone over LAN via `-H 0.0.0.0`, or Safari responsive mode). No automated UI-verification CLI.
 
 ---
 
