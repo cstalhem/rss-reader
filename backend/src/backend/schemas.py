@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from backend.models import CategoryWeight
+
 # --- General ---
 
 
@@ -170,7 +172,7 @@ class CategoryCreateRequest(BaseModel):
 class CategoryUpdate(BaseModel):
     display_name: str | None = None
     parent_id: int | None = None
-    weight: str | None = None
+    weight: CategoryWeight | None = None
     needs_triage: bool | None = None
 
 

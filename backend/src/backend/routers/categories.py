@@ -23,8 +23,6 @@ from backend.schemas import (
     GroupSuggestionItem,
 )
 
-VALID_WEIGHTS = {"block", "reduce", "normal", "boost", "max"}
-
 router = APIRouter(prefix="/api/categories", tags=["categories"])
 
 
@@ -440,12 +438,7 @@ def update_category(
         category.parent_id = None
 
     if body.weight is not None:
-        if body.weight not in VALID_WEIGHTS:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid weight '{body.weight}'. Must be one of: {', '.join(sorted(VALID_WEIGHTS))}",
-            )
-        category.weight = body.weight
+        category.weight = body.weight.value
 
     if body.needs_triage is not None:
         category.needs_triage = body.needs_triage
