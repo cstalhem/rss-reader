@@ -1,18 +1,17 @@
-"use client"
+"use client";
 
-import { ChevronRight, Folder, Inbox, Rss } from "lucide-react"
+import { ChevronRight, Folder, Inbox, Rss } from "lucide-react";
 
-import { useFeeds } from "@/hooks/useFeeds"
-import { useFeedFolders } from "@/hooks/useFeedFolders"
-import { buildSidebarModel } from "@/lib/sidebar"
-import { isFeedSelected, isFolderSelected } from "@/lib/selection"
-import type { FeedSelection } from "@/lib/types"
-import { cn } from "@/lib/utils"
+import { useFeeds } from "@/hooks/useFeeds";
+import { useFeedFolders } from "@/hooks/useFeedFolders";
+import { buildSidebarModel } from "@/lib/sidebar";
+import { isFeedSelected, isFolderSelected } from "@/lib/selection";
+import type { FeedSelection } from "@/lib/types";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+} from "@/components/ui/collapsible";
 import {
   Sidebar,
   SidebarContent,
@@ -28,16 +27,16 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-} from "@/components/ui/sidebar"
-import { ThemeToggle } from "@/components/theme-toggle"
+} from "@/components/ui/sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 /** De-emphasize fully-read feeds (unread === 0) per the read-visual convention. */
 function feedOpacity(unread: number): string | undefined {
-  return unread > 0 ? undefined : "opacity-60"
+  return unread > 0 ? undefined : "opacity-60";
 }
 
 /** Deterministic skeleton widths — cycled by index so SSR and client agree (no hydration mismatch). */
-const SKELETON_WIDTHS = ["60%", "75%", "50%", "85%", "65%"] as const
+const SKELETON_WIDTHS = ["60%", "75%", "50%", "85%", "65%"] as const;
 
 /**
  * Right-aligned unread count rendered inside the menu button. Uses `opacity`
@@ -45,30 +44,30 @@ const SKELETON_WIDTHS = ["60%", "75%", "50%", "85%", "65%"] as const
  * visible/legible in default, hover, and active states.
  */
 function UnreadCount({ count }: { count: number }) {
-  if (count <= 0) return null
+  if (count <= 0) return null;
   return (
-    <span className="ml-auto shrink-0 text-xs font-medium tabular-nums opacity-70">
+    <span className='ml-auto shrink-0 text-xs font-medium tabular-nums opacity-70'>
       {count}
     </span>
-  )
+  );
 }
 
 interface AppSidebarProps {
-  selection: FeedSelection
-  onSelect: (selection: FeedSelection) => void
+  selection: FeedSelection;
+  onSelect: (selection: FeedSelection) => void;
 }
 
 export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
-  const feedsQuery = useFeeds()
-  const foldersQuery = useFeedFolders()
+  const feedsQuery = useFeeds();
+  const foldersQuery = useFeedFolders();
 
-  const isLoading = feedsQuery.isPending || foldersQuery.isPending
-  const isError = feedsQuery.isError || foldersQuery.isError
+  const isLoading = feedsQuery.isPending || foldersQuery.isPending;
+  const isError = feedsQuery.isError || foldersQuery.isError;
 
   const model = buildSidebarModel(
     feedsQuery.data ?? [],
     foldersQuery.data ?? [],
-  )
+  );
 
   return (
     <Sidebar>
@@ -76,12 +75,12 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              size="lg"
+              size='lg'
               isActive={selection.type === "all"}
               onClick={() => onSelect({ type: "all" })}
             >
-              <Inbox className="size-4" />
-              <span className="font-medium">All articles</span>
+              <Inbox className='size-4' />
+              <span className='font-medium'>All articles</span>
               <UnreadCount count={model.totalUnread} />
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -91,7 +90,7 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
       <SidebarContent>
         {isError ? (
           <SidebarGroup>
-            <p className="px-2 text-sm text-muted-foreground">
+            <p className='px-2 text-sm text-muted-foreground'>
               Couldn&apos;t load feeds. Retrying…
             </p>
           </SidebarGroup>
@@ -115,7 +114,7 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                     <Collapsible
                       key={folder.id}
                       defaultOpen
-                      className="group/collapsible"
+                      className='group/collapsible'
                     >
                       <SidebarMenuItem>
                         {/*
@@ -133,8 +132,8 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                             onSelect({ type: "folder", id: folder.id })
                           }
                         >
-                          <Folder className="size-4 shrink-0" />
-                          <span className="truncate" title={folder.name}>
+                          <Folder className='size-4 shrink-0' />
+                          <span className='truncate' title={folder.name}>
                             {folder.name}
                           </span>
                           <UnreadCount count={folder.unread_count} />
@@ -143,11 +142,11 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                           <SidebarMenuAction
                             aria-label={`Toggle ${folder.name}`}
                           >
-                            <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                            <ChevronRight className='transition-transform group-data-[state=open]/collapsible:rotate-90' />
                           </SidebarMenuAction>
                         </CollapsibleTrigger>
                         <CollapsibleContent>
-                          <SidebarMenuSub className="mr-0 pr-0">
+                          <SidebarMenuSub className='mr-0 pr-0'>
                             {folder.feeds.map((feed) => (
                               <SidebarMenuSubItem key={feed.id}>
                                 <SidebarMenuSubButton
@@ -155,17 +154,10 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                                   onClick={() =>
                                     onSelect({ type: "feed", id: feed.id })
                                   }
-                                  // pr-8 mirrors the folder button's reserved
-                                  // menu-action gutter so nested feed counts line
-                                  // up under the folder counts; the hover surface
-                                  // still reaches the full (mr-0/pr-0) right edge.
-                                  className={cn(
-                                    "pr-8",
-                                    feedOpacity(feed.unread_count),
-                                  )}
+                                  className={feedOpacity(feed.unread_count)}
                                 >
-                                  <Rss className="size-4 shrink-0" />
-                                  <span className="truncate" title={feed.title}>
+                                  <Rss className='size-4 shrink-0' />
+                                  <span className='truncate' title={feed.title}>
                                     {feed.title}
                                   </span>
                                   <UnreadCount count={feed.unread_count} />
@@ -192,8 +184,8 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                         onClick={() => onSelect({ type: "feed", id: feed.id })}
                         className={feedOpacity(feed.unread_count)}
                       >
-                        <Rss className="size-4 shrink-0" />
-                        <span className="truncate" title={feed.title}>
+                        <Rss className='size-4 shrink-0' />
+                        <span className='truncate' title={feed.title}>
                           {feed.title}
                         </span>
                         <UnreadCount count={feed.unread_count} />
@@ -211,5 +203,5 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
         <ThemeToggle />
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }
