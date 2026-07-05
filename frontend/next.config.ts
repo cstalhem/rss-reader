@@ -16,6 +16,7 @@ export default function config(phase: string): NextConfig {
       async rewrites() {
         return [{ source: '/api/:path*', destination: 'http://localhost:8912/api/:path*' }]
       },
+      allowedDevOrigins: ['192.168.0.62', 'm1-mbp.spitz-sailfin.ts.net', 'm1-mbp']
     }
   }
   return baseConfig
