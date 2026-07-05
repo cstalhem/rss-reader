@@ -122,6 +122,7 @@ async def create_feed(
     session.commit()
     session.refresh(feed)
 
+    assert feed.id is not None
     article_count, new_article_ids = save_articles(
         session,
         feed.id,

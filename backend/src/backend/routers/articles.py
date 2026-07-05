@@ -145,7 +145,7 @@ def list_articles(
 
     if scoring_state == "pending":
         statement = statement.where(
-            Article.composite_score.is_(None),  # pyright: ignore[reportAttributeAccessIssue]  # first-time only — excludes re-evaluating
+            Article.composite_score.is_(None),  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]  # first-time only — excludes re-evaluating
             (
                 Article.scoring_state.in_(["unscored", "queued", "scoring"])  # pyright: ignore[reportAttributeAccessIssue]
                 | Article.categorization_state.in_(["queued", "categorizing"])  # pyright: ignore[reportAttributeAccessIssue]
@@ -173,12 +173,12 @@ def list_articles(
     if sort_by == "composite_score":
         if order == "desc":
             statement = statement.order_by(
-                nulls_last(desc(Article.composite_score)),
+                nulls_last(desc(Article.composite_score)),  # pyright: ignore[reportArgumentType]
                 Article.published_at.asc(),  # pyright: ignore[reportArgumentType, reportAttributeAccessIssue, reportOptionalMemberAccess]
             )
         else:
             statement = statement.order_by(
-                nulls_last(Article.composite_score),
+                nulls_last(Article.composite_score),  # pyright: ignore[reportArgumentType]
                 Article.published_at.asc(),  # pyright: ignore[reportArgumentType, reportAttributeAccessIssue, reportOptionalMemberAccess]
             )
     elif sort_by == "published_at":
