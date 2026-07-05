@@ -1,12 +1,13 @@
 """Scoring domain logic: composite scores, blocking, category helpers."""
 
 import logging
+from collections.abc import Sequence
 
 from slugify import slugify
 from sqlmodel import Session, select
 
 from backend.database import smart_case
-from backend.models import Category
+from backend.models import Category, CategoryAlias
 
 logger = logging.getLogger(__name__)
 
@@ -21,42 +22,45 @@ WEIGHT_MULTIPLIERS = {
 }
 
 
-def get_or_create_category(
-    session: Session,
-    display_name: str,
-    suggested_parent: str | None = None,
-) -> Category:
-    """Find existing category by slug, or create new one flagged for triage.
+def resolve_proposal(session: Session, proposed_name: str) -> Category | None:
+    """Resolve a proposed category name through the proposal ladder (ADR-0001).
 
-    Args:
-        session: Database session
-        display_name: Human-readable category name
-        suggested_parent: Optional parent category display name for new categories
+    slugify(proposed_name), then:
+    1. Active category with that slug -> return it (no new row).
+    2. CategoryAlias match -> target set: return the target category;
+       target NULL: return None (discard — deleted junk stays dead).
+    3. Otherwise create a normal-weight category flagged for triage.
 
-    Returns:
-        Existing or newly created Category
+    New categories are born ungrouped — parent_id is never set here
+    (shelving belongs to auto-grouping and triage).
     """
-    slug = slugify(display_name)
+    slug = slugify(proposed_name)
+
     category = session.exec(select(Category).where(Category.slug == slug)).first()
     if category:
         return category
 
-    # Create new category, live immediately but flagged for user triage
+    alias = session.exec(
+        select(CategoryAlias).where(CategoryAlias.alias_slug == slug)
+    ).first()
+    if alias:
+        if alias.target_id is None:
+            return None
+        target = session.get(Category, alias.target_id)
+        if target is None:
+            logger.warning(
+                "Alias %r points at missing category id %s; treating as discard",
+                slug,
+                alias.target_id,
+            )
+        return target
+
     category = Category(
-        display_name=smart_case(display_name),
+        display_name=smart_case(proposed_name),
         slug=slug,
+        weight="normal",
         needs_triage=True,
     )
-
-    # Resolve parent if suggested
-    if suggested_parent:
-        parent_slug = slugify(suggested_parent)
-        parent = session.exec(
-            select(Category).where(Category.slug == parent_slug)
-        ).first()
-        if parent:
-            category.parent_id = parent.id
-
     session.add(category)
     return category
 
@@ -101,25 +105,30 @@ def is_blocked(categories: list[Category]) -> bool:
     return any(category.weight == "block" for category in categories)
 
 
-def get_active_categories(
-    session: Session,
-) -> tuple[list[str], dict[str, list[str]] | None]:
-    """Get the full category vocabulary and its display hierarchy.
+def load_categories(session: Session) -> Sequence[Category]:
+    """Single load point for the category vocabulary, so future filters
+    apply everywhere at once."""
+    return session.exec(select(Category)).all()
+
+
+def get_active_categories(session: Session) -> list[str]:
+    """Get the full category vocabulary as a sorted display-name list.
 
     Blocked categories stay in the vocabulary — blocking suppresses
     articles, never labels (ADR-0001).
-
-    Returns:
-        Tuple of (sorted display name list, category hierarchy dict or None)
     """
-    categories = session.exec(select(Category)).all()
+    categories = load_categories(session)
+    return sorted([cat.display_name for cat in categories], key=str.lower)
 
-    display_names = sorted(
-        [cat.display_name for cat in categories],
-        key=str.lower,
-    )
 
-    # Build hierarchy from parent-child relationships
+def get_category_hierarchy(session: Session) -> dict[str, list[str]] | None:
+    """Get the display hierarchy (parent display name -> sorted child names).
+
+    Groups are display-only shelves — never serialized into the
+    categorization prompt (ADR-0001). Returns None when no groups exist.
+    """
+    categories = load_categories(session)
+
     hierarchy: dict[str, list[str]] = {}
     for cat in categories:
         if cat.parent_id is not None and cat.parent is not None:
@@ -128,4 +137,4 @@ def get_active_categories(
     for children in hierarchy.values():
         children.sort(key=str.lower)
 
-    return display_names, hierarchy if hierarchy else None
+    return hierarchy if hierarchy else None

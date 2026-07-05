@@ -157,8 +157,7 @@ async def test_blocked_articles_appear_only_in_blocked_view(
                 ArticleCategoryResult(
                     article_id=article.id,
                     categories=["Crypto"],
-                    suggested_new=[],
-                    suggested_parent=None,
+                    proposed_category=None,
                 )
             ]
         ),

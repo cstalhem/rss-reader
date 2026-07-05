@@ -1,10 +1,10 @@
 """LLM prompt templates and response schemas for content curation."""
 
 from backend.prompts.categorization import (
-    DEFAULT_CATEGORY_HIERARCHY,
     ArticleCategoryResult,
     BatchCategoryResponse,
     build_batch_categorization_prompt,
+    build_categorization_schema,
 )
 from backend.prompts.grouping import (
     GroupingResponse,
@@ -22,10 +22,10 @@ __all__ = [
     "ArticleScoringResult",
     "BatchCategoryResponse",
     "BatchScoringResponse",
-    "DEFAULT_CATEGORY_HIERARCHY",
     "GroupSuggestion",
     "GroupingResponse",
     "build_batch_categorization_prompt",
     "build_batch_scoring_prompt",
+    "build_categorization_schema",
     "build_grouping_prompt",
 ]

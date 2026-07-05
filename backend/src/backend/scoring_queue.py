@@ -23,16 +23,16 @@ from backend.llm_client import (
 )
 from backend.models import Article, ArticleCategoryLink, Category, UserPreferences
 from backend.prompts import (
-    BatchCategoryResponse,
     BatchScoringResponse,
     build_batch_categorization_prompt,
     build_batch_scoring_prompt,
+    build_categorization_schema,
 )
 from backend.scoring import (
     compute_composite_score,
-    get_active_categories,
-    get_or_create_category,
     is_blocked,
+    load_categories,
+    resolve_proposal,
 )
 
 logger = logging.getLogger(__name__)
@@ -247,13 +247,17 @@ class CategorizationWorker:
                 }
             )
 
-        active_categories, category_hierarchy = get_active_categories(session)
+        # Build the vocabulary once per batch: the lookup map plus the sorted
+        # display-name list the prompt and per-batch enum schema share.
+        all_categories = load_categories(session)
+        by_display: dict[str, Category] = {c.display_name: c for c in all_categories}
+        display_names = sorted(by_display.keys(), key=str.lower)
 
         system_prompt, user_message = build_batch_categorization_prompt(
             article_dicts,
-            active_categories,
-            category_hierarchy=category_hierarchy,
+            display_names,
         )
+        response_schema = build_categorization_schema(display_names)
 
         def _requeue_batch(count_attempt: bool) -> None:
             for art in needs_cat_articles:
@@ -271,7 +275,7 @@ class CategorizationWorker:
                 TASK_CATEGORIZATION,
                 system_prompt,
                 user_message,
-                BatchCategoryResponse,
+                response_schema,
             )
 
             # Build result map, dropping hallucinated IDs
@@ -287,29 +291,48 @@ class CategorizationWorker:
                     dropped,
                 )
 
-            # Resolve categories, creating new ones flagged for triage
+            # Map assigned names through the vocabulary; a miss is dropped,
+            # never created (empty-vocab fallback path + defense-in-depth if
+            # strict mode ever leaks an out-of-enum string, ADR-0006).
             categories_by_article: dict[int, list[Category]] = {
                 aid: [] for aid in batch_ids
             }
 
-            seen_slugs: dict[str, Category] = {}
+            # Per-batch proposal cache: every proposal outcome (existing
+            # category, alias survivor, discard, new row) resolves once per
+            # batch through resolve_proposal. None caches a discard.
+            resolved_proposals: dict[str, Category | None] = {}
             with session.no_autoflush:
                 for aid, categorization in cat_result_map.items():
+                    assigned: list[Category] = []
+                    assigned_slugs: set[str] = set()
                     for cat_name in categorization.categories:
-                        slug = slugify(cat_name)
-                        if slug not in seen_slugs:
-                            seen_slugs[slug] = get_or_create_category(session, cat_name)
-                        categories_by_article[aid].append(seen_slugs[slug])
-
-                    for cat_name in categorization.suggested_new:
-                        slug = slugify(cat_name)
-                        if slug not in seen_slugs:
-                            seen_slugs[slug] = get_or_create_category(
-                                session,
+                        category = by_display.get(cat_name)
+                        if category is None:
+                            logger.warning(
+                                "Article %s: category %r not in vocabulary; dropped",
+                                aid,
                                 cat_name,
-                                suggested_parent=categorization.suggested_parent,
                             )
-                        categories_by_article[aid].append(seen_slugs[slug])
+                            continue
+                        if category.slug not in assigned_slugs:
+                            assigned_slugs.add(category.slug)
+                            assigned.append(category)
+
+                    # New categories enter ONLY through the proposal channel
+                    proposed = categorization.proposed_category
+                    if proposed is not None:
+                        slug = slugify(proposed)
+                        if slug in resolved_proposals:
+                            resolved = resolved_proposals[slug]
+                        else:
+                            resolved = resolve_proposal(session, proposed)
+                            resolved_proposals[slug] = resolved
+                        if resolved is not None and resolved.slug not in assigned_slugs:
+                            assigned_slugs.add(resolved.slug)
+                            assigned.append(resolved)
+
+                    categories_by_article[aid] = assigned
 
             session.commit()  # persist new categories, get IDs
 
