@@ -132,13 +132,21 @@ async def create_feed(
 
         categorization_worker.enqueue_articles(session, new_article_ids)
 
+    # unread_count uses the shared definition (scored, score > 0), not the raw
+    # fetch count — freshly fetched articles are unscored, so this is 0 here.
+    unread_count = session.exec(
+        select(func.count(Article.id))  # pyright: ignore[reportArgumentType]
+        .where(Article.feed_id == feed.id)
+        .where(unread_condition())
+    ).one()
+
     return FeedResponse(
         id=feed.id,  # pyright: ignore[reportArgumentType]
         url=feed.url,
         title=feed.title,
         display_order=feed.display_order,
         last_fetched_at=feed.last_fetched_at,
-        unread_count=article_count,
+        unread_count=unread_count,
         folder_id=feed.folder_id,
         folder_name=None,
     )
