@@ -188,7 +188,8 @@ class TestMergeAliases:
         assert resp.status_code == 200
         body = resp.json()
         assert body["ok"] is True
-        assert body["articles_moved"] == 2
+        # a1 moved (link created on target); a2 already on target -> deduped
+        assert body["articles_moved"] == 1
         assert body["aliases_repointed"] == 1
         assert body["children_released"] == [
             {"id": child_id, "display_name": "Bitcoin"}

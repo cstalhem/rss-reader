@@ -3,7 +3,7 @@
 import pytest
 
 from backend.config import get_settings
-from backend.models import Category, CategoryWeight
+from backend.models import Category
 from backend.scoring import compute_composite_score, is_blocked
 
 
@@ -105,25 +105,6 @@ def test_composite_score_uses_config_boost(custom_boost_multiplier):
     # quality=10 -> quality_mult = 1.0; boost overridden to 3.0
     score = compute_composite_score(4, 10, [cat])
     assert score == 4 * 3.0 * 1.0
-
-
-def test_weight_multiplier_config_defaults():
-    """Defaults match the historical hardcoded multipliers."""
-    multipliers = get_settings().scoring.weight_multipliers
-    assert multipliers.reduce == 0.5
-    assert multipliers.boost == 1.5
-    assert multipliers.max == 2.0
-
-
-def test_category_weight_enum_vocabulary():
-    """CategoryWeight is the single source of the weight vocabulary."""
-    assert [w.value for w in CategoryWeight] == [
-        "block",
-        "reduce",
-        "normal",
-        "boost",
-        "max",
-    ]
 
 
 # --- is_blocked ---

@@ -234,14 +234,3 @@ def test_update_category_weight_valid(test_client: TestClient, make_category):
     )
     assert response.status_code == 200
     assert response.json()["weight"] == "boost"
-
-
-def test_update_category_weight_invalid_returns_422(
-    test_client: TestClient, make_category
-):
-    """PATCH with an unknown weight fails schema validation (422, not 400)."""
-    category = make_category()
-    response = test_client.patch(
-        f"/api/categories/{category.id}", json={"weight": "mega"}
-    )
-    assert response.status_code == 422

@@ -163,6 +163,28 @@ class TestBulkPatch:
 
 
 # ---------------------------------------------------------------------------
+# Create: one-level hierarchy enforcement
+# ---------------------------------------------------------------------------
+
+
+class TestCreateOneLevel:
+    def test_create_under_child_returns_400(
+        self,
+        test_client: TestClient,
+        make_category: Callable[..., Category],
+    ):
+        root = make_category(display_name="Root", slug="root")
+        child = make_category(display_name="Child", slug="child", parent_id=root.id)
+
+        resp = test_client.post(
+            "/api/categories",
+            json={"display_name": "Grandchild", "parent_id": child.id},
+        )
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "Target must be a root category (no parent)"
+
+
+# ---------------------------------------------------------------------------
 # Triage list filter
 # ---------------------------------------------------------------------------
 

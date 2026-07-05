@@ -15,23 +15,6 @@ logger = logging.getLogger(__name__)
 MAX_COMPOSITE_SCORE = 20.0
 
 
-def _weight_multipliers() -> dict[str, float]:
-    """Weight -> multiplier map from config, plus two pinned entries.
-
-    'normal' is 1.0 by definition and 'block' is short-circuited via
-    is_blocked() before scoring — its 0.0 here is defense-in-depth in
-    case a blocked category ever reaches the math. Neither is configurable.
-    """
-    configured = get_settings().scoring.weight_multipliers
-    return {
-        CategoryWeight.BLOCK: 0.0,
-        CategoryWeight.REDUCE: configured.reduce,
-        CategoryWeight.NORMAL: 1.0,
-        CategoryWeight.BOOST: configured.boost,
-        CategoryWeight.MAX: configured.max,
-    }
-
-
 def resolve_proposal(session: Session, proposed_name: str) -> Category | None:
     """Resolve a proposed category name through the proposal ladder (ADR-0001).
 
@@ -99,7 +82,19 @@ def compute_composite_score(
     if not categories:
         category_multiplier = 1.0
     else:
-        multipliers = _weight_multipliers()
+        # Weight -> multiplier map from config, plus two pinned entries:
+        # 'normal' is 1.0 by definition and 'block' is short-circuited via
+        # is_blocked() before scoring — its 0.0 here is defense-in-depth in
+        # case a blocked category ever reaches the math. Neither is
+        # configurable.
+        configured = get_settings().scoring.weight_multipliers
+        multipliers: dict[str, float] = {
+            CategoryWeight.BLOCK: 0.0,
+            CategoryWeight.REDUCE: configured.reduce,
+            CategoryWeight.NORMAL: 1.0,
+            CategoryWeight.BOOST: configured.boost,
+            CategoryWeight.MAX: configured.max,
+        }
         weights = [multipliers.get(category.weight, 1.0) for category in categories]
         category_multiplier = sum(weights) / len(weights)
 

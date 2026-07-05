@@ -183,6 +183,73 @@ class TestAutoGroupApply:
         assert shared.parent_id == group_a.id  # First assignment wins
         assert other.parent_id == group_a.id
 
+    def test_never_creates_depth_two_trees(
+        self,
+        test_client: TestClient,
+        test_session: Session,
+        make_category: Callable[..., Category],
+    ):
+        """Chained groups (A > B, then B > C) must not nest C under a child.
+
+        A group whose parent was already assigned as a child is skipped
+        entirely (first-wins), keeping the hierarchy one level deep.
+        """
+        a = make_category(display_name="A", slug="a")
+        b = make_category(display_name="B", slug="b")
+        c = make_category(display_name="C", slug="c")
+
+        response = test_client.post(
+            "/api/categories/auto-group/apply",
+            json={
+                "groups": [
+                    {"parent": "A", "children": ["B"]},
+                    {"parent": "B", "children": ["C"]},
+                ]
+            },
+        )
+        assert response.status_code == 200
+
+        test_session.refresh(a)
+        test_session.refresh(b)
+        test_session.refresh(c)
+        assert b.parent_id == a.id
+        assert c.parent_id is None  # group with used-as-child parent skipped
+        # No category has a parent that itself has a parent (max depth 1)
+        by_id = {cat.id: cat for cat in (a, b, c)}
+        for cat in by_id.values():
+            if cat.parent_id is not None:
+                assert by_id[cat.parent_id].parent_id is None
+
+    def test_parent_slug_never_reassigned_as_child(
+        self,
+        test_client: TestClient,
+        test_session: Session,
+        make_category: Callable[..., Category],
+    ):
+        """A slug already used as a parent keeps its children; a later group
+        listing it as a child skips that assignment (first-wins)."""
+        a = make_category(display_name="A", slug="a")
+        b = make_category(display_name="B", slug="b")
+        c = make_category(display_name="C", slug="c")
+
+        response = test_client.post(
+            "/api/categories/auto-group/apply",
+            json={
+                "groups": [
+                    {"parent": "B", "children": ["C"]},
+                    {"parent": "A", "children": ["B"]},
+                ]
+            },
+        )
+        assert response.status_code == 200
+
+        test_session.refresh(a)
+        test_session.refresh(b)
+        test_session.refresh(c)
+        assert c.parent_id == b.id  # B keeps its children
+        assert b.parent_id is None  # second assignment of B skipped
+        assert a.parent_id is None
+
     def test_skips_nonexistent_category_names(
         self,
         test_client: TestClient,
