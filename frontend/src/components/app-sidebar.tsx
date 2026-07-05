@@ -7,6 +7,7 @@ import { useFeedFolders } from "@/hooks/useFeedFolders"
 import { buildSidebarModel } from "@/lib/sidebar"
 import { isFeedSelected, isFolderSelected } from "@/lib/selection"
 import type { FeedSelection } from "@/lib/types"
+import { cn } from "@/lib/utils"
 import {
   Collapsible,
   CollapsibleContent,
@@ -20,6 +21,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSkeleton,
@@ -117,28 +119,35 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                     >
                       <SidebarMenuItem>
                         {/*
-                          One button, one click: selecting a folder also toggles
-                          its expansion. Avoids nesting a second <button> (the
-                          collapsible trigger) inside SidebarMenuButton, which
-                          would be invalid HTML and trigger a hydration warning.
+                          Split select/toggle: the button (name) selects the
+                          folder, the sibling SidebarMenuAction (chevron) toggles
+                          expansion. Keeping them as siblings (not nested) avoids
+                          a <button> inside a <button> — the a11y/HTML-validity
+                          win. The registry button reserves a right gutter
+                          (pr-8) whenever a menu-action is present, so the count
+                          sits left of the chevron.
                         */}
+                        <SidebarMenuButton
+                          isActive={isFolderSelected(selection, folder.id)}
+                          onClick={() =>
+                            onSelect({ type: "folder", id: folder.id })
+                          }
+                        >
+                          <Folder className="size-4 shrink-0" />
+                          <span className="truncate" title={folder.name}>
+                            {folder.name}
+                          </span>
+                          <UnreadCount count={folder.unread_count} />
+                        </SidebarMenuButton>
                         <CollapsibleTrigger asChild>
-                          <SidebarMenuButton
-                            isActive={isFolderSelected(selection, folder.id)}
-                            onClick={() =>
-                              onSelect({ type: "folder", id: folder.id })
-                            }
+                          <SidebarMenuAction
+                            aria-label={`Toggle ${folder.name}`}
                           >
-                            <ChevronRight className="size-4 shrink-0 transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                            <Folder className="size-4 shrink-0" />
-                            <span className="truncate" title={folder.name}>
-                              {folder.name}
-                            </span>
-                            <UnreadCount count={folder.unread_count} />
-                          </SidebarMenuButton>
+                            <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                          </SidebarMenuAction>
                         </CollapsibleTrigger>
                         <CollapsibleContent>
-                          <SidebarMenuSub>
+                          <SidebarMenuSub className="mr-0 pr-0">
                             {folder.feeds.map((feed) => (
                               <SidebarMenuSubItem key={feed.id}>
                                 <SidebarMenuSubButton
@@ -146,7 +155,14 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                                   onClick={() =>
                                     onSelect({ type: "feed", id: feed.id })
                                   }
-                                  className={feedOpacity(feed.unread_count)}
+                                  // pr-8 mirrors the folder button's reserved
+                                  // menu-action gutter so nested feed counts line
+                                  // up under the folder counts; the hover surface
+                                  // still reaches the full (mr-0/pr-0) right edge.
+                                  className={cn(
+                                    "pr-8",
+                                    feedOpacity(feed.unread_count),
+                                  )}
                                 >
                                   <Rss className="size-4 shrink-0" />
                                   <span className="truncate" title={feed.title}>
