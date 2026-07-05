@@ -23,6 +23,7 @@ import {
   type ArticleListItem,
   type FeedSelection,
 } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const SELECTION_STORAGE_KEY = "rss-reader:selection";
 
@@ -67,8 +68,24 @@ export function HomeShell() {
           <SidebarTrigger />
           <h1 className="text-sm font-medium">{header}</h1>
         </header>
-        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <ArticleList selection={selection} onOpen={setOpenArticle} />
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+          {/* List column: full width by default; animates to a fixed 380px
+              column at md: when the reader is open (phone stays full-bleed).
+              cn keeps the width classes readable. */}
+          <div
+            className={cn(
+              "min-h-0 flex-1 transition-[width] duration-300 md:flex-none",
+              openArticle !== null
+                ? "md:w-[380px] md:shrink-0 md:border-r"
+                : "md:w-full",
+            )}
+          >
+            <ArticleList
+              selection={selection}
+              onOpen={setOpenArticle}
+              readerOpen={openArticle !== null}
+            />
+          </div>
           {openArticle !== null && (
             <ArticleReader
               article={openArticle}

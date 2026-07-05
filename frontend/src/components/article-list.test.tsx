@@ -16,15 +16,29 @@ import {
  * Render ArticleList directly (no sidebar tree) with its own QueryClient so we
  * keep the tree small and avoid the matchMedia stub the sidebar would need.
  */
-function renderList() {
+function renderList({ readerOpen = false }: { readerOpen?: boolean } = {}) {
   const queryClient = createTestQueryClient();
   const onOpen = vi.fn();
-  render(
+  const { rerender } = render(
     <QueryClientProvider client={queryClient}>
-      <ArticleList selection={{ type: "all" }} onOpen={onOpen} />
+      <ArticleList
+        selection={{ type: "all" }}
+        onOpen={onOpen}
+        readerOpen={readerOpen}
+      />
     </QueryClientProvider>,
   );
-  return { queryClient, onOpen };
+  const setReaderOpen = (open: boolean) =>
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <ArticleList
+          selection={{ type: "all" }}
+          onOpen={onOpen}
+          readerOpen={open}
+        />
+      </QueryClientProvider>,
+    );
+  return { queryClient, onOpen, setReaderOpen };
 }
 
 describe("ArticleList", () => {
@@ -59,6 +73,32 @@ describe("ArticleList", () => {
     expect(
       screen.queryByRole("button", { name: /load more/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("switches row density when the reader opens and reverts on close", async () => {
+    const { setReaderOpen } = renderList();
+
+    // Rest density by default.
+    const list = (await screen.findByText("Article 2")).closest(
+      "[data-density]",
+    );
+    expect(list).toHaveAttribute("data-density", "rest");
+
+    // Opening the reader signals the list into dense mode...
+    setReaderOpen(true);
+    await waitFor(() =>
+      expect(
+        screen.getByText("Article 2").closest("[data-density]"),
+      ).toHaveAttribute("data-density", "dense"),
+    );
+
+    // ...and closing reverts it.
+    setReaderOpen(false);
+    await waitFor(() =>
+      expect(
+        screen.getByText("Article 2").closest("[data-density]"),
+      ).toHaveAttribute("data-density", "rest"),
+    );
   });
 
   it("marks a row read via the dot toggle and dims the row", async () => {

@@ -34,3 +34,66 @@ export function CategoryChip({ label }: { label: string }) {
     </span>
   );
 }
+
+/**
+ * Editorial score readout for the reader header. A refined by-line-style stat
+ * pair: the relevance figure leads in the theme orange with a tabular numeral,
+ * quality sits beside it, each under a small uppercase Inter label. Renders
+ * nothing when both scores are absent. Sans (`font-sans`) keeps the UI
+ * micro-text distinct from the serif reading measure.
+ */
+export function ReaderScores({
+  relevance,
+  quality,
+}: {
+  relevance: number | null;
+  quality: number | null;
+}) {
+  if (relevance === null && quality === null) return null;
+  return (
+    <dl className="flex items-stretch gap-5 font-sans">
+      {relevance !== null && (
+        <ScoreStat label="Relevance" value={relevance.toFixed(1)} accent />
+      )}
+      {relevance !== null && quality !== null && (
+        <div className="border-border/60 border-l" aria-hidden />
+      )}
+      {quality !== null && (
+        <ScoreStat label="Quality" value={`${quality}`} suffix="/10" />
+      )}
+    </dl>
+  );
+}
+
+function ScoreStat({
+  label,
+  value,
+  suffix,
+  accent = false,
+}: {
+  label: string;
+  value: string;
+  suffix?: string;
+  accent?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-muted-foreground text-[10px] font-medium tracking-[0.14em] uppercase">
+        {label}
+      </dt>
+      <dd
+        className={cn(
+          "text-2xl leading-none font-semibold tabular-nums",
+          accent && "text-primary",
+        )}
+      >
+        {value}
+        {suffix && (
+          <span className="text-muted-foreground ml-0.5 text-sm font-normal">
+            {suffix}
+          </span>
+        )}
+      </dd>
+    </div>
+  );
+}
