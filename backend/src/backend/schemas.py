@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from backend.models import CategoryWeight
 
@@ -174,6 +174,36 @@ class CategoryUpdate(BaseModel):
     parent_id: int | None = None
     weight: CategoryWeight | None = None
     needs_triage: bool | None = None
+
+
+class CategoryBulkUpdate(BaseModel):
+    """Collection PATCH body — triage gestures compose from these fields."""
+
+    category_ids: list[int]
+    weight: CategoryWeight | None = None
+    needs_triage: bool | None = None
+
+    @model_validator(mode="after")
+    def require_at_least_one_field(self):
+        if self.weight is None and self.needs_triage is None:
+            raise ValueError("Provide at least one of weight or needs_triage")
+        return self
+
+
+class CategoryBulkUpdateResponse(BaseModel):
+    ok: bool
+    updated: int
+    missing_ids: list[int]
+
+
+class CategoryAliasResponse(BaseModel):
+    """Alias row for the read-only listing; target_display_name is None for discards."""
+
+    id: int
+    alias_slug: str
+    target_id: int | None
+    target_display_name: str | None
+    created_at: datetime
 
 
 class CategoryMerge(BaseModel):
