@@ -77,9 +77,9 @@ def build_batch_categorization_prompt(
 1. ONLY categorize each article's PRIMARY topics — what the article is fundamentally about.
 2. IGNORE incidental mentions, anecdotes, metaphors, and examples used to illustrate a point.
 3. Assign ONLY categories from the vocabulary below. Maximum 4 per article; fewer is better.
-4. Use `proposed_category` ONLY when NOTHING in the vocabulary fits the article's primary topic AND that topic is likely to recur across many articles. Otherwise set it to null.
-5. Propose at most ONE new category per article. Proposed names must be human-readable English (e.g., "Artificial Intelligence", "Web Development", "Open Source"). Do NOT use kebab-case, underscores, or slashes. Even if the article is in another language, always use English names.
-6. Keep proposals BROAD. Use "AI" not "AI-Assisted Programming" or "Generative AI". Use "Programming" not "Python Development".
+4. Prefer the most specific fitting category in the vocabulary. Use `proposed_category` when the article's primary topic is meaningfully more specific than the best-fitting existing category AND that topic is likely to recur across many articles (e.g., if articles about cooking are only covered by "Culture", propose "Food"). Set it to null when an existing category already captures the topic well.
+5. Propose at most ONE new category per article. Proposed names must be human-readable English. Do NOT use kebab-case, underscores, or slashes. Even if the article is in another language, always use English names.
+6. Keep proposals at recurring-topic breadth, not niche specificity. Use "Food" not "Sourdough Baking". Use "Programming" not "Python Development".
 
 **Category vocabulary:** {categories_list}
 
