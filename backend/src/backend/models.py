@@ -187,6 +187,7 @@ class Article(SQLModel, table=True):
     score_reasoning: str | None = Field(default=None)
     scoring_state: str = Field(default="unscored", index=True)
     scored_at: datetime | None = Field(default=None)
+    rescued_at: datetime | None = Field(default=None)
 
     # Re-scoring support
     scoring_priority: int = Field(default=0)

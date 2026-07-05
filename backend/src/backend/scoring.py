@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 
 from backend.config import get_settings
 from backend.database import smart_case
-from backend.models import Category, CategoryAlias, CategoryWeight
+from backend.models import Article, Category, CategoryAlias, CategoryWeight
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +109,20 @@ def compute_composite_score(
 def is_blocked(categories: list[Category]) -> bool:
     """True if any category carries the blocked weight."""
     return any(category.weight == CategoryWeight.BLOCK for category in categories)
+
+
+def should_block(article: Article, categories: list[Category]) -> bool:
+    """True if the article should transition to 'blocked' — a rescue verdict overrides (issue #96)."""
+    return is_blocked(categories) and article.rescued_at is None
+
+
+def categories_for_scoring(
+    article: Article, categories: list[Category]
+) -> list[Category]:
+    """Categories that count toward the composite — rescued articles drop block-weight entries."""
+    if article.rescued_at is not None:
+        return [c for c in categories if c.weight != CategoryWeight.BLOCK]
+    return categories
 
 
 def load_categories(session: Session) -> Sequence[Category]:

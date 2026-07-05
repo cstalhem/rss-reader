@@ -21,7 +21,12 @@ from backend.llm_client import (
     LLMUnavailable,
     llm_client,
 )
-from backend.models import Article, ArticleCategoryLink, Category, UserPreferences
+from backend.models import (
+    Article,
+    ArticleCategoryLink,
+    Category,
+    UserPreferences,
+)
 from backend.prompts import (
     BatchScoringResponse,
     build_batch_categorization_prompt,
@@ -29,10 +34,11 @@ from backend.prompts import (
     build_categorization_schema,
 )
 from backend.scoring import (
+    categories_for_scoring,
     compute_composite_score,
-    is_blocked,
     load_categories,
     resolve_proposal,
+    should_block,
 )
 
 logger = logging.getLogger(__name__)
@@ -177,10 +183,22 @@ class CategorizationWorker:
         )
         return count
 
-    def enqueue_single_for_rescoring(self, session: Session, article: Article) -> None:
-        """Enqueue a single article for full re-scoring with high priority."""
-        article.categorization_state = "queued"
-        article.categorization_attempts = 0
+    def enqueue_single_for_rescoring(
+        self, session: Session, article: Article, score_only: bool = False
+    ) -> None:
+        """Enqueue a single article for re-scoring with high priority.
+
+        score_only=True skips categorization and goes straight to the
+        scoring queue (used by the rescue endpoint); score_only=False is the
+        default full re-categorization + re-scoring path.
+        """
+        if score_only:
+            article.scoring_state = "queued"
+            article.scoring_attempts = 0
+            article.rescore_mode = "score_only"
+        else:
+            article.categorization_state = "queued"
+            article.categorization_attempts = 0
         article.scoring_priority = 1
         session.add(article)
         session.commit()
@@ -376,7 +394,7 @@ class CategorizationWorker:
                 cat_list = categories_by_article[aid]
                 art.categorization_state = "categorized"
 
-                if is_blocked(cat_list):
+                if should_block(art, cat_list):
                     art.interest_score = 0
                     art.quality_score = 0
                     art.composite_score = 0.0
@@ -521,10 +539,16 @@ class ScoringWorker:
                 art.interest_score = interest
                 art.quality_score = quality
                 art.score_reasoning = scoring.reasoning
+                cats = categories_by_article.get(aid, [])
+                # The rescue verdict outranks the classifier (issue #96): a
+                # rescued article's block category never zeroes its score.
+                # Sole-blocked-category articles then hit the no-categories
+                # branch (multiplier 1.0).
+                cats = categories_for_scoring(art, cats)
                 art.composite_score = compute_composite_score(
                     interest,
                     quality,
-                    categories_by_article.get(aid, []),
+                    cats,
                 )
                 art.scoring_state = "scored"
                 art.scored_at = datetime.now()

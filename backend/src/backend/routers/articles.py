@@ -1,6 +1,7 @@
 """Article CRUD endpoints."""
 
 import re
+from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,6 +15,7 @@ from backend.deps import (
     read_condition,
     scoring_pending_condition,
     unread_condition,
+    visible_condition,
 )
 from backend.models import Article, Category, Feed
 from backend.schemas import (
@@ -196,7 +198,7 @@ def list_articles(
         statement = statement.where(state_condition)
 
     if exclude_blocked and scoring_state is None:
-        statement = statement.where(Article.scoring_state == "scored")
+        statement = statement.where(visible_condition())
 
     if scoring_state == "pending" and sort_by == "composite_score":
         sort_by = "published_at"
@@ -273,6 +275,48 @@ def mark_all_read(session: Session = Depends(get_session)):
     )
     session.commit()
     return {"ok": True, "count": result.rowcount}
+
+
+@router.post("/{article_id}/rescue")
+def rescue_article(article_id: int, session: Session = Depends(get_session)):
+    """Rescue a blocked article: the user verdict outranks the classifier.
+
+    Moves the article out of 'blocked' immediately and re-queues it for a
+    score-only pass. The pipeline never re-blocks a rescued article.
+
+    Idempotent: replaying a rescue on an already-rescued article is a no-op
+    while queued/scoring/scored, and doubles as a retry if the re-score
+    previously exhausted its attempts and failed.
+    """
+    from backend.scheduler import categorization_worker
+
+    article = session.get(Article, article_id)
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    if article.scoring_state == "blocked":
+        article.rescued_at = datetime.now()
+        article.interest_score = None
+        article.quality_score = None
+        article.composite_score = None
+        categorization_worker.enqueue_single_for_rescoring(
+            session, article, score_only=True
+        )
+        return {"ok": True}
+
+    if article.rescued_at is not None and article.scoring_state == "failed":
+        article.interest_score = None
+        article.quality_score = None
+        article.composite_score = None
+        categorization_worker.enqueue_single_for_rescoring(
+            session, article, score_only=True
+        )
+        return {"ok": True}
+
+    if article.rescued_at is not None:
+        return {"ok": True}
+
+    raise HTTPException(status_code=409, detail="Article is not blocked")
 
 
 @router.post("/{article_id}/rescore")

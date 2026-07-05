@@ -22,8 +22,22 @@ def get_session():
         yield session
 
 
+def visible_condition() -> ColumnElement[bool]:
+    """The single definition of "visible": scored OR rescued.
+
+    A rescued article (issue #96) must appear in the normal list immediately,
+    while still queued/scoring, and even if its re-score later fails — the
+    user's rescue verdict outranks pipeline state. Shared by every place that
+    used to check `scoring_state == "scored"` directly, so there is exactly
+    one definition in the codebase.
+    """
+    return (Article.scoring_state == "scored") | (
+        Article.rescued_at.is_not(None)  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+    )
+
+
 def unread_condition() -> ColumnElement[bool]:
-    """The single definition of "unread": scored, non-blocked, unread.
+    """The single definition of "unread": visible, unread.
 
     Matches CONTEXT.md's "Unread" entry — blocking is the only suppression
     axis, so a scored zero-score article is still unread (visible and counted).
@@ -32,14 +46,14 @@ def unread_condition() -> ColumnElement[bool]:
     """
     return (
         Article.is_read.is_(False)  # pyright: ignore[reportAttributeAccessIssue]
-    ) & (Article.scoring_state == "scored")
+    ) & visible_condition()
 
 
 def read_condition() -> ColumnElement[bool]:
-    """Scored, non-blocked articles that have been read."""
+    """Visible articles that have been read."""
     return (
         Article.is_read.is_(True)  # pyright: ignore[reportAttributeAccessIssue]
-    ) & (Article.scoring_state == "scored")
+    ) & visible_condition()
 
 
 def scoring_pending_condition() -> ColumnElement[bool]:
