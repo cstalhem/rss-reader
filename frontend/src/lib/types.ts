@@ -25,7 +25,8 @@ export interface FeedFolder {
 export type FeedSelection =
   | { type: "all" }
   | { type: "folder"; id: number }
-  | { type: "feed"; id: number };
+  | { type: "feed"; id: number }
+  | { type: "blocked" };
 
 /** The default scope — there is never a "nothing selected" state. */
 export const ALL_ARTICLES_SELECTION: FeedSelection = { type: "all" };

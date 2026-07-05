@@ -73,6 +73,35 @@ export async function fetchArticles(
   return response.json();
 }
 
+export async function fetchBlockedArticles(
+  skip: number,
+  limit: number,
+): Promise<ArticleListResponse> {
+  const params = new URLSearchParams({
+    scoring_state: "blocked",
+    skip: String(skip),
+    limit: String(limit),
+  });
+
+  const response = await fetch(`/api/articles?${params.toString()}`);
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to fetch blocked articles");
+  }
+
+  return response.json();
+}
+
+export async function rescueArticle(id: number): Promise<void> {
+  const response = await fetch(`/api/articles/${id}/rescue`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to rescue article");
+  }
+}
+
 export async function fetchArticle(id: number): Promise<Article> {
   const response = await fetch(`/api/articles/${id}`);
 

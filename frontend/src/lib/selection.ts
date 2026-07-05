@@ -13,7 +13,7 @@ import {
 export function isFeedSelection(value: unknown): value is FeedSelection {
   if (typeof value !== "object" || value === null) return false;
   const { type } = value as { type?: unknown };
-  if (type === "all") return true;
+  if (type === "all" || type === "blocked") return true;
   if (type === "feed" || type === "folder") {
     return typeof (value as { id?: unknown }).id === "number";
   }
@@ -34,6 +34,11 @@ export function isFolderSelected(
   folderId: number,
 ): boolean {
   return selection.type === "folder" && selection.id === folderId;
+}
+
+/** True when `selection` targets the blocked view. */
+export function isBlockedSelected(selection: FeedSelection): boolean {
+  return selection.type === "blocked";
 }
 
 /** Whether the feed/folder lists have finished loading (query `isSuccess`). */
@@ -80,6 +85,8 @@ export function selectionName(
       return feeds.find((f) => f.id === selection.id)?.title ?? "All articles";
     case "folder":
       return folders.find((f) => f.id === selection.id)?.name ?? "All articles";
+    case "blocked":
+      return "Blocked";
     default:
       // Defense in depth: any unexpected discriminant reads as All articles.
       return "All articles";

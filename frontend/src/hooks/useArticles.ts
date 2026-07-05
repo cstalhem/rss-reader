@@ -3,10 +3,9 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { fetchArticles } from "@/lib/api";
+import { ARTICLES_PAGE_SIZE } from "@/lib/constants";
 import { queryKeys } from "@/lib/queryKeys";
 import type { FeedSelection } from "@/lib/types";
-
-const ARTICLES_PAGE_SIZE = 25;
 
 export function useArticles(selection: FeedSelection) {
   const query = useInfiniteQuery({

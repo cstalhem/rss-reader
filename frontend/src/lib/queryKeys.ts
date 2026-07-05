@@ -12,6 +12,8 @@ function selectionKey(selection: FeedSelection): string {
       return `feed:${selection.id}`;
     case "folder":
       return `folder:${selection.id}`;
+    case "blocked":
+      return "blocked";
   }
 }
 
@@ -34,5 +36,6 @@ export const queryKeys = {
       ["articles", "list", selectionKey(selection)] as const,
     detail: (id: number) => ["articles", "detail", id] as const,
     counts: ["articles", "counts"] as const,
+    blocked: ["articles", "blocked"] as const,
   },
 };
