@@ -68,9 +68,8 @@ function ArticleRow({
         !isLast && "border-border/50 border-b",
       )}
     >
-      {/* Overline meta row — the dot is the read toggle.
-          Rest state hides its inline meta at md: (meta moves beside the title);
-          phone and dense state keep it here so those layouts never change. */}
+      {/* Overline meta row — the dot is the read toggle. The meta stays here
+          at every density and breakpoint (phone, dense, and desktop rest). */}
       <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
         <button
           type="button"
@@ -83,37 +82,26 @@ function ArticleRow({
         >
           <ReadDot read={read} />
         </button>
-        <span className={cn("truncate", !dense && "md:hidden")}>{meta}</span>
+        <span className="truncate">{meta}</span>
       </div>
 
-      {/* Rest state at md: places title + excerpt on the left and meta on the
-          right; phone and dense state stack normally. */}
-      <div className={cn(!dense && "md:flex md:items-baseline md:gap-4")}>
-        <div className="min-w-0 md:flex-1">
-          <h3
-            className={cn(
-              "mt-1 font-serif text-xl leading-tight",
-              !read && "font-semibold",
-              // Dense: 2-line clamp at md:. Rest: single-line truncate at md:.
-              dense ? "md:line-clamp-2 md:text-lg" : "md:truncate",
-            )}
-          >
-            {article.title}
-          </h3>
-
-          {/* Excerpt is desktop-only and rest-state-only. */}
-          {!dense && excerpt && (
-            <p className="text-muted-foreground mt-1 hidden truncate text-sm md:block">
-              {excerpt}
-            </p>
+      <div className="min-w-0">
+        <h3
+          className={cn(
+            "mt-1 font-serif text-xl leading-tight",
+            !read && "font-semibold",
+            // Dense: 2-line clamp at md:. Rest: single-line truncate at md:.
+            dense ? "md:line-clamp-2 md:text-lg" : "md:truncate",
           )}
-        </div>
+        >
+          {article.title}
+        </h3>
 
-        {/* Rest-state meta, revealed beside the title at md: only. */}
-        {!dense && (
-          <span className="text-muted-foreground hidden shrink-0 text-xs whitespace-nowrap md:block">
-            {meta}
-          </span>
+        {/* Excerpt is desktop-only and rest-state-only. */}
+        {!dense && excerpt && (
+          <p className="text-muted-foreground mt-1 hidden truncate text-sm md:block">
+            {excerpt}
+          </p>
         )}
       </div>
 
