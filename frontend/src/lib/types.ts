@@ -20,3 +20,12 @@ export interface FeedFolder {
   created_at: string;
   unread_count: number;
 }
+
+/** The currently-selected sidebar scope. Client UI state, not server state. */
+export type FeedSelection =
+  | { type: "all" }
+  | { type: "folder"; id: number }
+  | { type: "feed"; id: number };
+
+/** The default scope — there is never a "nothing selected" state. */
+export const ALL_ARTICLES_SELECTION: FeedSelection = { type: "all" };

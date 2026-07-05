@@ -583,14 +583,18 @@ function SidebarMenuBadge({
 function SidebarMenuSkeleton({
   className,
   showIcon = false,
+  width: widthProp,
   ...props
 }: React.ComponentProps<"div"> & {
   showIcon?: boolean
+  /** Deterministic width (e.g. "60%") for SSR-rendered skeletons; falls back to a random client-only width. */
+  width?: string
 }) {
-  // Random width between 50 to 90%.
-  const [width] = React.useState(() => {
+  // Random width between 50 to 90% — used only when no deterministic width is given.
+  const [randomWidth] = React.useState(() => {
     return `${Math.floor(Math.random() * 40) + 50}%`
   })
+  const width = widthProp ?? randomWidth
 
   return (
     <div

@@ -5,6 +5,8 @@ import { ChevronRight, Folder, Inbox, Rss } from "lucide-react"
 import { useFeeds } from "@/hooks/useFeeds"
 import { useFeedFolders } from "@/hooks/useFeedFolders"
 import { buildSidebarModel } from "@/lib/sidebar"
+import { isFeedSelected, isFolderSelected } from "@/lib/selection"
+import type { FeedSelection } from "@/lib/types"
 import {
   Collapsible,
   CollapsibleContent,
@@ -18,7 +20,6 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSkeleton,
@@ -33,7 +34,29 @@ function feedOpacity(unread: number): string | undefined {
   return unread > 0 ? undefined : "opacity-60"
 }
 
-export function AppSidebar() {
+/** Deterministic skeleton widths — cycled by index so SSR and client agree (no hydration mismatch). */
+const SKELETON_WIDTHS = ["60%", "75%", "50%", "85%", "65%"] as const
+
+/**
+ * Right-aligned unread count rendered inside the menu button. Uses `opacity`
+ * (not an explicit color) so it inherits the button's text color and stays
+ * visible/legible in default, hover, and active states.
+ */
+function UnreadCount({ count }: { count: number }) {
+  if (count <= 0) return null
+  return (
+    <span className="ml-auto shrink-0 text-xs font-medium tabular-nums opacity-70">
+      {count}
+    </span>
+  )
+}
+
+interface AppSidebarProps {
+  selection: FeedSelection
+  onSelect: (selection: FeedSelection) => void
+}
+
+export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
   const feedsQuery = useFeeds()
   const foldersQuery = useFeedFolders()
 
@@ -50,12 +73,14 @@ export function AppSidebar() {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" isActive>
+            <SidebarMenuButton
+              size="lg"
+              isActive={selection.type === "all"}
+              onClick={() => onSelect({ type: "all" })}
+            >
               <Inbox className="size-4" />
               <span className="font-medium">All articles</span>
-              {model.totalUnread > 0 && (
-                <SidebarMenuBadge>{model.totalUnread}</SidebarMenuBadge>
-              )}
+              <UnreadCount count={model.totalUnread} />
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -71,9 +96,9 @@ export function AppSidebar() {
         ) : isLoading ? (
           <SidebarGroup>
             <SidebarMenu>
-              {Array.from({ length: 5 }).map((_, i) => (
+              {SKELETON_WIDTHS.map((width, i) => (
                 <SidebarMenuItem key={i}>
-                  <SidebarMenuSkeleton showIcon />
+                  <SidebarMenuSkeleton showIcon width={width} />
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -91,16 +116,25 @@ export function AppSidebar() {
                       className="group/collapsible"
                     >
                       <SidebarMenuItem>
+                        {/*
+                          One button, one click: selecting a folder also toggles
+                          its expansion. Avoids nesting a second <button> (the
+                          collapsible trigger) inside SidebarMenuButton, which
+                          would be invalid HTML and trigger a hydration warning.
+                        */}
                         <CollapsibleTrigger asChild>
-                          <SidebarMenuButton>
-                            <ChevronRight className="size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
-                            <Folder className="size-4" />
-                            <span>{folder.name}</span>
-                            {folder.unread_count > 0 && (
-                              <SidebarMenuBadge>
-                                {folder.unread_count}
-                              </SidebarMenuBadge>
-                            )}
+                          <SidebarMenuButton
+                            isActive={isFolderSelected(selection, folder.id)}
+                            onClick={() =>
+                              onSelect({ type: "folder", id: folder.id })
+                            }
+                          >
+                            <ChevronRight className="size-4 shrink-0 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                            <Folder className="size-4 shrink-0" />
+                            <span className="truncate" title={folder.name}>
+                              {folder.name}
+                            </span>
+                            <UnreadCount count={folder.unread_count} />
                           </SidebarMenuButton>
                         </CollapsibleTrigger>
                         <CollapsibleContent>
@@ -108,16 +142,18 @@ export function AppSidebar() {
                             {folder.feeds.map((feed) => (
                               <SidebarMenuSubItem key={feed.id}>
                                 <SidebarMenuSubButton
+                                  isActive={isFeedSelected(selection, feed.id)}
+                                  onClick={() =>
+                                    onSelect({ type: "feed", id: feed.id })
+                                  }
                                   className={feedOpacity(feed.unread_count)}
                                 >
-                                  <Rss className="size-4" />
-                                  <span>{feed.title}</span>
+                                  <Rss className="size-4 shrink-0" />
+                                  <span className="truncate" title={feed.title}>
+                                    {feed.title}
+                                  </span>
+                                  <UnreadCount count={feed.unread_count} />
                                 </SidebarMenuSubButton>
-                                {feed.unread_count > 0 && (
-                                  <SidebarMenuBadge>
-                                    {feed.unread_count}
-                                  </SidebarMenuBadge>
-                                )}
                               </SidebarMenuSubItem>
                             ))}
                           </SidebarMenuSub>
@@ -136,15 +172,15 @@ export function AppSidebar() {
                   {model.rootFeeds.map((feed) => (
                     <SidebarMenuItem key={feed.id}>
                       <SidebarMenuButton
+                        isActive={isFeedSelected(selection, feed.id)}
+                        onClick={() => onSelect({ type: "feed", id: feed.id })}
                         className={feedOpacity(feed.unread_count)}
                       >
-                        <Rss className="size-4" />
-                        <span>{feed.title}</span>
-                        {feed.unread_count > 0 && (
-                          <SidebarMenuBadge>
-                            {feed.unread_count}
-                          </SidebarMenuBadge>
-                        )}
+                        <Rss className="size-4 shrink-0" />
+                        <span className="truncate" title={feed.title}>
+                          {feed.title}
+                        </span>
+                        <UnreadCount count={feed.unread_count} />
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
