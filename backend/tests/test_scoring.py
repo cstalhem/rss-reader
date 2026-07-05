@@ -1,6 +1,9 @@
 """Unit tests for scoring pure functions (no DB needed)."""
 
-from backend.models import Category
+import pytest
+
+from backend.config import get_settings
+from backend.models import Category, CategoryWeight
 from backend.scoring import compute_composite_score, is_blocked
 
 
@@ -48,6 +51,14 @@ def test_composite_score_boost_weight():
     assert score == 8 * 1.5 * 1.0
 
 
+def test_composite_score_reduce_weight():
+    """Reduce weight: interest * 0.5 * quality_mult (default multiplier)."""
+    cat = _make_category(weight="reduce")
+    # quality=10 -> quality_mult = 1.0
+    score = compute_composite_score(8, 10, [cat])
+    assert score == 8 * 0.5 * 1.0
+
+
 def test_composite_score_empty_categories():
     """No categories: uses default multiplier 1.0."""
     score = compute_composite_score(8, 7, [])
@@ -73,6 +84,46 @@ def test_composite_score_parent_weight_never_inherited():
     child.parent = parent  # type: ignore[assignment]
     score = compute_composite_score(8, 10, [child])
     assert score == 8 * 1.0 * 1.0
+
+
+# --- config-driven multipliers ---
+
+
+@pytest.fixture
+def custom_boost_multiplier(monkeypatch: pytest.MonkeyPatch):
+    """Override scoring.weight_multipliers.boost via env, clearing the
+    settings cache so the override is visible and reverted afterwards."""
+    monkeypatch.setenv("SCORING__WEIGHT_MULTIPLIERS__BOOST", "3.0")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+def test_composite_score_uses_config_boost(custom_boost_multiplier):
+    """Boost multiplier comes from config, not a hardcoded table."""
+    cat = _make_category(weight="boost")
+    # quality=10 -> quality_mult = 1.0; boost overridden to 3.0
+    score = compute_composite_score(4, 10, [cat])
+    assert score == 4 * 3.0 * 1.0
+
+
+def test_weight_multiplier_config_defaults():
+    """Defaults match the historical hardcoded multipliers."""
+    multipliers = get_settings().scoring.weight_multipliers
+    assert multipliers.reduce == 0.5
+    assert multipliers.boost == 1.5
+    assert multipliers.max == 2.0
+
+
+def test_category_weight_enum_vocabulary():
+    """CategoryWeight is the single source of the weight vocabulary."""
+    assert [w.value for w in CategoryWeight] == [
+        "block",
+        "reduce",
+        "normal",
+        "boost",
+        "max",
+    ]
 
 
 # --- is_blocked ---

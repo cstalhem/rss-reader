@@ -6,20 +6,30 @@ from collections.abc import Sequence
 from slugify import slugify
 from sqlmodel import Session, select
 
+from backend.config import get_settings
 from backend.database import smart_case
-from backend.models import Category, CategoryAlias
+from backend.models import Category, CategoryAlias, CategoryWeight
 
 logger = logging.getLogger(__name__)
 
 MAX_COMPOSITE_SCORE = 20.0
 
-WEIGHT_MULTIPLIERS = {
-    "block": 0.0,
-    "reduce": 0.5,
-    "normal": 1.0,
-    "boost": 1.5,
-    "max": 2.0,
-}
+
+def _weight_multipliers() -> dict[str, float]:
+    """Weight -> multiplier map from config, plus two pinned entries.
+
+    'normal' is 1.0 by definition and 'block' is short-circuited via
+    is_blocked() before scoring — its 0.0 here is defense-in-depth in
+    case a blocked category ever reaches the math. Neither is configurable.
+    """
+    configured = get_settings().scoring.weight_multipliers
+    return {
+        CategoryWeight.BLOCK: 0.0,
+        CategoryWeight.REDUCE: configured.reduce,
+        CategoryWeight.NORMAL: 1.0,
+        CategoryWeight.BOOST: configured.boost,
+        CategoryWeight.MAX: configured.max,
+    }
 
 
 def resolve_proposal(session: Session, proposed_name: str) -> Category | None:
@@ -58,7 +68,7 @@ def resolve_proposal(session: Session, proposed_name: str) -> Category | None:
     category = Category(
         display_name=smart_case(proposed_name),
         slug=slug,
-        weight="normal",
+        weight=CategoryWeight.NORMAL,
         needs_triage=True,
     )
     session.add(category)
@@ -73,8 +83,10 @@ def compute_composite_score(
     """Compute final composite score from interest, quality, and category weights.
 
     Formula: interest_score * category_multiplier * quality_multiplier
-    Capped at 20.0 maximum. Weights apply directly — groups are display-only
-    shelves and never affect scoring (ADR-0001).
+    Capped at 20.0 maximum. Weight multipliers come from config
+    (scoring.weight_multipliers; normal/block are pinned in code).
+    Weights apply directly — groups are display-only shelves and never
+    affect scoring (ADR-0001).
 
     Args:
         interest_score: Interest score 0-10
@@ -87,9 +99,8 @@ def compute_composite_score(
     if not categories:
         category_multiplier = 1.0
     else:
-        weights = [
-            WEIGHT_MULTIPLIERS.get(category.weight, 1.0) for category in categories
-        ]
+        multipliers = _weight_multipliers()
+        weights = [multipliers.get(category.weight, 1.0) for category in categories]
         category_multiplier = sum(weights) / len(weights)
 
     # Quality multiplier: maps 0-10 to 0.5-1.0
@@ -102,7 +113,7 @@ def compute_composite_score(
 
 def is_blocked(categories: list[Category]) -> bool:
     """True if any category carries the blocked weight."""
-    return any(category.weight == "block" for category in categories)
+    return any(category.weight == CategoryWeight.BLOCK for category in categories)
 
 
 def load_categories(session: Session) -> Sequence[Category]:

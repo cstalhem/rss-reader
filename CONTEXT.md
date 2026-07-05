@@ -17,7 +17,7 @@ The absolute weight: an article carrying any blocked category scores zero, skips
 _Avoid_: hidden, banned, excluded
 
 **Alias**:
-A remembered former category name that deterministically resolves future LLM proposals to a surviving category (or to discard). Created when categories are merged or renamed; prevents deleted junk from being recreated.
+A remembered former category name that deterministically resolves future LLM proposals to a surviving category (or to discard). Created when categories are merged or renamed, and as a discard when a category is deleted; prevents deleted junk from being recreated. Explicitly creating a category with an aliased name overrides the memory.
 _Avoid_: synonym list, tombstone
 
 **Proposal**:
@@ -25,7 +25,7 @@ The single channel by which the categorization LLM nominates a category name whe
 _Avoid_: suggestion, suggested category
 
 **Category triage**:
-Reviewing LLM-created categories after the fact — keep, rename, merge, or suppress. New categories are live and usable from the moment of creation; triage is cleanup, never a approval gate.
+Reviewing LLM-created categories after the fact — keep, rename, merge, or block. New categories are live and usable from the moment of creation; triage is cleanup, never an approval gate.
 _Avoid_: category approval, moderation queue
 
 **Reader**:

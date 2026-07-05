@@ -44,6 +44,28 @@ class SchedulerConfig(BaseModel):
     log_job_execution: bool = False
 
 
+class WeightMultipliers(BaseModel):
+    """Configurable category weight multipliers.
+
+    'normal' (1.0, definitional identity) and 'block' (short-circuited
+    before scoring) are pinned in code, not configurable.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    reduce: float = 0.5
+    boost: float = 1.5
+    max: float = 2.0
+
+
+class ScoringConfig(BaseModel):
+    """Scoring configuration."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    weight_multipliers: WeightMultipliers = WeightMultipliers()
+
+
 class LLMTaskConfig(BaseModel):
     """Per-task Azure deployment routing."""
 
@@ -86,6 +108,7 @@ class Settings(BaseSettings):
     database: DatabaseConfig = DatabaseConfig()
     logging: LoggingConfig = LoggingConfig()
     scheduler: SchedulerConfig = SchedulerConfig()
+    scoring: ScoringConfig = ScoringConfig()
     llm: LLMConfig = LLMConfig()
 
     # Azure credentials — env only (AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_API_KEY),

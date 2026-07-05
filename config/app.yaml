@@ -12,6 +12,14 @@ logging:
 scheduler:
   log_job_execution: false
 
+# Category weight multipliers used in composite scoring. Defaults shown
+# below; 'normal' (1.0) and 'block' (article suppressed) are fixed in code.
+# scoring:
+#   weight_multipliers:
+#     reduce: 0.5
+#     boost: 1.5
+#     max: 2.0
+
 # Azure OpenAI task routing (endpoint/key come from env:
 # AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_API_KEY)
 llm:

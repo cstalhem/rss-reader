@@ -1,10 +1,25 @@
 from datetime import datetime
+from enum import StrEnum
 from typing import Optional
 
 from sqlalchemy import CheckConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
-CATEGORY_WEIGHTS = ("block", "reduce", "normal", "boost", "max")
+
+class CategoryWeight(StrEnum):
+    """The category weight vocabulary — single source of truth.
+
+    The DB CHECK constraint, request validation, and the scoring
+    multiplier table all derive from these members.
+    """
+
+    BLOCK = "block"
+    REDUCE = "reduce"
+    NORMAL = "normal"
+    BOOST = "boost"
+    MAX = "max"
+
+
 FEEDBACK_EVENT_TYPES = ("opened", "marked_read", "rated", "rescued")
 CATEGORIZATION_STATES = (
     "uncategorized",
@@ -79,7 +94,8 @@ class Category(SQLModel, table=True):
     __tablename__ = "categories"  # pyright: ignore[reportAssignmentType]
     __table_args__ = (
         CheckConstraint(
-            _in_clause("weight", CATEGORY_WEIGHTS), name="ck_categories_weight"
+            _in_clause("weight", tuple(w.value for w in CategoryWeight)),
+            name="ck_categories_weight",
         ),
     )
 
