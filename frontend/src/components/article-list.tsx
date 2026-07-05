@@ -1,12 +1,14 @@
 "use client";
 
 import { Inbox } from "lucide-react";
+import { useMemo } from "react";
 
+import { CategoryChip, ReadDot, ScoreChip } from "@/components/article-badges";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useArticles } from "@/hooks/useArticles";
 import { useMarkRead } from "@/hooks/useMarkRead";
-import { cn, formatAge } from "@/lib/utils";
+import { cn, formatAge, parseServerDate } from "@/lib/utils";
 import type { ArticleListItem, FeedSelection } from "@/lib/types";
 
 type GroupLabel = "Today" | "Yesterday" | "Earlier";
@@ -23,42 +25,20 @@ function startOfDay(d: Date): number {
 /** Bucket by published date. Null/invalid dates fall into "Earlier". */
 function groupFor(publishedAt: string | null): GroupLabel {
   if (!publishedAt) return "Earlier";
-  const published = new Date(publishedAt);
+  const published = parseServerDate(publishedAt);
   if (Number.isNaN(published.getTime())) return "Earlier";
-  const today = startOfDay(new Date());
+  const now = new Date();
+  const todayStart = startOfDay(now);
+  // Date-field arithmetic, not a fixed 24h offset — DST days are 23/25h long.
+  const yesterdayStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 1,
+  ).getTime();
   const day = startOfDay(published);
-  if (day >= today) return "Today";
-  if (day >= today - 24 * 60 * 60 * 1000) return "Yesterday";
+  if (day >= todayStart) return "Today";
+  if (day >= yesterdayStart) return "Yesterday";
   return "Earlier";
-}
-
-function ReadDot({ read }: { read: boolean }) {
-  return (
-    <span
-      className={cn(
-        "size-2 rounded-full",
-        read
-          ? "border-muted-foreground/50 border bg-transparent"
-          : "bg-primary",
-      )}
-    />
-  );
-}
-
-function ScoreChip({ score }: { score: number }) {
-  return (
-    <span className="bg-secondary text-secondary-foreground rounded px-1.5 py-0.5 text-[11px]">
-      {score.toFixed(1)}
-    </span>
-  );
-}
-
-function CategoryChip({ label }: { label: string }) {
-  return (
-    <span className="text-muted-foreground rounded border px-1.5 py-0.5 text-[11px]">
-      {label}
-    </span>
-  );
 }
 
 function ArticleRow({
@@ -144,6 +124,17 @@ export function ArticleList({ selection, onOpen }: ArticleListProps) {
     markRead.mutate({ id: article.id, isRead: !article.is_read });
   };
 
+  // Recompute buckets only when the article set changes — not on every
+  // mark-read re-render of a long loaded list.
+  const groups = useMemo(
+    () =>
+      GROUP_ORDER.map((label) => ({
+        label,
+        items: articles.filter((a) => groupFor(a.published_at) === label),
+      })).filter((g) => g.items.length > 0),
+    [articles],
+  );
+
   if (isPending) {
     return (
       <div className="h-full overflow-y-auto">
@@ -181,11 +172,6 @@ export function ArticleList({ selection, onOpen }: ArticleListProps) {
       </div>
     );
   }
-
-  const groups = GROUP_ORDER.map((label) => ({
-    label,
-    items: articles.filter((a) => groupFor(a.published_at) === label),
-  })).filter((g) => g.items.length > 0);
 
   return (
     <div className="h-full overflow-y-auto">

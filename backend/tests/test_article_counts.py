@@ -72,17 +72,11 @@ def test_counts_match_list_query_rows(test_client: TestClient, make_feed, make_a
 
     counts = test_client.get("/api/articles/counts").json()
 
-    # The list endpoint's is_read filter alone doesn't exclude score==0 articles
-    # (that's a display nuance, not the unread *count* definition) — so the
-    # matching list query for the "unread" count also asserts composite_score > 0.
+    # Unread is scored + not blocked + not read (CONTEXT.md definition) — a
+    # zero-score scored article is still unread, so the count equals the
+    # unread list rows exactly, with no client-side filtering.
     unread_list = test_client.get("/api/articles", params={"is_read": "false"}).json()
-    unread_rows = [
-        item for item in unread_list["items"] if (item["composite_score"] or 0) > 0
-    ]
     read_list = test_client.get("/api/articles", params={"is_read": "true"}).json()
-    read_rows = [
-        item for item in read_list["items"] if (item["composite_score"] or 0) > 0
-    ]
     pending_list = test_client.get(
         "/api/articles", params={"scoring_state": "pending"}
     ).json()
@@ -90,13 +84,13 @@ def test_counts_match_list_query_rows(test_client: TestClient, make_feed, make_a
         "/api/articles", params={"scoring_state": "blocked"}
     ).json()
 
-    assert counts["unread"] == len(unread_rows)
-    assert counts["read"] == len(read_rows)
+    assert counts["unread"] == len(unread_list["items"])
+    assert counts["read"] == len(read_list["items"])
     assert counts["scoring"] == len(pending_list["items"])
     assert counts["blocked"] == len(blocked_list["items"])
 
     # Explicit expected values given the seeded mix.
-    assert counts["unread"] == 2  # zero-score article excluded
+    assert counts["unread"] == 3  # includes the zero-score scored article
     assert counts["read"] == 1
     assert counts["scoring"] == 1
     assert counts["blocked"] == 1
