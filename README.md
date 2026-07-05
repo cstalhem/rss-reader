@@ -1,10 +1,10 @@
 # RSS Reader
 
-A personal RSS reader with LLM-powered content curation. Surfaces interesting articles, hides noise, and discovers unexpected treasures — all scored locally by [Ollama](https://ollama.com).
+A personal RSS reader with LLM-powered content curation. Surfaces interesting articles, hides noise, and discovers unexpected treasures — scored by [Azure AI Foundry](https://azure.microsoft.com/en-us/products/ai-foundry).
 
 ## Features
 
-- **LLM-Powered Scoring** — Articles are automatically scored by interest and quality using a local Ollama model
+- **LLM-Powered Scoring** — Articles are automatically scored by interest and quality using an Azure AI Foundry model
 - **Smart Categorization** — Auto-generated topic tags with configurable weights (blocked, low, neutral, medium, high)
 - **Score-Based Sorting** — Sort by relevance, date, or score with high-interest articles surfaced first
 - **Filter & Sort** — Unread, All, Scoring, and Blocked views with score or date sorting
@@ -12,7 +12,7 @@ A personal RSS reader with LLM-powered content curation. Surfaces interesting ar
 - **Feed Folders** — Organize subscriptions into collapsible folder groups
 - **Reading Experience** — Clean reader view with auto-mark-as-read, keyboard navigation, and Lora serif typography
 - **Dark & Light Theme** — Toggle between dark and light modes
-- **Fully Local** — No external APIs, no tracking. SQLite database, Ollama LLM, runs on your hardware
+- **Self-Hosted** — No telemetry. SQLite database and app run on your hardware; LLM scoring calls Azure AI Foundry
 
 ### Screenshots
 
@@ -43,7 +43,7 @@ A personal RSS reader with LLM-powered content curation. Surfaces interesting ar
 ### Prerequisites
 
 - Docker and Docker Compose
-- An [Ollama](https://ollama.com) instance (included in the example below, or use an existing one)
+- An [Azure AI Foundry](https://azure.microsoft.com/en-us/products/ai-foundry) endpoint and API key
 
 ### Deploy
 
@@ -51,24 +51,17 @@ Create a `docker-compose.yml` adapted to your setup:
 
 ```yaml
 services:
-  ollama:
-    image: ollama/ollama:latest
-    restart: unless-stopped
-    volumes:
-      - ollama-data:/root/.ollama
-
   backend:
     image: ghcr.io/cstalhem/rss-reader/backend:latest
     restart: unless-stopped
-    depends_on:
-      - ollama
     volumes:
       - db-data:/data
       - ./config:/config:ro
     environment:
       - CONFIG_FILE=/config/app.yaml
       - DATABASE__PATH=/data/rss-reader.db
-      - OLLAMA__HOST=http://ollama:11434
+      - AZURE_OPENAI_ENDPOINT=https://<your-resource>.services.ai.azure.com
+      - AZURE_OPENAI_API_KEY=<your-api-key>
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
       interval: 10s
@@ -89,14 +82,11 @@ services:
 
 volumes:
   db-data:
-  ollama-data:
 ```
 
-Then pull the Ollama model and start the services:
+Then start the services:
 
 ```bash
-docker compose up -d ollama
-docker exec <ollama-container> ollama pull qwen3:8b
 docker compose up -d
 ```
 
@@ -119,7 +109,7 @@ The frontend Docker image is built with relative API URLs. If you place a revers
 
 Configuration is loaded with the following priority (highest to lowest):
 
-1. Environment variables (e.g., `OLLAMA__HOST`)
+1. Environment variables (e.g., `DATABASE__PATH`)
 2. `.env` file
 3. YAML config file (`CONFIG_FILE`)
 4. Default values
@@ -147,7 +137,8 @@ Environment variables use double-underscore notation for nested config:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DATABASE__PATH` | SQLite database path | `./data/rss-reader.db` |
-| `OLLAMA__HOST` | Ollama API URL | `http://localhost:11434` |
+| `AZURE_OPENAI_ENDPOINT` | Azure AI Foundry endpoint URL | *(none)* |
+| `AZURE_OPENAI_API_KEY` | Azure AI Foundry API key | *(none)* |
 | `CONFIG_FILE` | Path to YAML config file | *(none)* |
 
 > **Note:** Model selection and feed refresh interval are configured through the Settings UI and stored in the database.
@@ -160,7 +151,7 @@ Environment variables use double-underscore notation for nested config:
 
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
 - [Bun](https://bun.sh) (JavaScript runtime)
-- [Ollama](https://ollama.com) running locally
+- An [Azure AI Foundry](https://azure.microsoft.com/en-us/products/ai-foundry) endpoint and API key
 
 ### Backend
 
@@ -194,7 +185,7 @@ bun run lint                 # ESLint
 bun run build                # Production build
 ```
 
-The frontend connects to the backend at `http://localhost:8912` by default (configured via `NEXT_PUBLIC_API_URL`).
+The frontend uses relative API URLs — in dev, `next.config.ts` proxies `/api` requests to `http://localhost:8912` (no env var needed).
 
 ---
 
@@ -202,10 +193,10 @@ The frontend connects to the backend at `http://localhost:8912` by default (conf
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│  Frontend   │────▶│   Backend    │────▶│   Ollama    │
-│  Next.js    │     │   FastAPI    │     │   LLM       │
-│  Chakra UI  │     │   SQLModel   │     │             │
-│  Port 3210  │     │   Port 8912  │     │  Port 11434 │
+│  Frontend   │────▶│   Backend    │────▶│  Azure AI   │
+│  Next.js    │     │   FastAPI    │     │  Foundry    │
+│  shadcn/ui  │     │   SQLModel   │     │             │
+│  Port 3210  │     │   Port 8912  │     │             │
 └─────────────┘     └──────┬───────┘     └─────────────┘
                            │
                     ┌──────▼───────┐
@@ -219,9 +210,9 @@ The frontend connects to the backend at `http://localhost:8912` by default (conf
 | Component | Technology |
 |-----------|-----------|
 | Backend | FastAPI + SQLModel (Python) |
-| Frontend | Next.js App Router + Chakra UI v3 |
+| Frontend | Next.js App Router + shadcn/ui + Tailwind v4 |
 | Database | SQLite with WAL mode |
-| LLM | Ollama (local inference) |
+| LLM | Azure AI Foundry |
 | Feed Parsing | feedparser |
 | Scheduling | APScheduler |
 | Data Fetching | TanStack Query |
@@ -247,8 +238,7 @@ rss-reader/
 │   │   ├── app/           # Next.js App Router pages
 │   │   ├── components/    # UI components (layout, article, settings)
 │   │   ├── hooks/         # React hooks (useArticles, useFeeds, etc.)
-│   │   ├── lib/           # API client, types, utilities
-│   │   └── theme/         # Chakra UI theme (colors, typography)
+│   │   └── lib/           # API client, types, utilities
 │   └── Dockerfile
 ├── config/
 │   └── app.yaml           # Example configuration
