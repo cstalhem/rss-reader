@@ -23,25 +23,23 @@ def get_session():
 
 
 def unread_condition() -> ColumnElement[bool]:
-    """The single definition of "unread": scored, non-blocked, positive score, unread.
+    """The single definition of "unread": scored, non-blocked, unread.
 
+    Matches CONTEXT.md's "Unread" entry — blocking is the only suppression
+    axis, so a scored zero-score article is still unread (visible and counted).
     Shared by the articles list/counts endpoints and the feeds/feed-folders
     unread_count aggregates so there is exactly one definition in the codebase.
     """
     return (
-        (Article.is_read.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
-        & (Article.scoring_state == "scored")
-        & (Article.composite_score > 0)  # pyright: ignore[reportOptionalOperand]
-    )
+        Article.is_read.is_(False)  # pyright: ignore[reportAttributeAccessIssue]
+    ) & (Article.scoring_state == "scored")
 
 
 def read_condition() -> ColumnElement[bool]:
-    """Scored, non-blocked, positive-score articles that have been read."""
+    """Scored, non-blocked articles that have been read."""
     return (
-        (Article.is_read.is_(True))  # pyright: ignore[reportAttributeAccessIssue]
-        & (Article.scoring_state == "scored")
-        & (Article.composite_score > 0)  # pyright: ignore[reportOptionalOperand]
-    )
+        Article.is_read.is_(True)  # pyright: ignore[reportAttributeAccessIssue]
+    ) & (Article.scoring_state == "scored")
 
 
 def scoring_pending_condition() -> ColumnElement[bool]:

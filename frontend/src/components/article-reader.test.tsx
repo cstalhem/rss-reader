@@ -29,7 +29,7 @@ function listItem(overrides: Partial<ArticleListItem> = {}): ArticleListItem {
         id: 5,
         display_name: "Machine Learning",
         slug: "ml",
-        effective_weight: 1,
+        effective_weight: "normal",
         parent_display_name: null,
       },
     ],

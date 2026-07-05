@@ -67,13 +67,18 @@ export const articleHandlers = [
     const url = new URL(request.url);
     const skip = Number(url.searchParams.get("skip") ?? "0");
     const limit = Number(url.searchParams.get("limit") ?? "25");
+    const isReadParam = url.searchParams.get("is_read");
     const feedIdParam = url.searchParams.get("feed_id");
     const folderIdParam = url.searchParams.get("folder_id");
 
     let filtered = mockArticles;
+    if (isReadParam !== null) {
+      // Mirror the backend: is_read filters server-side before pagination.
+      filtered = filtered.filter((a) => String(a.is_read) === isReadParam);
+    }
     if (feedIdParam !== null) {
       const feedId = Number(feedIdParam);
-      filtered = mockArticles.filter((a) => a.feed_id === feedId);
+      filtered = filtered.filter((a) => a.feed_id === feedId);
     } else if (folderIdParam !== null) {
       // No folder fixtures defined — folder scoping yields no matches.
       filtered = [];
@@ -91,7 +96,20 @@ export const articleHandlers = [
 
   http.get("/api/articles/:id", ({ params }) => {
     const id = Number(params.id);
-    return HttpResponse.json({ ...mockArticleDetail, id });
+    // Derive detail fields from the matching list fixture so list and detail
+    // never disagree about the same article (feed, title, read state).
+    const base = mockArticles.find((a) => a.id === id);
+    return HttpResponse.json({
+      ...mockArticleDetail,
+      ...(base && {
+        feed_id: base.feed_id,
+        title: base.title,
+        url: base.url,
+        published_at: base.published_at,
+        is_read: base.is_read,
+      }),
+      id,
+    });
   }),
 
   http.patch("/api/articles/:id", async ({ params, request }) => {

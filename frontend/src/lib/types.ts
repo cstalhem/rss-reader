@@ -30,12 +30,13 @@ export type FeedSelection =
 /** The default scope — there is never a "nothing selected" state. */
 export const ALL_ARTICLES_SELECTION: FeedSelection = { type: "all" };
 
-/** Mirrors backend `ArticleCategory` (schemas.py). */
+/** Mirrors backend `ArticleCategoryEmbed` (schemas.py). */
 export interface ArticleCategory {
   id: number;
   display_name: string;
   slug: string;
-  effective_weight: number;
+  /** Weight label ("block" | "reduce" | "normal" | "boost" | "max") — a string, not a number. */
+  effective_weight: string;
   parent_display_name: string | null;
 }
 

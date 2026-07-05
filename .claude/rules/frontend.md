@@ -47,9 +47,9 @@ paths: ["frontend/**"]
 
 - Load-more pagination, not infinite scroll.
 - Unread-first default view, sorted by composite score descending.
-- Mark-as-read timing is re-decided by the milestone-4 reader prototype (see PRD #88) — keep the auto-mark intent, no fixed number yet.
+- Mark-as-read: dwell-based auto-mark, 3s after the reader's content loads (#94 decision) — never auto-mark unread.
 - Full opacity + accent dot for unread, 0.6 opacity + hollow dot for read.
-- **Inter** for UI text (`--font-sans`), **Lora** for reader content (`--font-serif`), via `next/font` + `@theme inline` mapping.
+- **Inter** for UI text (`--font-sans`), **Lora** for reader content and article headlines (#94 decision: list rows + reader titles are serif) (`--font-serif`), via `next/font` + `@theme inline` mapping.
 
 ## Testing
 

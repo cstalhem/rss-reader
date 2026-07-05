@@ -243,34 +243,33 @@ def get_article_counts(
     Each count is computed from the same condition helpers the list endpoint's
     filters use, so a count always equals what the matching list query returns.
     """
-    scoping = _scoping_conditions(feed_id, folder_id)
-
-    def _count(condition: ColumnElement[bool]) -> int:
-        statement = select(func.count(Article.id)).join(  # pyright: ignore[reportArgumentType]
-            Feed,
-            Feed.id == Article.feed_id,  # pyright: ignore[reportArgumentType]
-        )
-        for scope in scoping:
-            statement = statement.where(scope)
-        statement = statement.where(condition)
-        return session.exec(statement).one()
+    # One scan with conditional aggregates — this endpoint is polled every 10s.
+    statement = select(
+        func.count(Article.id).filter(unread_condition()),  # pyright: ignore[reportArgumentType]
+        func.count(Article.id).filter(read_condition()),  # pyright: ignore[reportArgumentType]
+        func.count(Article.id).filter(scoring_pending_condition()),  # pyright: ignore[reportArgumentType]
+        func.count(Article.id).filter(blocked_condition()),  # pyright: ignore[reportArgumentType]
+    ).join(
+        Feed,
+        Feed.id == Article.feed_id,  # pyright: ignore[reportArgumentType]
+    )
+    for scope in _scoping_conditions(feed_id, folder_id):
+        statement = statement.where(scope)
+    unread, read, scoring, blocked = session.exec(statement).one()
 
     return ArticleCountsResponse(
-        unread=_count(unread_condition()),
-        read=_count(read_condition()),
-        scoring=_count(scoring_pending_condition()),
-        blocked=_count(blocked_condition()),
+        unread=unread,
+        read=read,
+        scoring=scoring,
+        blocked=blocked,
     )
 
 
 @router.post("/mark-all-read")
 def mark_all_read(session: Session = Depends(get_session)):
-    """Mark all unread scored non-blocked articles as read."""
+    """Mark all unread articles read — same definition of unread as counts/badges."""
     result = session.exec(
-        update(Article)
-        .where(Article.is_read.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
-        .where(Article.scoring_state == "scored")  # pyright: ignore[reportArgumentType]
-        .values(is_read=True)
+        update(Article).where(unread_condition()).values(is_read=True)  # pyright: ignore[reportArgumentType]
     )
     session.commit()
     return {"ok": True, "count": result.rowcount}

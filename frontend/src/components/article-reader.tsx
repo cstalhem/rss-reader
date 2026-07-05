@@ -4,36 +4,16 @@ import DOMPurify from "dompurify";
 import { Check } from "lucide-react";
 import { useEffect, useMemo } from "react";
 
+import { CategoryChip, ReadDot } from "@/components/article-badges";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useArticle } from "@/hooks/useArticle";
 import { useMarkRead } from "@/hooks/useMarkRead";
-import { cn, formatAge } from "@/lib/utils";
+import { formatAge } from "@/lib/utils";
 import type { ArticleListItem } from "@/lib/types";
 
 /** Dwell threshold before auto-marking an opened article read — issue #94 decision. */
 const MARK_READ_DWELL_MS = 3000;
-
-function ReadDot({ read }: { read: boolean }) {
-  return (
-    <span
-      className={cn(
-        "size-2 rounded-full",
-        read
-          ? "border-muted-foreground/50 border bg-transparent"
-          : "bg-primary",
-      )}
-    />
-  );
-}
-
-function CategoryChip({ label }: { label: string }) {
-  return (
-    <span className="text-muted-foreground rounded border px-1.5 py-0.5 text-[11px]">
-      {label}
-    </span>
-  );
-}
 
 interface ArticleReaderProps {
   /** The list item that was opened — supplies feed/meta/score fields immediately. */
@@ -73,20 +53,22 @@ export function ArticleReader({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
-  // Dwell auto-mark (#94): mark read `dwellMs` after open if it was unread when
-  // opened. Never auto-marks unread. The opened article is frozen in shell state
-  // for the reader's lifetime, so `is_read`/`id` here reflect open-time state; the
-  // timer re-arms per article. `mutate` (not the mutation object) is a stable ref.
+  // Dwell auto-mark (#94): mark read `dwellMs` after the content is readable,
+  // if the article was unread when opened. Never auto-marks unread, and never
+  // marks an article whose content failed to load. The opened article is frozen
+  // in shell state for the reader's lifetime, so `is_read`/`id` here reflect
+  // open-time state; `mutate` (not the mutation object) is a stable ref.
   const markMutate = markRead.mutate;
   const articleId = article.id;
   const wasUnreadAtOpen = !article.is_read;
+  const contentLoaded = detailQuery.isSuccess;
   useEffect(() => {
-    if (!wasUnreadAtOpen) return;
+    if (!wasUnreadAtOpen || !contentLoaded) return;
     const timer = setTimeout(() => {
       markMutate({ id: articleId, isRead: true });
     }, dwellMs);
     return () => clearTimeout(timer);
-  }, [articleId, wasUnreadAtOpen, dwellMs, markMutate]);
+  }, [articleId, wasUnreadAtOpen, contentLoaded, dwellMs, markMutate]);
 
   return (
     <div className="bg-background animate-in fade-in fixed inset-0 z-40 flex flex-col duration-200">
@@ -131,7 +113,19 @@ export function ArticleReader({
             </div>
           </div>
 
-          {bodyHtml === null ? (
+          {detailQuery.isError ? (
+            <p className="text-muted-foreground mx-auto mt-8 max-w-[68ch] text-sm">
+              Couldn&apos;t load this article.{" "}
+              <a
+                href={article.url}
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                Open the original
+              </a>
+            </p>
+          ) : detailQuery.isPending ? (
             <div className="mx-auto mt-8 max-w-[68ch] space-y-3">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-[92%]" />
@@ -142,6 +136,18 @@ export function ArticleReader({
               <Skeleton className="h-4 w-[88%]" />
               <Skeleton className="h-4 w-[60%]" />
             </div>
+          ) : bodyHtml === null ? (
+            <p className="text-muted-foreground mx-auto mt-8 max-w-[68ch] text-sm">
+              This article has no content.{" "}
+              <a
+                href={article.url}
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                Open the original
+              </a>
+            </p>
           ) : (
             <div
               className="[&_blockquote]:text-muted-foreground mx-auto mt-6 max-w-[68ch] font-serif text-[17px] leading-[1.7] [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:italic [&_h2]:mt-8 [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-semibold [&_img]:max-w-full [&_li]:mt-1 [&_p]:mt-4 [&_pre]:overflow-x-auto [&_ul]:mt-4 [&_ul]:list-disc [&_ul]:pl-5"
@@ -160,5 +166,3 @@ export function ArticleReader({
     </div>
   );
 }
-
-export { MARK_READ_DWELL_MS };

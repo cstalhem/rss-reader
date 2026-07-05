@@ -56,10 +56,26 @@ function UnreadCount({ count }: { count: number }) {
 
 /**
  * The global "All articles" badge. Server-computed total (`useArticleCounts`);
- * shows a skeleton while loading rather than a client-side sum, and nothing when
- * there are no unread articles.
+ * shows a skeleton while loading rather than a client-side sum, a muted dash if
+ * the counts query fails, and nothing when there are no unread articles.
  */
-function GlobalUnreadCount({ count }: { count: number | null }) {
+function GlobalUnreadCount({
+  count,
+  isError,
+}: {
+  count: number | null;
+  isError: boolean;
+}) {
+  if (isError) {
+    return (
+      <span
+        className="ml-auto shrink-0 text-xs opacity-50"
+        title="Couldn't load unread count"
+      >
+        –
+      </span>
+    );
+  }
   if (count === null) {
     return <Skeleton className="ml-auto h-3 w-5 shrink-0 rounded" />;
   }
@@ -97,7 +113,10 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
             >
               <Inbox className="size-4" />
               <span className="font-medium">All articles</span>
-              <GlobalUnreadCount count={model.totalUnread} />
+              <GlobalUnreadCount
+                count={model.totalUnread}
+                isError={countsQuery.isError}
+              />
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
