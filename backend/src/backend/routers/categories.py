@@ -14,8 +14,11 @@ from backend.schemas import (
     AutoGroupApplyResponse,
     AutoGroupSuggestResponse,
     CategoryAcknowledgeRequest,
+    CategoryAliasResponse,
     CategoryBatchAction,
     CategoryBatchMove,
+    CategoryBulkUpdate,
+    CategoryBulkUpdateResponse,
     CategoryCreateRequest,
     CategoryMerge,
     CategoryMergeResponse,
@@ -73,9 +76,13 @@ def _category_to_response(session: Session, category: Category) -> CategoryRespo
 
 @router.get("", response_model=list[CategoryResponse])
 def list_categories(
+    needs_triage: bool | None = None,
     session: Session = Depends(get_session),
 ):
-    """Get flat list of all categories with article counts."""
+    """Get flat list of all categories with article counts.
+
+    Optionally filter by triage state (needs_triage=true → the triage list).
+    """
     statement = (
         select(
             Category,
@@ -85,6 +92,8 @@ def list_categories(
         .group_by(Category.id)  # pyright: ignore[reportArgumentType]
         .order_by(Category.display_name)
     )
+    if needs_triage is not None:
+        statement = statement.where(Category.needs_triage == needs_triage)  # pyright: ignore[reportArgumentType]
     results = session.exec(statement).all()
 
     return [
@@ -137,6 +146,60 @@ def create_category(
     session.refresh(category)
 
     return _category_to_response(session, category)
+
+
+@router.patch("", response_model=CategoryBulkUpdateResponse)
+def bulk_update_categories(
+    body: CategoryBulkUpdate,
+    session: Session = Depends(get_session),
+):
+    """Apply weight and/or triage state to many categories in one transaction.
+
+    Triage gestures compose from this: keep = {needs_triage: false},
+    batch-block = {weight: "block", needs_triage: false}. Missing ids are
+    skipped and reported, never a failure.
+    """
+    updated = 0
+    missing_ids: list[int] = []
+    for cat_id in body.category_ids:
+        category = session.get(Category, cat_id)
+        if not category:
+            missing_ids.append(cat_id)
+            continue
+        if body.weight is not None:
+            category.weight = body.weight.value
+        if body.needs_triage is not None:
+            category.needs_triage = body.needs_triage
+        session.add(category)
+        updated += 1
+
+    session.commit()
+    return CategoryBulkUpdateResponse(ok=True, updated=updated, missing_ids=missing_ids)
+
+
+# Literal path — declared before the /{category_id} routes so it can never
+# be shadowed by the path-param match.
+@router.get("/aliases", response_model=list[CategoryAliasResponse])
+def list_aliases(
+    session: Session = Depends(get_session),
+):
+    """List all alias rows (ADR-0007). NULL target = remembered discard."""
+    aliases = session.exec(
+        select(CategoryAlias).order_by(CategoryAlias.alias_slug)
+    ).all()
+    names_by_id = {c.id: c.display_name for c in session.exec(select(Category)).all()}
+    return [
+        CategoryAliasResponse(
+            id=alias.id,  # pyright: ignore[reportArgumentType]
+            alias_slug=alias.alias_slug,
+            target_id=alias.target_id,
+            target_display_name=names_by_id.get(alias.target_id)
+            if alias.target_id is not None
+            else None,
+            created_at=alias.created_at,
+        )
+        for alias in aliases
+    ]
 
 
 @router.get("/unseen-count")
