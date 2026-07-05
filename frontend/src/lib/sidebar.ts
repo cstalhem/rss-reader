@@ -9,7 +9,8 @@ export interface SidebarFolder extends FeedFolder {
 export interface SidebarModel {
   folders: SidebarFolder[];
   rootFeeds: Feed[];
-  totalUnread: number;
+  /** Server-computed global unread; `null` while the counts query is loading. */
+  totalUnread: number | null;
 }
 
 /** Order by `display_order`, then `id` — matching the backend's `GET /api/feeds` ordering. */
@@ -24,12 +25,14 @@ function byDisplayOrder<T extends { display_order: number; id: number }>(
  * Shape live feeds/folders into the ordered sidebar model.
  *
  * Folder unread counts come straight from the folders endpoint (server-computed)
- * and are never recomputed from feed data. `totalUnread` sums feed `unread_count`
- * for presentation — no derivation from article data.
+ * and are never recomputed from feed data. `globalUnread` is the server-computed
+ * total (from the counts endpoint) — passed through verbatim, never derived from
+ * article data. Pass `null` while the counts query is loading.
  */
 export function buildSidebarModel(
   feeds: Feed[],
   folders: FeedFolder[],
+  globalUnread: number | null,
 ): SidebarModel {
   const sortedFolders = [...folders].sort(byDisplayOrder);
   const sortedFeeds = [...feeds].sort(byDisplayOrder);
@@ -54,10 +57,5 @@ export function buildSidebarModel(
     feeds: feedsByFolder.get(folder.id) ?? [],
   }));
 
-  const totalUnread = sortedFeeds.reduce(
-    (sum, feed) => sum + feed.unread_count,
-    0,
-  );
-
-  return { folders: modelFolders, rootFeeds, totalUnread };
+  return { folders: modelFolders, rootFeeds, totalUnread: globalUnread };
 }

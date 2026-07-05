@@ -35,7 +35,7 @@ describe("buildSidebarModel", () => {
       feed({ id: 11, folder_id: null, title: "Root feed" }),
     ];
 
-    const model = buildSidebarModel(feeds, folders);
+    const model = buildSidebarModel(feeds, folders, null);
 
     expect(model.folders).toHaveLength(1);
     expect(model.folders[0].feeds.map((f) => f.id)).toEqual([10]);
@@ -50,7 +50,7 @@ describe("buildSidebarModel", () => {
       feed({ id: 20, folder_id: 1, display_order: 1 }),
     ];
 
-    const model = buildSidebarModel(feeds, folders);
+    const model = buildSidebarModel(feeds, folders, null);
 
     // display_order 1 (id 10, 20) before display_order 2 (id 30)
     expect(model.folders[0].feeds.map((f) => f.id)).toEqual([10, 20, 30]);
@@ -63,7 +63,7 @@ describe("buildSidebarModel", () => {
       folder({ id: 3, display_order: 1 }),
     ];
 
-    const model = buildSidebarModel([], folders);
+    const model = buildSidebarModel([], folders, null);
 
     expect(model.folders.map((f) => f.id)).toEqual([1, 3, 2]);
   });
@@ -75,7 +75,7 @@ describe("buildSidebarModel", () => {
       feed({ id: 20, display_order: 1 }),
     ];
 
-    const model = buildSidebarModel(feeds, []);
+    const model = buildSidebarModel(feeds, [], null);
 
     expect(model.rootFeeds.map((f) => f.id)).toEqual([10, 20, 30]);
   });
@@ -83,7 +83,7 @@ describe("buildSidebarModel", () => {
   it("keeps an empty folder with no feeds", () => {
     const folders = [folder({ id: 1, name: "Empty", unread_count: 0 })];
 
-    const model = buildSidebarModel([], folders);
+    const model = buildSidebarModel([], folders, null);
 
     expect(model.folders).toHaveLength(1);
     expect(model.folders[0].feeds).toEqual([]);
@@ -96,29 +96,37 @@ describe("buildSidebarModel", () => {
       feed({ id: 11, folder_id: 1, unread_count: 2 }),
     ];
 
-    const model = buildSidebarModel(feeds, folders);
+    const model = buildSidebarModel(feeds, folders, null);
 
     expect(model.folders[0].unread_count).toBe(99);
   });
 
-  it("totals unread by summing feed unread_count across all feeds", () => {
+  it("passes the server-computed global unread through verbatim", () => {
     const folders = [folder({ id: 1, unread_count: 99 })];
     const feeds = [
       feed({ id: 10, folder_id: 1, unread_count: 5 }),
       feed({ id: 11, folder_id: null, unread_count: 3 }),
     ];
 
-    const model = buildSidebarModel(feeds, folders);
+    // Independent of feed/folder counts — never summed client-side.
+    const model = buildSidebarModel(feeds, folders, 42);
 
-    // Sum of feed counts (5 + 3), independent of folder unread_count.
-    expect(model.totalUnread).toBe(8);
+    expect(model.totalUnread).toBe(42);
   });
 
-  it("returns zero totals and empty groups for no data", () => {
-    const model = buildSidebarModel([], []);
+  it("reports null total while counts are loading", () => {
+    const feeds = [feed({ id: 10, unread_count: 5 })];
+
+    const model = buildSidebarModel(feeds, [], null);
+
+    expect(model.totalUnread).toBeNull();
+  });
+
+  it("returns empty groups and null total for no data", () => {
+    const model = buildSidebarModel([], [], null);
 
     expect(model.folders).toEqual([]);
     expect(model.rootFeeds).toEqual([]);
-    expect(model.totalUnread).toBe(0);
+    expect(model.totalUnread).toBeNull();
   });
 });
