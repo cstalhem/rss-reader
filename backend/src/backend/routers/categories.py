@@ -7,7 +7,7 @@ from sqlmodel import Session, func, select
 from backend.database import smart_case
 from backend.deps import TASK_GROUPING, get_session
 from backend.llm_client import LLMError, llm_client
-from backend.models import ArticleCategoryLink, Category
+from backend.models import ArticleCategoryLink, Category, CategoryAlias
 from backend.prompts import GroupingResponse, build_grouping_prompt
 from backend.schemas import (
     AutoGroupApplyRequest,
@@ -18,12 +18,35 @@ from backend.schemas import (
     CategoryBatchMove,
     CategoryCreateRequest,
     CategoryMerge,
+    CategoryMergeResponse,
     CategoryResponse,
     CategoryUpdate,
     GroupSuggestionItem,
+    MergeChildReleased,
 )
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
+
+
+def _upsert_alias(session: Session, alias_slug: str, target_id: int | None) -> None:
+    """Create or repoint an alias (ADR-0007) without violating the slug UNIQUE."""
+    alias = session.exec(
+        select(CategoryAlias).where(CategoryAlias.alias_slug == alias_slug)
+    ).first()
+    if alias:
+        alias.target_id = target_id
+        session.add(alias)
+    else:
+        session.add(CategoryAlias(alias_slug=alias_slug, target_id=target_id))
+
+
+def _delete_alias(session: Session, alias_slug: str) -> None:
+    """Erase alias memory for a slug — explicit human act overrides it (ADR-0007)."""
+    alias = session.exec(
+        select(CategoryAlias).where(CategoryAlias.alias_slug == alias_slug)
+    ).first()
+    if alias:
+        session.delete(alias)
 
 
 def _category_article_count(session: Session, category_id: int) -> int:
@@ -100,6 +123,9 @@ def create_category(
         if not parent:
             raise HTTPException(status_code=404, detail="Parent category not found")
 
+    # Explicit creation overrides remembered discard/redirect (ADR-0007)
+    _delete_alias(session, slug)
+
     # User-created categories never need triage
     category = Category(
         display_name=smart_case(body.display_name),
@@ -144,12 +170,12 @@ def mark_seen(
     return {"ok": True}
 
 
-@router.post("/merge")
+@router.post("/merge", response_model=CategoryMergeResponse)
 def merge_categories(
     body: CategoryMerge,
     session: Session = Depends(get_session),
 ):
-    """Merge source category into target. Moves article associations, reparents children, deletes source."""
+    """Merge source into target: move articles, release children to root, alias the source name."""
     if body.source_id == body.target_id:
         raise HTTPException(
             status_code=400, detail="Source and target must be different"
@@ -185,17 +211,39 @@ def merge_categories(
             session.add(new_link)
         articles_moved += 1
 
+    # Release children to root — groups are display-only shelves (ADR-0001);
+    # the merge survivor's shelf is not the children's shelf.
     source_children = session.exec(
         select(Category).where(Category.parent_id == body.source_id)
     ).all()
+    children_released = [
+        MergeChildReleased(id=child.id, display_name=child.display_name)  # pyright: ignore[reportArgumentType]
+        for child in source_children
+    ]
     for child in source_children:
-        child.parent_id = body.target_id
+        child.parent_id = None
         session.add(child)
+
+    # Repoint the source's aliases explicitly — relying on ON DELETE SET NULL
+    # would silently turn redirects into discards (ADR-0007).
+    source_aliases = session.exec(
+        select(CategoryAlias).where(CategoryAlias.target_id == body.source_id)
+    ).all()
+    for alias in source_aliases:
+        alias.target_id = body.target_id
+        session.add(alias)
+
+    _upsert_alias(session, source.slug, body.target_id)
 
     session.delete(source)
     session.commit()
 
-    return {"ok": True, "articles_moved": articles_moved}
+    return CategoryMergeResponse(
+        ok=True,
+        articles_moved=articles_moved,
+        children_released=children_released,
+        aliases_repointed=len(source_aliases),
+    )
 
 
 @router.post("/batch-move")
@@ -383,6 +431,8 @@ def batch_delete_categories(
             )
         )
         session.delete(category)
+        # Discard alias: removed junk stays dead (ADR-0007)
+        _upsert_alias(session, category.slug, None)
         deleted += 1
 
     session.commit()
@@ -412,10 +462,16 @@ def update_category(
         if existing:
             raise HTTPException(
                 status_code=409,
-                detail=f"Category '{body.display_name}' already exists",
+                detail=f"Category '{body.display_name}' already exists — use merge instead",
             )
+        old_slug = category.slug
         category.display_name = smart_case(body.display_name)
         category.slug = new_slug
+        if new_slug != old_slug:
+            # The new name is live again — erase remembered alias; leave one
+            # for the vacated name (ADR-0007).
+            _delete_alias(session, new_slug)
+            _upsert_alias(session, old_slug, category_id)
 
     if body.parent_id is not None:
         if body.parent_id == -1:
@@ -433,6 +489,19 @@ def update_category(
             parent = session.get(Category, body.parent_id)
             if not parent:
                 raise HTTPException(status_code=404, detail="Parent category not found")
+            if parent.parent_id is not None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Target must be a root category (no parent)",
+                )
+            children = session.exec(
+                select(Category).where(Category.parent_id == category_id)
+            ).all()
+            if children:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Category '{category.display_name}' has children and cannot be nested under another parent",
+                )
             category.parent_id = body.parent_id
     elif body.model_fields_set and "parent_id" in body.model_fields_set:
         category.parent_id = None
@@ -476,6 +545,8 @@ def delete_category(
     )
 
     session.delete(category)
+    # Discard alias: removed junk stays dead (ADR-0007)
+    _upsert_alias(session, category.slug, None)
     session.commit()
 
     return {"ok": True}
