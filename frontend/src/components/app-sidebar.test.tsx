@@ -110,11 +110,12 @@ describe("AppSidebar", () => {
     // Root feed rendered outside any folder.
     expect(await screen.findByText("xkcd")).toBeInTheDocument();
 
-    // Total unread (12 + 4) shown in the header.
+    // Global unread comes from the server counts endpoint (mockArticleCounts.unread),
+    // not a client-side sum of feed counts.
     await waitFor(() =>
       expect(
         screen.getByText("All articles").closest("button"),
-      ).toHaveTextContent("16"),
+      ).toHaveTextContent("32"),
     );
   });
 

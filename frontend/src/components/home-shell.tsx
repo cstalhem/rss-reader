@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import { Inbox } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { AppSidebar } from "@/components/app-sidebar";
+import { ArticleList } from "@/components/article-list";
+import { ArticleReader } from "@/components/article-reader";
 import {
   SidebarInset,
   SidebarProvider,
@@ -17,7 +18,11 @@ import {
   resolveSelection,
   selectionName,
 } from "@/lib/selection";
-import { ALL_ARTICLES_SELECTION, type FeedSelection } from "@/lib/types";
+import {
+  ALL_ARTICLES_SELECTION,
+  type ArticleListItem,
+  type FeedSelection,
+} from "@/lib/types";
 
 const SELECTION_STORAGE_KEY = "rss-reader:selection";
 
@@ -32,6 +37,9 @@ export function HomeShell() {
   const foldersQuery = useFeedFolders();
   const feeds = feedsQuery.data ?? [];
   const folders = foldersQuery.data ?? [];
+
+  // The open article is shell-level UI state (URL state is a later milestone).
+  const [openArticle, setOpenArticle] = useState<ArticleListItem | null>(null);
 
   // Fall back to All articles if the stored selection points at a
   // feed/folder that no longer exists (validated once data has loaded).
@@ -53,19 +61,20 @@ export function HomeShell() {
   return (
     <SidebarProvider>
       <AppSidebar selection={selection} onSelect={setStored} />
-      <SidebarInset>
-        <header className="flex h-14 items-center gap-2 border-b px-4">
+      {/* The h-svh/min-h-0 constrained-height chain is the #93 shell decision. */}
+      <SidebarInset className="h-svh overflow-hidden">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger />
           <h1 className="text-sm font-medium">{header}</h1>
         </header>
-        <main className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-          <Inbox className="text-muted-foreground size-10" />
-          <div className="space-y-1">
-            <p className="text-sm font-medium">No articles</p>
-            <p className="text-muted-foreground text-sm">
-              Articles for this view will appear here.
-            </p>
-          </div>
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <ArticleList selection={selection} onOpen={setOpenArticle} />
+          {openArticle !== null && (
+            <ArticleReader
+              article={openArticle}
+              onClose={() => setOpenArticle(null)}
+            />
+          )}
         </main>
       </SidebarInset>
     </SidebarProvider>

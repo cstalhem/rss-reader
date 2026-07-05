@@ -2,6 +2,7 @@
 
 import { ChevronRight, Folder, Inbox, Rss } from "lucide-react";
 
+import { useArticleCounts } from "@/hooks/useArticleCounts";
 import { useFeeds } from "@/hooks/useFeeds";
 import { useFeedFolders } from "@/hooks/useFeedFolders";
 import { buildSidebarModel } from "@/lib/sidebar";
@@ -12,6 +13,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sidebar,
   SidebarContent,
@@ -52,6 +54,18 @@ function UnreadCount({ count }: { count: number }) {
   );
 }
 
+/**
+ * The global "All articles" badge. Server-computed total (`useArticleCounts`);
+ * shows a skeleton while loading rather than a client-side sum, and nothing when
+ * there are no unread articles.
+ */
+function GlobalUnreadCount({ count }: { count: number | null }) {
+  if (count === null) {
+    return <Skeleton className="ml-auto h-3 w-5 shrink-0 rounded" />;
+  }
+  return <UnreadCount count={count} />;
+}
+
 interface AppSidebarProps {
   selection: FeedSelection;
   onSelect: (selection: FeedSelection) => void;
@@ -60,6 +74,7 @@ interface AppSidebarProps {
 export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
   const feedsQuery = useFeeds();
   const foldersQuery = useFeedFolders();
+  const countsQuery = useArticleCounts();
 
   const isLoading = feedsQuery.isPending || foldersQuery.isPending;
   const isError = feedsQuery.isError || foldersQuery.isError;
@@ -67,6 +82,7 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
   const model = buildSidebarModel(
     feedsQuery.data ?? [],
     foldersQuery.data ?? [],
+    countsQuery.data?.unread ?? null,
   );
 
   return (
@@ -81,7 +97,7 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
             >
               <Inbox className="size-4" />
               <span className="font-medium">All articles</span>
-              <UnreadCount count={model.totalUnread} />
+              <GlobalUnreadCount count={model.totalUnread} />
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
