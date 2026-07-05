@@ -32,6 +32,10 @@ _Avoid_: category approval, moderation queue
 The article reading surface. Full-screen on the phone (the primary device); its desktop presentation (sheet vs. split pane) is a prototype-decided detail. One component tree across breakpoints, never parallel layouts.
 _Avoid_: detail view, drawer, article page
 
+**Unread**:
+The state of an article the reader hasn't read yet that has been scored and isn't blocked. Unread is a promise of readable, relevant content: articles still awaiting scoring aren't unread *yet*, and blocked articles never are. All unread counts (sidebar badges, list filters) share this single definition, computed by the backend.
+_Avoid_: new, unseen, not-read (for anything still in the pipeline)
+
 **Rating**:
 The explicit feedback signal: a single thumbs up or down on an article, available from the list and the reader. Binary by design — no stars, no scales.
 _Avoid_: stars, score (that's the LLM's number)
