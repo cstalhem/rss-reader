@@ -88,78 +88,83 @@ export function ArticleReader({
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="px-5 pt-10 pb-24">
           <div className="mx-auto max-w-[68ch]">
-            {/* Overline: live read status + category chips, above the headline */}
-            <div className="mb-3 flex flex-wrap items-center gap-1.5">
-              <span className="text-muted-foreground mr-1 flex items-center gap-1.5 text-xs">
-                <ReadDot read={isRead} />
-                {isRead ? "Read" : "Unread"}
-              </span>
-              {categories.map((category) => (
-                <CategoryChip key={category.id} label={category.display_name} />
-              ))}
+            <div>
+              {/* Overline: live read status + category chips, above the headline */}
+              <div className="mb-3 flex flex-wrap items-center gap-1.5">
+                <span className="text-muted-foreground mr-1 flex items-center gap-1.5 text-xs">
+                  <ReadDot read={isRead} />
+                  {isRead ? "Read" : "Unread"}
+                </span>
+                {categories.map((category) => (
+                  <CategoryChip
+                    key={category.id}
+                    label={category.display_name}
+                  />
+                ))}
+              </div>
+
+              <h1 className="font-serif text-3xl leading-tight font-bold">
+                {article.title}
+              </h1>
+              <p className="text-muted-foreground mt-2 text-sm">
+                {article.feed_title} · {formatAge(article.published_at)}
+              </p>
+
+              <div className="mt-5 space-y-4">
+                <ReaderScores
+                  relevance={article.composite_score}
+                  quality={article.quality_score}
+                />
+                {article.score_reasoning !== null && (
+                  <blockquote className="text-muted-foreground border-l-2 pl-3 font-serif text-sm italic">
+                    {article.score_reasoning}
+                  </blockquote>
+                )}
+              </div>
             </div>
 
-            <h1 className="font-serif text-3xl leading-tight font-bold">
-              {article.title}
-            </h1>
-            <p className="text-muted-foreground mt-2 text-sm">
-              {article.feed_title} · {formatAge(article.published_at)}
-            </p>
-
-            <div className="mt-5 space-y-4">
-              <ReaderScores
-                relevance={article.composite_score}
-                quality={article.quality_score}
+            {detailQuery.isError ? (
+              <p className="text-muted-foreground mt-8 text-sm">
+                Couldn&apos;t load this article.{" "}
+                <a
+                  href={article.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  Open the original
+                </a>
+              </p>
+            ) : detailQuery.isPending ? (
+              <div className="mt-8 space-y-3">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-[92%]" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-[85%]" />
+                <Skeleton className="h-4 w-[70%]" />
+                <Skeleton className="mt-6 h-4 w-full" />
+                <Skeleton className="h-4 w-[88%]" />
+                <Skeleton className="h-4 w-[60%]" />
+              </div>
+            ) : bodyHtml === null ? (
+              <p className="text-muted-foreground mt-8 text-sm">
+                This article has no content.{" "}
+                <a
+                  href={article.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  Open the original
+                </a>
+              </p>
+            ) : (
+              <div
+                className="[&_blockquote]:text-muted-foreground [&_a]:text-primary [&_a]:decoration-primary/40 [&_a:hover]:decoration-primary mt-6 font-serif text-[17px] leading-[1.7] [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:italic [&_h2]:mt-8 [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-semibold [&_img]:max-w-full [&_li]:mt-1 [&_p]:mt-4 [&_pre]:overflow-x-auto [&_ul]:mt-4 [&_ul]:list-disc [&_ul]:pl-5"
+                dangerouslySetInnerHTML={{ __html: bodyHtml }}
               />
-              {article.score_reasoning !== null && (
-                <blockquote className="text-muted-foreground border-l-2 pl-3 font-serif text-sm italic">
-                  {article.score_reasoning}
-                </blockquote>
-              )}
-            </div>
+            )}
           </div>
-
-          {detailQuery.isError ? (
-            <p className="text-muted-foreground mx-auto mt-8 max-w-[68ch] text-sm">
-              Couldn&apos;t load this article.{" "}
-              <a
-                href={article.url}
-                target="_blank"
-                rel="noreferrer"
-                className="underline"
-              >
-                Open the original
-              </a>
-            </p>
-          ) : detailQuery.isPending ? (
-            <div className="mx-auto mt-8 max-w-[68ch] space-y-3">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-[92%]" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-[85%]" />
-              <Skeleton className="h-4 w-[70%]" />
-              <Skeleton className="mt-6 h-4 w-full" />
-              <Skeleton className="h-4 w-[88%]" />
-              <Skeleton className="h-4 w-[60%]" />
-            </div>
-          ) : bodyHtml === null ? (
-            <p className="text-muted-foreground mx-auto mt-8 max-w-[68ch] text-sm">
-              This article has no content.{" "}
-              <a
-                href={article.url}
-                target="_blank"
-                rel="noreferrer"
-                className="underline"
-              >
-                Open the original
-              </a>
-            </p>
-          ) : (
-            <div
-              className="[&_blockquote]:text-muted-foreground [&_a]:text-primary [&_a]:decoration-primary/40 [&_a:hover]:decoration-primary mx-auto mt-6 max-w-[68ch] font-serif text-[17px] leading-[1.7] [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:italic [&_h2]:mt-8 [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-semibold [&_img]:max-w-full [&_li]:mt-1 [&_p]:mt-4 [&_pre]:overflow-x-auto [&_ul]:mt-4 [&_ul]:list-disc [&_ul]:pl-5"
-              dangerouslySetInnerHTML={{ __html: bodyHtml }}
-            />
-          )}
         </div>
       </div>
       <Button
