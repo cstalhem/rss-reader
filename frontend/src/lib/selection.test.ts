@@ -108,7 +108,11 @@ describe("resolveSelection", () => {
 describe("selectionName", () => {
   it("names a feed, folder, and All", () => {
     expect(
-      selectionName({ type: "feed", id: 10 }, [feed({ id: 10, title: "HN" })], []),
+      selectionName(
+        { type: "feed", id: 10 },
+        [feed({ id: 10, title: "HN" })],
+        [],
+      ),
     ).toBe("HN");
     expect(
       selectionName(

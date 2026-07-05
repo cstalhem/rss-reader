@@ -46,7 +46,7 @@ const SKELETON_WIDTHS = ["60%", "75%", "50%", "85%", "65%"] as const;
 function UnreadCount({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
-    <span className='ml-auto shrink-0 text-xs font-medium tabular-nums opacity-70'>
+    <span className="ml-auto shrink-0 text-xs font-medium tabular-nums opacity-70">
       {count}
     </span>
   );
@@ -75,12 +75,12 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              size='lg'
+              size="lg"
               isActive={selection.type === "all"}
               onClick={() => onSelect({ type: "all" })}
             >
-              <Inbox className='size-4' />
-              <span className='font-medium'>All articles</span>
+              <Inbox className="size-4" />
+              <span className="font-medium">All articles</span>
               <UnreadCount count={model.totalUnread} />
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -90,7 +90,7 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
       <SidebarContent>
         {isError ? (
           <SidebarGroup>
-            <p className='px-2 text-sm text-muted-foreground'>
+            <p className="text-muted-foreground px-2 text-sm">
               Couldn&apos;t load feeds. Retrying…
             </p>
           </SidebarGroup>
@@ -114,7 +114,7 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                     <Collapsible
                       key={folder.id}
                       defaultOpen
-                      className='group/collapsible'
+                      className="group/collapsible"
                     >
                       <SidebarMenuItem>
                         {/*
@@ -132,8 +132,8 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                             onSelect({ type: "folder", id: folder.id })
                           }
                         >
-                          <Folder className='size-4 shrink-0' />
-                          <span className='truncate' title={folder.name}>
+                          <Folder className="size-4 shrink-0" />
+                          <span className="truncate" title={folder.name}>
                             {folder.name}
                           </span>
                           <UnreadCount count={folder.unread_count} />
@@ -142,11 +142,11 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                           <SidebarMenuAction
                             aria-label={`Toggle ${folder.name}`}
                           >
-                            <ChevronRight className='transition-transform group-data-[state=open]/collapsible:rotate-90' />
+                            <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
                           </SidebarMenuAction>
                         </CollapsibleTrigger>
                         <CollapsibleContent>
-                          <SidebarMenuSub className='mr-0 pr-0'>
+                          <SidebarMenuSub className="mr-0 pr-0">
                             {folder.feeds.map((feed) => (
                               <SidebarMenuSubItem key={feed.id}>
                                 <SidebarMenuSubButton
@@ -156,8 +156,8 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                                   }
                                   className={feedOpacity(feed.unread_count)}
                                 >
-                                  <Rss className='size-4 shrink-0' />
-                                  <span className='truncate' title={feed.title}>
+                                  <Rss className="size-4 shrink-0" />
+                                  <span className="truncate" title={feed.title}>
                                     {feed.title}
                                   </span>
                                   <UnreadCount count={feed.unread_count} />
@@ -184,8 +184,8 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                         onClick={() => onSelect({ type: "feed", id: feed.id })}
                         className={feedOpacity(feed.unread_count)}
                       >
-                        <Rss className='size-4 shrink-0' />
-                        <span className='truncate' title={feed.title}>
+                        <Rss className="size-4 shrink-0" />
+                        <span className="truncate" title={feed.title}>
                           {feed.title}
                         </span>
                         <UnreadCount count={feed.unread_count} />

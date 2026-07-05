@@ -1,0 +1,74 @@
+#!/usr/bin/env sh
+# Pre-push gate: the heavy whole-project checks that would make pre-commit slow.
+# Runs the full lint + type-check + test + format-check suite for each stack that
+# has changes in the range being pushed. Mirrors CI exactly, so a push can never
+# pass locally yet fail CI. Installed by scripts/install-hooks.sh.
+set -e
+
+ok()   { echo "pre-push: $1 OK"; }
+fail() { echo "pre-push: $1 ERROR" >&2; exit 1; }
+
+# --- Figure out which stacks changed in the commits being pushed ---------------
+# git feeds pre-push one line per ref on stdin:
+#   <local ref> <local sha> <remote ref> <remote sha>
+# A remote sha of all-zeros means a brand-new branch on the remote — fall back to
+# the integration base (origin/v2, then origin/main). If we can't scope it, gate
+# everything (safe default). A tty on stdin means a manual run: gate everything.
+changed=""
+if [ -t 0 ]; then
+  changed="ALL"
+else
+  while read -r local_ref local_sha remote_ref remote_sha; do
+    [ -z "$local_sha" ] && continue
+    # Skip branch deletions (local sha all-zeros).
+    case "$local_sha" in *[!0]*) : ;; *) continue ;; esac
+    if printf '%s' "$remote_sha" | grep -q '[^0]'; then
+      range="$remote_sha..$local_sha"
+    else
+      base=$(git merge-base "$local_sha" origin/v2 2>/dev/null \
+          || git merge-base "$local_sha" origin/main 2>/dev/null || true)
+      [ -n "$base" ] && range="$base..$local_sha" || range=""
+    fi
+    if [ -n "$range" ]; then
+      changed="$changed
+$(git diff --name-only "$range")"
+    else
+      changed="ALL"
+      break
+    fi
+  done
+fi
+[ -z "$changed" ] && changed="ALL"
+
+run_backend=0
+run_frontend=0
+if [ "$changed" = "ALL" ]; then
+  run_backend=1
+  run_frontend=1
+else
+  printf '%s\n' "$changed" | grep -q '^backend/'  && run_backend=1
+  printf '%s\n' "$changed" | grep -q '^frontend/' && run_frontend=1
+fi
+
+# --- Run the gates -------------------------------------------------------------
+if [ "$run_backend" = 1 ]; then
+  echo "pre-push: backend gate…"
+  (cd backend && uv run ruff check .)          || fail "backend lint"
+  (cd backend && uv run ruff format --check .)  || fail "backend format"
+  (cd backend && uv run pyright)                || fail "backend types"
+  (cd backend && uv run pytest)                 || fail "backend tests"
+  ok backend
+fi
+
+if [ "$run_frontend" = 1 ]; then
+  echo "pre-push: frontend gate…"
+  (cd frontend && bun run lint)         || fail "frontend lint"
+  (cd frontend && bunx tsc --noEmit)    || fail "frontend types"
+  (cd frontend && bun run format:check) || fail "frontend format"
+  (cd frontend && bun run test)         || fail "frontend tests"
+  ok frontend
+fi
+
+if [ "$run_backend" = 0 ] && [ "$run_frontend" = 0 ]; then
+  echo "pre-push: no backend/ or frontend/ changes to gate"
+fi

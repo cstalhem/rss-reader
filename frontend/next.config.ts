@@ -1,9 +1,9 @@
-import type { NextConfig } from 'next'
-import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
+import type { NextConfig } from "next";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
 const baseConfig: NextConfig = {
-  output: 'standalone',
-}
+  output: "standalone",
+};
 
 export default function config(phase: string): NextConfig {
   if (phase === PHASE_DEVELOPMENT_SERVER) {
@@ -14,10 +14,19 @@ export default function config(phase: string): NextConfig {
       // Dev-gated deliberately — external rewrites in standalone builds have
       // known issues, and Next's proxy buffers streaming (matters if SSE ever lands).
       async rewrites() {
-        return [{ source: '/api/:path*', destination: 'http://localhost:8912/api/:path*' }]
+        return [
+          {
+            source: "/api/:path*",
+            destination: "http://localhost:8912/api/:path*",
+          },
+        ];
       },
-      allowedDevOrigins: ['192.168.0.62', 'm1-mbp.spitz-sailfin.ts.net', 'm1-mbp']
-    }
+      allowedDevOrigins: [
+        "192.168.0.62",
+        "m1-mbp.spitz-sailfin.ts.net",
+        "m1-mbp",
+      ],
+    };
   }
-  return baseConfig
+  return baseConfig;
 }

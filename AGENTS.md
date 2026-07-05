@@ -34,7 +34,8 @@ A personal RSS reader with LLM-powered relevance scoring. Self-hosted, simple, m
 uv run dev                                             # Dev server
 uv run pytest                                          # Tests
 uv run ruff check .                                    # Lint
-uv run ruff format .                                   # Format
+uv run ruff format .                                   # Format (--check to verify only)
+uv run pyright                                         # Type check
 ```
 
 ### Frontend (`cd frontend`)
@@ -43,8 +44,36 @@ uv run ruff format .                                   # Format
 bun dev               # Dev server (next dev -p 3210 -H 0.0.0.0, Turbopack)
 bun run test          # Vitest
 bun run lint          # ESLint
+bun run format        # Prettier write (format:check to verify only)
+bunx tsc --noEmit     # Type check
 bun run build         # Production build
 ```
+
+---
+
+## Code Quality Gates (Git Hooks + CI)
+
+Quality is enforced at three points. All three run the same checks so a commit can never pass locally yet fail CI.
+
+**Install once per clone/worktree:**
+
+```bash
+bash scripts/install-hooks.sh
+```
+
+This is also run automatically by `bun install` in `frontend/` (its `prepare` script). It sets `core.hooksPath=.githooks` and drops forwarding shims in the shared hooks dir — the shim layer keeps the gate alive even after Conductor/Claude Code worktree creation resets `core.hooksPath` (a known upstream bug).
+
+| Stage | Scope | Backend (if `backend/` changed) | Frontend (if `frontend/` changed) |
+| --- | --- | --- | --- |
+| **pre-commit** (`.githooks/pre-commit`) | staged files, auto-fix | `ruff format` + `ruff check --fix` | `lint-staged`: `eslint --fix` + `prettier --write` |
+| **pre-push** (`.githooks/pre-push`) | whole project, per changed stack | `ruff check` + `ruff format --check` + `pyright` + `pytest` | `lint` + `tsc --noEmit` + `prettier --check` + `vitest` |
+| **CI** (`.github/workflows/docker-publish.yml`) | PR/push gate to `main`/`dev` | same as pre-push | same as pre-push |
+
+Plus two stack-agnostic pre-commit guards: rejects merge-conflict markers / trailing whitespace, and blocks staged files > 1 MB.
+
+**Hook files in `.githooks/` must be committed mode 100755** (`git add --chmod=+x`) — git silently skips non-executable hooks, so CI has a `verify-hooks` job that fails if the exec bit is missing.
+
+Frontend Prettier uses `prettier-plugin-tailwindcss` to auto-sort Tailwind classes — already wired in `.prettierrc`.
 
 ---
 
