@@ -99,7 +99,7 @@ describe("AppSidebar", () => {
     renderSidebar();
 
     // Folder label with its server unread count.
-    const folderButton = await screen.findByRole("button", { name: /Tech/ });
+    const folderButton = await screen.findByRole("button", { name: /^Tech/ });
     expect(within(folderButton).getByText("Tech")).toBeInTheDocument();
     expect(folderButton).toHaveTextContent("12");
 
@@ -150,5 +150,62 @@ describe("AppSidebar", () => {
     expect(
       screen.getByText("All articles").closest("button"),
     ).toHaveAttribute("data-active", "false");
+  });
+
+  it("selects the folder on name click without collapsing it", async () => {
+    const user = userEvent.setup();
+    renderSidebar();
+
+    // Feeds are visible (folder open by default).
+    await screen.findByText("Hacker News");
+
+    // Click the folder name button (not the chevron toggle).
+    const folderButton = screen.getByRole("button", { name: /^Tech/ });
+    await user.click(folderButton);
+
+    // Folder is now selected...
+    await waitFor(() =>
+      expect(screen.getByTestId("selection")).toHaveTextContent(
+        JSON.stringify({ type: "folder", id: 1 }),
+      ),
+    );
+    expect(folderButton).toHaveAttribute("data-active", "true");
+
+    // ...and the folder stayed open — nested feed is still visible.
+    expect(screen.getByText("Hacker News")).toBeInTheDocument();
+  });
+
+  it("toggles the folder on chevron click without changing selection", async () => {
+    const user = userEvent.setup();
+    renderSidebar();
+
+    await screen.findByText("Hacker News");
+
+    // Baseline: All articles selected, folder open.
+    expect(screen.getByTestId("selection")).toHaveTextContent(
+      JSON.stringify({ type: "all" }),
+    );
+
+    const toggle = screen.getByRole("button", { name: "Toggle Tech" });
+    await user.click(toggle);
+
+    // Collapsing hides the nested feed...
+    await waitFor(() =>
+      expect(screen.queryByText("Hacker News")).not.toBeInTheDocument(),
+    );
+
+    // ...but selection is unchanged.
+    expect(screen.getByTestId("selection")).toHaveTextContent(
+      JSON.stringify({ type: "all" }),
+    );
+
+    // Expanding again brings the feed back.
+    await user.click(toggle);
+    await waitFor(() =>
+      expect(screen.getByText("Hacker News")).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("selection")).toHaveTextContent(
+      JSON.stringify({ type: "all" }),
+    );
   });
 });
