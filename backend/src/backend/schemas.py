@@ -181,6 +181,18 @@ class CategoryMerge(BaseModel):
     target_id: int
 
 
+class MergeChildReleased(BaseModel):
+    id: int
+    display_name: str
+
+
+class CategoryMergeResponse(BaseModel):
+    ok: bool
+    articles_moved: int
+    children_released: list[MergeChildReleased]
+    aliases_repointed: int
+
+
 class CategoryAcknowledgeRequest(BaseModel):
     category_ids: list[int]
 
