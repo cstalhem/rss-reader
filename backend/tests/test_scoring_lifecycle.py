@@ -46,7 +46,7 @@ async def test_full_scoring_lifecycle_visible_via_api(
     # Scored article appears in the default article list with scores
     response = test_client.get("/api/articles")
     assert response.status_code == 200
-    items = response.json()
+    items = response.json()["items"]
     assert len(items) == 1
     item = items[0]
     assert item["id"] == article.id
@@ -82,7 +82,7 @@ async def test_bulk_rescore_endpoint_requeues_and_rescores(
     await _run_pipeline_once(test_session)
 
     test_session.expire_all()
-    articles = test_client.get("/api/articles").json()
+    articles = test_client.get("/api/articles").json()["items"]
     assert articles[0]["scoring_state"] == "scored"
     assert articles[0]["interest_score"] == 7
 
@@ -138,7 +138,7 @@ async def test_rate_limited_pipeline_surfaces_in_status_and_requeues(
     test_session.expire_all()
     articles = test_client.get(
         "/api/articles", params={"scoring_state": "pending"}
-    ).json()
+    ).json()["items"]
     assert len(articles) == 1
 
 
@@ -167,12 +167,12 @@ async def test_blocked_articles_appear_only_in_blocked_view(
     test_session.expire_all()
 
     # Hidden from the default list
-    assert test_client.get("/api/articles").json() == []
+    assert test_client.get("/api/articles").json()["items"] == []
 
     # Inspectable in the blocked view
     blocked = test_client.get(
         "/api/articles", params={"scoring_state": "blocked"}
-    ).json()
+    ).json()["items"]
     assert len(blocked) == 1
     assert blocked[0]["id"] == article.id
 

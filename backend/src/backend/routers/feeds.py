@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import update
 from sqlmodel import Session, func, select
 
-from backend.deps import get_session
+from backend.deps import get_session, unread_condition
 from backend.feeds import fetch_feed, refresh_feed, save_articles
 from backend.models import Article, Feed, FeedFolder
 from backend.schemas import (
@@ -41,10 +41,7 @@ def list_feeds(
         .outerjoin(FeedFolder, FeedFolder.id == Feed.folder_id)  # pyright: ignore[reportArgumentType]
         .outerjoin(
             Article,
-            (Article.feed_id == Feed.id)
-            & (Article.is_read.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
-            & (Article.scoring_state == "scored")
-            & (Article.composite_score > 0),  # pyright: ignore[reportOptionalOperand]
+            (Article.feed_id == Feed.id) & unread_condition(),  # pyright: ignore[reportOperatorIssue]
         )
         .group_by(Feed.id, FeedFolder.name)  # pyright: ignore[reportArgumentType]
         .order_by(Feed.folder_id, Feed.display_order, Feed.id)  # pyright: ignore[reportArgumentType]
@@ -297,9 +294,7 @@ def update_feed(
     unread_count = session.exec(
         select(func.count(Article.id))  # pyright: ignore[reportArgumentType]
         .where(Article.feed_id == feed.id)
-        .where(Article.is_read.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
-        .where(Article.scoring_state == "scored")
-        .where(Article.composite_score > 0)  # pyright: ignore[reportOptionalOperand]
+        .where(unread_condition())
     ).one()
 
     folder_name = None

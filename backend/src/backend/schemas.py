@@ -40,6 +40,7 @@ class ArticleListItem(BaseModel):
 
     id: int
     feed_id: int
+    feed_title: str
     title: str
     url: str
     author: str | None
@@ -54,6 +55,22 @@ class ArticleListItem(BaseModel):
     scoring_state: str
     scored_at: datetime | None
     re_evaluating: bool = False
+
+
+class ArticleListResponse(BaseModel):
+    """Envelope for the paginated article list endpoint."""
+
+    items: list[ArticleListItem]
+    has_more: bool
+
+
+class ArticleCountsResponse(BaseModel):
+    """Counts for the four article list views, scoped identically to the list endpoint."""
+
+    unread: int
+    read: int
+    scoring: int
+    blocked: int
 
 
 class ArticleResponse(BaseModel):

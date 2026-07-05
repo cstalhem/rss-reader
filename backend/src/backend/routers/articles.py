@@ -4,15 +4,23 @@ import re
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import desc, nulls_last, update
+from sqlalchemy import ColumnElement, desc, nulls_last, update
 from sqlalchemy.orm import selectinload
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
-from backend.deps import get_session
+from backend.deps import (
+    blocked_condition,
+    get_session,
+    read_condition,
+    scoring_pending_condition,
+    unread_condition,
+)
 from backend.models import Article, Category, Feed
 from backend.schemas import (
     ArticleCategoryEmbed,
+    ArticleCountsResponse,
     ArticleListItem,
+    ArticleListResponse,
     ArticleResponse,
     ArticleUpdate,
 )
@@ -91,12 +99,13 @@ def _article_to_response(article: Article) -> ArticleResponse:
     )
 
 
-def _article_to_list_item(article: Article) -> ArticleListItem:
+def _article_to_list_item(article: Article, feed_title: str) -> ArticleListItem:
     """Convert an Article with loaded categories_rel to a lightweight list item."""
     display_state, re_eval = _derive_display_state(article)
     return ArticleListItem(
         id=article.id,  # pyright: ignore[reportArgumentType]
         feed_id=article.feed_id,
+        feed_title=feed_title,
         title=article.title,
         url=article.url,
         author=article.author,
@@ -114,7 +123,45 @@ def _article_to_list_item(article: Article) -> ArticleListItem:
     )
 
 
-@router.get("", response_model=list[ArticleListItem])
+def _scoping_conditions(
+    feed_id: int | None, folder_id: int | None
+) -> list[ColumnElement[bool]]:
+    """Conditions scoping a query to a feed or folder — shared by list and counts.
+
+    Callers must join Feed themselves when folder_id is used (the list endpoint
+    already selects Article and joins Feed; the counts endpoint joins Feed too).
+    """
+    conditions: list[ColumnElement[bool]] = []
+    if feed_id is not None:
+        conditions.append(Article.feed_id == feed_id)  # pyright: ignore[reportArgumentType]
+    if folder_id is not None:
+        conditions.append(Feed.folder_id == folder_id)  # pyright: ignore[reportArgumentType]
+    return conditions
+
+
+def _scoring_state_condition(
+    scoring_state: str | None, exclude_blocked: bool
+) -> tuple[ColumnElement[bool] | None, bool]:
+    """The condition for a scoring_state filter value, and the effective exclude_blocked.
+
+    Returns (condition_or_None, exclude_blocked). A None condition means "no
+    scoring_state-specific filter" (exclude_blocked then applies as usual).
+    """
+    if scoring_state == "pending":
+        return scoring_pending_condition(), exclude_blocked
+    if scoring_state == "blocked":
+        return blocked_condition(), False
+    if scoring_state == "failed":
+        return (
+            (Article.scoring_state == "failed")
+            | (Article.categorization_state == "failed")
+        ), False  # pyright: ignore[reportReturnType]
+    if scoring_state is not None:
+        return Article.scoring_state == scoring_state, False  # pyright: ignore[reportReturnType]
+    return None, exclude_blocked
+
+
+@router.get("", response_model=ArticleListResponse)
 def list_articles(
     skip: int = 0,
     limit: int = 50,
@@ -128,40 +175,25 @@ def list_articles(
     session: Session = Depends(get_session),
 ):
     """List articles, paginated and sorted by composite_score or published_at."""
-    statement = select(Article).options(
-        selectinload(Article.categories_rel).joinedload(Category.parent)  # pyright: ignore[reportArgumentType]
+    statement = (
+        select(Article, Feed.title)
+        .join(Feed, Feed.id == Article.feed_id)  # pyright: ignore[reportArgumentType]
+        .options(
+            selectinload(Article.categories_rel).joinedload(Category.parent)  # pyright: ignore[reportArgumentType]
+        )
     )
 
     if is_read is not None:
         statement = statement.where(Article.is_read == is_read)
 
-    if feed_id is not None:
-        statement = statement.where(Article.feed_id == feed_id)
+    for condition in _scoping_conditions(feed_id, folder_id):
+        statement = statement.where(condition)
 
-    if folder_id is not None:
-        statement = statement.join(Feed, Feed.id == Article.feed_id).where(  # pyright: ignore[reportArgumentType]
-            Feed.folder_id == folder_id
-        )
-
-    if scoring_state == "pending":
-        statement = statement.where(
-            Article.composite_score.is_(None),  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]  # first-time only — excludes re-evaluating
-            (
-                Article.scoring_state.in_(["unscored", "queued", "scoring"])  # pyright: ignore[reportAttributeAccessIssue]
-                | Article.categorization_state.in_(["queued", "categorizing"])  # pyright: ignore[reportAttributeAccessIssue]
-            ),
-        )
-    elif scoring_state == "blocked":
-        statement = statement.where(Article.scoring_state == "blocked")
-        exclude_blocked = False
-    elif scoring_state == "failed":
-        statement = statement.where(
-            (Article.scoring_state == "failed")
-            | (Article.categorization_state == "failed")
-        )
-        exclude_blocked = False
-    elif scoring_state is not None:
-        statement = statement.where(Article.scoring_state == scoring_state)
+    state_condition, exclude_blocked = _scoring_state_condition(
+        scoring_state, exclude_blocked
+    )
+    if state_condition is not None:
+        statement = statement.where(state_condition)
 
     if exclude_blocked and scoring_state is None:
         statement = statement.where(Article.scoring_state == "scored")
@@ -187,9 +219,48 @@ def list_articles(
         else:
             statement = statement.order_by(Article.published_at.asc(), Article.id)  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess, reportArgumentType]
 
-    statement = statement.offset(skip).limit(limit)
-    articles = session.exec(statement).all()
-    return [_article_to_list_item(article) for article in articles]
+    # Fetch one extra row to determine has_more without a second count query.
+    statement = statement.offset(skip).limit(limit + 1)
+    rows = session.exec(statement).all()
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    return ArticleListResponse(
+        items=[
+            _article_to_list_item(article, feed_title) for article, feed_title in rows
+        ],
+        has_more=has_more,
+    )
+
+
+@router.get("/counts", response_model=ArticleCountsResponse)
+def get_article_counts(
+    feed_id: int | None = None,
+    folder_id: int | None = None,
+    session: Session = Depends(get_session),
+):
+    """Counts for the four article list views, scoped identically to the list endpoint.
+
+    Each count is computed from the same condition helpers the list endpoint's
+    filters use, so a count always equals what the matching list query returns.
+    """
+    scoping = _scoping_conditions(feed_id, folder_id)
+
+    def _count(condition: ColumnElement[bool]) -> int:
+        statement = select(func.count(Article.id)).join(  # pyright: ignore[reportArgumentType]
+            Feed,
+            Feed.id == Article.feed_id,  # pyright: ignore[reportArgumentType]
+        )
+        for scope in scoping:
+            statement = statement.where(scope)
+        statement = statement.where(condition)
+        return session.exec(statement).one()
+
+    return ArticleCountsResponse(
+        unread=_count(unread_condition()),
+        read=_count(read_condition()),
+        scoring=_count(scoring_pending_condition()),
+        blocked=_count(blocked_condition()),
+    )
 
 
 @router.post("/mark-all-read")

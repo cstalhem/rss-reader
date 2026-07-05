@@ -338,10 +338,10 @@ class TestBlockShortCircuitAfterBulkPatch:
         test_session.expire_all()
 
         # Hidden from the default list, inspectable in the blocked view
-        assert test_client.get("/api/articles").json() == []
+        assert test_client.get("/api/articles").json()["items"] == []
         blocked = test_client.get(
             "/api/articles", params={"scoring_state": "blocked"}
-        ).json()
+        ).json()["items"]
         assert len(blocked) == 1
         assert blocked[0]["id"] == article.id
         assert blocked[0]["scoring_state"] == "blocked"
