@@ -587,14 +587,13 @@ function SidebarMenuSkeleton({
   ...props
 }: React.ComponentProps<"div"> & {
   showIcon?: boolean
-  /** Deterministic width (e.g. "60%") for SSR-rendered skeletons; falls back to a random client-only width. */
+  /** Deterministic width (e.g. "60%") for SSR-rendered skeletons. */
   width?: string
 }) {
-  // Random width between 50 to 90% — used only when no deterministic width is given.
-  const [randomWidth] = React.useState(() => {
-    return `${Math.floor(Math.random() * 40) + 50}%`
-  })
-  const width = widthProp ?? randomWidth
+  // Deviates from the upstream shadcn registry, which defaults to a random
+  // width generated in useState — that randomizes per mount and causes an
+  // SSR hydration mismatch. Callers that want varied widths pass `width`.
+  const width = widthProp ?? "70%"
 
   return (
     <div
