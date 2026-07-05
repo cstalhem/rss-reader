@@ -44,16 +44,21 @@ function groupFor(publishedAt: string | null): GroupLabel {
 function ArticleRow({
   article,
   isLast,
+  dense,
   onOpen,
   onToggleRead,
 }: {
   article: ArticleListItem;
   isLast: boolean;
+  /** Desktop split-view density: `true` when the reader pane is open. */
+  dense: boolean;
   onOpen: (article: ArticleListItem) => void;
   onToggleRead: (article: ArticleListItem) => void;
 }) {
   const read = article.is_read;
   const categories = article.categories ?? [];
+  const excerpt = article.summary_preview;
+  const meta = `${article.feed_title} · ${formatAge(article.published_at)}`;
   return (
     <article
       onClick={() => onOpen(article)}
@@ -63,7 +68,9 @@ function ArticleRow({
         !isLast && "border-border/50 border-b",
       )}
     >
-      {/* Overline meta row — the dot is the read toggle */}
+      {/* Overline meta row — the dot is the read toggle.
+          Rest state hides its inline meta at md: (meta moves beside the title);
+          phone and dense state keep it here so those layouts never change. */}
       <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
         <button
           type="button"
@@ -76,19 +83,39 @@ function ArticleRow({
         >
           <ReadDot read={read} />
         </button>
-        <span className="truncate">
-          {article.feed_title} · {formatAge(article.published_at)}
-        </span>
+        <span className={cn("truncate", !dense && "md:hidden")}>{meta}</span>
       </div>
 
-      <h3
-        className={cn(
-          "mt-1 font-serif text-xl leading-tight",
-          !read && "font-semibold",
+      {/* Rest state at md: places title + excerpt on the left and meta on the
+          right; phone and dense state stack normally. */}
+      <div className={cn(!dense && "md:flex md:items-baseline md:gap-4")}>
+        <div className="min-w-0 md:flex-1">
+          <h3
+            className={cn(
+              "mt-1 font-serif text-xl leading-tight",
+              !read && "font-semibold",
+              // Dense: 2-line clamp at md:. Rest: single-line truncate at md:.
+              dense ? "md:line-clamp-2 md:text-lg" : "md:truncate",
+            )}
+          >
+            {article.title}
+          </h3>
+
+          {/* Excerpt is desktop-only and rest-state-only. */}
+          {!dense && excerpt && (
+            <p className="text-muted-foreground mt-1 hidden truncate text-sm md:block">
+              {excerpt}
+            </p>
+          )}
+        </div>
+
+        {/* Rest-state meta, revealed beside the title at md: only. */}
+        {!dense && (
+          <span className="text-muted-foreground hidden shrink-0 text-xs whitespace-nowrap md:block">
+            {meta}
+          </span>
         )}
-      >
-        {article.title}
-      </h3>
+      </div>
 
       {(article.composite_score !== null || categories.length > 0) && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -107,9 +134,19 @@ function ArticleRow({
 interface ArticleListProps {
   selection: FeedSelection;
   onOpen: (article: ArticleListItem) => void;
+  /**
+   * Whether the reader pane is open. Drives the desktop split-view row density
+   * (a prop, not a media query — phone rows are unaffected). `data-density`
+   * exposes the resolved value for tests.
+   */
+  readerOpen?: boolean;
 }
 
-export function ArticleList({ selection, onOpen }: ArticleListProps) {
+export function ArticleList({
+  selection,
+  onOpen,
+  readerOpen = false,
+}: ArticleListProps) {
   const {
     articles,
     isPending,
@@ -174,7 +211,10 @@ export function ArticleList({ selection, onOpen }: ArticleListProps) {
   }
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div
+      className="h-full overflow-y-auto"
+      data-density={readerOpen ? "dense" : "rest"}
+    >
       {groups.map((group) => (
         <section key={group.label}>
           <h2 className="bg-background text-muted-foreground sticky top-0 px-4 pt-4 pb-1 text-xs font-medium tracking-wide uppercase">
@@ -185,6 +225,7 @@ export function ArticleList({ selection, onOpen }: ArticleListProps) {
               key={article.id}
               article={article}
               isLast={i === group.items.length - 1}
+              dense={readerOpen}
               onOpen={onOpen}
               onToggleRead={toggleRead}
             />

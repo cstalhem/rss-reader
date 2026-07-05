@@ -67,8 +67,9 @@ describe("ArticleReader", () => {
       screen.getByRole("heading", { name: "Article 1" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Feed B/)).toBeInTheDocument();
-    expect(screen.getByText("relevance 17.4")).toBeInTheDocument();
-    expect(screen.getByText("quality 8/10")).toBeInTheDocument();
+    expect(screen.getByText("Relevance")).toBeInTheDocument();
+    expect(screen.getByText("17.4")).toBeInTheDocument();
+    expect(screen.getByText("Quality")).toBeInTheDocument();
     expect(
       screen.getByText("Directly relevant to your interests."),
     ).toBeInTheDocument();
@@ -98,15 +99,30 @@ describe("ArticleReader", () => {
     expect(img?.getAttribute("onerror")).toBeNull();
   });
 
-  it("calls onClose on the Done button and on Escape", async () => {
+  it("calls onClose on the Close button and on Escape", async () => {
     const user = userEvent.setup();
     const { onClose } = renderReader(listItem());
 
-    await user.click(screen.getByRole("button", { name: /done/i }));
+    // The phone pill now reads "Close" (there is also a desktop-only icon-only
+    // Close button — both share the same aria-label).
+    const closeButtons = screen.getAllByRole("button", { name: /close/i });
+    expect(closeButtons.some((b) => b.textContent?.includes("Close"))).toBe(
+      true,
+    );
+    await user.click(closeButtons[0]);
     expect(onClose).toHaveBeenCalledTimes(1);
 
     await user.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows the interest and quality scores in the editorial readout", () => {
+    renderReader(listItem({ composite_score: 17.4, quality_score: 8 }));
+
+    expect(screen.getByText("Relevance")).toBeInTheDocument();
+    expect(screen.getByText("17.4")).toBeInTheDocument();
+    expect(screen.getByText("Quality")).toBeInTheDocument();
+    expect(screen.getByText("8")).toBeInTheDocument();
   });
 
   it("auto-marks the article read after the dwell window", async () => {

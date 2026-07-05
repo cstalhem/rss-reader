@@ -1,10 +1,14 @@
 "use client";
 
 import DOMPurify from "dompurify";
-import { Check } from "lucide-react";
+import { X } from "lucide-react";
 import { useEffect, useMemo } from "react";
 
-import { CategoryChip, ReadDot } from "@/components/article-badges";
+import {
+  CategoryChip,
+  ReadDot,
+  ReaderScores,
+} from "@/components/article-badges";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useArticle } from "@/hooks/useArticle";
@@ -71,7 +75,16 @@ export function ArticleReader({
   }, [articleId, wasUnreadAtOpen, contentLoaded, dwellMs, markMutate]);
 
   return (
-    <div className="bg-background animate-in fade-in fixed inset-0 z-40 flex flex-col duration-200">
+    <div className="bg-background animate-in fade-in md:slide-in-from-right fixed inset-0 z-40 flex flex-col duration-200 md:static md:z-auto md:min-w-0 md:flex-1">
+      {/* Desktop close affordance — top-right of the reader pane. */}
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-4 right-4 z-10 hidden size-9 items-center justify-center rounded-full transition-colors md:flex"
+      >
+        <X className="size-5" />
+      </button>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="px-5 pt-10 pb-24">
           <div className="mx-auto max-w-[68ch]">
@@ -93,18 +106,11 @@ export function ArticleReader({
               {article.feed_title} · {formatAge(article.published_at)}
             </p>
 
-            <div className="mt-4 space-y-3">
-              {(article.composite_score !== null ||
-                article.quality_score !== null) && (
-                <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                  {article.composite_score !== null && (
-                    <span>relevance {article.composite_score.toFixed(1)}</span>
-                  )}
-                  {article.quality_score !== null && (
-                    <span>quality {article.quality_score}/10</span>
-                  )}
-                </div>
-              )}
+            <div className="mt-5 space-y-4">
+              <ReaderScores
+                relevance={article.composite_score}
+                quality={article.quality_score}
+              />
               {article.score_reasoning !== null && (
                 <blockquote className="text-muted-foreground border-l-2 pl-3 font-serif text-sm italic">
                   {article.score_reasoning}
@@ -150,7 +156,7 @@ export function ArticleReader({
             </p>
           ) : (
             <div
-              className="[&_blockquote]:text-muted-foreground mx-auto mt-6 max-w-[68ch] font-serif text-[17px] leading-[1.7] [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:italic [&_h2]:mt-8 [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-semibold [&_img]:max-w-full [&_li]:mt-1 [&_p]:mt-4 [&_pre]:overflow-x-auto [&_ul]:mt-4 [&_ul]:list-disc [&_ul]:pl-5"
+              className="[&_blockquote]:text-muted-foreground [&_a]:text-primary [&_a]:decoration-primary/40 [&_a:hover]:decoration-primary mx-auto mt-6 max-w-[68ch] font-serif text-[17px] leading-[1.7] [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:border-l-2 [&_blockquote]:pl-4 [&_blockquote]:italic [&_h2]:mt-8 [&_h2]:mb-2 [&_h2]:text-xl [&_h2]:font-semibold [&_img]:max-w-full [&_li]:mt-1 [&_p]:mt-4 [&_pre]:overflow-x-auto [&_ul]:mt-4 [&_ul]:list-disc [&_ul]:pl-5"
               dangerouslySetInnerHTML={{ __html: bodyHtml }}
             />
           )}
@@ -158,10 +164,10 @@ export function ArticleReader({
       </div>
       <Button
         onClick={onClose}
-        className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full shadow-lg"
+        className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full shadow-lg md:hidden"
       >
-        <Check />
-        Done
+        <X />
+        Close
       </Button>
     </div>
   );
