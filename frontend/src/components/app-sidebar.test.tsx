@@ -112,9 +112,9 @@ describe("AppSidebar", () => {
 
     // Total unread (12 + 4) shown in the header.
     await waitFor(() =>
-      expect(screen.getByText("All articles").closest("button")).toHaveTextContent(
-        "16",
-      ),
+      expect(
+        screen.getByText("All articles").closest("button"),
+      ).toHaveTextContent("16"),
     );
   });
 
@@ -147,9 +147,10 @@ describe("AppSidebar", () => {
       "data-active",
       "true",
     );
-    expect(
-      screen.getByText("All articles").closest("button"),
-    ).toHaveAttribute("data-active", "false");
+    expect(screen.getByText("All articles").closest("button")).toHaveAttribute(
+      "data-active",
+      "false",
+    );
   });
 
   it("selects the folder on name click without collapsing it", async () => {

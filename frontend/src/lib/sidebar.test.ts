@@ -15,7 +15,9 @@ function feed(overrides: Partial<Feed> & Pick<Feed, "id">): Feed {
   };
 }
 
-function folder(overrides: Partial<FeedFolder> & Pick<FeedFolder, "id">): FeedFolder {
+function folder(
+  overrides: Partial<FeedFolder> & Pick<FeedFolder, "id">,
+): FeedFolder {
   return {
     name: `Folder ${overrides.id}`,
     display_order: 0,
