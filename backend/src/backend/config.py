@@ -48,10 +48,11 @@ class WeightMultipliers(BaseModel):
     """Configurable category weight multipliers.
 
     'normal' (1.0, definitional identity) and 'block' (short-circuited
-    before scoring) are pinned in code, not configurable.
+    before scoring) are pinned in code, not configurable — unknown keys
+    (e.g. normal/block) fail at startup.
     """
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="forbid")
 
     reduce: float = 0.5
     boost: float = 1.5

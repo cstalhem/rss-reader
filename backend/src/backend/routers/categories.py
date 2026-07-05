@@ -131,6 +131,11 @@ def create_category(
         parent = session.get(Category, body.parent_id)
         if not parent:
             raise HTTPException(status_code=404, detail="Parent category not found")
+        if parent.parent_id is not None:
+            raise HTTPException(
+                status_code=400,
+                detail="Target must be a root category (no parent)",
+            )
 
     # Explicit creation overrides remembered discard/redirect (ADR-0007)
     _delete_alias(session, slug)
@@ -159,19 +164,18 @@ def bulk_update_categories(
     batch-block = {weight: "block", needs_triage: false}. Missing ids are
     skipped and reported, never a failure.
     """
-    updated = 0
-    missing_ids: list[int] = []
-    for cat_id in body.category_ids:
-        category = session.get(Category, cat_id)
-        if not category:
-            missing_ids.append(cat_id)
-            continue
+    categories = session.exec(
+        select(Category).where(Category.id.in_(body.category_ids))  # pyright: ignore[reportOptionalMemberAccess, reportAttributeAccessIssue]
+    ).all()
+    missing_ids = sorted(set(body.category_ids) - {c.id for c in categories})
+
+    for category in categories:
         if body.weight is not None:
             category.weight = body.weight.value
         if body.needs_triage is not None:
             category.needs_triage = body.needs_triage
         session.add(category)
-        updated += 1
+    updated = len(categories)
 
     session.commit()
     return CategoryBulkUpdateResponse(ok=True, updated=updated, missing_ids=missing_ids)
@@ -272,7 +276,7 @@ def merge_categories(
                 category_id=body.target_id,
             )
             session.add(new_link)
-        articles_moved += 1
+            articles_moved += 1
 
     # Release children to root — groups are display-only shelves (ADR-0001);
     # the merge survivor's shelf is not the children's shelf.
@@ -431,20 +435,28 @@ def auto_group_apply(
     all_categories = session.exec(select(Category)).all()
     slug_map: dict[str, Category] = {c.slug: c for c in all_categories}
 
-    # Step 3: Apply new groups (first assignment wins for duplicate children)
+    # Step 3: Apply new groups (first assignment wins for duplicate children,
+    # and for parent-vs-child conflicts — the hierarchy stays one level deep)
     groups_applied = 0
     categories_moved = 0
     assigned_slugs: set[str] = set()
+    parent_slugs: set[str] = set()
     for group in body.groups:
         parent_slug = slugify(group.parent)
         parent_cat = slug_map.get(parent_slug)
         if not parent_cat:
+            continue
+        # A slug already assigned as a child cannot also be a parent
+        if parent_slug in assigned_slugs:
             continue
 
         moved_in_group = 0
         for child_name in group.children:
             child_slug = slugify(child_name)
             if child_slug in assigned_slugs:
+                continue
+            # A slug already used as a parent keeps its children
+            if child_slug in parent_slugs:
                 continue
             child_cat = slug_map.get(child_slug)
             if not child_cat:
@@ -460,6 +472,7 @@ def auto_group_apply(
         if moved_in_group > 0:
             groups_applied += 1
             categories_moved += moved_in_group
+            parent_slugs.add(parent_slug)
 
     session.commit()
     return AutoGroupApplyResponse(
