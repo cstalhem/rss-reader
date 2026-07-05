@@ -59,8 +59,104 @@ export const mockArticleCounts: ArticleCounts = {
   unread: TOTAL_ARTICLES,
   read: 5,
   scoring: 1,
-  blocked: 0,
+  blocked: 3,
 };
+
+/**
+ * Blocked-view fixtures: one article blocked by a single category, one
+ * blocked by two categories (appears under both groups), and one whose only
+ * category is no longer block-weight (fallback "No longer blocked" group).
+ */
+export const mockBlockedArticles: ArticleListItem[] = [
+  {
+    id: 9001,
+    feed_id: FEED_A_ID,
+    feed_title: "Feed A",
+    title: "Bitcoin ETF inflows hit record highs",
+    url: "https://example.com/articles/9001",
+    author: null,
+    published_at: "2026-07-05T12:00:00",
+    is_read: false,
+    categories: [
+      {
+        id: 1,
+        display_name: "Crypto",
+        slug: "crypto",
+        effective_weight: "block",
+        parent_display_name: null,
+      },
+    ],
+    interest_score: null,
+    quality_score: null,
+    composite_score: null,
+    score_reasoning: null,
+    summary_preview: null,
+    scoring_state: "blocked",
+    scored_at: null,
+    re_evaluating: false,
+  },
+  {
+    id: 9002,
+    feed_id: FEED_B_ID,
+    feed_title: "Feed B",
+    title: "Celebrity-backed NFT project collapses amid lawsuits",
+    url: "https://example.com/articles/9002",
+    author: null,
+    published_at: "2026-07-05T15:00:00",
+    is_read: false,
+    categories: [
+      {
+        id: 1,
+        display_name: "Crypto",
+        slug: "crypto",
+        effective_weight: "block",
+        parent_display_name: null,
+      },
+      {
+        id: 2,
+        display_name: "Celebrity Gossip",
+        slug: "celebrity-gossip",
+        effective_weight: "block",
+        parent_display_name: null,
+      },
+    ],
+    interest_score: null,
+    quality_score: null,
+    composite_score: null,
+    score_reasoning: null,
+    summary_preview: null,
+    scoring_state: "blocked",
+    scored_at: null,
+    re_evaluating: false,
+  },
+  {
+    id: 9003,
+    feed_id: FEED_A_ID,
+    feed_title: "Feed A",
+    title: "Reweighted category, still parked in blocked state",
+    url: "https://example.com/articles/9003",
+    author: null,
+    published_at: "2026-07-04T09:00:00",
+    is_read: false,
+    categories: [
+      {
+        id: 3,
+        display_name: "Finance",
+        slug: "finance",
+        effective_weight: "normal",
+        parent_display_name: null,
+      },
+    ],
+    interest_score: null,
+    quality_score: null,
+    composite_score: null,
+    score_reasoning: null,
+    summary_preview: null,
+    scoring_state: "blocked",
+    scored_at: null,
+    re_evaluating: false,
+  },
+];
 
 export const articleHandlers = [
   http.get("/api/articles", ({ request }) => {
@@ -70,6 +166,13 @@ export const articleHandlers = [
     const isReadParam = url.searchParams.get("is_read");
     const feedIdParam = url.searchParams.get("feed_id");
     const folderIdParam = url.searchParams.get("folder_id");
+    const scoringStateParam = url.searchParams.get("scoring_state");
+
+    if (scoringStateParam === "blocked") {
+      const items = mockBlockedArticles.slice(skip, skip + limit);
+      const hasMore = skip + limit < mockBlockedArticles.length;
+      return HttpResponse.json({ items, has_more: hasMore });
+    }
 
     let filtered = mockArticles;
     if (isReadParam !== null) {
@@ -88,6 +191,18 @@ export const articleHandlers = [
     const hasMore = skip + limit < filtered.length;
 
     return HttpResponse.json({ items, has_more: hasMore });
+  }),
+
+  http.post("/api/articles/:id/rescue", ({ params }) => {
+    const id = Number(params.id);
+    const exists = mockBlockedArticles.some((a) => a.id === id);
+    if (!exists) {
+      return HttpResponse.json(
+        { detail: "Article not found" },
+        { status: 404 },
+      );
+    }
+    return HttpResponse.json({ ok: true });
   }),
 
   // Must be registered before the `/api/articles/:id` handler — MSW matches

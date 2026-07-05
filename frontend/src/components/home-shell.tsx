@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ArticleList } from "@/components/article-list";
 import { ArticleReader } from "@/components/article-reader";
+import { BlockedView } from "@/components/blocked-view";
 import {
   SidebarInset,
   SidebarProvider,
@@ -80,11 +81,15 @@ export function HomeShell() {
                 : "md:w-full",
             )}
           >
-            <ArticleList
-              selection={selection}
-              onOpen={setOpenArticle}
-              readerOpen={openArticle !== null}
-            />
+            {selection.type === "blocked" ? (
+              <BlockedView onOpen={setOpenArticle} />
+            ) : (
+              <ArticleList
+                selection={selection}
+                onOpen={setOpenArticle}
+                readerOpen={openArticle !== null}
+              />
+            )}
           </div>
           {openArticle !== null && (
             <ArticleReader

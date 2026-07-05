@@ -1,12 +1,16 @@
 "use client";
 
-import { ChevronRight, Folder, Inbox, Rss } from "lucide-react";
+import { ChevronRight, Folder, Inbox, Rss, ShieldOff } from "lucide-react";
 
 import { useArticleCounts } from "@/hooks/useArticleCounts";
 import { useFeeds } from "@/hooks/useFeeds";
 import { useFeedFolders } from "@/hooks/useFeedFolders";
 import { buildSidebarModel } from "@/lib/sidebar";
-import { isFeedSelected, isFolderSelected } from "@/lib/selection";
+import {
+  isBlockedSelected,
+  isFeedSelected,
+  isFolderSelected,
+} from "@/lib/selection";
 import type { FeedSelection } from "@/lib/types";
 import {
   Collapsible,
@@ -230,6 +234,21 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                 </SidebarMenu>
               </SidebarGroup>
             )}
+
+            <SidebarGroup>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={isBlockedSelected(selection)}
+                    onClick={() => onSelect({ type: "blocked" })}
+                  >
+                    <ShieldOff className="size-4" />
+                    <span>Blocked</span>
+                    <UnreadCount count={countsQuery.data?.blocked ?? 0} />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
           </>
         )}
       </SidebarContent>

@@ -4,7 +4,8 @@ import { Inbox } from "lucide-react";
 import { useMemo } from "react";
 
 import { CategoryChip, ReadDot, ScoreChip } from "@/components/article-badges";
-import { Button } from "@/components/ui/button";
+import { LoadMoreButton } from "@/components/load-more-button";
+import { EmptyState, ErrorState } from "@/components/list-states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useArticles } from "@/hooks/useArticles";
 import { useMarkRead } from "@/hooks/useMarkRead";
@@ -177,24 +178,16 @@ export function ArticleList({
   }
 
   if (isError) {
-    return (
-      <div className="flex h-full items-center justify-center p-8">
-        <p className="text-muted-foreground text-sm">
-          Couldn&apos;t load articles. Retrying…
-        </p>
-      </div>
-    );
+    return <ErrorState message="Couldn't load articles. Retrying…" />;
   }
 
   if (articles.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
-        <Inbox className="text-muted-foreground size-8" />
-        <p className="font-medium">No articles</p>
-        <p className="text-muted-foreground text-sm">
-          Articles for this view will appear here.
-        </p>
-      </div>
+      <EmptyState
+        icon={Inbox}
+        title="No articles"
+        description="Articles for this view will appear here."
+      />
     );
   }
 
@@ -222,16 +215,10 @@ export function ArticleList({
       ))}
 
       {hasNextPage && (
-        <div className="p-4">
-          <Button
-            variant="ghost"
-            className="w-full"
-            disabled={isFetchingNextPage}
-            onClick={() => fetchNextPage()}
-          >
-            {isFetchingNextPage ? "Loading…" : "Load more"}
-          </Button>
-        </div>
+        <LoadMoreButton
+          isFetchingNextPage={isFetchingNextPage}
+          onClick={() => fetchNextPage()}
+        />
       )}
     </div>
   );
