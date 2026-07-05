@@ -1,6 +1,6 @@
 ---
 name: nextjs-app-router
-description: Next.js App Router patterns — Server vs Client components, "use client" boundaries, env var build-time baking, Turbopack/Emotion workaround, localStorage hydration
+description: Next.js App Router patterns — Server vs Client components, "use client" boundaries, dev API proxy, next/font network requirement, theming architecture, localStorage hydration
 ---
 
 # Next.js App Router
@@ -15,15 +15,46 @@ Only add `"use client"` to components that use hooks, event handlers, or browser
 
 **Boundary rule:** Server Components can pass **serializable data** (strings, numbers, objects, arrays) to Client Components. They cannot pass functions, callbacks, React elements as render props, or class instances. If a component needs interactivity, make it a Client Component and compose it inside a Server Component.
 
-### `NEXT_PUBLIC_*` Environment Variables
+### Same-Origin API + Dev Rewrite Proxy
 
-These are **baked at build time** via string replacement. `process.env.NEXT_PUBLIC_API_URL` becomes a literal string in the JS bundle. Setting `environment` in docker-compose at runtime has no effect on client code — only on server-side code.
+API URLs are **relative everywhere** — the frontend is same-origin with the backend in every environment, so there is no `NEXT_PUBLIC_API_URL` and no client-side base URL. In production, the reverse proxy (Traefik) routes `PathPrefix('/api')` to the backend and everything else to the frontend.
 
-**Implication for Docker:** The frontend image is built with relative API URLs. Traefik routes `PathPrefix('/api')` to the backend, all other requests to the frontend. This avoids needing runtime environment variables for the API URL.
+In development there is no reverse proxy, so `next.config.ts` emulates it with a `rewrites()` proxy, **gated on `PHASE_DEVELOPMENT_SERVER`**:
 
-### Turbopack and Emotion SSR
+```ts
+// next.config.ts — config is a phase-aware function
+export default function config(phase: string): NextConfig {
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
+    return {
+      ...baseConfig,
+      async rewrites() {
+        return [{ source: "/api/:path*", destination: "http://localhost:8912/api/:path*" }];
+      },
+    };
+  }
+  return baseConfig; // prod relies on the reverse proxy, not a rewrite
+}
+```
 
-Turbopack mishandles Emotion CSS SSR, causing `<script>` vs `<style data-emotion>` hydration mismatch. The fix is to use `--webpack` flag in dev/build scripts (`frontend/package.json`). `suppressHydrationWarning` on `<html>` in `layout.tsx` is also required. This is an upstream issue — do not remove these workarounds.
+**Why phase-gated:** external rewrites in `output: "standalone"` builds have known issues, and Next's proxy buffers streaming responses (would matter if SSE ever lands). The rewrite exists only to give dev the same same-origin `/api` shape as prod.
+
+### `next/font` Requires Network Access
+
+Fonts are loaded via `next/font` (Google Fonts: Inter for UI, Lora for reader content). Both `next build` and the dev server **fetch these fonts at build/start time** — sandboxed or air-gapped runs fail. Run unsandboxed. The offline fix would be `next/font/local` with vendored font files, but the project currently uses the remote loader.
+
+### Theming Architecture
+
+The theme is **system-decided** via next-themes (`defaultTheme="system"`, `enableSystem`, `attribute="class"`), not dark-default. Color tokens live in `:root` (light) and `.dark` (dark override) blocks in `src/app/globals.css`.
+
+Tokens are mapped to Tailwind utilities with **`@theme inline`** — the `inline` keyword is required. Plain `@theme` inlines the token value at parse time, which breaks `var()` references (the `.dark` override would never apply). Fonts are mapped the same way (`--font-sans: var(--font-inter)`).
+
+**Re-theming flow:** build a preset at ui.shadcn.com/create, then from `frontend/` run:
+
+```bash
+bunx --bun shadcn@latest apply --preset <id> --only theme -y
+```
+
+Use `--only theme`, never a full preset apply: user presets may target the shadcn Base UI variant, but this app is on the Radix base, and fonts are project-owned. `apply` overwrites the token blocks (including their comments).
 
 ## Anti-Patterns
 
@@ -31,13 +62,13 @@ Turbopack mishandles Emotion CSS SSR, causing `<script>` vs `<style data-emotion
 
 ```tsx
 // BAD — server renders "default", client reads "stored-value" → hydration mismatch
-const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
+const [value, setValue] = useState(localStorage.getItem("key") || "default");
 
 // GOOD — initialize with default, sync from localStorage after hydration
-const [theme, setTheme] = useState("dark");
+const [value, setValue] = useState("default");
 useEffect(() => {
-  const stored = localStorage.getItem("theme");
-  if (stored) setTheme(stored);
+  const stored = localStorage.getItem("key");
+  if (stored) setValue(stored);
 }, []);
 ```
 
@@ -58,6 +89,12 @@ function InteractiveWidget({ initialData }) {
   const handleSave = (data) => fetch("/api/save", { body: JSON.stringify(data) });
 }
 ```
+
+## shadcn Sidebar Patterns
+
+- **`SidebarMenuBadge` only works as a sibling of `SidebarMenuButton` on plain menu items** — it has no sub-row (`SidebarMenuSubItem`) support. For counts on sub-rows, use an in-flow `ml-auto` count span inside the row instead.
+- **Split select/toggle rows** (a row that both navigates and expands) follow the official `sidebar-10` pattern: a `SidebarMenuButton` for the action plus a **sibling** `CollapsibleTrigger asChild > SidebarMenuAction` for the toggle. Don't nest the trigger inside the button.
+- **`SidebarMenuSkeleton` breaks SSR hydration** — its default `Math.random()` width differs between server and client render. Pass a deterministic `width` prop.
 
 ## Decision Aids
 

@@ -14,7 +14,7 @@ Deep reference for where frontend code lives. For concise rules, see `.claude/ru
 | File             | Contains                                      | Does NOT contain                        |
 | ---------------- | --------------------------------------------- | --------------------------------------- |
 | `types.ts`       | Interfaces, type aliases, enums               | Runtime functions, API calls            |
-| `api.ts`         | Fetch functions, `API_BASE_URL`               | Type definitions (import from types.ts) |
+| `api.ts`         | Fetch functions (relative URLs)               | Type definitions (import from types.ts) |
 | `utils.ts`       | Pure runtime functions (parsers, formatters)  | Types (import from types.ts)            |
 | `constants.ts`   | Cross-file named constants (used in 2+ files) | Single-file constants                   |
 | `queryKeys.ts`   | Query key factory object                      | Query logic, mutations                  |
@@ -46,9 +46,9 @@ const SCORING_STATUS_IDLE_INTERVAL = 30_000;
 
 **Why not put everything in constants.ts?** It would become a dumping ground. Constants like `SCORING_STATUS_ACTIVE_INTERVAL` are implementation details of one hook — they have no business being importable by other files. Co-location keeps the constant next to its only consumer.
 
-### Export Discipline: `API_BASE_URL`
+### Export Discipline
 
-`API_BASE_URL` is exported from `api.ts` and imported by consumers (e.g., `useModelPull.ts`). The general rule: if a value is needed in 2+ files, export it from the canonical source rather than duplicating it.
+If a value is needed in 2+ files, export it from the canonical source rather than duplicating it. (API URLs are relative and same-origin — there is no `API_BASE_URL` to share; fetch functions embed the `/api/...` path directly.)
 
 ## Anti-Patterns
 
