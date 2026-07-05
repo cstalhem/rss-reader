@@ -17,7 +17,7 @@ def test_list_articles_empty(test_client: TestClient):
     """Test listing articles when database is empty."""
     response = test_client.get("/api/articles")
     assert response.status_code == 200
-    assert response.json() == []
+    assert response.json() == {"items": [], "has_more": False}
 
 
 def test_list_articles_with_data(test_client: TestClient, sample_articles):
@@ -25,7 +25,9 @@ def test_list_articles_with_data(test_client: TestClient, sample_articles):
     response = test_client.get("/api/articles?sort_by=published_at&order=desc")
     assert response.status_code == 200
 
-    articles = response.json()
+    body = response.json()
+    assert body["has_more"] is False
+    articles = body["items"]
     assert len(articles) == 3
 
     # Check ordering: Recent -> Older -> Read (by published_at desc)
@@ -37,13 +39,18 @@ def test_list_articles_with_data(test_client: TestClient, sample_articles):
     assert articles[0]["is_read"] is False
     assert articles[2]["is_read"] is True
 
+    # feed_title populated via join
+    assert articles[0]["feed_title"] == "Test Feed"
+
 
 def test_list_articles_pagination(test_client: TestClient, sample_articles):
     """Test pagination parameters."""
     # Get first article only
     response = test_client.get("/api/articles?limit=1&sort_by=published_at&order=desc")
     assert response.status_code == 200
-    articles = response.json()
+    body = response.json()
+    assert body["has_more"] is True
+    articles = body["items"]
     assert len(articles) == 1
     assert articles[0]["title"] == "Recent Article"
 
@@ -52,9 +59,21 @@ def test_list_articles_pagination(test_client: TestClient, sample_articles):
         "/api/articles?skip=1&limit=1&sort_by=published_at&order=desc"
     )
     assert response.status_code == 200
-    articles = response.json()
+    body = response.json()
+    assert body["has_more"] is True
+    articles = body["items"]
     assert len(articles) == 1
     assert articles[0]["title"] == "Older Article"
+
+    # Last page: no more rows beyond it
+    response = test_client.get(
+        "/api/articles?skip=2&limit=1&sort_by=published_at&order=desc"
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["has_more"] is False
+    assert len(body["items"]) == 1
+    assert body["items"][0]["title"] == "Read Article"
 
 
 def test_list_articles_filter_unread(test_client: TestClient, sample_articles):
@@ -64,7 +83,7 @@ def test_list_articles_filter_unread(test_client: TestClient, sample_articles):
     )
     assert response.status_code == 200
 
-    articles = response.json()
+    articles = response.json()["items"]
     assert len(articles) == 2
 
     # Should return only unread articles
@@ -79,7 +98,7 @@ def test_list_articles_filter_read(test_client: TestClient, sample_articles):
     response = test_client.get("/api/articles?is_read=true")
     assert response.status_code == 200
 
-    articles = response.json()
+    articles = response.json()["items"]
     assert len(articles) == 1
 
     # Should return only read articles
@@ -92,7 +111,7 @@ def test_list_articles_no_filter(test_client: TestClient, sample_articles):
     response = test_client.get("/api/articles")
     assert response.status_code == 200
 
-    articles = response.json()
+    articles = response.json()["items"]
     assert len(articles) == 3
 
     # Should return all articles

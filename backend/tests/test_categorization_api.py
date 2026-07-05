@@ -69,11 +69,11 @@ async def test_blocked_article_in_blocked_view_with_reasoning(
     test_session.expire_all()
 
     # Hidden from the default list.
-    assert test_client.get("/api/articles").json() == []
+    assert test_client.get("/api/articles").json()["items"] == []
 
     blocked = test_client.get(
         "/api/articles", params={"scoring_state": "blocked"}
-    ).json()
+    ).json()["items"]
     assert len(blocked) == 1
     item = blocked[0]
     assert item["id"] == article.id
