@@ -1,6 +1,10 @@
 """Tests for batch response models used as Azure structured-output schemas."""
 
-from backend.prompts.categorization import ArticleCategoryResult, BatchCategoryResponse
+from backend.prompts.categorization import (
+    ArticleCategoryResult,
+    BatchCategoryResponse,
+    build_categorization_schema,
+)
 from backend.prompts.grouping import GroupingResponse
 from backend.prompts.scoring import ArticleScoringResult, BatchScoringResponse
 
@@ -10,12 +14,11 @@ class TestArticleCategoryResult:
         result = ArticleCategoryResult(
             article_id=42,
             categories=["Technology", "AI"],
-            suggested_new=["Robotics"],
-            suggested_parent=None,
+            proposed_category="Robotics",
         )
         assert result.article_id == 42
         assert result.categories == ["Technology", "AI"]
-        assert result.suggested_new == ["Robotics"]
+        assert result.proposed_category == "Robotics"
 
 
 class TestBatchCategoryResponse:
@@ -25,21 +28,19 @@ class TestBatchCategoryResponse:
                 {
                     "article_id": 1,
                     "categories": ["Tech"],
-                    "suggested_new": [],
-                    "suggested_parent": None,
+                    "proposed_category": None,
                 },
                 {
                     "article_id": 2,
                     "categories": ["Science"],
-                    "suggested_new": ["Quantum"],
-                    "suggested_parent": "Science",
+                    "proposed_category": "Quantum",
                 },
             ]
         }
         resp = BatchCategoryResponse.model_validate(data)
         assert len(resp.results) == 2
         assert resp.results[0].article_id == 1
-        assert resp.results[1].suggested_new == ["Quantum"]
+        assert resp.results[1].proposed_category == "Quantum"
 
 
 class TestArticleScoringResult:
@@ -115,6 +116,11 @@ class TestStrictSchemaCompatibility:
 
     def test_batch_category_schema_is_strict_compatible(self):
         self._assert_clean(BatchCategoryResponse)
+
+    def test_dynamic_category_schema_is_strict_compatible(self):
+        # The per-batch enum schema must also stay free of constraint keywords.
+        schema = build_categorization_schema(["AI", "Programming"])
+        self._assert_clean(schema)
 
     def test_grouping_schema_is_strict_compatible(self):
         self._assert_clean(GroupingResponse)

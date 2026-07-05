@@ -13,7 +13,6 @@ from sqlmodel import select
 from backend.llm_client import LLMCallFailed, LLMNotConfigured, LLMUnavailable
 from backend.models import Article, ArticleCategoryLink, Category, Feed
 from backend.prompts import (
-    ArticleCategoryResult,
     ArticleScoringResult,
     BatchCategoryResponse,
     BatchScoringResponse,
@@ -45,15 +44,6 @@ def _make_queued_article(
     session.commit()
     session.refresh(article)
     return article
-
-
-def _cat_result(article_id: int, categories: list[str], **kw) -> ArticleCategoryResult:
-    return ArticleCategoryResult(
-        article_id=article_id,
-        categories=categories,
-        suggested_new=kw.get("suggested_new", []),
-        suggested_parent=kw.get("suggested_parent"),
-    )
 
 
 def _score_result(article_id: int, interest=7, quality=8) -> ArticleScoringResult:
@@ -97,14 +87,14 @@ async def test_categorization_happy_path(test_session, sample_feed, fake_llm):
 
 @pytest.mark.asyncio
 async def test_categorization_blocked_category_blocks_article(
-    test_session, sample_feed, fake_llm, make_category
+    test_session, sample_feed, fake_llm, make_category, cat_result
 ):
     make_category(display_name="Crypto", slug="crypto", weight="block")
     article = _make_queued_article(test_session, sample_feed, 1)
 
     fake_llm.queue(
         "categorization",
-        BatchCategoryResponse(results=[_cat_result(article.id, ["Crypto"])]),
+        BatchCategoryResponse(results=[cat_result(article.id, ["Crypto"])]),
     )
 
     worker = CategorizationWorker()
@@ -120,14 +110,14 @@ async def test_categorization_blocked_category_blocks_article(
 
 @pytest.mark.asyncio
 async def test_categorization_drops_hallucinated_and_requeues_missing(
-    test_session, sample_feed, fake_llm
+    test_session, sample_feed, fake_llm, cat_result
 ):
     article = _make_queued_article(test_session, sample_feed, 1)
 
     # Response references an id that was never sent; the sent id is missing
     fake_llm.queue(
         "categorization",
-        BatchCategoryResponse(results=[_cat_result(999999, ["Technology"])]),
+        BatchCategoryResponse(results=[cat_result(999999, ["Technology"])]),
     )
 
     worker = CategorizationWorker()

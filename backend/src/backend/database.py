@@ -38,6 +38,19 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
     cursor.close()
 
 
+# Default category hierarchy for new installs (parent -> children)
+DEFAULT_CATEGORY_HIERARCHY: dict[str, list[str]] = {
+    "Technology": ["Cybersecurity", "AI", "Programming"],
+    "Science": ["Climate", "Space"],
+    "Business": ["Finance", "Startups"],
+    "Entertainment": ["Gaming", "Film", "Music"],
+    "Culture": ["Philosophy", "History", "Design"],
+    "Health": [],
+    "Politics": ["Law"],
+    "Education": [],
+}
+
+
 # --- Smart casing helpers ---
 
 SMART_CASE_MAP = {
@@ -113,7 +126,6 @@ def _seed_default_categories(conn):
     Only runs on fresh installs (empty categories table).
     """
     from backend.models import Category
-    from backend.prompts import DEFAULT_CATEGORY_HIERARCHY
 
     count = conn.execute(text("SELECT COUNT(*) FROM categories")).scalar()
     if count:

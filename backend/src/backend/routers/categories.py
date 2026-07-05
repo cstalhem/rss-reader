@@ -252,9 +252,10 @@ async def auto_group_suggest(
     session: Session = Depends(get_session),
 ):
     """Ask LLM to suggest category groupings. No DB writes."""
-    from backend.scoring import get_active_categories
+    from backend.scoring import get_active_categories, get_category_hierarchy
 
-    display_names, hierarchy = get_active_categories(session)
+    display_names = get_active_categories(session)
+    hierarchy = get_category_hierarchy(session)
 
     if len(display_names) < 2:
         raise HTTPException(

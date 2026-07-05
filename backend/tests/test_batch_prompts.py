@@ -49,15 +49,6 @@ class TestBuildBatchCategorizationPrompt:
         assert "AI Advances" in user_message
         assert "Climate Report" in user_message
 
-    def test_hierarchy_included_when_provided(self):
-        hierarchy = {"Technology": ["AI", "Programming"]}
-        system_prompt, _ = build_batch_categorization_prompt(
-            articles=SAMPLE_ARTICLES,
-            existing_categories=EXISTING_CATEGORIES,
-            category_hierarchy=hierarchy,
-        )
-        assert "Technology > AI, Programming" in system_prompt
-
 
 class TestBuildBatchScoringPrompt:
     def test_returns_tuple(self):
