@@ -10,6 +10,22 @@ export interface Feed {
   unread_count: number;
   folder_id: number | null;
   folder_name: string | null;
+  is_aggregator: boolean;
+}
+
+/** Mirrors backend `FeedCreate` (schemas.py) — body for `POST /api/feeds`. */
+export interface FeedCreatePayload {
+  url: string;
+  is_aggregator?: boolean;
+}
+
+/** Mirrors backend `FeedUpdate` (schemas.py) — body for `PATCH /api/feeds/{id}`. */
+export interface FeedUpdatePayload {
+  title?: string;
+  display_order?: number;
+  /** A number moves the feed into that folder (appended at end); `null` moves it to root. */
+  folder_id?: number | null;
+  is_aggregator?: boolean;
 }
 
 /** Mirrors backend `FeedFolderResponse` (schemas.py). */
@@ -19,6 +35,18 @@ export interface FeedFolder {
   display_order: number;
   created_at: string;
   unread_count: number;
+}
+
+/** Mirrors backend `FeedFolderCreate` (schemas.py) — body for `POST /api/feed-folders`. */
+export interface FeedFolderCreatePayload {
+  name: string;
+  feed_ids?: number[];
+}
+
+/** Mirrors backend `FeedFolderUpdate` (schemas.py) — body for `PATCH /api/feed-folders/{id}`. */
+export interface FeedFolderUpdatePayload {
+  name?: string;
+  display_order?: number;
 }
 
 /** The currently-selected sidebar scope. Client UI state, not server state. */

@@ -11,6 +11,7 @@ function feed(overrides: Partial<Feed> & Pick<Feed, "id">): Feed {
     unread_count: 0,
     folder_id: null,
     folder_name: null,
+    is_aggregator: false,
     ...overrides,
   };
 }

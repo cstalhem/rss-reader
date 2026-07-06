@@ -3,8 +3,12 @@ import type {
   ArticleCounts,
   ArticleListResponse,
   Feed,
+  FeedCreatePayload,
   FeedFolder,
+  FeedFolderCreatePayload,
+  FeedFolderUpdatePayload,
   FeedSelection,
+  FeedUpdatePayload,
 } from "./types";
 
 /**
@@ -38,6 +42,45 @@ export async function fetchFeeds(): Promise<Feed[]> {
   return response.json();
 }
 
+export async function addFeed(payload: FeedCreatePayload): Promise<Feed> {
+  const response = await fetch("/api/feeds", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to add feed");
+  }
+
+  return response.json();
+}
+
+export async function updateFeed(
+  id: number,
+  payload: FeedUpdatePayload,
+): Promise<Feed> {
+  const response = await fetch(`/api/feeds/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to update feed");
+  }
+
+  return response.json();
+}
+
+export async function deleteFeed(id: number): Promise<void> {
+  const response = await fetch(`/api/feeds/${id}`, { method: "DELETE" });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to delete feed");
+  }
+}
+
 export async function fetchFeedFolders(): Promise<FeedFolder[]> {
   const response = await fetch("/api/feed-folders");
 
@@ -46,6 +89,53 @@ export async function fetchFeedFolders(): Promise<FeedFolder[]> {
   }
 
   return response.json();
+}
+
+export async function createFolder(
+  payload: FeedFolderCreatePayload,
+): Promise<FeedFolder> {
+  const response = await fetch("/api/feed-folders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to create folder");
+  }
+
+  return response.json();
+}
+
+export async function updateFolder(
+  id: number,
+  payload: FeedFolderUpdatePayload,
+): Promise<FeedFolder> {
+  const response = await fetch(`/api/feed-folders/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to update folder");
+  }
+
+  return response.json();
+}
+
+export async function deleteFolder(
+  id: number,
+  deleteFeeds: boolean = false,
+): Promise<void> {
+  const params = new URLSearchParams({ delete_feeds: String(deleteFeeds) });
+  const response = await fetch(`/api/feed-folders/${id}?${params.toString()}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to delete folder");
+  }
 }
 
 export async function fetchArticles(
