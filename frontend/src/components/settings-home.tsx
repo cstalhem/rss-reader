@@ -1,10 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, SlidersHorizontal } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { SettingsNavBadge } from "@/components/settings-nav-badge";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { useCategoryUnseenCount } from "@/hooks/useCategoryUnseenCount";
 import { SETTINGS_SECTIONS } from "@/lib/settings-sections";
 
@@ -19,8 +26,18 @@ export function SettingsHome() {
 
   if (!isMobile) {
     return (
-      <div className="text-muted-foreground flex min-h-[50vh] items-center justify-center text-sm">
-        Select a setting
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <SlidersHorizontal />
+            </EmptyMedia>
+            <EmptyTitle>Select a setting</EmptyTitle>
+            <EmptyDescription>
+              Choose a section from the sidebar to get started.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       </div>
     );
   }
