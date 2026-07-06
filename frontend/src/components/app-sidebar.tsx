@@ -73,6 +73,22 @@ function feedOpacity(unread: number): string | undefined {
 const SKELETON_WIDTHS = ["60%", "75%", "50%", "85%", "65%"] as const;
 
 /**
+ * Active-row left border, matching the settings rail's active-section
+ * indicator (`components/settings-shell.tsx`) exactly — same `bg-primary`
+ * token and dimensions — so the two sidebars' "selected" treatment reads as
+ * one shared visual language. Relies on the row's `SidebarMenuItem`/
+ * `SidebarMenuSubItem` ancestor being `relative` (it is, by default).
+ */
+function ActiveIndicator() {
+  return (
+    <span
+      className="bg-primary absolute top-1/2 left-0 h-4 w-0.5 -translate-y-1/2 rounded-full"
+      aria-hidden
+    />
+  );
+}
+
+/**
  * Right-aligned unread count rendered inside the menu button. Uses `opacity`
  * (not an explicit color) so it inherits the button's text color and stays
  * visible/legible in default, hover, and active states.
@@ -259,6 +275,7 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                 isActive={selection.type === "all"}
                 onClick={() => onSelect({ type: "all" })}
               >
+                {selection.type === "all" && <ActiveIndicator />}
                 <Inbox className="size-4" />
                 <span className="font-medium">All articles</span>
                 <GlobalUnreadCount
@@ -352,6 +369,9 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                           }
                           className="group-has-data-[sidebar=menu-action]/menu-item:pr-14"
                         >
+                          {isFolderSelected(selection, folder.id) && (
+                            <ActiveIndicator />
+                          )}
                           <Folder className="size-4 shrink-0" />
                           <span className="truncate" title={folder.name}>
                             {folder.name}
@@ -383,6 +403,9 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                                   }
                                   className={feedOpacity(feed.unread_count)}
                                 >
+                                  {isFeedSelected(selection, feed.id) && (
+                                    <ActiveIndicator />
+                                  )}
                                   <Rss className="size-4 shrink-0" />
                                   <span className="truncate" title={feed.title}>
                                     {feed.title}
@@ -416,6 +439,9 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                         onClick={() => onSelect({ type: "feed", id: feed.id })}
                         className={feedOpacity(feed.unread_count)}
                       >
+                        {isFeedSelected(selection, feed.id) && (
+                          <ActiveIndicator />
+                        )}
                         <Rss className="size-4 shrink-0" />
                         <span className="truncate" title={feed.title}>
                           {feed.title}

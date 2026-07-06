@@ -235,8 +235,11 @@ export function ManageTab() {
       </div>
 
       {/* Batch toolbar — always present. Group is enabled only when the whole
-          selection is ungrouped; batch weight works on any selection. */}
-      <div className="bg-muted/50 border-border flex flex-wrap items-center gap-2 rounded-md border px-3 py-2">
+          selection is ungrouped; batch weight works on any selection. Sticks
+          to the top of the scroll area on phone (where the category list is
+          long enough to scroll past it); desktop keeps the static in-flow
+          toolbar since the rail layout doesn't need it. */}
+      <div className="bg-background border-border md:bg-muted/50 sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 max-md:shadow-sm md:static">
         <span className="text-muted-foreground text-sm tabular-nums">
           {selected.size > 0
             ? `${selected.size} selected`

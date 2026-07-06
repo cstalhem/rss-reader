@@ -15,10 +15,10 @@ export interface SettingsSection {
 
 export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
-    id: "categories",
-    label: "Categories",
-    href: "/settings/categories",
-    icon: Tags,
+    id: "general",
+    label: "General",
+    href: "/settings/general",
+    icon: Settings,
   },
   {
     id: "feed-management",
@@ -33,10 +33,10 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     icon: Sparkles,
   },
   {
-    id: "general",
-    label: "General",
-    href: "/settings/general",
-    icon: Settings,
+    id: "categories",
+    label: "Categories",
+    href: "/settings/categories",
+    icon: Tags,
   },
   {
     id: "feedback",
@@ -46,5 +46,14 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   },
 ];
 
-/** First section — the desktop shell's default landing content at `/settings`. */
-export const DEFAULT_SETTINGS_SECTION = SETTINGS_SECTIONS[0];
+/**
+ * Default landing section for desktop `/settings` (see `SettingsIndex`).
+ * Pinned to Categories rather than `SETTINGS_SECTIONS[0]` (General) because
+ * Categories is the only implemented page today — landing on a "Coming soon"
+ * placeholder would be poor UX. Once the other sections are built out, this
+ * should become `SETTINGS_SECTIONS[0]` so General (the natural first section)
+ * is the default again.
+ */
+export const DEFAULT_SETTINGS_SECTION = SETTINGS_SECTIONS.find(
+  (s) => s.id === "categories",
+)!;

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useCategoryUnseenCount } from "@/hooks/useCategoryUnseenCount";
@@ -49,8 +49,15 @@ function DesktopRail({
   const pathname = usePathname();
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl gap-8 px-4 py-8">
-      <nav className="w-56 shrink-0">
+    <div className="flex w-full justify-center">
+      <nav className="bg-sidebar border-sidebar-border w-56 shrink-0 border-r px-4 py-8">
+        <Link
+          href="/"
+          className="text-muted-foreground hover:bg-muted/50 hover:text-foreground mb-4 flex items-center gap-2.5 rounded-md py-2 pr-2.5 pl-4 text-left text-sm transition-colors"
+        >
+          <ArrowLeft className="size-4 shrink-0" />
+          <span>Back to reading</span>
+        </Link>
         <h1 className="text-muted-foreground mb-3 px-2.5 text-xs font-semibold tracking-wider uppercase">
           Settings
         </h1>
@@ -84,7 +91,7 @@ function DesktopRail({
           })}
         </ul>
       </nav>
-      <main className="min-w-0 flex-1">{children}</main>
+      <main className="max-w-3xl min-w-0 flex-1 px-4 py-8">{children}</main>
     </div>
   );
 }
@@ -99,14 +106,18 @@ function PhoneDrillIn({
   const pathname = usePathname();
   const router = useRouter();
   const isIndex = pathname === "/settings";
-  const activeSection = SETTINGS_SECTIONS.find((s) =>
-    pathname.startsWith(s.href),
-  );
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6">
       {isIndex ? (
         <>
+          <Link
+            href="/"
+            className="text-muted-foreground hover:bg-muted/50 hover:text-foreground mb-4 -ml-2 flex w-fit items-center gap-2.5 rounded-md py-2 pr-2.5 pl-2 text-left text-sm transition-colors"
+          >
+            <ArrowLeft className="size-4 shrink-0" />
+            <span>Back to reading</span>
+          </Link>
           <h1 className="mb-4 text-xl font-semibold">Settings</h1>
           <ul className="border-border overflow-hidden rounded-lg border">
             {SETTINGS_SECTIONS.map((section) => (
@@ -134,7 +145,7 @@ function PhoneDrillIn({
             className="-ml-2 self-start"
             onClick={() => router.push("/settings")}
           >
-            <ChevronLeft /> {activeSection?.label}
+            <ChevronLeft /> Back
           </Button>
           {children}
         </div>
