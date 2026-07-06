@@ -35,6 +35,12 @@ paths: ["frontend/**"]
 - Cross-file constants → `lib/constants.ts`. Single-use constants → named `const` at top of file.
 - Query keys → `lib/queryKeys.ts`. Custom hooks → `hooks/use*.ts`. Shared UI → `components/ui/`.
 
+## Forms
+
+- Plain controlled `useState` + shadcn `Field` family (`Field`/`FieldLabel`/`FieldDescription`) — no form library (see `docs/adr/0008-no-form-library.md`).
+- Validation: browser constraints (`type="url"`, `required`) plus backend rejection via the MutationCache toast — no client-side schema layer.
+- Overlay forms mount fresh per open (state initializers capture the target); reset-by-remount, never by effect.
+
 ## Performance
 
 - In lists: avoid per-row component instances that each own state machines, portals, or media-query listeners — hoist shared state/listeners out of the row and pass results as props. Use native `title` for row tooltips.
