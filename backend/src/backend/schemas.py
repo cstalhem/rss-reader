@@ -100,12 +100,14 @@ class ArticleResponse(BaseModel):
 
 class FeedCreate(BaseModel):
     url: str
+    is_aggregator: bool = False
 
 
 class FeedUpdate(BaseModel):
     title: str | None = None
     display_order: int | None = None
     folder_id: int | None = None
+    is_aggregator: bool | None = None
 
 
 class FeedReorder(BaseModel):
@@ -122,6 +124,7 @@ class FeedResponse(BaseModel):
     unread_count: int
     folder_id: int | None = None
     folder_name: str | None = None
+    is_aggregator: bool = False
 
 
 class FeedFolderCreate(BaseModel):

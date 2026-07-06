@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from backend.models import Article
+from backend.models import Article, Feed
 
 
 def test_root(test_client: TestClient):
@@ -240,6 +240,121 @@ def test_create_feed_includes_folder_fields_in_response(
     assert data["title"] == "Patched Feed"
     assert data["folder_id"] is None
     assert data["folder_name"] is None
+
+
+# --- Feed is_aggregator flag ---
+
+
+class _AggregatorParsedFeed:
+    bozo = False
+    entries = [{"link": "https://example.com/article-1", "title": "Article 1"}]
+    feed = {"title": "Aggregator Feed"}
+
+
+def _patch_feed_fetch(monkeypatch: pytest.MonkeyPatch):
+    async def fake_fetch_feed(_url: str):
+        return _AggregatorParsedFeed()
+
+    def fake_save_articles(_session, _feed_id: int, _entries: list[dict]):
+        return (1, [])
+
+    monkeypatch.setattr("backend.routers.feeds.fetch_feed", fake_fetch_feed)
+    monkeypatch.setattr("backend.routers.feeds.save_articles", fake_save_articles)
+
+
+def test_create_feed_with_is_aggregator_true(
+    test_client: TestClient,
+    test_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """POST with is_aggregator=true persists the flag and returns it."""
+    _patch_feed_fetch(monkeypatch)
+
+    response = test_client.post(
+        "/api/feeds",
+        json={"url": "https://example.com/aggregator.xml", "is_aggregator": True},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["is_aggregator"] is True
+
+    test_session.expire_all()
+    db_feed = test_session.get(Feed, data["id"])
+    assert db_feed is not None
+    assert db_feed.is_aggregator is True
+
+
+def test_create_feed_defaults_is_aggregator_false(
+    test_client: TestClient,
+    test_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """POST without the field defaults is_aggregator to false."""
+    _patch_feed_fetch(monkeypatch)
+
+    response = test_client.post(
+        "/api/feeds", json={"url": "https://example.com/plain.xml"}
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["is_aggregator"] is False
+
+    test_session.expire_all()
+    db_feed = test_session.get(Feed, data["id"])
+    assert db_feed is not None
+    assert db_feed.is_aggregator is False
+
+
+def test_patch_feed_toggles_is_aggregator(
+    test_client: TestClient,
+    test_session: Session,
+    make_feed,
+):
+    """PATCH toggles the flag both ways; omitting it leaves it unchanged."""
+    feed = make_feed()
+
+    # Toggle on
+    response = test_client.patch(f"/api/feeds/{feed.id}", json={"is_aggregator": True})
+    assert response.status_code == 200
+    assert response.json()["is_aggregator"] is True
+
+    test_session.expire_all()
+    db_feed = test_session.get(Feed, feed.id)
+    assert db_feed.is_aggregator is True
+
+    # PATCH omitting the field leaves it unchanged
+    response = test_client.patch(f"/api/feeds/{feed.id}", json={"title": "Renamed"})
+    assert response.status_code == 200
+    assert response.json()["is_aggregator"] is True
+
+    test_session.expire_all()
+    db_feed = test_session.get(Feed, feed.id)
+    assert db_feed.is_aggregator is True
+
+    # Toggle off
+    response = test_client.patch(f"/api/feeds/{feed.id}", json={"is_aggregator": False})
+    assert response.status_code == 200
+    assert response.json()["is_aggregator"] is False
+
+    test_session.expire_all()
+    db_feed = test_session.get(Feed, feed.id)
+    assert db_feed.is_aggregator is False
+
+
+def test_list_feeds_includes_is_aggregator(
+    test_client: TestClient,
+    make_feed,
+):
+    """GET /api/feeds includes the is_aggregator flag."""
+    make_feed(is_aggregator=True)
+    make_feed()
+
+    response = test_client.get("/api/feeds")
+    assert response.status_code == 200
+    feeds = response.json()
+    assert len(feeds) == 2
+    flags = {feed["title"]: feed["is_aggregator"] for feed in feeds}
+    assert set(flags.values()) == {True, False}
 
 
 # --- Category weight updates ---
