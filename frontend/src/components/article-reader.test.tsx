@@ -31,6 +31,7 @@ function listItem(overrides: Partial<ArticleListItem> = {}): ArticleListItem {
         slug: "ml",
         effective_weight: "normal",
         parent_display_name: null,
+        needs_triage: false,
       },
     ],
     interest_score: null,

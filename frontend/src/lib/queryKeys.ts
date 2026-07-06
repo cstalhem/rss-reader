@@ -38,4 +38,10 @@ export const queryKeys = {
     counts: ["articles", "counts"] as const,
     blocked: ["articles", "blocked"] as const,
   },
+  categories: {
+    all: ["categories"] as const,
+    list: (needsTriage?: boolean) =>
+      ["categories", "list", needsTriage ?? "any"] as const,
+    triageCount: ["categories", "triage-count"] as const,
+  },
 };
