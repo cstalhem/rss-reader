@@ -6,7 +6,7 @@ frontend can render the "new" dot.
 """
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi.testclient import TestClient
 from sqlmodel import Session
@@ -66,6 +66,42 @@ def test_triage_list_caps_samples_at_three(
     resp = test_client.get("/api/categories", params={"needs_triage": True})
     assert resp.status_code == 200
     assert len(resp.json()[0]["sample_articles"]) == 3
+
+
+def test_triage_samples_ordered_most_recent_first_across_categories(
+    test_client: TestClient,
+    test_session: Session,
+    make_category: Callable[..., Category],
+    make_article,
+    make_feed,
+):
+    """After batching (issue #98), samples for multiple triage categories are
+    grouped correctly and each category's samples are most-recent-first,
+    capped at 3."""
+    feed = make_feed(title="Hacker News")
+    cat_a = make_category(display_name="AI", slug="ai", needs_triage=True)
+    cat_b = make_category(display_name="Rust", slug="rust", needs_triage=True)
+    now = datetime.now()
+
+    # cat_a: 4 articles at descending recency; expect the 3 newest, in order.
+    a_titles = ["A-newest", "A-2", "A-3", "A-oldest"]
+    for i, title in enumerate(a_titles):
+        art = make_article(feed.id, title=title, published_at=now - timedelta(hours=i))
+        _link(test_session, art.id, cat_a.id)
+
+    # cat_b: 1 article — must not leak into cat_a's bucket.
+    b_art = make_article(feed.id, title="B-only", published_at=now)
+    _link(test_session, b_art.id, cat_b.id)
+
+    resp = test_client.get("/api/categories", params={"needs_triage": True})
+    assert resp.status_code == 200, resp.text
+    by_slug = {c["slug"]: c for c in resp.json()}
+
+    a_samples = by_slug["ai"]["sample_articles"]
+    assert [s["title"] for s in a_samples] == ["A-newest", "A-2", "A-3"]
+
+    b_samples = by_slug["rust"]["sample_articles"]
+    assert [s["title"] for s in b_samples] == ["B-only"]
 
 
 def test_article_embed_carries_needs_triage_flag(

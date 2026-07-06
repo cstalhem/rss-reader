@@ -184,13 +184,21 @@ class CategorizationWorker:
         return count
 
     def enqueue_single_for_rescoring(
-        self, session: Session, article: Article, score_only: bool = False
+        self,
+        session: Session,
+        article: Article,
+        score_only: bool = False,
+        commit: bool = True,
     ) -> None:
         """Enqueue a single article for re-scoring with high priority.
 
         score_only=True skips categorization and goes straight to the
         scoring queue (used by the rescue endpoint); score_only=False is the
         default full re-categorization + re-scoring path.
+
+        commit=False leaves the transaction open so the caller can batch this
+        into a single enclosing commit (used by bulk weight recompute so a
+        partial PATCH never persists mid-loop).
         """
         if score_only:
             article.scoring_state = "queued"
@@ -201,7 +209,8 @@ class CategorizationWorker:
             article.categorization_attempts = 0
         article.scoring_priority = 1
         session.add(article)
-        session.commit()
+        if commit:
+            session.commit()
 
     async def process_next_batch(self, session: Session, batch_size: int = 1) -> int:
         """Process next batch of articles needing categorization.

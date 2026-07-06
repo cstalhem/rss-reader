@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from slugify import slugify
+from sqlalchemy.orm import selectinload
 from sqlmodel import Session, func, select
 
 from backend.database import smart_case
@@ -87,25 +88,43 @@ def _category_to_response(session: Session, category: Category) -> CategoryRespo
     )
 
 
-def _triage_samples(
-    session: Session, category_id: int, limit: int = 3
-) -> list[TriageSampleArticle]:
-    """Fetch up to `limit` sample articles (title + feed name) for a category.
+def _triage_samples_map(
+    session: Session, category_ids: list[int], limit: int = 3
+) -> dict[int, list[TriageSampleArticle]]:
+    """Fetch up to `limit` sample articles for each of the given categories.
 
-    Used as triage evidence (issue #98) — most-recent first.
+    Used as triage evidence (issue #98) — most-recent first. One query for all
+    category_ids (avoids the N+1 of a per-category query); grouped and
+    truncated in Python. A stable `Article.id` tiebreak after published_at
+    keeps ordering deterministic.
     """
+    if not category_ids:
+        return {}
+
     rows = session.exec(
-        select(Article.id, Article.title, Feed.title)  # pyright: ignore[reportArgumentType]
+        select(
+            ArticleCategoryLink.category_id,  # pyright: ignore[reportArgumentType]
+            Article.id,
+            Article.title,
+            Feed.title,
+        )
         .join(ArticleCategoryLink, ArticleCategoryLink.article_id == Article.id)  # pyright: ignore[reportArgumentType]
         .join(Feed, Feed.id == Article.feed_id)  # pyright: ignore[reportArgumentType]
-        .where(ArticleCategoryLink.category_id == category_id)
-        .order_by(Article.published_at.desc())  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
-        .limit(limit)
+        .where(ArticleCategoryLink.category_id.in_(category_ids))  # pyright: ignore[reportAttributeAccessIssue]
+        .order_by(
+            Article.published_at.desc(),  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+            Article.id.desc(),  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+        )
     ).all()
-    return [
-        TriageSampleArticle(id=aid, title=title, feed_title=feed_title)  # pyright: ignore[reportArgumentType]
-        for aid, title, feed_title in rows
-    ]
+
+    samples: dict[int, list[TriageSampleArticle]] = {cid: [] for cid in category_ids}
+    for cat_id, aid, title, feed_title in rows:
+        bucket = samples[cat_id]
+        if len(bucket) < limit:
+            bucket.append(
+                TriageSampleArticle(id=aid, title=title, feed_title=feed_title)  # pyright: ignore[reportArgumentType]
+            )
+    return samples
 
 
 def assign_to_parent(
@@ -178,11 +197,18 @@ def _recompute_for_categories(session: Session, category_ids: list[int]) -> None
     if not article_ids:
         return
 
+    # Batch-fetch the articles and eager-load their categories so the loop
+    # below issues no per-article SELECTs (N+1). The whole recompute must stay
+    # one transaction: enqueue_single_for_rescoring is called with commit=False
+    # so the enclosing endpoint's single commit is the only one.
+    articles = session.exec(
+        select(Article)
+        .where(Article.id.in_(article_ids))  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+        .options(selectinload(Article.categories_rel))  # pyright: ignore[reportArgumentType]
+    ).all()
+
     worker = CategorizationWorker()
-    for article_id in article_ids:
-        article = session.get(Article, article_id)
-        if article is None:
-            continue
+    for article in articles:
         # Only articles that have completed scoring participate — pending/failed
         # ones will be (re)scored by the worker anyway.
         if article.scoring_state not in ("scored", "blocked"):
@@ -195,7 +221,9 @@ def _recompute_for_categories(session: Session, category_ids: list[int]) -> None
             and article.interest_score == 0
             and article.quality_score == 0
         ):
-            worker.enqueue_single_for_rescoring(session, article, score_only=True)
+            worker.enqueue_single_for_rescoring(
+                session, article, score_only=True, commit=False
+            )
             continue
 
         categories = list(article.categories_rel)
@@ -236,8 +264,14 @@ def list_categories(
     results = session.exec(statement).all()
 
     # The triage list embeds sample articles as evidence (issue #98). Only the
-    # triage view pays for the per-category sample query.
+    # triage view pays for the sample query, and it's a single batched query
+    # for all triage categories (not one per category).
     embed_samples = needs_triage is True
+    samples_by_cat: dict[int, list[TriageSampleArticle]] = (
+        _triage_samples_map(session, [cat.id for cat, _ in results])  # pyright: ignore[reportArgumentType]
+        if embed_samples
+        else {}
+    )
 
     return [
         CategoryResponse(
@@ -249,11 +283,7 @@ def list_categories(
             needs_triage=cat.needs_triage,
             article_count=count,
             created_at=cat.created_at,
-            sample_articles=(
-                _triage_samples(session, cat.id)  # pyright: ignore[reportArgumentType]
-                if embed_samples
-                else []
-            ),
+            sample_articles=samples_by_cat.get(cat.id, []),  # pyright: ignore[reportArgumentType, reportCallIssue]
         )
         for cat, count in results
     ]

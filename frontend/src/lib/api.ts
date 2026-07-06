@@ -8,7 +8,6 @@ import type {
   Category,
   CategoryBulkUpdatePayload,
   CategoryBulkUpdateResponse,
-  CategoryCreatePayload,
   CategoryGroupPayload,
   CategoryGroupResponse,
   CategoryMergePayload,
@@ -278,22 +277,6 @@ export async function fetchCategoryUnseenCount(): Promise<{ count: number }> {
   return response.json();
 }
 
-export async function createCategory(
-  payload: CategoryCreatePayload,
-): Promise<Category> {
-  const response = await fetch("/api/categories", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    await throwApiError(response, "Failed to create category");
-  }
-
-  return response.json();
-}
-
 export async function updateCategory(
   id: number,
   payload: CategoryUpdatePayload,
@@ -357,14 +340,6 @@ export async function mergeCategories(
   }
 
   return response.json();
-}
-
-export async function deleteCategory(id: number): Promise<void> {
-  const response = await fetch(`/api/categories/${id}`, { method: "DELETE" });
-
-  if (!response.ok) {
-    await throwApiError(response, "Failed to delete category");
-  }
 }
 
 export async function autoGroupSuggest(): Promise<AutoGroupSuggestResponse> {

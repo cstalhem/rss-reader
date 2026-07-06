@@ -212,6 +212,54 @@ def test_unblock_worker_blocked_zero_zero_requeues(
 
 
 # ---------------------------------------------------------------------------
+# Atomicity: bulk block mixing a scored + a worker-blocked article is one txn
+# ---------------------------------------------------------------------------
+
+
+def test_bulk_block_mixed_scored_and_worker_blocked_is_atomic(
+    test_client: TestClient,
+    test_session: Session,
+    make_category: Callable[..., Category],
+    make_article,
+    make_feed,
+):
+    """A bulk weight=block PATCH over one normally-scored and one worker-blocked
+    (0/0) article must handle both in a single transaction: the scored one
+    blocks, the worker-blocked one re-queues, and the response succeeds."""
+    feed = make_feed()
+    cat = make_category(display_name="Crypto", slug="crypto", weight="normal")
+
+    scored = _scored_article(make_article, feed.id)
+    worker_blocked = make_article(
+        feed.id,
+        scoring_state="blocked",
+        interest_score=0,
+        quality_score=0,
+        composite_score=0.0,
+    )
+    _link(test_session, scored.id, cat.id)
+    _link(test_session, worker_blocked.id, cat.id)
+
+    resp = test_client.patch(
+        "/api/categories",
+        json={"category_ids": [cat.id], "weight": "block"},
+    )
+    assert resp.status_code == 200, resp.text
+    test_session.expire_all()
+
+    a_scored = test_session.get(Article, scored.id)
+    assert a_scored.scoring_state == "blocked"
+    # Preserved, NOT zeroed
+    assert a_scored.interest_score == 6
+    assert a_scored.quality_score == 8
+
+    a_worker = test_session.get(Article, worker_blocked.id)
+    # Worker-blocked (0/0) has nothing to recompute — re-queued via score-only
+    assert a_worker.scoring_state == "queued"
+    assert a_worker.rescore_mode == "score_only"
+
+
+# ---------------------------------------------------------------------------
 # Rescue-aware: rescued article never retroactively re-blocked
 # ---------------------------------------------------------------------------
 
