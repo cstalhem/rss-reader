@@ -1,7 +1,11 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { CATEGORY_WEIGHT_LABEL, CATEGORY_WEIGHTS } from "@/lib/constants";
+import {
+  CATEGORY_WEIGHT_ICON,
+  CATEGORY_WEIGHT_LABEL,
+  CATEGORY_WEIGHTS,
+} from "@/lib/constants";
 import type { CategoryWeight } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -30,9 +34,10 @@ export function WeightIndicator({ weight }: { weight: CategoryWeight }) {
 
 /**
  * Segmented 5-value weight control (issue #98 decision: segmented won over the
- * select/stepper variants). Full word labels on ALL breakpoints — they shrink
- * and wrap but never abbreviate. `fullWidth` stretches segments evenly for the
- * own-row placement in Manage.
+ * select/stepper variants). Full word labels on ALL breakpoints, each paired
+ * with a leading icon, and never wrapped onto a second line. `fullWidth`
+ * stretches segments evenly to fill the row on mobile only — at md+ segments
+ * always revert to their natural (possibly unequal) widths.
  */
 export function WeightControl({
   value,
@@ -53,12 +58,13 @@ export function WeightControl({
       aria-label="Weight"
       className={cn(
         "border-border overflow-hidden rounded-md border",
-        fullWidth ? "flex w-full" : "inline-flex",
+        fullWidth ? "flex w-full md:inline-flex md:w-auto" : "inline-flex",
         className,
       )}
     >
       {CATEGORY_WEIGHTS.map((weight) => {
         const active = weight === value;
+        const Icon = CATEGORY_WEIGHT_ICON[weight];
         return (
           <button
             key={weight}
@@ -68,8 +74,8 @@ export function WeightControl({
             disabled={disabled}
             onClick={() => onChange(weight)}
             className={cn(
-              "border-border min-w-0 border-r px-2 py-1.5 text-center text-xs break-words transition-colors last:border-r-0 disabled:cursor-not-allowed disabled:opacity-50",
-              fullWidth && "flex-1",
+              "border-border inline-flex min-w-0 items-center justify-center gap-1 border-r px-2 py-1.5 text-xs whitespace-nowrap transition-colors last:border-r-0 disabled:cursor-not-allowed disabled:opacity-50",
+              fullWidth && "flex-1 md:flex-none",
               active
                 ? weight === "block"
                   ? "bg-destructive text-white"
@@ -77,6 +83,7 @@ export function WeightControl({
                 : "text-muted-foreground hover:bg-muted",
             )}
           >
+            <Icon className="size-3.5 shrink-0" />
             {CATEGORY_WEIGHT_LABEL[weight]}
           </button>
         );
