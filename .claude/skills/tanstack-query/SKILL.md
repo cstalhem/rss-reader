@@ -214,6 +214,27 @@ const { data } = useQuery<DownloadStatus>({
 
 **Note:** `bun run build` does NOT catch this — it's a runtime-only error. The types are satisfied because `queryFn` is optional in TanStack Query's type definitions.
 
+### Optimistic `setQueriesData` on a Broad Key Prefix
+
+**What went wrong:** `useUpdateCategory.onMutate` called `setQueriesData({ queryKey: queryKeys.categories.all }, (c) => c?.map(...))`. `categories.all` is `["categories"]`, which prefix-matches **every** category query — including `categories.triageCount` (`["categories","triage-count"]`), whose cached value is `{ count: number }`, an object, not an array. The updater ran `.map` on the object and threw at runtime (`categories?.map is not a function`), surfacing as a "Failed to update category" toast on every weight change.
+
+**Why it's tempting:** the query-key factory's prefix design is exactly what you want for *invalidation* — `invalidateQueries({ queryKey: categories.all })` correctly refetches all category queries regardless of shape. Reusing the same broad key for an optimistic `setQueriesData` feels symmetrical. But invalidation only re-runs `queryFn`s (shape-agnostic), whereas an optimistic updater assumes a specific data shape — and two entries under one prefix can hold different shapes (a `Category[]` list and a `{count}` scalar).
+
+**Rule of thumb: invalidate broad, mutate narrow.** Scope optimistic writes to the keys whose shape you control, or guard the updater.
+
+```typescript
+// BAD — runs .map on the {count} scalar cached under the same prefix
+queryClient.setQueriesData({ queryKey: queryKeys.categories.all }, (c) => c?.map(...));
+
+// GOOD — guard the shape (or target only the list key)
+queryClient.setQueriesData<Category[]>(
+  { queryKey: queryKeys.categories.all },
+  (c) => (Array.isArray(c) ? c.map(...) : c),
+);
+```
+
+**Note:** the MSW test for this mutation passed because the `triageCount` cache wasn't seeded during it — when testing an optimistic update, seed sibling caches of differing shapes under the same prefix so this class of bug is caught.
+
 ## Decision Aids
 
 ### When to use `handlesOwnErrors: true`

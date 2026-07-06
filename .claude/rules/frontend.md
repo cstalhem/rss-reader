@@ -28,6 +28,7 @@ paths: ["frontend/**"]
 - All read/unread/scoring/blocked counts come from the backend (single SQL definition). Never derive counts client-side from article data.
 - Never invalidate a child key after its prefix — `["articles"]` already covers `["articles", "counts"]`; the duplicate cancels and re-issues the in-flight refetch.
 - Shared invalidation sets live in `lib/invalidation.ts` — mutations that change the same data must invalidate through the same helper, not hand-copied key lists.
+- Invalidate broad, mutate narrow: optimistic `setQueriesData` on a broad prefix (e.g. `categories.all`) hits sibling caches of other shapes (a `{count}` scalar) and crashes an array updater — guard with `Array.isArray` or scope to the list key (see skill: tanstack-query).
 
 ## File Organization
 
@@ -71,3 +72,5 @@ paths: ["frontend/**"]
 - Add `next/navigation`, `next-themes`, and `matchMedia` (for `useIsMobile`) stubs per-file, not in global setup. MSW handlers are path-only (no API base URL exists).
 - Co-locate tests as siblings (e.g. `Foo.test.tsx` next to `Foo.tsx`).
 - No snapshot tests for styled components (dynamic class names make them noisy).
+- Polyfill jsdom pointer-capture (`setPointerCapture`/`hasPointerCapture`/`releasePointerCapture`) + `scrollIntoView` in `src/test/setup.ts` — sonner/Radix/cmdk call them and throw unhandled errors that fail the run otherwise (see skill: frontend-testing).
+- Restore `vi.spyOn` (`vi.restoreAllMocks()` in `afterEach`, or `mockClear()` after the spy) — an unrestored spy is re-wrapped by a later `spyOn` on the same target in the same file and inherits its stale call history.
