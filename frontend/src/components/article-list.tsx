@@ -198,7 +198,7 @@ export function ArticleList({
     >
       {groups.map((group) => (
         <section key={group.label}>
-          <h2 className="bg-background text-muted-foreground sticky top-0 px-4 pt-4 pb-1 text-xs font-medium tracking-wide uppercase">
+          <h2 className="bg-background text-muted-foreground sticky top-0 z-[1] px-4 pt-4 pb-1 text-xs font-medium tracking-wide uppercase">
             {group.label}
           </h2>
           {group.items.map((article, i) => (
