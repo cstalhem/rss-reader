@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 /**
  * Small read-state / score / category tokens shared by the article list
@@ -21,17 +22,23 @@ export function ReadDot({ read }: { read: boolean }) {
 
 export function ScoreChip({ score }: { score: number }) {
   return (
-    <span className="bg-secondary text-secondary-foreground rounded px-1.5 py-0.5 text-[11px]">
+    <Badge
+      variant="secondary"
+      className="rounded px-1.5 text-[11px] font-normal"
+    >
       {score.toFixed(1)}
-    </span>
+    </Badge>
   );
 }
 
 export function CategoryChip({ label }: { label: string }) {
   return (
-    <span className="text-muted-foreground rounded border px-1.5 py-0.5 text-[11px]">
+    <Badge
+      variant="outline"
+      className="text-muted-foreground rounded px-1.5 text-[11px] font-normal"
+    >
       {label}
-    </span>
+    </Badge>
   );
 }
 
