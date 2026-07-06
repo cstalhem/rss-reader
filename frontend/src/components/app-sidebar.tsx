@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   ChevronRight,
   Folder,
@@ -11,6 +12,7 @@ import {
   Plus,
   Rss,
   SatelliteDish,
+  Settings,
   ShieldOff,
   Trash2,
 } from "lucide-react";
@@ -447,6 +449,17 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
       </SidebarContent>
 
       <SidebarFooter>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full justify-start"
+          asChild
+        >
+          <Link href="/settings">
+            <Settings className="size-4" />
+            <span>Settings</span>
+          </Link>
+        </Button>
         <ThemeToggle />
       </SidebarFooter>
 
