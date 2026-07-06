@@ -1,5 +1,5 @@
-import { SettingsIndex } from "./settings-index";
+import { SettingsHome } from "@/components/settings-home";
 
 export default function SettingsPage() {
-  return <SettingsIndex />;
+  return <SettingsHome />;
 }
