@@ -1,28 +1,22 @@
-import { QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import { useArticle } from "@/hooks/useArticle";
 import { useArticles } from "@/hooks/useArticles";
 import { useMarkRead } from "@/hooks/useMarkRead";
 import { queryKeys } from "@/lib/queryKeys";
-import { createTestQueryClient, renderHook, waitFor } from "@/test/utils";
+import {
+  createTestQueryClient,
+  createWrapper,
+  renderHook,
+  waitFor,
+} from "@/test/utils";
 import { mockArticles } from "@/test/mocks/handlers/articles";
 import { server } from "@/test/mocks/server";
-
-function wrapperWithClient(
-  queryClient: ReturnType<typeof createTestQueryClient>,
-) {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
-  };
-}
 
 describe("useMarkRead", () => {
   it("PATCHes the article and flips is_read in the cached list without a refetch", async () => {
     const queryClient = createTestQueryClient();
-    const wrapper = wrapperWithClient(queryClient);
+    const wrapper = createWrapper(queryClient);
 
     const { result: listResult } = renderHook(
       () => useArticles({ type: "all" }),
@@ -65,7 +59,7 @@ describe("useMarkRead", () => {
 
   it("updates the cached detail when present", async () => {
     const queryClient = createTestQueryClient();
-    const wrapper = wrapperWithClient(queryClient);
+    const wrapper = createWrapper(queryClient);
 
     const { result: detailResult } = renderHook(() => useArticle(1), {
       wrapper,
@@ -88,7 +82,7 @@ describe("useMarkRead", () => {
 
   it("invalidates feeds, feed folders, and counts queries on success", async () => {
     const queryClient = createTestQueryClient();
-    const wrapper = wrapperWithClient(queryClient);
+    const wrapper = createWrapper(queryClient);
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     const { result: mutationResult } = renderHook(() => useMarkRead(), {

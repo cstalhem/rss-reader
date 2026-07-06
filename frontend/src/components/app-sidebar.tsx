@@ -25,7 +25,6 @@ import {
   isFolderSelected,
 } from "@/lib/selection";
 import type { Feed, FeedSelection } from "@/lib/types";
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {
   Collapsible,
@@ -149,15 +148,23 @@ function FeedActionsMenu({
         </SidebarMenuAction>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        {/* preventDefault on onSelect (canonical Radix guidance): stops the
+            menu's focus-restore from racing the opening dialog's focus trap. */}
         <DropdownMenuItem
-          onSelect={() => onOpenModal({ kind: "edit-feed", feed })}
+          onSelect={(event) => {
+            event.preventDefault();
+            onOpenModal({ kind: "edit-feed", feed });
+          }}
         >
           <Pencil /> Edit feed
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
-          onSelect={() => onOpenModal({ kind: "delete-feed", feed })}
+          onSelect={(event) => {
+            event.preventDefault();
+            onOpenModal({ kind: "delete-feed", feed });
+          }}
         >
           <Trash2 /> Delete feed
         </DropdownMenuItem>
@@ -177,26 +184,37 @@ function FolderActionsMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <SidebarMenuAction aria-label={`Actions for ${folder.name}`}>
+        {/* after:-left-1 trims the mobile hit-area toward the adjacent
+            collapse chevron so their expanded tap targets don't overlap. */}
+        <SidebarMenuAction
+          aria-label={`Actions for ${folder.name}`}
+          className="after:-left-1"
+        >
           <MoreHorizontal />
         </SidebarMenuAction>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        {/* preventDefault on onSelect (canonical Radix guidance): stops the
+            menu's focus-restore from racing the opening dialog's focus trap. */}
         <DropdownMenuItem
-          onSelect={() => onOpenModal({ kind: "rename-folder", folder })}
+          onSelect={(event) => {
+            event.preventDefault();
+            onOpenModal({ kind: "rename-folder", folder });
+          }}
         >
           <FolderPen /> Rename folder
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
-          onSelect={() =>
+          onSelect={(event) => {
+            event.preventDefault();
             onOpenModal({
               kind: "delete-folder",
               folder,
               feedCount: folder.feeds.length,
-            })
-          }
+            });
+          }}
         >
           <Trash2 /> Delete folder
         </DropdownMenuItem>
@@ -251,13 +269,22 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                 </SidebarMenuAction>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {/* preventDefault on onSelect (canonical Radix guidance):
+                    stops the menu's focus-restore from racing the opening
+                    dialog's focus trap. */}
                 <DropdownMenuItem
-                  onSelect={() => setModal({ kind: "add-feed" })}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    setModal({ kind: "add-feed" });
+                  }}
                 >
                   <Rss /> Add feed
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onSelect={() => setModal({ kind: "new-folder" })}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    setModal({ kind: "new-folder" });
+                  }}
                 >
                   <Folder /> New folder
                 </DropdownMenuItem>
@@ -322,9 +349,11 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                           <UnreadCount count={folder.unread_count} />
                         </SidebarMenuButton>
                         <CollapsibleTrigger asChild>
+                          {/* after:-right-1 trims the mobile hit-area toward
+                              the ellipsis so their tap targets don't overlap. */}
                           <SidebarMenuAction
                             aria-label={`Toggle ${folder.name}`}
-                            className="right-7"
+                            className="right-7 after:-right-1"
                           >
                             <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
                           </SidebarMenuAction>
@@ -337,20 +366,12 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                           <SidebarMenuSub className="mr-0 pr-0">
                             {folder.feeds.map((feed) => (
                               <SidebarMenuSubItem key={feed.id}>
-                                {/*
-                                  Sub-buttons don't get the registry's automatic
-                                  action gutter (their group is menu-sub-item),
-                                  so reserve it manually with pr-8.
-                                */}
                                 <SidebarMenuSubButton
                                   isActive={isFeedSelected(selection, feed.id)}
                                   onClick={() =>
                                     onSelect({ type: "feed", id: feed.id })
                                   }
-                                  className={cn(
-                                    "pr-8",
-                                    feedOpacity(feed.unread_count),
-                                  )}
+                                  className={feedOpacity(feed.unread_count)}
                                 >
                                   <Rss className="size-4 shrink-0" />
                                   <span className="truncate" title={feed.title}>

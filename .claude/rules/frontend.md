@@ -26,6 +26,8 @@ paths: ["frontend/**"]
 - Custom hook helper functions with logic (not just delegation) must be `useCallback`-wrapped to maintain referential stability for consumers.
 - Every `useQuery` must include `queryFn` — cache may be empty on first render regardless of other components writing to the same key.
 - All read/unread/scoring/blocked counts come from the backend (single SQL definition). Never derive counts client-side from article data.
+- Never invalidate a child key after its prefix — `["articles"]` already covers `["articles", "counts"]`; the duplicate cancels and re-issues the in-flight refetch.
+- Shared invalidation sets live in `lib/invalidation.ts` — mutations that change the same data must invalidate through the same helper, not hand-copied key lists.
 
 ## File Organization
 
@@ -36,6 +38,7 @@ paths: ["frontend/**"]
 ## Performance
 
 - In lists: avoid per-row component instances that each own state machines, portals, or media-query listeners — hoist shared state/listeners out of the row and pass results as props. Use native `title` for row tooltips.
+- Exception: closed portal-lazy Radix roots (e.g. DropdownMenu triggers) are fine at tens-of-rows scale — content mounts only on open; the rule targets eagerly-mounted per-row machinery.
 
 ## Theming
 
@@ -46,6 +49,8 @@ paths: ["frontend/**"]
 ## UI Patterns
 
 - Load-more pagination, not infinite scroll.
+- Close overlays by flipping `open` to false, never by unmounting the open Radix/Vaul root — unmount skips the exit animation and Vaul's body-style restore (stuck `pointer-events` risk).
+- Opening a Dialog from a `DropdownMenuItem` requires `event.preventDefault()` in `onSelect` — the menu's focus-restore races the dialog's focus trap otherwise.
 - Unread-first default view, sorted by composite score descending.
 - Mark-as-read: dwell-based auto-mark, 3s after the reader's content loads (#94 decision) — never auto-mark unread.
 - Full opacity + accent dot for unread, 0.6 opacity + hollow dot for read.

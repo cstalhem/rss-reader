@@ -1,4 +1,3 @@
-import { QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import { useDeleteFolder } from "@/hooks/useDeleteFolder";
@@ -10,16 +9,6 @@ import {
   waitFor,
 } from "@/test/utils";
 import { server } from "@/test/mocks/server";
-
-function wrapperWithClient(
-  queryClient: ReturnType<typeof createTestQueryClient>,
-) {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
-  };
-}
 
 describe("useDeleteFolder", () => {
   it("DELETEs with delete_feeds and invalidates feeds, folders, and article queries", async () => {
@@ -35,7 +24,7 @@ describe("useDeleteFolder", () => {
     );
 
     const { result } = renderHook(() => useDeleteFolder(), {
-      wrapper: wrapperWithClient(queryClient),
+      wrapper: createWrapper(queryClient),
     });
 
     result.current.mutate({ id: 1, deleteFeeds: true });
@@ -48,9 +37,9 @@ describe("useDeleteFolder", () => {
     );
     expect(invalidatedKeys).toContainEqual(queryKeys.feeds.all);
     expect(invalidatedKeys).toContainEqual(queryKeys.feedFolders.all);
-    // delete_feeds=true cascades member feeds' articles — lists and counts must refresh.
+    // delete_feeds=true cascades member feeds' articles — the ["articles"]
+    // prefix covers lists and counts alike.
     expect(invalidatedKeys).toContainEqual(queryKeys.articles.all);
-    expect(invalidatedKeys).toContainEqual(queryKeys.articles.counts);
   });
 
   it("defaults to ungrouping (delete_feeds=false)", async () => {

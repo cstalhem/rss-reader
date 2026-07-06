@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFolder } from "@/lib/api";
-import { queryKeys } from "@/lib/queryKeys";
+import { invalidateFeedTree } from "@/lib/invalidation";
 import type { FeedFolderCreatePayload } from "@/lib/types";
 
 export function useCreateFolder() {
@@ -12,8 +12,7 @@ export function useCreateFolder() {
     mutationFn: (payload: FeedFolderCreatePayload) => createFolder(payload),
     onSuccess: () => {
       // `feed_ids` may move feeds into the new folder — refresh both trees.
-      queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.feedFolders.all });
+      invalidateFeedTree(queryClient);
     },
     meta: { errorTitle: "Failed to create folder" },
   });
