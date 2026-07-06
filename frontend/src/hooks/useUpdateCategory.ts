@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { updateCategory } from "@/lib/api";
+import { ApiError, updateCategory } from "@/lib/api";
 import {
   invalidateCategories,
   invalidateCategoriesAndArticles,
@@ -43,6 +43,10 @@ export function useUpdateCategory() {
       context?.previous.forEach(([key, data]) => {
         queryClient.setQueryData(key, data);
       });
+      // A 409 only occurs on rename-to-existing-name; RenameModal catches it
+      // and shows an inline "merge instead?" affordance, so skip the generic
+      // toast here to avoid showing both.
+      if (error instanceof ApiError && error.status === 409) return;
       toast.error("Failed to update category", {
         description:
           error instanceof Error

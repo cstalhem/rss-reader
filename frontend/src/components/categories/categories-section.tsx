@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { useCategoryUnseenCount } from "@/hooks/useCategoryUnseenCount";
-import { Badge } from "@/components/ui/badge";
+import { SettingsNavBadge } from "@/components/settings-nav-badge";
 import { cn } from "@/lib/utils";
 
 import { ManageTab } from "./manage-tab";
@@ -49,11 +49,7 @@ export function CategoriesSection() {
               )}
             >
               {t.label}
-              {t.key === "triage" && triageCount > 0 && (
-                <Badge variant="default" className="rounded-full px-1.5">
-                  {triageCount}
-                </Badge>
-              )}
+              {t.key === "triage" && <SettingsNavBadge count={triageCount} />}
             </button>
           );
         })}
