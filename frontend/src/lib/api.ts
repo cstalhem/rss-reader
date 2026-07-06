@@ -20,6 +20,9 @@ import type {
   FeedFolderUpdatePayload,
   FeedSelection,
   FeedUpdatePayload,
+  Preferences,
+  PreferencesUpdate,
+  ScoringStatus,
 } from "./types";
 
 /**
@@ -365,6 +368,42 @@ export async function autoGroupApply(
 
   if (!response.ok) {
     await throwApiError(response, "Failed to apply category groups");
+  }
+
+  return response.json();
+}
+
+export async function fetchPreferences(): Promise<Preferences> {
+  const response = await fetch("/api/preferences");
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to fetch preferences");
+  }
+
+  return response.json();
+}
+
+export async function updatePreferences(
+  update: PreferencesUpdate,
+): Promise<Preferences> {
+  const response = await fetch("/api/preferences", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(update),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to update preferences");
+  }
+
+  return response.json();
+}
+
+export async function fetchScoringStatus(): Promise<ScoringStatus> {
+  const response = await fetch("/api/scoring/status");
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to fetch scoring status");
   }
 
   return response.json();

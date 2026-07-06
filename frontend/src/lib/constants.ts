@@ -44,3 +44,9 @@ export const CATEGORY_WEIGHT_ICON: Record<CategoryWeight, LucideIcon> = {
 
 /** How long a triage Keep/Block decision stays undoable before the mutation fires. */
 export const TRIAGE_UNDO_DELAY = 5_000;
+
+/** Scoring status poll interval while work is pending (unscored/queued/scoring > 0). */
+export const SCORING_STATUS_POLL_ACTIVE = 3_000;
+
+/** Scoring status poll interval while idle, to catch background-refresh-enqueued work. */
+export const SCORING_STATUS_POLL_IDLE = 10_000;

@@ -62,6 +62,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { ScoringStatusChip } from "@/components/scoring-status-chip";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 /** De-emphasize fully-read feeds (unread === 0) per the read-visual convention. */
@@ -475,6 +476,7 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
       </SidebarContent>
 
       <SidebarFooter>
+        <ScoringStatusChip />
         <Button
           variant="outline"
           size="sm"
