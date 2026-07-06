@@ -124,7 +124,7 @@ class FeedResponse(BaseModel):
     unread_count: int
     folder_id: int | None = None
     folder_name: str | None = None
-    is_aggregator: bool = False
+    is_aggregator: bool
 
 
 class FeedFolderCreate(BaseModel):

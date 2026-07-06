@@ -24,6 +24,23 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/feeds", tags=["feeds"])
 
 
+def _feed_response(
+    feed: Feed, *, unread_count: int, folder_name: str | None
+) -> FeedResponse:
+    """Build a FeedResponse from a Feed row — single source for field mapping."""
+    return FeedResponse(
+        id=feed.id,  # pyright: ignore[reportArgumentType]
+        url=feed.url,
+        title=feed.title,
+        display_order=feed.display_order,
+        last_fetched_at=feed.last_fetched_at,
+        unread_count=unread_count,
+        folder_id=feed.folder_id,
+        folder_name=folder_name,
+        is_aggregator=feed.is_aggregator,
+    )
+
+
 @router.get("", response_model=list[FeedResponse])
 def list_feeds(
     session: Session = Depends(get_session),
@@ -49,17 +66,7 @@ def list_feeds(
     results = session.exec(statement).all()
 
     return [
-        FeedResponse(
-            id=feed.id,  # pyright: ignore[reportArgumentType]
-            url=feed.url,
-            title=feed.title,
-            display_order=feed.display_order,
-            last_fetched_at=feed.last_fetched_at,
-            unread_count=unread_count,
-            folder_id=feed.folder_id,
-            folder_name=folder_name,
-            is_aggregator=feed.is_aggregator,
-        )
+        _feed_response(feed, unread_count=unread_count, folder_name=folder_name)
         for feed, folder_name, unread_count in results
     ]
 
@@ -142,17 +149,7 @@ async def create_feed(
         .where(unread_condition())
     ).one()
 
-    return FeedResponse(
-        id=feed.id,  # pyright: ignore[reportArgumentType]
-        url=feed.url,
-        title=feed.title,
-        display_order=feed.display_order,
-        last_fetched_at=feed.last_fetched_at,
-        unread_count=unread_count,
-        folder_id=feed.folder_id,
-        folder_name=None,
-        is_aggregator=feed.is_aggregator,
-    )
+    return _feed_response(feed, unread_count=unread_count, folder_name=None)
 
 
 @router.put("/order")
@@ -267,7 +264,10 @@ def update_feed(
         raise HTTPException(status_code=404, detail="Feed not found")
 
     if feed_update.title is not None:
-        feed.title = feed_update.title
+        title = feed_update.title.strip()
+        if not title:
+            raise HTTPException(status_code=400, detail="Feed title is required")
+        feed.title = title
 
     if feed_update.display_order is not None:
         feed.display_order = feed_update.display_order
@@ -316,17 +316,7 @@ def update_feed(
         folder = session.get(FeedFolder, feed.folder_id)
         folder_name = folder.name if folder else None
 
-    return FeedResponse(
-        id=feed.id,  # pyright: ignore[reportArgumentType]
-        url=feed.url,
-        title=feed.title,
-        display_order=feed.display_order,
-        last_fetched_at=feed.last_fetched_at,
-        unread_count=unread_count,
-        folder_id=feed.folder_id,
-        folder_name=folder_name,
-        is_aggregator=feed.is_aggregator,
-    )
+    return _feed_response(feed, unread_count=unread_count, folder_name=folder_name)
 
 
 @router.post("/{feed_id}/mark-read")

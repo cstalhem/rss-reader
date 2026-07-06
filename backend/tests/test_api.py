@@ -211,25 +211,31 @@ def test_refresh_feed_no_feeds(test_client: TestClient):
     assert data["new_articles"] == 0
 
 
-def test_create_feed_includes_folder_fields_in_response(
-    test_client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    """Creating a feed should always return folder fields (null for root feeds)."""
+class _StubParsedFeed:
+    bozo = False
+    entries = [{"link": "https://example.com/article-1", "title": "Article 1"}]
 
-    class _ParsedFeed:
-        bozo = False
-        entries = [{"link": "https://example.com/article-1", "title": "Article 1"}]
-        feed = {"title": "Patched Feed"}
+    def __init__(self, title: str):
+        self.feed = {"title": title}
 
+
+def _patch_feed_fetch(monkeypatch: pytest.MonkeyPatch, title: str = "Stub Feed"):
     async def fake_fetch_feed(_url: str):
-        return _ParsedFeed()
+        return _StubParsedFeed(title)
 
     def fake_save_articles(_session, _feed_id: int, _entries: list[dict]):
         return (1, [])
 
     monkeypatch.setattr("backend.routers.feeds.fetch_feed", fake_fetch_feed)
     monkeypatch.setattr("backend.routers.feeds.save_articles", fake_save_articles)
+
+
+def test_create_feed_includes_folder_fields_in_response(
+    test_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Creating a feed should always return folder fields (null for root feeds)."""
+    _patch_feed_fetch(monkeypatch, title="Patched Feed")
 
     response = test_client.post(
         "/api/feeds", json={"url": "https://example.com/patched-feed.xml"}
@@ -243,23 +249,6 @@ def test_create_feed_includes_folder_fields_in_response(
 
 
 # --- Feed is_aggregator flag ---
-
-
-class _AggregatorParsedFeed:
-    bozo = False
-    entries = [{"link": "https://example.com/article-1", "title": "Article 1"}]
-    feed = {"title": "Aggregator Feed"}
-
-
-def _patch_feed_fetch(monkeypatch: pytest.MonkeyPatch):
-    async def fake_fetch_feed(_url: str):
-        return _AggregatorParsedFeed()
-
-    def fake_save_articles(_session, _feed_id: int, _entries: list[dict]):
-        return (1, [])
-
-    monkeypatch.setattr("backend.routers.feeds.fetch_feed", fake_fetch_feed)
-    monkeypatch.setattr("backend.routers.feeds.save_articles", fake_save_articles)
 
 
 def test_create_feed_with_is_aggregator_true(
@@ -339,6 +328,40 @@ def test_patch_feed_toggles_is_aggregator(
     test_session.expire_all()
     db_feed = test_session.get(Feed, feed.id)
     assert db_feed.is_aggregator is False
+
+
+def test_patch_feed_rejects_whitespace_only_title(
+    test_client: TestClient,
+    test_session: Session,
+    make_feed,
+):
+    """PATCH with a whitespace-only title returns 400 and persists nothing."""
+    feed = make_feed(title="Original")
+
+    response = test_client.patch(f"/api/feeds/{feed.id}", json={"title": "   "})
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Feed title is required"
+
+    test_session.expire_all()
+    db_feed = test_session.get(Feed, feed.id)
+    assert db_feed.title == "Original"
+
+
+def test_patch_feed_strips_title_whitespace(
+    test_client: TestClient,
+    test_session: Session,
+    make_feed,
+):
+    """PATCH with a padded title persists the stripped value."""
+    feed = make_feed(title="Original")
+
+    response = test_client.patch(f"/api/feeds/{feed.id}", json={"title": " ok "})
+    assert response.status_code == 200
+    assert response.json()["title"] == "ok"
+
+    test_session.expire_all()
+    db_feed = test_session.get(Feed, feed.id)
+    assert db_feed.title == "ok"
 
 
 def test_list_feeds_includes_is_aggregator(
