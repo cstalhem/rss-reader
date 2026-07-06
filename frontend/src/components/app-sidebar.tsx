@@ -269,8 +269,9 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon"
+                className="size-12"
                 aria-label="Add feed or folder"
               >
                 <Plus />
