@@ -57,6 +57,7 @@ const feeds: Feed[] = [
     unread_count: 12,
     folder_id: 1,
     folder_name: "Tech",
+    is_aggregator: false,
   },
   {
     id: 20,
@@ -67,6 +68,7 @@ const feeds: Feed[] = [
     unread_count: 4,
     folder_id: null,
     folder_name: null,
+    is_aggregator: false,
   },
 ];
 
