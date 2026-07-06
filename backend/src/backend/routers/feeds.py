@@ -58,6 +58,7 @@ def list_feeds(
             unread_count=unread_count,
             folder_id=feed.folder_id,
             folder_name=folder_name,
+            is_aggregator=feed.is_aggregator,
         )
         for feed, folder_name, unread_count in results
     ]
@@ -114,6 +115,7 @@ async def create_feed(
         title=feed_title,
         display_order=next_order,
         last_fetched_at=datetime.now(),
+        is_aggregator=feed_create.is_aggregator,
     )
     session.add(feed)
     session.commit()
@@ -149,6 +151,7 @@ async def create_feed(
         unread_count=unread_count,
         folder_id=feed.folder_id,
         folder_name=None,
+        is_aggregator=feed.is_aggregator,
     )
 
 
@@ -269,6 +272,9 @@ def update_feed(
     if feed_update.display_order is not None:
         feed.display_order = feed_update.display_order
 
+    if feed_update.is_aggregator is not None:
+        feed.is_aggregator = feed_update.is_aggregator
+
     if "folder_id" in feed_update.model_fields_set:
         if feed_update.folder_id is not None:
             folder = session.get(FeedFolder, feed_update.folder_id)
@@ -319,6 +325,7 @@ def update_feed(
         unread_count=unread_count,
         folder_id=feed.folder_id,
         folder_name=folder_name,
+        is_aggregator=feed.is_aggregator,
     )
 
 
