@@ -26,6 +26,7 @@ import {
 } from "@/lib/selection";
 import type { Feed, FeedSelection } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Collapsible,
   CollapsibleContent,
@@ -248,50 +249,56 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
   return (
     <Sidebar>
       <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              isActive={selection.type === "all"}
-              onClick={() => onSelect({ type: "all" })}
-            >
-              <Inbox className="size-4" />
-              <span className="font-medium">All articles</span>
-              <GlobalUnreadCount
-                count={model.totalUnread}
-                isError={countsQuery.isError}
-              />
-            </SidebarMenuButton>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuAction aria-label="Add feed or folder">
-                  <Plus />
-                </SidebarMenuAction>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {/* preventDefault on onSelect (canonical Radix guidance):
-                    stops the menu's focus-restore from racing the opening
-                    dialog's focus trap. */}
-                <DropdownMenuItem
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    setModal({ kind: "add-feed" });
-                  }}
-                >
-                  <Rss /> Add feed
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    setModal({ kind: "new-folder" });
-                  }}
-                >
-                  <Folder /> New folder
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <div className="flex items-center gap-2">
+          <SidebarMenu className="flex-1">
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                size="lg"
+                isActive={selection.type === "all"}
+                onClick={() => onSelect({ type: "all" })}
+              >
+                <Inbox className="size-4" />
+                <span className="font-medium">All articles</span>
+                <GlobalUnreadCount
+                  count={model.totalUnread}
+                  isError={countsQuery.isError}
+                />
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Add feed or folder"
+              >
+                <Plus />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {/* preventDefault on onSelect (canonical Radix guidance):
+                  stops the menu's focus-restore from racing the opening
+                  dialog's focus trap. */}
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setModal({ kind: "add-feed" });
+                }}
+              >
+                <Rss /> Add feed
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setModal({ kind: "new-folder" });
+                }}
+              >
+                <Folder /> New folder
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </SidebarHeader>
 
       <SidebarContent>
