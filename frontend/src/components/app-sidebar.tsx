@@ -1,22 +1,48 @@
 "use client";
 
-import { ChevronRight, Folder, Inbox, Rss, ShieldOff } from "lucide-react";
+import { useState } from "react";
+import {
+  ChevronRight,
+  Folder,
+  FolderPen,
+  Inbox,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Rss,
+  SatelliteDish,
+  ShieldOff,
+  Trash2,
+} from "lucide-react";
 
 import { useArticleCounts } from "@/hooks/useArticleCounts";
 import { useFeeds } from "@/hooks/useFeeds";
 import { useFeedFolders } from "@/hooks/useFeedFolders";
-import { buildSidebarModel } from "@/lib/sidebar";
+import { buildSidebarModel, type SidebarFolder } from "@/lib/sidebar";
 import {
   isBlockedSelected,
   isFeedSelected,
   isFolderSelected,
 } from "@/lib/selection";
-import type { FeedSelection } from "@/lib/types";
+import type { Feed, FeedSelection } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  FeedManagementModal,
+  type ManageModal,
+} from "@/components/feed-management";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sidebar,
@@ -86,6 +112,99 @@ function GlobalUnreadCount({
   return <UnreadCount count={count} />;
 }
 
+/**
+ * Compact aggregator marker for sidebar rows — icon-only outline Badge with a
+ * native `title` (no Tooltip component in list rows, per the perf rule).
+ */
+function AggregatorBadge() {
+  return (
+    <Badge
+      variant="outline"
+      title="Aggregator feed"
+      className="text-muted-foreground px-1 py-0"
+    >
+      <SatelliteDish aria-hidden />
+      <span className="sr-only">Aggregator feed</span>
+    </Badge>
+  );
+}
+
+/**
+ * Always-visible ellipsis → actions menu for a feed row (touch-first, no
+ * hover-only affordances). The row only fires `onOpenModal` — the modal state
+ * itself is hoisted to the sidebar (one instance, not one per row).
+ */
+function FeedActionsMenu({
+  feed,
+  onOpenModal,
+}: {
+  feed: Feed;
+  onOpenModal: (modal: ManageModal) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <SidebarMenuAction aria-label={`Actions for ${feed.title}`}>
+          <MoreHorizontal />
+        </SidebarMenuAction>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem
+          onSelect={() => onOpenModal({ kind: "edit-feed", feed })}
+        >
+          <Pencil /> Edit feed
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant="destructive"
+          onSelect={() => onOpenModal({ kind: "delete-feed", feed })}
+        >
+          <Trash2 /> Delete feed
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** Ellipsis → actions menu for a folder row (rename / delete). */
+function FolderActionsMenu({
+  folder,
+  onOpenModal,
+}: {
+  folder: SidebarFolder;
+  onOpenModal: (modal: ManageModal) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <SidebarMenuAction aria-label={`Actions for ${folder.name}`}>
+          <MoreHorizontal />
+        </SidebarMenuAction>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem
+          onSelect={() => onOpenModal({ kind: "rename-folder", folder })}
+        >
+          <FolderPen /> Rename folder
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant="destructive"
+          onSelect={() =>
+            onOpenModal({
+              kind: "delete-folder",
+              folder,
+              feedCount: folder.feeds.length,
+            })
+          }
+        >
+          <Trash2 /> Delete folder
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 interface AppSidebarProps {
   selection: FeedSelection;
   onSelect: (selection: FeedSelection) => void;
@@ -95,6 +214,9 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
   const feedsQuery = useFeeds();
   const foldersQuery = useFeedFolders();
   const countsQuery = useArticleCounts();
+
+  // One hoisted modal state for all management flows — rows just fire callbacks.
+  const [modal, setModal] = useState<ManageModal | null>(null);
 
   const isLoading = feedsQuery.isPending || foldersQuery.isPending;
   const isError = feedsQuery.isError || foldersQuery.isError;
@@ -122,6 +244,25 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                 isError={countsQuery.isError}
               />
             </SidebarMenuButton>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuAction aria-label="Add feed or folder">
+                  <Plus />
+                </SidebarMenuAction>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onSelect={() => setModal({ kind: "add-feed" })}
+                >
+                  <Rss /> Add feed
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => setModal({ kind: "new-folder" })}
+                >
+                  <Folder /> New folder
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
@@ -157,19 +298,22 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                     >
                       <SidebarMenuItem>
                         {/*
-                          Split select/toggle: the button (name) selects the
-                          folder, the sibling SidebarMenuAction (chevron) toggles
-                          expansion. Keeping them as siblings (not nested) avoids
-                          a <button> inside a <button> — the a11y/HTML-validity
-                          win. The registry button reserves a right gutter
-                          (pr-8) whenever a menu-action is present, so the count
-                          sits left of the chevron.
+                          Split select/toggle/manage: the button (name) selects
+                          the folder, sibling SidebarMenuActions hold the
+                          collapse chevron and the always-visible ellipsis menu.
+                          Siblings (not nested) avoid a <button> inside a
+                          <button>. The registry gutter (pr-8) only accounts
+                          for one action, so widen it to clear both — same
+                          variant stack so tailwind-merge dedupes. The ellipsis
+                          sits at the registry position (right-1) to align with
+                          feed-row ellipses; the chevron is offset inward.
                         */}
                         <SidebarMenuButton
                           isActive={isFolderSelected(selection, folder.id)}
                           onClick={() =>
                             onSelect({ type: "folder", id: folder.id })
                           }
+                          className="group-has-data-[sidebar=menu-action]/menu-item:pr-14"
                         >
                           <Folder className="size-4 shrink-0" />
                           <span className="truncate" title={folder.name}>
@@ -180,27 +324,45 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                         <CollapsibleTrigger asChild>
                           <SidebarMenuAction
                             aria-label={`Toggle ${folder.name}`}
+                            className="right-7"
                           >
                             <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
                           </SidebarMenuAction>
                         </CollapsibleTrigger>
+                        <FolderActionsMenu
+                          folder={folder}
+                          onOpenModal={setModal}
+                        />
                         <CollapsibleContent>
                           <SidebarMenuSub className="mr-0 pr-0">
                             {folder.feeds.map((feed) => (
                               <SidebarMenuSubItem key={feed.id}>
+                                {/*
+                                  Sub-buttons don't get the registry's automatic
+                                  action gutter (their group is menu-sub-item),
+                                  so reserve it manually with pr-8.
+                                */}
                                 <SidebarMenuSubButton
                                   isActive={isFeedSelected(selection, feed.id)}
                                   onClick={() =>
                                     onSelect({ type: "feed", id: feed.id })
                                   }
-                                  className={feedOpacity(feed.unread_count)}
+                                  className={cn(
+                                    "pr-8",
+                                    feedOpacity(feed.unread_count),
+                                  )}
                                 >
                                   <Rss className="size-4 shrink-0" />
                                   <span className="truncate" title={feed.title}>
                                     {feed.title}
                                   </span>
+                                  {feed.is_aggregator && <AggregatorBadge />}
                                   <UnreadCount count={feed.unread_count} />
                                 </SidebarMenuSubButton>
+                                <FeedActionsMenu
+                                  feed={feed}
+                                  onOpenModal={setModal}
+                                />
                               </SidebarMenuSubItem>
                             ))}
                           </SidebarMenuSub>
@@ -227,8 +389,10 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
                         <span className="truncate" title={feed.title}>
                           {feed.title}
                         </span>
+                        {feed.is_aggregator && <AggregatorBadge />}
                         <UnreadCount count={feed.unread_count} />
                       </SidebarMenuButton>
+                      <FeedActionsMenu feed={feed} onOpenModal={setModal} />
                     </SidebarMenuItem>
                   ))}
                 </SidebarMenu>
@@ -256,6 +420,13 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
       <SidebarFooter>
         <ThemeToggle />
       </SidebarFooter>
+
+      {/* Portals to body (Radix default) — works even when the sidebar is a mobile Sheet. */}
+      <FeedManagementModal
+        modal={modal}
+        folders={model.folders}
+        onClose={() => setModal(null)}
+      />
     </Sidebar>
   );
 }
