@@ -46,7 +46,9 @@ describe("ScoringStatusChip", () => {
     renderWithProviders(<ScoringStatusChip />);
 
     await waitFor(() =>
-      expect(screen.getByText(/Processing/)).toHaveTextContent("Processing 3…"),
+      expect(screen.getByText(/Processing/)).toHaveTextContent(
+        "Processing 3 articles",
+      ),
     );
   });
 

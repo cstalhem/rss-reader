@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { usePreferences } from "@/hooks/usePreferences";
 import { useUpdatePreferences } from "@/hooks/useUpdatePreferences";
@@ -25,10 +26,10 @@ function InterestsForm({ initial }: { initial: Preferences }) {
       className="flex flex-col gap-5"
       onSubmit={(event) => {
         event.preventDefault();
-        updatePreferences.mutate({
-          interests,
-          anti_interests: antiInterests,
-        });
+        updatePreferences.mutate(
+          { interests, anti_interests: antiInterests },
+          { onSuccess: () => toast.success("Interests saved") },
+        );
       }}
     >
       <Field>
@@ -61,7 +62,7 @@ function InterestsForm({ initial }: { initial: Preferences }) {
       </Field>
       <Button
         type="submit"
-        className="h-11 self-start sm:h-9"
+        className="h-11 self-end sm:h-9"
         disabled={!isDirty || updatePreferences.isPending}
       >
         {updatePreferences.isPending ? "Saving…" : "Save"}
