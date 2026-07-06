@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useCategoryUnseenCount } from "@/hooks/useCategoryUnseenCount";
 import { Button } from "@/components/ui/button";
 import { SettingsNavBadge } from "@/components/settings-nav-badge";
 import { SETTINGS_SECTIONS } from "@/lib/settings-sections";
@@ -20,21 +21,31 @@ import { cn } from "@/lib/utils";
  * Rendered once by `app/settings/layout.tsx`; `children` is the active
  * section's page content (a route segment, not local state).
  *
- * TODO(#98 phase 4): accept a `badgeCounts?: Partial<Record<string, number>>`
- * prop (keyed by section id) once `useCategories` exists, and pass
- * `badgeCounts?.[section.id]` into `SettingsNavBadge` below instead of the
- * hardcoded `undefined`.
+ * The nav badge counts are keyed by section id (`badgeCounts[section.id]`).
+ * The shell is a client component, so it fetches the counts itself rather than
+ * threading a prop down from the server `layout.tsx`.
  */
+type BadgeCounts = Partial<Record<string, number>>;
+
 export function SettingsShell({ children }: { children: React.ReactNode }) {
   const isMobile = useIsMobile();
+  const { data: categoryUnseen } = useCategoryUnseenCount();
+  const badgeCounts: BadgeCounts = { categories: categoryUnseen?.count };
+
   return isMobile ? (
-    <PhoneDrillIn>{children}</PhoneDrillIn>
+    <PhoneDrillIn badgeCounts={badgeCounts}>{children}</PhoneDrillIn>
   ) : (
-    <DesktopRail>{children}</DesktopRail>
+    <DesktopRail badgeCounts={badgeCounts}>{children}</DesktopRail>
   );
 }
 
-function DesktopRail({ children }: { children: React.ReactNode }) {
+function DesktopRail({
+  children,
+  badgeCounts,
+}: {
+  children: React.ReactNode;
+  badgeCounts: BadgeCounts;
+}) {
   const pathname = usePathname();
 
   return (
@@ -66,10 +77,7 @@ function DesktopRail({ children }: { children: React.ReactNode }) {
                   )}
                   <section.icon className="size-4 shrink-0" />
                   <span className="flex-1">{section.label}</span>
-                  {/* TODO(#98 phase 4): wire triage count from useCategories */}
-                  {section.id === "categories" && (
-                    <SettingsNavBadge count={undefined} />
-                  )}
+                  <SettingsNavBadge count={badgeCounts[section.id]} />
                 </Link>
               </li>
             );
@@ -81,7 +89,13 @@ function DesktopRail({ children }: { children: React.ReactNode }) {
   );
 }
 
-function PhoneDrillIn({ children }: { children: React.ReactNode }) {
+function PhoneDrillIn({
+  children,
+  badgeCounts,
+}: {
+  children: React.ReactNode;
+  badgeCounts: BadgeCounts;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const isIndex = pathname === "/settings";
@@ -105,10 +119,7 @@ function PhoneDrillIn({ children }: { children: React.ReactNode }) {
                   <span className="flex-1 text-sm font-medium">
                     {section.label}
                   </span>
-                  {/* TODO(#98 phase 4): wire triage count from useCategories */}
-                  {section.id === "categories" && (
-                    <SettingsNavBadge count={undefined} />
-                  )}
+                  <SettingsNavBadge count={badgeCounts[section.id]} />
                   <ChevronRight className="text-muted-foreground size-4 shrink-0" />
                 </Link>
               </li>
