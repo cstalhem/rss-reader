@@ -29,6 +29,17 @@ import type {
  * `PathPrefix('/api')` to the backend. There is deliberately no base-URL env var.
  */
 
+/** Carries the HTTP status alongside the message so callers can branch on it (e.g. 409 name-collision). Extends `Error`, so the centralized MutationCache toast (which reads `.message`) is unaffected. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 /** Throw an error with the backend's `detail` message if available, otherwise fall back to a generic message. */
 export async function throwApiError(
   response: Response,
@@ -41,7 +52,7 @@ export async function throwApiError(
     : typeof detail === "string"
       ? detail
       : `${fallback}: ${response.statusText}`;
-  throw new Error(message);
+  throw new ApiError(message, response.status);
 }
 
 export async function fetchFeeds(): Promise<Feed[]> {
