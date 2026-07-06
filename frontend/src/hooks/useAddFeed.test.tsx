@@ -1,4 +1,3 @@
-import { QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import { useAddFeed } from "@/hooks/useAddFeed";
@@ -11,23 +10,13 @@ import {
 } from "@/test/utils";
 import { server } from "@/test/mocks/server";
 
-function wrapperWithClient(
-  queryClient: ReturnType<typeof createTestQueryClient>,
-) {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
-  };
-}
-
 describe("useAddFeed", () => {
   it("POSTs the feed and invalidates feeds, folders, and article queries", async () => {
     const queryClient = createTestQueryClient();
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     const { result } = renderHook(() => useAddFeed(), {
-      wrapper: wrapperWithClient(queryClient),
+      wrapper: createWrapper(queryClient),
     });
 
     result.current.mutate({
@@ -46,9 +35,9 @@ describe("useAddFeed", () => {
     );
     expect(invalidatedKeys).toContainEqual(queryKeys.feeds.all);
     expect(invalidatedKeys).toContainEqual(queryKeys.feedFolders.all);
-    // Adding a feed saves its initial articles — lists and counts must refresh.
+    // Adding a feed saves its initial articles — the ["articles"] prefix
+    // covers lists and counts alike.
     expect(invalidatedKeys).toContainEqual(queryKeys.articles.all);
-    expect(invalidatedKeys).toContainEqual(queryKeys.articles.counts);
   });
 
   it("exposes an error when the backend rejects the URL", async () => {

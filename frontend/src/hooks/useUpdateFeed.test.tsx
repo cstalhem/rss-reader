@@ -1,4 +1,3 @@
-import { QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import { useUpdateFeed } from "@/hooks/useUpdateFeed";
@@ -11,23 +10,13 @@ import {
 } from "@/test/utils";
 import { server } from "@/test/mocks/server";
 
-function wrapperWithClient(
-  queryClient: ReturnType<typeof createTestQueryClient>,
-) {
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
-  };
-}
-
 describe("useUpdateFeed", () => {
-  it("PATCHes the feed and invalidates feeds and folders", async () => {
+  it("PATCHes the feed and invalidates feeds, folders, and article queries", async () => {
     const queryClient = createTestQueryClient();
     const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
 
     const { result } = renderHook(() => useUpdateFeed(), {
-      wrapper: wrapperWithClient(queryClient),
+      wrapper: createWrapper(queryClient),
     });
 
     result.current.mutate({ id: 1, data: { title: "Renamed", folder_id: 2 } });
@@ -44,6 +33,9 @@ describe("useUpdateFeed", () => {
     );
     expect(invalidatedKeys).toContainEqual(queryKeys.feeds.all);
     expect(invalidatedKeys).toContainEqual(queryKeys.feedFolders.all);
+    // A rename changes feed_title on article rows; a folder move changes
+    // folder-scoped lists and counts — article queries must refresh too.
+    expect(invalidatedKeys).toContainEqual(queryKeys.articles.all);
   });
 
   it("exposes an error when the backend rejects", async () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 
 import { useAddFeed } from "@/hooks/useAddFeed";
 import { useCreateFolder } from "@/hooks/useCreateFolder";
@@ -40,8 +40,7 @@ export type ManageModal =
   | { kind: "rename-folder"; folder: FeedFolder }
   | { kind: "delete-folder"; folder: FeedFolder; feedCount: number };
 
-const AGGREGATOR_HINT =
-  "Entries link out to external articles — fetched through before scoring.";
+const AGGREGATOR_HINT = "Entries link out to external articles.";
 
 /** Radix Select items can't have an empty-string value; sentinel for "no folder". */
 const ROOT_SENTINEL = "root";
@@ -401,9 +400,12 @@ function DeleteFolderConfirm({
 }
 
 /**
- * Renders the currently-open management modal (or nothing). Mounts fresh per
- * open, so each form's `useState` initializers capture the target feed/folder
- * at open time — no sync effects needed.
+ * Renders the currently-open management modal (or nothing). The ResponsiveModal
+ * stays mounted through close (`open={modal !== null}`) so Radix/Vaul exit
+ * animations can run — the last non-null modal is retained for content. Each
+ * form still mounts fresh per open (its `useState` initializers capture the
+ * target feed/folder): the body is keyed by a generation counter that bumps on
+ * every null→non-null transition.
  */
 export function FeedManagementModal({
   modal,
@@ -414,11 +416,27 @@ export function FeedManagementModal({
   folders: FeedFolder[];
   onClose: () => void;
 }) {
-  if (!modal) return null;
+  // Adjust-state-during-render (not useEffect): retain the last non-null
+  // modal so content stays rendered while closing, and bump the open
+  // generation on each null→non-null transition so reopening never reuses
+  // stale form state.
+  const [generation, setGeneration] = useState(0);
+  const [prevModal, setPrevModal] = useState(modal);
+  const [lastModal, setLastModal] = useState(modal);
+  if (modal !== prevModal) {
+    setPrevModal(modal);
+    if (modal !== null) {
+      setLastModal(modal);
+      if (prevModal === null) setGeneration(generation + 1);
+    }
+  }
+
+  const active = modal ?? lastModal;
+  if (!active) return null;
 
   let title: string;
   let body: ReactNode;
-  switch (modal.kind) {
+  switch (active.kind) {
     case "add-feed":
       title = "Add feed";
       body = <AddFeedForm onClose={onClose} />;
@@ -430,23 +448,23 @@ export function FeedManagementModal({
     case "edit-feed":
       title = "Edit feed";
       body = (
-        <EditFeedForm feed={modal.feed} folders={folders} onClose={onClose} />
+        <EditFeedForm feed={active.feed} folders={folders} onClose={onClose} />
       );
       break;
     case "delete-feed":
       title = "Delete feed";
-      body = <DeleteFeedConfirm feed={modal.feed} onClose={onClose} />;
+      body = <DeleteFeedConfirm feed={active.feed} onClose={onClose} />;
       break;
     case "rename-folder":
       title = "Rename folder";
-      body = <RenameFolderForm folder={modal.folder} onClose={onClose} />;
+      body = <RenameFolderForm folder={active.folder} onClose={onClose} />;
       break;
     case "delete-folder":
       title = "Delete folder";
       body = (
         <DeleteFolderConfirm
-          folder={modal.folder}
-          feedCount={modal.feedCount}
+          folder={active.folder}
+          feedCount={active.feedCount}
           onClose={onClose}
         />
       );
@@ -455,13 +473,13 @@ export function FeedManagementModal({
 
   return (
     <ResponsiveModal
-      open
+      open={modal !== null}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
       title={title}
     >
-      {body}
+      <Fragment key={generation}>{body}</Fragment>
     </ResponsiveModal>
   );
 }

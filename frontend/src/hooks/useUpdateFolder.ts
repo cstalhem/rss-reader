@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateFolder } from "@/lib/api";
-import { queryKeys } from "@/lib/queryKeys";
+import { invalidateFeedTree } from "@/lib/invalidation";
 import type { FeedFolderUpdatePayload } from "@/lib/types";
 
 export function useUpdateFolder() {
@@ -13,8 +13,7 @@ export function useUpdateFolder() {
       updateFolder(id, data),
     onSuccess: () => {
       // Feeds embed `folder_name` — a rename must refresh both trees.
-      queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.feedFolders.all });
+      invalidateFeedTree(queryClient);
     },
     meta: { errorTitle: "Failed to update folder" },
   });

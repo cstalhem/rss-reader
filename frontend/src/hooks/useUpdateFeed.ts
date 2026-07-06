@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { updateFeed } from "@/lib/api";
-import { queryKeys } from "@/lib/queryKeys";
+import { invalidateFeedTreeAndArticles } from "@/lib/invalidation";
 import type { FeedUpdatePayload } from "@/lib/types";
 
 export function useUpdateFeed() {
@@ -12,8 +12,9 @@ export function useUpdateFeed() {
     mutationFn: ({ id, data }: { id: number; data: FeedUpdatePayload }) =>
       updateFeed(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.feedFolders.all });
+      // A rename changes feed_title on article rows; a folder move changes
+      // folder-scoped lists and counts — refresh articles alongside the tree.
+      invalidateFeedTreeAndArticles(queryClient);
     },
     meta: { errorTitle: "Failed to update feed" },
   });

@@ -59,6 +59,10 @@ export const feedHandlers = [
       ...body,
       id: Number(params.id),
     };
+    // The real backend recomputes the embedded folder_name from folder_id —
+    // keep the fixture shape faithful instead of leaving it stale.
+    const folder = mockFeedFolders.find((f) => f.id === updated.folder_id);
+    updated.folder_name = folder?.name ?? null;
     return HttpResponse.json(updated);
   }),
   http.delete("/api/feeds/:id", () => HttpResponse.json({ ok: true })),

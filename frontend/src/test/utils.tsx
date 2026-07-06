@@ -38,8 +38,10 @@ export function renderWithProviders(
   return render(ui, { wrapper: AllProviders, ...options });
 }
 
-export function createWrapper() {
-  const queryClient = createTestQueryClient();
+/** Hook-test wrapper. The default argument is evaluated per call, so each test still gets a fresh client; pass your own to spy on or read the cache. */
+export function createWrapper(
+  queryClient: QueryClient = createTestQueryClient(),
+) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>

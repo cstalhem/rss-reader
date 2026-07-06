@@ -11,13 +11,12 @@ export function useRescueArticle() {
     mutationFn: (id: number) => rescueArticle(id),
     onSuccess: () => {
       // The article moves from the blocked view into the normal unread list —
-      // invalidate both (articles.all prefix-matches the blocked key too) plus
-      // the badges (server-computed) rather than surgically patching caches
-      // across two disjoint views.
+      // invalidate everything article-scoped (articles.all prefix-matches the
+      // blocked and counts keys too) plus the sidebar badges rather than
+      // surgically patching caches across two disjoint views.
       queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.feedFolders.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.articles.counts });
     },
     meta: { errorTitle: "Failed to rescue article" },
   });

@@ -35,7 +35,7 @@ export function CategoryChip({ label }: { label: string }) {
   return (
     <Badge
       variant="outline"
-      className="text-muted-foreground rounded px-1.5 text-[11px] font-normal"
+      className="text-muted-foreground max-w-full truncate rounded px-1.5 text-[11px] font-normal"
     >
       {label}
     </Badge>
