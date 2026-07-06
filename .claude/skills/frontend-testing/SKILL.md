@@ -88,6 +88,8 @@ vi.mock("next-themes", () => ({
 - **Router/theme mocks in global setup** — Most tests don't need them. Adding globally creates coupling and hides which tests actually depend on routing.
 - **Snapshot tests for styled components** — Tailwind/utility-driven class names change between runs. Snapshots become noise with no signal.
 - **Asserting on query state without `waitFor`** — `useQuery` resolves asynchronously. Synchronous assertions see `isLoading: true` and miss the data.
+- **Relying on jsdom for pointer APIs** — jsdom does not implement `setPointerCapture`/`hasPointerCapture`/`releasePointerCapture` or `scrollIntoView`. Pointer-driven libraries (sonner toasts, Radix, cmdk) call them on interaction and throw an *unhandled* error that fails the whole run — even when every test assertion passes (Vitest reports "1 error" with a non-zero exit). This bit the categories work: a test mounting `<Toaster>` to exercise the triage Undo action crashed on `setPointerCapture`. Polyfill them ONCE globally in `src/test/setup.ts` (`Element.prototype.setPointerCapture = () => {}`, etc.) — it's a jsdom gap, not a component bug, so it belongs in setup, not per-test.
+- **Leaving `vi.spyOn` unrestored** — a `vi.spyOn(toast, "error")` left unrestored is re-wrapped by a *later* `vi.spyOn` on the same target in the same file; the second spy inherits the first's call history, so a test that expects zero prior calls sees stale ones. Restore with `afterEach(() => vi.restoreAllMocks())`, or `mockClear()` immediately after each `spyOn`. Discovered while adding the rename-409 "no toast" test — the earlier tests' unrestored `toast.error` spies polluted its count.
 
 ## Decision Aids
 
