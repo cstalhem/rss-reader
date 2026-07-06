@@ -2,6 +2,18 @@ import type {
   Article,
   ArticleCounts,
   ArticleListResponse,
+  AutoGroupApplyPayload,
+  AutoGroupApplyResponse,
+  AutoGroupSuggestResponse,
+  Category,
+  CategoryBulkUpdatePayload,
+  CategoryBulkUpdateResponse,
+  CategoryCreatePayload,
+  CategoryGroupPayload,
+  CategoryGroupResponse,
+  CategoryMergePayload,
+  CategoryMergeResponse,
+  CategoryUpdatePayload,
   Feed,
   FeedCreatePayload,
   FeedFolder,
@@ -224,6 +236,149 @@ export async function fetchArticleCounts(): Promise<ArticleCounts> {
 
   if (!response.ok) {
     await throwApiError(response, "Failed to fetch article counts");
+  }
+
+  return response.json();
+}
+
+export async function fetchCategories(
+  needsTriage?: boolean,
+): Promise<Category[]> {
+  const params =
+    needsTriage === undefined
+      ? ""
+      : `?${new URLSearchParams({ needs_triage: String(needsTriage) }).toString()}`;
+  const response = await fetch(`/api/categories${params}`);
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to fetch categories");
+  }
+
+  return response.json();
+}
+
+export async function fetchCategoryUnseenCount(): Promise<{ count: number }> {
+  const response = await fetch("/api/categories/unseen-count");
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to fetch category unseen count");
+  }
+
+  return response.json();
+}
+
+export async function createCategory(
+  payload: CategoryCreatePayload,
+): Promise<Category> {
+  const response = await fetch("/api/categories", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to create category");
+  }
+
+  return response.json();
+}
+
+export async function updateCategory(
+  id: number,
+  payload: CategoryUpdatePayload,
+): Promise<Category> {
+  const response = await fetch(`/api/categories/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to update category");
+  }
+
+  return response.json();
+}
+
+export async function bulkUpdateCategories(
+  payload: CategoryBulkUpdatePayload,
+): Promise<CategoryBulkUpdateResponse> {
+  const response = await fetch("/api/categories", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to update categories");
+  }
+
+  return response.json();
+}
+
+export async function groupCategories(
+  payload: CategoryGroupPayload,
+): Promise<CategoryGroupResponse> {
+  const response = await fetch("/api/categories/group", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to group categories");
+  }
+
+  return response.json();
+}
+
+export async function mergeCategories(
+  payload: CategoryMergePayload,
+): Promise<CategoryMergeResponse> {
+  const response = await fetch("/api/categories/merge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to merge categories");
+  }
+
+  return response.json();
+}
+
+export async function deleteCategory(id: number): Promise<void> {
+  const response = await fetch(`/api/categories/${id}`, { method: "DELETE" });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to delete category");
+  }
+}
+
+export async function autoGroupSuggest(): Promise<AutoGroupSuggestResponse> {
+  const response = await fetch("/api/categories/auto-group/suggest", {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to suggest category groups");
+  }
+
+  return response.json();
+}
+
+export async function autoGroupApply(
+  payload: AutoGroupApplyPayload,
+): Promise<AutoGroupApplyResponse> {
+  const response = await fetch("/api/categories/auto-group/apply", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to apply category groups");
   }
 
   return response.json();

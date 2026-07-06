@@ -67,6 +67,7 @@ export interface ArticleCategory {
   /** Weight label ("block" | "reduce" | "normal" | "boost" | "max") — a string, not a number. */
   effective_weight: string;
   parent_display_name: string | null;
+  needs_triage: boolean;
 }
 
 /** Mirrors backend `ArticleListItem` (schemas.py) — returned by `GET /api/articles`. */
@@ -124,4 +125,116 @@ export interface ArticleCounts {
   read: number;
   scoring: number;
   blocked: number;
+}
+
+/** Mirrors backend `CategoryWeight` (models.py) — single source of truth for the weight vocabulary. */
+export type CategoryWeight = "block" | "reduce" | "normal" | "boost" | "max";
+
+/** Mirrors backend `TriageSampleArticle` (schemas.py) — evidence shown for a category awaiting triage. */
+export interface TriageSampleArticle {
+  id: number;
+  title: string;
+  feed_title: string;
+}
+
+/** Mirrors backend `CategoryResponse` (schemas.py). */
+export interface Category {
+  id: number;
+  display_name: string;
+  slug: string;
+  weight: CategoryWeight;
+  parent_id: number | null;
+  needs_triage: boolean;
+  article_count: number;
+  created_at: string;
+  /** Populated only when the category was fetched with `needs_triage=true`; otherwise `[]`. */
+  sample_articles: TriageSampleArticle[];
+}
+
+/** Mirrors backend `CategoryCreateRequest` (schemas.py) — body for `POST /api/categories`. */
+export interface CategoryCreatePayload {
+  display_name: string;
+  parent_id?: number | null;
+}
+
+/** Mirrors backend `CategoryUpdate` (schemas.py) — body for `PATCH /api/categories/{id}`. `parent_id: -1` ungroups. */
+export interface CategoryUpdatePayload {
+  display_name?: string;
+  parent_id?: number | null;
+  weight?: CategoryWeight;
+  needs_triage?: boolean;
+}
+
+/** Mirrors backend `CategoryBulkUpdate` (schemas.py) — body for `PATCH /api/categories` (collection). */
+export interface CategoryBulkUpdatePayload {
+  category_ids: number[];
+  weight?: CategoryWeight;
+  needs_triage?: boolean;
+}
+
+/** Mirrors backend `CategoryBulkUpdateResponse` (schemas.py). */
+export interface CategoryBulkUpdateResponse {
+  ok: boolean;
+  updated: number;
+  missing_ids: number[];
+}
+
+/**
+ * Mirrors backend `CategoryGroupRequest` (schemas.py) — body for `POST /api/categories/group`.
+ * Exactly one of `target_parent_id`, `new_parent_name`, `ungroup` must be provided (ADR-0009).
+ */
+export interface CategoryGroupPayload {
+  category_ids: number[];
+  target_parent_id?: number;
+  new_parent_name?: string;
+  ungroup?: boolean;
+}
+
+/** Mirrors backend response for `POST /api/categories/group`. */
+export interface CategoryGroupResponse {
+  ok: boolean;
+  updated: number;
+}
+
+/** Mirrors backend `CategoryMerge` (schemas.py) — body for `POST /api/categories/merge`. */
+export interface CategoryMergePayload {
+  source_id: number;
+  target_id: number;
+}
+
+/** Mirrors backend `MergeChildReleased` (schemas.py). */
+export interface MergeChildReleased {
+  id: number;
+  display_name: string;
+}
+
+/** Mirrors backend `CategoryMergeResponse` (schemas.py). */
+export interface CategoryMergeResponse {
+  ok: boolean;
+  articles_moved: number;
+  children_released: MergeChildReleased[];
+  aliases_repointed: number;
+}
+
+/** Mirrors backend `GroupSuggestionItem` (schemas.py). */
+export interface GroupSuggestionItem {
+  parent: string;
+  children: string[];
+}
+
+/** Mirrors backend response for `POST /api/categories/auto-group/suggest`. */
+export interface AutoGroupSuggestResponse {
+  groups: GroupSuggestionItem[];
+}
+
+/** Mirrors backend `AutoGroupApplyRequest` (schemas.py) — body for `POST /api/categories/auto-group/apply`. */
+export interface AutoGroupApplyPayload {
+  groups: GroupSuggestionItem[];
+}
+
+/** Mirrors backend `AutoGroupApplyResponse` (schemas.py). */
+export interface AutoGroupApplyResponse {
+  ok: boolean;
+  groups_applied: number;
+  categories_moved: number;
 }
