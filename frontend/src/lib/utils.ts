@@ -1,8 +1,16 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { ScoringStatus } from "./types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+// Pending = the three non-terminal scoring_state counts. Deliberately INCLUDES re-scoring articles (which have an old composite_score), so it diverges from the backend's scoring_pending_condition() which excludes them — editing interests re-queues scored articles and the chip must reflect that drain.
+export function scoringPendingCount(status: ScoringStatus | undefined): number {
+  return (
+    (status?.unscored ?? 0) + (status?.queued ?? 0) + (status?.scoring ?? 0)
+  );
 }
 
 /**

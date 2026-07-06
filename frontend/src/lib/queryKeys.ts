@@ -44,4 +44,10 @@ export const queryKeys = {
       ["categories", "list", needsTriage ?? "any"] as const,
     triageCount: ["categories", "triage-count"] as const,
   },
+  preferences: {
+    detail: ["preferences"] as const,
+  },
+  scoring: {
+    status: ["scoring", "status"] as const,
+  },
 };

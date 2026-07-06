@@ -28,6 +28,14 @@ _Avoid_: suggestion, suggested category
 Reviewing LLM-created categories after the fact — keep, rename, merge, or block. New categories are live and usable from the moment of creation; triage is cleanup, never an approval gate.
 _Avoid_: category approval, moderation queue
 
+**Interests**:
+Free prose in which the reader describes what they want to read, fed to the scoring LLM to steer relevance with natural-language nuance a keyword list can't capture.
+_Avoid_: keywords, filters, rules
+
+**Anti-interests**:
+The counterpart prose describing what the reader wants to see less of. Steers the scoring LLM toward a lower score — distinct from Weight (a per-category stance) and Blocked (absolute suppression), which act on categories, not prose.
+_Avoid_: blocklist, mute list, exclusions
+
 **Reader**:
 The article reading surface. Full-screen on the phone (the primary device); its desktop presentation (sheet vs. split pane) is a prototype-decided detail. One component tree across breakpoints, never parallel layouts.
 _Avoid_: detail view, drawer, article page

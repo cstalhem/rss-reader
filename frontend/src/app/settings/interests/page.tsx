@@ -1,10 +1,5 @@
-import { SettingsPlaceholder } from "@/components/settings-placeholder";
+import { InterestsSettings } from "@/components/interests-settings";
 
 export default function InterestsSettingsPage() {
-  return (
-    <SettingsPlaceholder
-      title="Interests"
-      blurb="Describe what you care about to steer relevance scoring."
-    />
-  );
+  return <InterestsSettings />;
 }

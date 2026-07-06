@@ -238,3 +238,34 @@ export interface AutoGroupApplyResponse {
   groups_applied: number;
   categories_moved: number;
 }
+
+/** Mirrors backend `PreferencesResponse` (schemas.py). */
+export interface Preferences {
+  interests: string;
+  anti_interests: string;
+  feed_refresh_interval: number;
+  updated_at: string;
+}
+
+/** Mirrors backend `PreferencesUpdate` (schemas.py) — body for `PUT /api/preferences`, any subset. */
+export interface PreferencesUpdate {
+  interests?: string;
+  anti_interests?: string;
+  feed_refresh_interval?: number;
+}
+
+/** Mirrors backend `GET /api/scoring/status` response. Only the top-level scoring_state counts and `phase` are typed precisely — we read those now. Everything else is loosely typed. */
+export interface ScoringStatus {
+  unscored: number;
+  queued: number;
+  scoring: number;
+  scored: number;
+  failed: number;
+  blocked: number;
+  phase: string;
+  categorization?: unknown;
+  scoring_worker?: unknown;
+  scoring_ready?: boolean;
+  rate_limit_retry_after?: number | null;
+  [key: string]: unknown;
+}
