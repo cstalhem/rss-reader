@@ -40,40 +40,36 @@ function CategoryRow({
   onRemoveFromGroup?: () => void;
 }) {
   return (
-    <div className="flex items-start gap-2.5 py-2.5">
-      <div className="pt-0.5">
+    <div className="flex flex-col gap-2 py-2.5 md:flex-row md:items-center md:gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
         <Checkbox
           checked={selected}
           onCheckedChange={onToggle}
           aria-label={`Select ${category.display_name}`}
         />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+          {category.display_name}
+        </span>
+        <span className="text-muted-foreground text-xs tabular-nums">
+          {category.article_count} articles
+        </span>
+        {onRemoveFromGroup && (
+          <Button
+            size="icon-xs"
+            variant="ghost"
+            aria-label={`Remove ${category.display_name} from group`}
+            onClick={onRemoveFromGroup}
+          >
+            <X />
+          </Button>
+        )}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-2 md:flex-row md:items-center md:gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="min-w-0 flex-1 truncate text-sm font-medium">
-            {category.display_name}
-          </span>
-          <span className="text-muted-foreground text-xs tabular-nums">
-            {category.article_count} articles
-          </span>
-          {onRemoveFromGroup && (
-            <Button
-              size="icon-xs"
-              variant="ghost"
-              aria-label={`Remove ${category.display_name} from group`}
-              onClick={onRemoveFromGroup}
-            >
-              <X />
-            </Button>
-          )}
-        </div>
-        <WeightControl
-          value={category.weight}
-          onChange={onSetWeight}
-          fullWidth
-          className="md:w-auto md:flex-none md:shrink-0"
-        />
-      </div>
+      <WeightControl
+        value={category.weight}
+        onChange={onSetWeight}
+        fullWidth
+        className="md:shrink-0"
+      />
     </div>
   );
 }
@@ -236,10 +232,10 @@ export function ManageTab() {
 
       {/* Batch toolbar — always present. Group is enabled only when the whole
           selection is ungrouped; batch weight works on any selection. Sticks
-          to the top of the scroll area on phone (where the category list is
-          long enough to scroll past it); desktop keeps the static in-flow
-          toolbar since the rail layout doesn't need it. */}
-      <div className="bg-background border-border md:bg-muted/50 sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 max-md:shadow-sm md:static">
+          to the top of the scroll area at all breakpoints (the category list
+          can be long enough to scroll past it on desktop too), with an opaque
+          background so rows scroll underneath it. */}
+      <div className="bg-background border-border sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 shadow-sm">
         <span className="text-muted-foreground text-sm tabular-nums">
           {selected.size > 0
             ? `${selected.size} selected`
