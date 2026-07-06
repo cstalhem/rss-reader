@@ -4,8 +4,15 @@ import { LifeBuoy, ShieldOff } from "lucide-react";
 import { useMemo } from "react";
 
 import { LoadMoreButton } from "@/components/load-more-button";
-import { EmptyState, ErrorState } from "@/components/list-states";
+import { ErrorState } from "@/components/list-states";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBlockedArticles } from "@/hooks/useBlockedArticles";
 import { useRescueArticle } from "@/hooks/useRescueArticle";
@@ -107,7 +114,21 @@ export function BlockedView({ onOpen }: BlockedViewProps) {
   }
 
   if (articles.length === 0) {
-    return <EmptyState icon={ShieldOff} title="No blocked articles" />;
+    return (
+      <div className="flex h-full items-center justify-center p-8">
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ShieldOff />
+            </EmptyMedia>
+            <EmptyTitle>No blocked articles</EmptyTitle>
+            <EmptyDescription>
+              Articles from categories you&apos;ve blocked will appear here.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </div>
+    );
   }
 
   return (
