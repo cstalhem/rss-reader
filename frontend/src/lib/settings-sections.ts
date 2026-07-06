@@ -45,15 +45,3 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     icon: MessageSquare,
   },
 ];
-
-/**
- * Default landing section for desktop `/settings` (see `SettingsIndex`).
- * Pinned to Categories rather than `SETTINGS_SECTIONS[0]` (General) because
- * Categories is the only implemented page today — landing on a "Coming soon"
- * placeholder would be poor UX. Once the other sections are built out, this
- * should become `SETTINGS_SECTIONS[0]` so General (the natural first section)
- * is the default again.
- */
-export const DEFAULT_SETTINGS_SECTION = SETTINGS_SECTIONS.find(
-  (s) => s.id === "categories",
-)!;
