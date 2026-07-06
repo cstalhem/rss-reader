@@ -112,7 +112,11 @@ function ArticleRow({
             <ScoreChip score={article.composite_score} />
           )}
           {categories.map((category) => (
-            <CategoryChip key={category.id} label={category.display_name} />
+            <CategoryChip
+              key={category.id}
+              label={category.display_name}
+              needsTriage={category.needs_triage}
+            />
           ))}
         </div>
       )}

@@ -99,6 +99,7 @@ export function ArticleReader({
                   <CategoryChip
                     key={category.id}
                     label={category.display_name}
+                    needsTriage={category.needs_triage}
                   />
                 ))}
               </div>

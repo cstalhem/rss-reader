@@ -31,12 +31,24 @@ export function ScoreChip({ score }: { score: number }) {
   );
 }
 
-export function CategoryChip({ label }: { label: string }) {
+export function CategoryChip({
+  label,
+  needsTriage = false,
+}: {
+  label: string;
+  needsTriage?: boolean;
+}) {
   return (
     <Badge
       variant="outline"
-      className="text-muted-foreground max-w-full truncate rounded px-1.5 text-[11px] font-normal"
+      className="text-muted-foreground max-w-full items-center gap-1 truncate rounded px-1.5 text-[11px] font-normal"
     >
+      {needsTriage && (
+        <span
+          className="bg-primary size-1.5 shrink-0 rounded-full"
+          aria-hidden
+        />
+      )}
       {label}
     </Badge>
   );
