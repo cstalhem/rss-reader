@@ -32,9 +32,11 @@ export function useUpdateCategory() {
       queryClient.setQueriesData<Category[]>(
         { queryKey: queryKeys.categories.all },
         (categories) =>
-          categories?.map((category) =>
-            category.id === id ? { ...category, ...data } : category,
-          ),
+          Array.isArray(categories)
+            ? categories.map((category) =>
+                category.id === id ? { ...category, ...data } : category,
+              )
+            : categories,
       );
 
       return { previous };
