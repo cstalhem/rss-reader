@@ -18,15 +18,16 @@ export function ScoringStatusChip() {
     <div
       role="status"
       aria-live="polite"
-      className="text-muted-foreground flex items-center gap-2 px-2 text-xs"
+      className="text-muted-foreground mb-2 flex items-center gap-2 px-2 text-xs"
     >
+      <span aria-hidden>
+        Processing <span className="tabular-nums">{pending}</span>{" "}
+        {pending === 1 ? "article" : "articles"}
+      </span>
       <span
         aria-hidden
-        className="bg-primary size-1.5 shrink-0 animate-pulse rounded-full"
+        className="bg-primary ml-auto size-1.5 shrink-0 animate-pulse rounded-full"
       />
-      <span aria-hidden>
-        Processing <span className="tabular-nums">{pending}</span>…
-      </span>
       <span className="sr-only">{pending} articles left to process</span>
     </div>
   );
