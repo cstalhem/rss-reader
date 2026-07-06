@@ -49,7 +49,7 @@ function DesktopRail({
   const pathname = usePathname();
 
   return (
-    <div className="flex w-full justify-center">
+    <div className="flex min-h-screen w-full items-stretch justify-center">
       <nav className="bg-sidebar border-sidebar-border w-56 shrink-0 border-r px-4 py-8">
         <Link
           href="/"
