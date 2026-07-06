@@ -5,7 +5,14 @@ import { useMemo } from "react";
 
 import { CategoryChip, ReadDot, ScoreChip } from "@/components/article-badges";
 import { LoadMoreButton } from "@/components/load-more-button";
-import { EmptyState, ErrorState } from "@/components/list-states";
+import { ErrorState } from "@/components/list-states";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useArticles } from "@/hooks/useArticles";
 import { useMarkRead } from "@/hooks/useMarkRead";
@@ -187,11 +194,19 @@ export function ArticleList({
 
   if (articles.length === 0) {
     return (
-      <EmptyState
-        icon={Inbox}
-        title="No articles"
-        description="Articles for this view will appear here."
-      />
+      <div className="flex h-full items-center justify-center p-8">
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Inbox />
+            </EmptyMedia>
+            <EmptyTitle>No articles</EmptyTitle>
+            <EmptyDescription>
+              Articles for this view will appear here.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </div>
     );
   }
 

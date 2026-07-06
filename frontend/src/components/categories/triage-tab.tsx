@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Check,
+  CheckCheck,
   ChevronRight,
   Merge,
   MoreHorizontal,
@@ -24,6 +25,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { useCategories } from "@/hooks/useCategories";
 import { useUpdateCategory } from "@/hooks/useUpdateCategory";
 import { TRIAGE_UNDO_DELAY } from "@/lib/constants";
@@ -280,10 +288,17 @@ export function TriageTab() {
       {isLoading ? (
         <p className="text-muted-foreground text-sm">Loading…</p>
       ) : visible.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          No new categories to review. New ones appear here when the model tags
-          articles with a category it hasn&apos;t used before.
-        </p>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <CheckCheck />
+            </EmptyMedia>
+            <EmptyTitle>No categories to triage</EmptyTitle>
+            <EmptyDescription>
+              New categories the model creates will show up here.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <div className="flex flex-col gap-2">
           <p className="text-muted-foreground text-sm">
