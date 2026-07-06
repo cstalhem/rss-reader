@@ -1,17 +1,4 @@
 {
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/lint-on-save.sh"
-          }
-        ]
-      }
-    ]
-  },
   "permissions": {
     "allow": [
       "Bash(date:*)",
@@ -36,5 +23,21 @@
       "mcp__chakra-ui__get_theme",
       "mcp__chakra-ui__get_component_props"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/lint-on-save.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "knowledge-system@cargus-forge": true
   }
 }
