@@ -3,7 +3,7 @@
 Covers the bulk collection PATCH (triage gestures), the needs_triage
 list filter, the read-only alias listing, block short-circuit visibility
 after a bulk weight change, and the invariant that regrouping (auto-group
-apply, batch-move) touches only parent_id — never weights or article links.
+apply, group endpoint) touches only parent_id — never weights or article links.
 """
 
 from collections.abc import Callable
@@ -407,7 +407,7 @@ class TestRegroupingChangesNothing:
         for cid, was_blocked in blocked_before.items():
             assert is_blocked([test_session.get(Category, cid)]) == was_blocked
 
-    def test_batch_move_touches_only_parent_id(
+    def test_group_endpoint_touches_only_parent_id(
         self, test_client: TestClient, test_session: Session, grouping_setup
     ):
         cats = grouping_setup
@@ -415,14 +415,13 @@ class TestRegroupingChangesNothing:
         links_before = _links(test_session)
 
         resp = test_client.post(
-            "/api/categories/batch-move",
+            "/api/categories/group",
             json={
                 "category_ids": [cats["ai"].id, cats["chess"].id],
                 "target_parent_id": cats["tech"].id,
             },
         )
         assert resp.status_code == 200
-        assert resp.json()["updated"] == 2
         test_session.expire_all()
 
         assert test_session.get(Category, cats["ai"].id).parent_id == cats["tech"].id
