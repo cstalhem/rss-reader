@@ -114,7 +114,7 @@ export function BlockedView({ onOpen }: BlockedViewProps) {
     <div className="h-full overflow-y-auto">
       {groups.map((group) => (
         <section key={group.name}>
-          <h2 className="bg-background sticky top-0 flex items-baseline gap-2 px-4 pt-4 pb-1.5">
+          <h2 className="bg-background sticky top-0 z-[1] flex items-baseline gap-2 px-4 pt-4 pb-1.5">
             <span className="text-destructive/80 text-xs font-semibold tracking-wide uppercase">
               {group.name}
             </span>
