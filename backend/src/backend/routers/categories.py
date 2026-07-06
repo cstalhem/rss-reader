@@ -7,26 +7,38 @@ from sqlmodel import Session, func, select
 from backend.database import smart_case
 from backend.deps import TASK_GROUPING, get_session
 from backend.llm_client import LLMError, llm_client
-from backend.models import ArticleCategoryLink, Category, CategoryAlias
+from backend.models import (
+    Article,
+    ArticleCategoryLink,
+    Category,
+    CategoryAlias,
+    Feed,
+)
 from backend.prompts import GroupingResponse, build_grouping_prompt
 from backend.schemas import (
     AutoGroupApplyRequest,
     AutoGroupApplyResponse,
     AutoGroupSuggestResponse,
-    CategoryAcknowledgeRequest,
     CategoryAliasResponse,
     CategoryBatchAction,
-    CategoryBatchMove,
     CategoryBulkUpdate,
     CategoryBulkUpdateResponse,
     CategoryCreateRequest,
+    CategoryGroupRequest,
     CategoryMerge,
     CategoryMergeResponse,
     CategoryResponse,
     CategoryUpdate,
     GroupSuggestionItem,
     MergeChildReleased,
+    TriageSampleArticle,
 )
+from backend.scoring import (
+    categories_for_scoring,
+    compute_composite_score,
+    should_block,
+)
+from backend.scoring_queue import CategorizationWorker
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
 
@@ -71,7 +83,134 @@ def _category_to_response(session: Session, category: Category) -> CategoryRespo
         parent_id=category.parent_id,
         needs_triage=category.needs_triage,
         article_count=_category_article_count(session, category.id),  # pyright: ignore[reportArgumentType]
+        created_at=category.created_at,
     )
+
+
+def _triage_samples(
+    session: Session, category_id: int, limit: int = 3
+) -> list[TriageSampleArticle]:
+    """Fetch up to `limit` sample articles (title + feed name) for a category.
+
+    Used as triage evidence (issue #98) — most-recent first.
+    """
+    rows = session.exec(
+        select(Article.id, Article.title, Feed.title)  # pyright: ignore[reportArgumentType]
+        .join(ArticleCategoryLink, ArticleCategoryLink.article_id == Article.id)  # pyright: ignore[reportArgumentType]
+        .join(Feed, Feed.id == Article.feed_id)  # pyright: ignore[reportArgumentType]
+        .where(ArticleCategoryLink.category_id == category_id)
+        .order_by(Article.published_at.desc())  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+        .limit(limit)
+    ).all()
+    return [
+        TriageSampleArticle(id=aid, title=title, feed_title=feed_title)  # pyright: ignore[reportArgumentType]
+        for aid, title, feed_title in rows
+    ]
+
+
+def assign_to_parent(
+    session: Session, category_ids: list[int], parent_id: int | None
+) -> int:
+    """Assign the given categories to a parent (or detach when parent_id is None).
+
+    Enforces the ADR-0001 one-level invariant in a single place (shared by the
+    grouping endpoint and auto-group/apply):
+    - the target must be a root category (no parent),
+    - a moved category that has children is rejected (would create two levels),
+    - self-parenting is skipped, not an error.
+
+    Returns the number of categories moved. Does not commit.
+    """
+    if parent_id is not None:
+        target = session.get(Category, parent_id)
+        if not target:
+            raise HTTPException(status_code=404, detail="Target parent not found")
+        if target.parent_id is not None:
+            raise HTTPException(
+                status_code=400,
+                detail="Target must be a root category (no parent)",
+            )
+
+    moved = 0
+    for cat_id in category_ids:
+        if parent_id is not None and cat_id == parent_id:
+            continue  # skip self-parenting
+        category = session.get(Category, cat_id)
+        if not category:
+            continue
+        if parent_id is not None:
+            children = session.exec(
+                select(Category).where(Category.parent_id == cat_id)
+            ).all()
+            if children:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Category '{category.display_name}' has children and "
+                        "cannot be nested under another parent"
+                    ),
+                )
+        category.parent_id = parent_id
+        session.add(category)
+        moved += 1
+    return moved
+
+
+def _recompute_for_categories(session: Session, category_ids: list[int]) -> None:
+    """Recompute composite_score + scoring_state for already-scored articles
+    linked to the given categories, over their STORED interest/quality (ADR-0010).
+
+    No LLM call. interest/quality are preserved (never zeroed). Blocked articles
+    that were worker-blocked (interest == quality == 0) are re-queued through the
+    normal pipeline on un-block; everything else takes the cheap recompute.
+    Reuses the rescue-aware path so rescued articles are never re-blocked.
+    """
+    if not category_ids:
+        return
+
+    article_ids = set(
+        session.exec(
+            select(ArticleCategoryLink.article_id).where(
+                ArticleCategoryLink.category_id.in_(category_ids)  # pyright: ignore[reportAttributeAccessIssue]
+            )
+        ).all()
+    )
+    if not article_ids:
+        return
+
+    worker = CategorizationWorker()
+    for article_id in article_ids:
+        article = session.get(Article, article_id)
+        if article is None:
+            continue
+        # Only articles that have completed scoring participate — pending/failed
+        # ones will be (re)scored by the worker anyway.
+        if article.scoring_state not in ("scored", "blocked"):
+            continue
+
+        # Worker-blocked (0/0) articles carry no real scores to recompute from —
+        # re-enter the normal pipeline (categories already assigned, so score-only).
+        if (
+            article.scoring_state == "blocked"
+            and article.interest_score == 0
+            and article.quality_score == 0
+        ):
+            worker.enqueue_single_for_rescoring(session, article, score_only=True)
+            continue
+
+        categories = list(article.categories_rel)
+        if should_block(article, categories):
+            article.composite_score = 0.0
+            article.scoring_state = "blocked"
+        else:
+            scoring_cats = categories_for_scoring(article, categories)
+            article.composite_score = compute_composite_score(
+                article.interest_score or 0,
+                article.quality_score or 0,
+                scoring_cats,
+            )
+            article.scoring_state = "scored"
+        session.add(article)
 
 
 @router.get("", response_model=list[CategoryResponse])
@@ -96,6 +235,10 @@ def list_categories(
         statement = statement.where(Category.needs_triage == needs_triage)  # pyright: ignore[reportArgumentType]
     results = session.exec(statement).all()
 
+    # The triage list embeds sample articles as evidence (issue #98). Only the
+    # triage view pays for the per-category sample query.
+    embed_samples = needs_triage is True
+
     return [
         CategoryResponse(
             id=cat.id,  # pyright: ignore[reportArgumentType]
@@ -105,6 +248,12 @@ def list_categories(
             parent_id=cat.parent_id,
             needs_triage=cat.needs_triage,
             article_count=count,
+            created_at=cat.created_at,
+            sample_articles=(
+                _triage_samples(session, cat.id)  # pyright: ignore[reportArgumentType]
+                if embed_samples
+                else []
+            ),
         )
         for cat, count in results
     ]
@@ -169,13 +318,20 @@ def bulk_update_categories(
     ).all()
     missing_ids = sorted(set(body.category_ids) - {c.id for c in categories})
 
+    weight_changed_ids: list[int] = []
     for category in categories:
-        if body.weight is not None:
+        if body.weight is not None and category.weight != body.weight.value:
             category.weight = body.weight.value
+            weight_changed_ids.append(category.id)  # pyright: ignore[reportArgumentType]
         if body.needs_triage is not None:
             category.needs_triage = body.needs_triage
         session.add(category)
     updated = len(categories)
+
+    # A weight change retroactively rescores already-scored linked articles
+    # over their stored interest/quality — no LLM call (ADR-0010).
+    session.flush()
+    _recompute_for_categories(session, weight_changed_ids)
 
     session.commit()
     return CategoryBulkUpdateResponse(ok=True, updated=updated, missing_ids=missing_ids)
@@ -220,21 +376,40 @@ def get_unseen_count(
     return {"count": count}
 
 
-@router.post("/mark-seen")
-def mark_seen(
-    body: CategoryAcknowledgeRequest,
+@router.post("/group")
+def group_categories(
+    body: CategoryGroupRequest,
     session: Session = Depends(get_session),
 ):
-    """Mark categories as triaged by ID."""
-    for cat_id in body.category_ids:
-        category = session.get(Category, cat_id)
-        if category:
-            category.needs_triage = False
-            session.add(category)
+    """Assign categories to a group shelf, or ungroup them (ADR-0009).
+
+    Exactly one mode (schema-enforced): assign to an existing parent, create a
+    new parent and assign atomically, or ungroup to root. Groups are
+    display-only (ADR-0001) — this endpoint has zero article side-effects.
+    """
+    if body.ungroup:
+        moved = assign_to_parent(session, body.category_ids, None)
+    elif body.new_parent_name is not None:
+        slug = slugify(body.new_parent_name)
+        if not slug:
+            raise HTTPException(status_code=400, detail="Invalid category name")
+        existing = session.exec(select(Category).where(Category.slug == slug)).first()
+        if existing:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Category '{body.new_parent_name}' already exists",
+            )
+        # Explicit creation overrides remembered discard/redirect (ADR-0007)
+        _delete_alias(session, slug)
+        parent = Category(display_name=smart_case(body.new_parent_name), slug=slug)
+        session.add(parent)
+        session.flush()  # assign parent.id within the same transaction
+        moved = assign_to_parent(session, body.category_ids, parent.id)
+    else:
+        moved = assign_to_parent(session, body.category_ids, body.target_parent_id)
 
     session.commit()
-
-    return {"ok": True}
+    return {"ok": True, "updated": moved}
 
 
 @router.post("/merge", response_model=CategoryMergeResponse)
@@ -311,53 +486,6 @@ def merge_categories(
         children_released=children_released,
         aliases_repointed=len(source_aliases),
     )
-
-
-@router.post("/batch-move")
-def batch_move_categories(
-    body: CategoryBatchMove,
-    session: Session = Depends(get_session),
-):
-    """Move multiple categories to a new parent, or ungroup them (target_parent_id=-1)."""
-    updated = 0
-
-    if body.target_parent_id == -1:
-        for cat_id in body.category_ids:
-            category = session.get(Category, cat_id)
-            if not category:
-                continue
-            category.parent_id = None
-            session.add(category)
-            updated += 1
-    else:
-        target = session.get(Category, body.target_parent_id)
-        if not target:
-            raise HTTPException(status_code=404, detail="Target parent not found")
-        if target.parent_id is not None:
-            raise HTTPException(
-                status_code=400,
-                detail="Target must be a root category (no parent)",
-            )
-        for cat_id in body.category_ids:
-            if cat_id == body.target_parent_id:
-                continue
-            category = session.get(Category, cat_id)
-            if not category:
-                continue
-            children = session.exec(
-                select(Category).where(Category.parent_id == cat_id)
-            ).all()
-            if children:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Category '{category.display_name}' has children and cannot be nested under another parent",
-                )
-            category.parent_id = body.target_parent_id
-            session.add(category)
-            updated += 1
-
-    session.commit()
-    return {"ok": True, "updated": updated}
 
 
 @router.post("/auto-group/suggest", response_model=AutoGroupSuggestResponse)
@@ -464,10 +592,15 @@ def auto_group_apply(
             # Skip self-references
             if child_cat.id == parent_cat.id:
                 continue
-            child_cat.parent_id = parent_cat.id
-            session.add(child_cat)
+            # Route through the shared helper so the one-level invariant lives
+            # in one place. Flatten (step 1) guarantees no grandchildren, so
+            # this never rejects.
+            moved_in_group += assign_to_parent(
+                session,
+                [child_cat.id],  # pyright: ignore[reportArgumentType]
+                parent_cat.id,
+            )
             assigned_slugs.add(child_slug)
-            moved_in_group += 1
 
         if moved_in_group > 0:
             groups_applied += 1
@@ -582,13 +715,22 @@ def update_category(
     elif body.model_fields_set and "parent_id" in body.model_fields_set:
         category.parent_id = None
 
-    if body.weight is not None:
+    weight_changed = False
+    if body.weight is not None and category.weight != body.weight.value:
         category.weight = body.weight.value
+        weight_changed = True
 
     if body.needs_triage is not None:
         category.needs_triage = body.needs_triage
 
     session.add(category)
+
+    # A weight change retroactively rescores already-scored linked articles
+    # over their stored interest/quality — no LLM call (ADR-0010).
+    if weight_changed:
+        session.flush()
+        _recompute_for_categories(session, [category_id])
+
     session.commit()
     session.refresh(category)
 
@@ -626,25 +768,3 @@ def delete_category(
     session.commit()
 
     return {"ok": True}
-
-
-@router.post("/{category_id}/ungroup")
-def ungroup_parent(
-    category_id: int,
-    session: Session = Depends(get_session),
-):
-    """Ungroup a parent category: release all children to root."""
-    parent = session.get(Category, category_id)
-    if not parent:
-        raise HTTPException(status_code=404, detail="Category not found")
-
-    children = session.exec(
-        select(Category).where(Category.parent_id == category_id)
-    ).all()
-
-    for child in children:
-        child.parent_id = None
-        session.add(child)
-
-    session.commit()
-    return {"ok": True, "children_ungrouped": len(children)}

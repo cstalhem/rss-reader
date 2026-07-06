@@ -53,6 +53,7 @@ def _build_category_embeds(article: Article) -> list[ArticleCategoryEmbed] | Non
             slug=cat.slug,
             effective_weight=cat.weight,
             parent_display_name=cat.parent.display_name if cat.parent else None,
+            needs_triage=cat.needs_triage,
         )
         for cat in article.categories_rel
     ]

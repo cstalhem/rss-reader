@@ -33,6 +33,7 @@ class ArticleCategoryEmbed(BaseModel):
     slug: str
     effective_weight: str
     parent_display_name: str | None
+    needs_triage: bool
 
 
 class ArticleListItem(BaseModel):
@@ -172,6 +173,14 @@ class PreferencesUpdate(BaseModel):
 # --- Categories ---
 
 
+class TriageSampleArticle(BaseModel):
+    """A sample article embedded in the triage list as evidence (issue #98)."""
+
+    id: int
+    title: str
+    feed_title: str
+
+
 class CategoryResponse(BaseModel):
     """Category object returned by API."""
 
@@ -182,6 +191,8 @@ class CategoryResponse(BaseModel):
     parent_id: int | None
     needs_triage: bool
     article_count: int
+    created_at: datetime
+    sample_articles: list[TriageSampleArticle] = Field(default_factory=list)
 
 
 class CategoryCreateRequest(BaseModel):
@@ -243,13 +254,35 @@ class CategoryMergeResponse(BaseModel):
     aliases_repointed: int
 
 
-class CategoryAcknowledgeRequest(BaseModel):
-    category_ids: list[int]
+class CategoryGroupRequest(BaseModel):
+    """Unified grouping request (ADR-0009).
 
+    Exactly one of the three modes must be given:
+    - target_parent_id: assign members to an existing root shelf
+    - new_parent_name: create the shelf and assign members atomically
+    - ungroup: detach members to root
 
-class CategoryBatchMove(BaseModel):
+    Absence of all three (or more than one) is a 422 — a client that forgets
+    a field must never silently detach categories.
+    """
+
     category_ids: list[int]
-    target_parent_id: int
+    target_parent_id: int | None = None
+    new_parent_name: str | None = None
+    ungroup: bool = False
+
+    @model_validator(mode="after")
+    def exactly_one_mode(self):
+        modes = [
+            self.target_parent_id is not None,
+            self.new_parent_name is not None,
+            self.ungroup,
+        ]
+        if sum(modes) != 1:
+            raise ValueError(
+                "Provide exactly one of target_parent_id, new_parent_name, or ungroup"
+            )
+        return self
 
 
 class CategoryBatchAction(BaseModel):
