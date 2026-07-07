@@ -49,7 +49,7 @@ The explicit feedback signal: a single thumbs up or down on an article, availabl
 _Avoid_: stars, score (that's the LLM's number)
 
 **Feedback event**:
-An append-only record of a fact about user behavior (opened, marked read, rated, rescued), with timestamp. Events record facts only; interpreting them into preference signals is the learning layer's job.
+An append-only record of a fact about user behavior, with timestamp. Three types are captured today — rated, marked read, rescued — each emitted on a genuine state transition. `opened` is a reserved-but-unemitted type (deferred); impressions are deliberately not captured (see `docs/adr/0013`). Events record facts only; interpreting them into preference signals is the learning layer's job.
 _Avoid_: engagement metric, analytics
 
 **Rescue**:
