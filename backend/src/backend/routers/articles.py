@@ -17,7 +17,7 @@ from backend.deps import (
     unread_condition,
     visible_condition,
 )
-from backend.models import Article, Category, Feed
+from backend.models import Article, Category, Feed, FeedbackEvent
 from backend.schemas import (
     ArticleCategoryEmbed,
     ArticleCountsResponse,
@@ -25,6 +25,7 @@ from backend.schemas import (
     ArticleListResponse,
     ArticleResponse,
     ArticleUpdate,
+    RatingUpdate,
 )
 
 router = APIRouter(prefix="/api/articles", tags=["articles"])
@@ -91,6 +92,7 @@ def _article_to_response(article: Article) -> ArticleResponse:
         summary=article.summary,
         content=article.content,
         is_read=article.is_read,
+        rating=article.rating,
         categories=_build_category_embeds(article),
         interest_score=article.interest_score,
         quality_score=article.quality_score,
@@ -114,6 +116,7 @@ def _article_to_list_item(article: Article, feed_title: str) -> ArticleListItem:
         author=article.author,
         published_at=article.published_at,
         is_read=article.is_read,
+        rating=article.rating,
         categories=_build_category_embeds(article),
         interest_score=article.interest_score,
         quality_score=article.quality_score,
@@ -300,6 +303,9 @@ def rescue_article(article_id: int, session: Session = Depends(get_session)):
         article.interest_score = None
         article.quality_score = None
         article.composite_score = None
+        session.add(
+            FeedbackEvent(article_id=article_id, event_type="rescued", value=None)
+        )
         categorization_worker.enqueue_single_for_rescoring(
             session, article, score_only=True
         )
@@ -367,9 +373,48 @@ def update_article(
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
 
+    # Log a marked_read fact only on a genuine false->true transition.
+    if not article.is_read and update.is_read:
+        session.add(
+            FeedbackEvent(article_id=article_id, event_type="marked_read", value=None)
+        )
+
     article.is_read = update.is_read
     session.add(article)
     session.commit()
     session.refresh(article)
+
+    return _article_to_response(article)
+
+
+@router.put("/{article_id}/rating", response_model=ArticleResponse)
+def update_rating(
+    article_id: int,
+    update: RatingUpdate,
+    session: Session = Depends(get_session),
+):
+    """Set the thumbs rating (+1/-1/null), appending a rated fact on change.
+
+    The rating is a mutable projection; every genuine change also appends an
+    append-only FeedbackEvent (a clear logs value=NULL, distinct from "never
+    rated"). A no-op same-value write appends nothing.
+    """
+    article = session.exec(
+        select(Article)
+        .where(Article.id == article_id)
+        .options(selectinload(Article.categories_rel).joinedload(Category.parent))  # pyright: ignore[reportArgumentType]
+    ).first()
+
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    if update.value != article.rating:
+        article.rating = update.value
+        session.add(article)
+        session.add(
+            FeedbackEvent(article_id=article_id, event_type="rated", value=update.value)
+        )
+        session.commit()
+        session.refresh(article)
 
     return _article_to_response(article)

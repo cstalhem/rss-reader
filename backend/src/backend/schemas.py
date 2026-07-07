@@ -25,6 +25,18 @@ class ArticleUpdate(BaseModel):
     is_read: bool
 
 
+class RatingUpdate(BaseModel):
+    """Thumbs rating: +1 / -1, or None to clear. Any other int is a 422."""
+
+    value: int | None
+
+    @model_validator(mode="after")
+    def value_in_vocabulary(self):
+        if self.value is not None and self.value not in (1, -1):
+            raise ValueError("value must be 1, -1, or null")
+        return self
+
+
 class ArticleCategoryEmbed(BaseModel):
     """Category embedded in article response."""
 
@@ -47,6 +59,7 @@ class ArticleListItem(BaseModel):
     author: str | None
     published_at: datetime | None
     is_read: bool
+    rating: int | None
     categories: list[ArticleCategoryEmbed] | None
     interest_score: int | None
     quality_score: int | None
@@ -86,6 +99,7 @@ class ArticleResponse(BaseModel):
     summary: str | None
     content: str | None
     is_read: bool
+    rating: int | None
     categories: list[ArticleCategoryEmbed] | None
     interest_score: int | None
     quality_score: int | None
@@ -161,6 +175,7 @@ class PreferencesResponse(BaseModel):
     interests: str
     anti_interests: str
     feed_refresh_interval: int
+    mark_read_dwell_seconds: int
     updated_at: datetime
 
 
@@ -168,6 +183,7 @@ class PreferencesUpdate(BaseModel):
     interests: str | None = None
     anti_interests: str | None = None
     feed_refresh_interval: int | None = None
+    mark_read_dwell_seconds: int | None = None
 
 
 # --- Categories ---
