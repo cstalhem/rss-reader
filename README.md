@@ -32,10 +32,6 @@ A personal RSS reader with LLM-powered content curation. Surfaces interesting ar
 
 ![Topic categories](docs/settings-categories.png)
 
-**LLM Providers** — Configure model provider, select models for categorization and scoring, and view system prompts.
-
-![LLM Providers](docs/settings-llm-providers.png)
-
 ---
 
 ## Quick Start
@@ -46,6 +42,8 @@ A personal RSS reader with LLM-powered content curation. Surfaces interesting ar
 - An [Azure AI Foundry](https://azure.microsoft.com/en-us/products/ai-foundry) endpoint and API key
 
 ### Deploy
+
+> **⚠ Upgrading from v1:** v2 uses a fresh database schema with no migration path from v1 (ADR-0003). Start from an **empty** data volume — reusing a v1 SQLite database will fail at startup because its recorded migration revision isn't in the v2 chain. Re-adding your feeds is expected one-time work.
 
 Create a `docker-compose.yml` adapted to your setup:
 
@@ -128,6 +126,20 @@ logging:
 
 scheduler:
   log_job_execution: false
+
+# Per-task Azure deployment routing (ADR-0002). The deployment names must
+# match the deployments you created in your Azure AI Foundry resource;
+# the endpoint and API key come from env vars, not this file.
+llm:
+  tasks:
+    scoring:
+      deployment: <your-scoring-deployment>
+      batch_size: 5
+    categorization:
+      deployment: <your-categorization-deployment>
+      batch_size: 10
+    grouping:
+      deployment: <your-grouping-deployment>
 ```
 
 ### Environment Variables
@@ -141,7 +153,7 @@ Environment variables use double-underscore notation for nested config:
 | `AZURE_OPENAI_API_KEY` | Azure AI Foundry API key | *(none)* |
 | `CONFIG_FILE` | Path to YAML config file | *(none)* |
 
-> **Note:** Model selection and feed refresh interval are configured through the Settings UI and stored in the database.
+> **Note:** Per-task model routing is set in the YAML config file under `llm.tasks` (see above) — there is no model-selection UI. The feed refresh interval is stored in the database and adjustable through preferences.
 
 ---
 
