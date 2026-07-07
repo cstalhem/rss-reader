@@ -19,7 +19,7 @@ describe("useMarkRead", () => {
     const wrapper = createWrapper(queryClient);
 
     const { result: listResult } = renderHook(
-      () => useArticles({ type: "all" }),
+      () => useArticles({ type: "all" }, "unread"),
       { wrapper },
     );
     await waitFor(() => expect(listResult.current.isSuccess).toBe(true));
@@ -48,7 +48,7 @@ describe("useMarkRead", () => {
     // externally-triggered cache writes and stays faithful to "no refetch".
     const cached = queryClient.getQueryData<{
       pages: { items: { id: number; is_read: boolean }[] }[];
-    }>(queryKeys.articles.list({ type: "all" }));
+    }>(queryKeys.articles.list({ type: "all" }, "unread"));
     const items = cached?.pages.flatMap((page) => page.items) ?? [];
     const updated = items.find((a) => a.id === 1);
     expect(updated?.is_read).toBe(true);

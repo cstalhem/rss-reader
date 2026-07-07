@@ -6,6 +6,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { ArticleList } from "@/components/article-list";
 import { ArticleReader } from "@/components/article-reader";
 import { BlockedView } from "@/components/blocked-view";
+import { ReadFilterToggle } from "@/components/read-filter-toggle";
 import {
   SidebarInset,
   SidebarProvider,
@@ -23,6 +24,7 @@ import {
   ALL_ARTICLES_SELECTION,
   type ArticleListItem,
   type FeedSelection,
+  type ReadFilter,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +44,11 @@ export function HomeShell() {
 
   // The open article is shell-level UI state (URL state is a later milestone).
   const [openArticle, setOpenArticle] = useState<ArticleListItem | null>(null);
+
+  // Ephemeral read-state filter — resets to "unread" on every fresh load
+  // (never persisted) and deliberately carries across scope switches within
+  // a session, so no effect resets it on selection change.
+  const [readFilter, setReadFilter] = useState<ReadFilter>("unread");
 
   // Fall back to All articles if the stored selection points at a
   // feed/folder that no longer exists (validated once data has loaded).
@@ -68,6 +75,19 @@ export function HomeShell() {
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger />
           <h1 className="text-sm font-medium">{header}</h1>
+          {selection.type !== "blocked" && (
+            <ReadFilterToggle
+              value={readFilter}
+              onChange={setReadFilter}
+              className={cn(
+                "md:static md:ml-auto",
+                // Floating bar on mobile — bg-background so the scrolling list
+                // doesn't bleed through the outline toggle's transparent segments.
+                "max-md:bg-background max-md:fixed max-md:bottom-6 max-md:left-1/2 max-md:z-30 max-md:-translate-x-1/2 max-md:shadow-lg",
+                openArticle !== null && "max-md:hidden",
+              )}
+            />
+          )}
         </header>
         <main className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
           {/* List column: full width by default; animates to a fixed 380px
@@ -86,6 +106,7 @@ export function HomeShell() {
             ) : (
               <ArticleList
                 selection={selection}
+                filter={readFilter}
                 onOpen={setOpenArticle}
                 readerOpen={openArticle !== null}
               />

@@ -16,13 +16,17 @@ import {
  * Render ArticleList directly (no sidebar tree) with its own QueryClient so we
  * keep the tree small and avoid the matchMedia stub the sidebar would need.
  */
-function renderList({ readerOpen = false }: { readerOpen?: boolean } = {}) {
+function renderList({
+  readerOpen = false,
+  filter = "unread" as const,
+}: { readerOpen?: boolean; filter?: "unread" | "read" } = {}) {
   const queryClient = createTestQueryClient();
   const onOpen = vi.fn();
   const { rerender } = render(
     <QueryClientProvider client={queryClient}>
       <ArticleList
         selection={{ type: "all" }}
+        filter={filter}
         onOpen={onOpen}
         readerOpen={readerOpen}
       />
@@ -33,6 +37,7 @@ function renderList({ readerOpen = false }: { readerOpen?: boolean } = {}) {
       <QueryClientProvider client={queryClient}>
         <ArticleList
           selection={{ type: "all" }}
+          filter={filter}
           onOpen={onOpen}
           readerOpen={open}
         />
@@ -158,5 +163,55 @@ describe("ArticleList", () => {
     expect(
       screen.getByRole("button", { name: "Mark as unread" }).closest("article"),
     ).toHaveClass("opacity-60");
+  });
+
+  it("requests is_read=true and renders read articles when filter is 'read'", async () => {
+    let requestedUrl: URL | null = null;
+    server.use(
+      http.get("/api/articles", ({ request }) => {
+        requestedUrl = new URL(request.url);
+        return HttpResponse.json({
+          items: [{ ...mockArticles[0], is_read: true }],
+          has_more: false,
+        });
+      }),
+    );
+
+    renderList({ filter: "read" });
+
+    expect(await screen.findByText("Article 1")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(requestedUrl?.searchParams.get("is_read")).toBe("true"),
+    );
+  });
+
+  it("shows read-specific empty-state copy when filter is 'read' with no results", async () => {
+    server.use(
+      http.get("/api/articles", () =>
+        HttpResponse.json({ items: [], has_more: false }),
+      ),
+    );
+
+    renderList({ filter: "read" });
+
+    expect(await screen.findByText("No read articles")).toBeInTheDocument();
+    expect(
+      screen.getByText("Articles you've read will appear here."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows unread-specific empty-state copy when filter is 'unread' with no results", async () => {
+    server.use(
+      http.get("/api/articles", () =>
+        HttpResponse.json({ items: [], has_more: false }),
+      ),
+    );
+
+    renderList({ filter: "unread" });
+
+    expect(await screen.findByText("No articles")).toBeInTheDocument();
+    expect(
+      screen.getByText("Articles for this view will appear here."),
+    ).toBeInTheDocument();
   });
 });

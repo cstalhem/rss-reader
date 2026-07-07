@@ -59,6 +59,14 @@ export type FeedSelection =
 /** The default scope — there is never a "nothing selected" state. */
 export const ALL_ARTICLES_SELECTION: FeedSelection = { type: "all" };
 
+/**
+ * The read-state lens layered on top of a scope (see CONTEXT.md "Read" / "Scope").
+ * Orthogonal to `FeedSelection` — it qualifies *which condition* of article to
+ * show within the chosen scope. Unread is the default; Read is an opt-in
+ * look-back. Not a scope: blocked is a scope, read is a filter.
+ */
+export type ReadFilter = "unread" | "read";
+
 /** Mirrors backend `ArticleCategoryEmbed` (schemas.py). */
 export interface ArticleCategory {
   id: number;

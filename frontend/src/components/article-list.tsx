@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useArticles } from "@/hooks/useArticles";
 import { useMarkRead } from "@/hooks/useMarkRead";
 import { cn, formatAge, parseServerDate } from "@/lib/utils";
-import type { ArticleListItem, FeedSelection } from "@/lib/types";
+import type { ArticleListItem, FeedSelection, ReadFilter } from "@/lib/types";
 
 type GroupLabel = "Today" | "Yesterday" | "Earlier";
 
@@ -145,6 +145,7 @@ function ArticleRow({
 
 interface ArticleListProps {
   selection: FeedSelection;
+  filter: ReadFilter;
   onOpen: (article: ArticleListItem) => void;
   /**
    * Whether the reader pane is open. Drives the desktop split-view row density
@@ -156,6 +157,7 @@ interface ArticleListProps {
 
 export function ArticleList({
   selection,
+  filter,
   onOpen,
   readerOpen = false,
 }: ArticleListProps) {
@@ -166,7 +168,7 @@ export function ArticleList({
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
-  } = useArticles(selection);
+  } = useArticles(selection, filter);
   const markRead = useMarkRead();
 
   const toggleRead = (article: ArticleListItem) => {
@@ -212,9 +214,13 @@ export function ArticleList({
             <EmptyMedia variant="icon">
               <Inbox />
             </EmptyMedia>
-            <EmptyTitle>No articles</EmptyTitle>
+            <EmptyTitle>
+              {filter === "read" ? "No read articles" : "No articles"}
+            </EmptyTitle>
             <EmptyDescription>
-              Articles for this view will appear here.
+              {filter === "read"
+                ? "Articles you've read will appear here."
+                : "Articles for this view will appear here."}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -223,8 +229,10 @@ export function ArticleList({
   }
 
   return (
+    // pb-20 on mobile clears the floating ReadFilterToggle bar (home-shell.tsx,
+    // max-md:fixed bottom-6) so the last row / Load-more isn't hidden behind it.
     <div
-      className="h-full overflow-y-auto"
+      className="h-full overflow-y-auto pb-20 md:pb-0"
       data-density={readerOpen ? "dense" : "rest"}
     >
       {groups.map((group) => (
