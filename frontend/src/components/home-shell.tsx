@@ -81,10 +81,13 @@ export function HomeShell() {
               onChange={setReadFilter}
               className={cn(
                 "md:static md:ml-auto",
-                // Floating bar on mobile — bg-background so the scrolling list
-                // doesn't bleed through the outline toggle's transparent segments.
-                "max-md:bg-background max-md:fixed max-md:bottom-6 max-md:left-1/2 max-md:z-30 max-md:-translate-x-1/2 max-md:shadow-lg",
-                openArticle !== null && "max-md:hidden",
+                // Desktop: when the reader is open, clear its top-right close
+                // button (article-reader.tsx: absolute top-4 right-4 size-9).
+                // Mobile: hide the floating bar behind the full-screen reader.
+                openArticle !== null && "max-md:hidden md:mr-14",
+                // Floating segmented surface on mobile — the bg-muted track plus
+                // border/shadow reads as an elevated bar over the scrolling list.
+                "max-md:fixed max-md:bottom-6 max-md:left-1/2 max-md:z-30 max-md:-translate-x-1/2 max-md:border max-md:shadow-lg",
               )}
             />
           )}
