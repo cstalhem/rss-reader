@@ -5,8 +5,11 @@ WORKDIR /app
 # Copy package files
 COPY package.json bun.lock ./
 
-# Install dependencies (frozen lockfile for reproducible builds)
-RUN bun install --frozen-lockfile
+# Install dependencies (frozen lockfile for reproducible builds).
+# --ignore-scripts: the `prepare` lifecycle script installs git hooks via
+# ../scripts/install-hooks.sh, which is outside this build context (frontend/
+# only) and irrelevant to the image — running it would fail the build.
+RUN bun install --frozen-lockfile --ignore-scripts
 
 # Copy application code
 COPY . .
