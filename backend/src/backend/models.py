@@ -245,3 +245,6 @@ class UserPreferences(SQLModel, table=True):
 
     # Scheduler configuration
     feed_refresh_interval: int = Field(default=1800)  # seconds
+
+    # Reader dwell threshold gating the marked_read auto-mark (seconds)
+    mark_read_dwell_seconds: int = Field(default=5)
