@@ -64,15 +64,15 @@ export function RatingControl({
       }
       className={className}
     >
-      <ToggleGroupItem value="up" aria-label="Thumbs up" className={SELECTED}>
-        <ThumbsUp />
-      </ToggleGroupItem>
       <ToggleGroupItem
         value="down"
         aria-label="Thumbs down"
         className={SELECTED}
       >
         <ThumbsDown />
+      </ToggleGroupItem>
+      <ToggleGroupItem value="up" aria-label="Thumbs up" className={SELECTED}>
+        <ThumbsUp />
       </ToggleGroupItem>
     </ToggleGroup>
   );
