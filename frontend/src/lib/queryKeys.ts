@@ -1,4 +1,4 @@
-import type { FeedSelection } from "./types";
+import type { FeedSelection, ReadFilter } from "./types";
 
 /**
  * Serialize a `FeedSelection` into a stable, plain-value key segment so the
@@ -32,8 +32,8 @@ export const queryKeys = {
   },
   articles: {
     all: ["articles"] as const,
-    list: (selection: FeedSelection) =>
-      ["articles", "list", selectionKey(selection)] as const,
+    list: (selection: FeedSelection, filter: ReadFilter) =>
+      ["articles", "list", selectionKey(selection), filter] as const,
     detail: (id: number) => ["articles", "detail", id] as const,
     counts: ["articles", "counts"] as const,
     blocked: ["articles", "blocked"] as const,

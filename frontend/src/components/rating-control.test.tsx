@@ -88,7 +88,7 @@ describe("RatingControl", () => {
     const user = userEvent.setup();
     const { queryClient } = renderControl(null);
 
-    const listKey = queryKeys.articles.list({ type: "all" });
+    const listKey = queryKeys.articles.list({ type: "all" }, "unread");
     queryClient.setQueryData(listKey, {
       pages: [
         {

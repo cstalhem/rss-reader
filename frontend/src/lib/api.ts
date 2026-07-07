@@ -22,6 +22,7 @@ import type {
   FeedUpdatePayload,
   Preferences,
   PreferencesUpdate,
+  ReadFilter,
   ScoringStatus,
 } from "./types";
 
@@ -165,14 +166,21 @@ export async function deleteFolder(
 
 export async function fetchArticles(
   selection: FeedSelection,
+  filter: ReadFilter,
   skip: number,
   limit: number,
 ): Promise<ArticleListResponse> {
   const params = new URLSearchParams({
-    is_read: "false",
+    is_read: filter === "read" ? "true" : "false",
     skip: String(skip),
     limit: String(limit),
   });
+  if (filter === "read") {
+    // Read articles sort by recency; unread keeps the backend's default
+    // composite_score desc ordering.
+    params.set("sort_by", "published_at");
+    params.set("order", "desc");
+  }
   if (selection.type === "feed") {
     params.set("feed_id", String(selection.id));
   } else if (selection.type === "folder") {

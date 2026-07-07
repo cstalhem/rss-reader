@@ -44,6 +44,14 @@ _Avoid_: detail view, drawer, article page
 The state of an article the reader hasn't read yet that has been scored and isn't blocked. Unread is a promise of readable, relevant content: articles still awaiting scoring aren't unread *yet*, and blocked articles never are. All unread counts (sidebar badges, list filters) share this single definition, computed by the backend.
 _Avoid_: new, unseen, not-read (for anything still in the pipeline)
 
+**Read**:
+The state of an article the reader has finished with: visible (scored or rescued) and marked read. The exact counterpart of Unread — blocked articles are never read (they were never unread), and articles still awaiting scoring aren't read yet. Surfaced by an opt-in filter layered on the current scope, never a scope of its own.
+_Avoid_: seen, archived, done
+
+**Scope**:
+Where the reader is looking: All articles, a single feed, a folder, or the blocked view — one choice at a time, persisted. Distinct from the read filter (Unread vs Read), which layers on top of a scope to choose *which condition* of article to show *within* it. Blocked is a scope, not a filter value, because blocking is system-wide with no per-feed mental model; Read is a filter, not a scope, because it always qualifies a scope you've already chosen.
+_Avoid_: view, section, selection (in prose)
+
 **Rating**:
 The explicit feedback signal: a single thumbs up or down on an article, available from the list and the reader. Binary by design — no stars, no scales.
 _Avoid_: stars, score (that's the LLM's number)
