@@ -5,6 +5,7 @@ import { useMemo } from "react";
 
 import { CategoryChip, ReadDot, ScoreChip } from "@/components/article-badges";
 import { LoadMoreButton } from "@/components/load-more-button";
+import { RatingControl } from "@/components/rating-control";
 import { ErrorState } from "@/components/list-states";
 import {
   Empty,
@@ -113,20 +114,27 @@ function ArticleRow({
         )}
       </div>
 
-      {(article.composite_score !== null || categories.length > 0) && (
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {article.composite_score !== null && (
-            <ScoreChip score={article.composite_score} />
-          )}
-          {categories.map((category) => (
-            <CategoryChip
-              key={category.id}
-              label={category.display_name}
-              needsTriage={category.needs_triage}
-            />
-          ))}
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {article.composite_score !== null && (
+          <ScoreChip score={article.composite_score} />
+        )}
+        {categories.map((category) => (
+          <CategoryChip
+            key={category.id}
+            label={category.display_name}
+            needsTriage={category.needs_triage}
+          />
+        ))}
+        {/* Rating toggles live inside the clickable row — stop propagation so a
+            thumbs tap rates without also opening the reader. */}
+        <div
+          className="ml-auto"
+          onClick={(e) => e.stopPropagation()}
+          role="presentation"
+        >
+          <RatingControl articleId={article.id} rating={article.rating} />
         </div>
-      )}
+      </div>
     </article>
   );
 }

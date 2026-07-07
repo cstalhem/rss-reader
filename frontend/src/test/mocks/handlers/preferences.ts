@@ -6,6 +6,7 @@ export const mockPreferences: Preferences = {
   interests: "AI, distributed systems",
   anti_interests: "celebrity gossip",
   feed_refresh_interval: 1800,
+  mark_read_dwell_seconds: 5,
   updated_at: "2026-01-01T00:00:00",
 };
 

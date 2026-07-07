@@ -29,6 +29,7 @@ export const mockArticles: ArticleListItem[] = Array.from(
       scoring_state: "scored",
       scored_at: null,
       re_evaluating: false,
+      rating: null,
     };
   },
 );
@@ -50,6 +51,7 @@ export const mockArticleDetail: Article = {
   scoring_state: "scored",
   scored_at: null,
   re_evaluating: false,
+  rating: null,
   summary: "Full summary of article 1",
   content: "<p>Full article content</p>",
 };
@@ -95,6 +97,7 @@ export const mockBlockedArticles: ArticleListItem[] = [
     scoring_state: "blocked",
     scored_at: null,
     re_evaluating: false,
+    rating: null,
   },
   {
     id: 9002,
@@ -131,6 +134,7 @@ export const mockBlockedArticles: ArticleListItem[] = [
     scoring_state: "blocked",
     scored_at: null,
     re_evaluating: false,
+    rating: null,
   },
   {
     id: 9003,
@@ -159,6 +163,7 @@ export const mockBlockedArticles: ArticleListItem[] = [
     scoring_state: "blocked",
     scored_at: null,
     re_evaluating: false,
+    rating: null,
   },
 ];
 
@@ -238,6 +243,16 @@ export const articleHandlers = [
       ...mockArticleDetail,
       id,
       is_read: body.is_read,
+    });
+  }),
+
+  http.put("/api/articles/:id/rating", async ({ params, request }) => {
+    const id = Number(params.id);
+    const body = (await request.json()) as { value: 1 | -1 | null };
+    return HttpResponse.json({
+      ...mockArticleDetail,
+      id,
+      rating: body.value,
     });
   }),
 ];

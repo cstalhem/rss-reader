@@ -9,31 +9,44 @@ import {
   ReadDot,
   ReaderScores,
 } from "@/components/article-badges";
+import { RatingControl } from "@/components/rating-control";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useArticle } from "@/hooks/useArticle";
 import { useMarkRead } from "@/hooks/useMarkRead";
+import { usePreferences } from "@/hooks/usePreferences";
 import { formatAge } from "@/lib/utils";
 import type { ArticleListItem } from "@/lib/types";
 
-/** Dwell threshold before auto-marking an opened article read — issue #94 decision. */
-const MARK_READ_DWELL_MS = 3000;
+/** Fallback dwell threshold (seconds) when the preference hasn't loaded — issue #94 default. */
+const DEFAULT_DWELL_SECONDS = 5;
 
 interface ArticleReaderProps {
   /** The list item that was opened — supplies feed/meta/score fields immediately. */
   article: ArticleListItem;
   onClose: () => void;
-  /** Overridable only for tests; production uses the #94-decided threshold. */
+  /** Test-only override; production reads the dwell from preferences (prop wins if provided). */
   dwellMs?: number;
 }
 
 export function ArticleReader({
   article,
   onClose,
-  dwellMs = MARK_READ_DWELL_MS,
+  dwellMs,
 }: ArticleReaderProps) {
   const detailQuery = useArticle(article.id);
   const markRead = useMarkRead();
+  const { data: preferences } = usePreferences();
+
+  // The prop is a test-only override; otherwise the configurable preference
+  // (seconds → ms) drives the dwell, falling back to the #94 default.
+  const resolvedDwellMs =
+    dwellMs ??
+    (preferences?.mark_read_dwell_seconds ?? DEFAULT_DWELL_SECONDS) * 1000;
+
+  // Live rating tracks the cached detail (the rate mutation patches it),
+  // falling back to the list item until the detail query resolves.
+  const rating = detailQuery.data?.rating ?? article.rating;
 
   // Live read status tracks the cached detail (the mark-read mutation flips it),
   // falling back to the list item until the detail query resolves.
@@ -70,9 +83,9 @@ export function ArticleReader({
     if (!wasUnreadAtOpen || !contentLoaded) return;
     const timer = setTimeout(() => {
       markMutate({ id: articleId, isRead: true });
-    }, dwellMs);
+    }, resolvedDwellMs);
     return () => clearTimeout(timer);
-  }, [articleId, wasUnreadAtOpen, contentLoaded, dwellMs, markMutate]);
+  }, [articleId, wasUnreadAtOpen, contentLoaded, resolvedDwellMs, markMutate]);
 
   return (
     <div className="bg-background animate-in fade-in md:slide-in-from-right fixed inset-0 z-40 flex flex-col duration-200 md:static md:z-auto md:min-w-0 md:flex-1">
@@ -102,6 +115,11 @@ export function ArticleReader({
                     needsTriage={category.needs_triage}
                   />
                 ))}
+                <RatingControl
+                  articleId={article.id}
+                  rating={rating}
+                  className="ml-auto"
+                />
               </div>
 
               <h1 className="font-serif text-3xl leading-tight font-bold">
