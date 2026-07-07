@@ -38,7 +38,8 @@ def build_batch_scoring_prompt(
     Returns:
         Tuple of (system_prompt, user_message)
     """
-    from backend.prompts.content import SCORING_MAX_CHARS, format_articles_block
+    from backend.config import get_settings
+    from backend.prompts.content import format_articles_block
 
     system_prompt = f"""Score articles based on user preferences.
 
@@ -70,6 +71,7 @@ For each article provide:
 
 You will receive multiple articles wrapped in `<article>` tags. Return a JSON object with a `results` array. Each entry must include the `article_id` from the input."""
 
-    user_message = format_articles_block(articles, max_chars=SCORING_MAX_CHARS)
+    max_chars = get_settings().content.scoring_max_chars
+    user_message = format_articles_block(articles, max_chars=max_chars)
 
     return system_prompt, user_message

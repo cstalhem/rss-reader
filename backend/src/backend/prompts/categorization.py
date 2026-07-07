@@ -67,7 +67,8 @@ def build_batch_categorization_prompt(
     Returns:
         Tuple of (system_prompt, user_message)
     """
-    from backend.prompts.content import CATEGORIZATION_MAX_CHARS, format_articles_block
+    from backend.config import get_settings
+    from backend.prompts.content import format_articles_block
 
     categories_list = ", ".join(sorted(existing_categories))
 
@@ -85,6 +86,7 @@ def build_batch_categorization_prompt(
 
 You will receive multiple articles wrapped in `<article>` tags. Return a JSON object with a `results` array. Each entry must include the `article_id` from the input."""
 
-    user_message = format_articles_block(articles, max_chars=CATEGORIZATION_MAX_CHARS)
+    max_chars = get_settings().content.categorization_max_chars
+    user_message = format_articles_block(articles, max_chars=max_chars)
 
     return system_prompt, user_message

@@ -67,6 +67,28 @@ class ScoringConfig(BaseModel):
     weight_multipliers: WeightMultipliers = WeightMultipliers()
 
 
+class ContentConfig(BaseModel):
+    """Char budgets for prompt content truncation."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    categorization_max_chars: int = 4000
+    scoring_max_chars: int = 8000
+
+
+class FetchThroughConfig(BaseModel):
+    """Outbound fetch policy for aggregator fetch-through (ADR-0011)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    per_host_interval: float = 5.0
+    timeout: float = 10.0
+    max_bytes: int = 20_000_000
+    max_redirects: int = 5
+    user_agent: str = "rss-reader/2.0 (+https://github.com/cstalhem/rss-reader)"
+    min_extract_chars: int = 50
+
+
 class LLMTaskConfig(BaseModel):
     """Per-task Azure deployment routing."""
 
@@ -111,6 +133,8 @@ class Settings(BaseSettings):
     scheduler: SchedulerConfig = SchedulerConfig()
     scoring: ScoringConfig = ScoringConfig()
     llm: LLMConfig = LLMConfig()
+    content: ContentConfig = ContentConfig()
+    fetch_through: FetchThroughConfig = FetchThroughConfig()
 
     # Azure credentials — env only (AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_API_KEY),
     # never the YAML file. Missing values degrade scoring, not the app.
