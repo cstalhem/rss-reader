@@ -267,6 +267,15 @@ export function AppSidebar({ selection, onSelect }: AppSidebarProps) {
 
   return (
     <Sidebar>
+      {/* App wordmark. h-14 + border-b matches the article-list header so the
+          two top bars align across the sidebar/content divide; the primary-color
+          icon and semibold mark set it apart from the muted nav rows below. */}
+      <div className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+        <Rss className="text-primary size-5" />
+        <span className="text-base font-semibold tracking-tight">
+          RSS Reader
+        </span>
+      </div>
       <SidebarHeader>
         <div className="flex items-center gap-2">
           <SidebarMenu className="flex-1">
