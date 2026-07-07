@@ -74,7 +74,7 @@ export function HomeShell() {
       <SidebarInset className="h-svh overflow-hidden">
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger />
-          <h1 className="text-sm font-medium">{header}</h1>
+          <h1 className="font-medium">{header}</h1>
           {selection.type !== "blocked" && (
             <ReadFilterToggle
               value={readFilter}

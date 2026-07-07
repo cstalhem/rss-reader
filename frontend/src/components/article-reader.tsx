@@ -108,14 +108,16 @@ export function ArticleReader({
                 ))}
                 {/* Desktop close affordance — sits in the overline; mobile uses
                     the fixed bottom button below. */}
-                <button
+                <Button
+                  variant="outline"
+                  size="icon-lg"
+                  className="ml-auto hidden rounded-full md:flex"
                   type="button"
                   onClick={onClose}
                   aria-label="Close"
-                  className="text-muted-foreground hover:bg-muted hover:text-foreground ml-auto hidden size-8 shrink-0 items-center justify-center rounded-full transition-colors md:flex"
                 >
-                  <X className="size-4" />
-                </button>
+                  <X />
+                </Button>
               </div>
 
               <h1 className="font-serif text-3xl leading-tight font-bold">
