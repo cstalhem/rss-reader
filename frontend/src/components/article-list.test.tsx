@@ -101,6 +101,24 @@ describe("ArticleList", () => {
     );
   });
 
+  it("shows the rating control per row, but hides it while the reader is open", async () => {
+    const { setReaderOpen } = renderList();
+
+    // Reader closed: each row exposes a thumbs-up rating toggle.
+    await screen.findByText("Article 2");
+    expect(
+      screen.getAllByRole("radio", { name: "Thumbs up" }).length,
+    ).toBeGreaterThan(0);
+
+    // Reader open: the reader owns the rating control, so the list drops it.
+    setReaderOpen(true);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("radio", { name: "Thumbs up" }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
   it("marks a row read via the dot toggle and dims the row", async () => {
     const user = userEvent.setup();
     let patchedRead: boolean | null = null;
