@@ -1,12 +1,10 @@
 """Tests for auto-group suggest + apply endpoints."""
 
 from collections.abc import Callable
-from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from backend.deps import TaskRuntimeResolution
 from backend.models import Category
 from backend.prompts.grouping import (
     GroupingResponse,
@@ -14,44 +12,32 @@ from backend.prompts.grouping import (
     build_grouping_prompt,
 )
 
-MOCK_RUNTIME = TaskRuntimeResolution(
-    task="categorization",
-    provider="ollama",
-    model="test-model",
-    endpoint="http://localhost:11434",
-    thinking=False,
-    api_key=None,
-    ready=True,
-    reason=None,
-)
-
-
-# --- Cycle 1: build_grouping_prompt ---
+# --- build_grouping_prompt ---
 
 
 class TestBuildGroupingPrompt:
     def test_includes_all_category_names(self):
-        prompt = build_grouping_prompt(["AI", "Programming", "Science"], {})
-        assert "- AI" in prompt
-        assert "- Programming" in prompt
-        assert "- Science" in prompt
+        _system, user = build_grouping_prompt(["AI", "Programming", "Science"], {})
+        assert "- AI" in user
+        assert "- Programming" in user
+        assert "- Science" in user
 
     def test_includes_existing_groups(self):
-        prompt = build_grouping_prompt(
+        _system, user = build_grouping_prompt(
             ["AI", "Programming", "Technology"],
             {"Technology": ["AI", "Programming"]},
         )
-        assert "Technology > AI, Programming" in prompt
+        assert "Technology > AI, Programming" in user
 
     def test_omits_existing_groups_section_when_empty(self):
-        prompt = build_grouping_prompt(["AI", "Science"], {})
-        assert "Current groups" not in prompt
+        _system, user = build_grouping_prompt(["AI", "Science"], {})
+        assert "Current groups" not in user
 
     def test_categories_sorted_alphabetically(self):
-        prompt = build_grouping_prompt(["Zebra", "Alpha", "Middle"], {})
-        alpha_pos = prompt.index("- Alpha")
-        middle_pos = prompt.index("- Middle")
-        zebra_pos = prompt.index("- Zebra")
+        _system, user = build_grouping_prompt(["Zebra", "Alpha", "Middle"], {})
+        alpha_pos = user.index("- Alpha")
+        middle_pos = user.index("- Middle")
+        zebra_pos = user.index("- Zebra")
         assert alpha_pos < middle_pos < zebra_pos
 
     def test_grouping_response_schema(self):
@@ -69,7 +55,7 @@ class TestBuildGroupingPrompt:
         assert resp.groups == []
 
 
-# --- Cycle 2: POST /api/categories/auto-group/apply ---
+# --- POST /api/categories/auto-group/apply ---
 
 
 class TestAutoGroupApply:
@@ -135,16 +121,16 @@ class TestAutoGroupApply:
 
         test_session.refresh(child)
         assert child.parent_id == new_parent.id
-        # Child should have inherited weight from old parent during flatten
-        assert child.weight == "boost"
+        # Groups are display-only (ADR-0001): regrouping never changes weights
+        assert child.weight == "normal"
 
-    def test_preserves_explicit_weight_on_flatten(
+    def test_regrouping_never_changes_weights(
         self,
         test_client: TestClient,
         test_session: Session,
         make_category: Callable[..., Category],
     ):
-        """Child with explicit weight keeps it after flatten, not overwritten by parent."""
+        """A child's own weight survives flatten + regroup untouched."""
         parent = make_category(display_name="Parent", slug="parent", weight="boost")
         child = make_category(
             display_name="Child",
@@ -163,7 +149,7 @@ class TestAutoGroupApply:
         assert response.status_code == 200
 
         test_session.refresh(child)
-        assert child.weight == "reduce"  # Keeps explicit weight
+        assert child.weight == "reduce"
 
     def test_duplicate_child_across_groups_counted_once(
         self,
@@ -197,7 +183,72 @@ class TestAutoGroupApply:
         assert shared.parent_id == group_a.id  # First assignment wins
         assert other.parent_id == group_a.id
 
-    # --- Cycle 3: Edge cases ---
+    def test_never_creates_depth_two_trees(
+        self,
+        test_client: TestClient,
+        test_session: Session,
+        make_category: Callable[..., Category],
+    ):
+        """Chained groups (A > B, then B > C) must not nest C under a child.
+
+        A group whose parent was already assigned as a child is skipped
+        entirely (first-wins), keeping the hierarchy one level deep.
+        """
+        a = make_category(display_name="A", slug="a")
+        b = make_category(display_name="B", slug="b")
+        c = make_category(display_name="C", slug="c")
+
+        response = test_client.post(
+            "/api/categories/auto-group/apply",
+            json={
+                "groups": [
+                    {"parent": "A", "children": ["B"]},
+                    {"parent": "B", "children": ["C"]},
+                ]
+            },
+        )
+        assert response.status_code == 200
+
+        test_session.refresh(a)
+        test_session.refresh(b)
+        test_session.refresh(c)
+        assert b.parent_id == a.id
+        assert c.parent_id is None  # group with used-as-child parent skipped
+        # No category has a parent that itself has a parent (max depth 1)
+        by_id = {cat.id: cat for cat in (a, b, c)}
+        for cat in by_id.values():
+            if cat.parent_id is not None:
+                assert by_id[cat.parent_id].parent_id is None
+
+    def test_parent_slug_never_reassigned_as_child(
+        self,
+        test_client: TestClient,
+        test_session: Session,
+        make_category: Callable[..., Category],
+    ):
+        """A slug already used as a parent keeps its children; a later group
+        listing it as a child skips that assignment (first-wins)."""
+        a = make_category(display_name="A", slug="a")
+        b = make_category(display_name="B", slug="b")
+        c = make_category(display_name="C", slug="c")
+
+        response = test_client.post(
+            "/api/categories/auto-group/apply",
+            json={
+                "groups": [
+                    {"parent": "B", "children": ["C"]},
+                    {"parent": "A", "children": ["B"]},
+                ]
+            },
+        )
+        assert response.status_code == 200
+
+        test_session.refresh(a)
+        test_session.refresh(b)
+        test_session.refresh(c)
+        assert c.parent_id == b.id  # B keeps its children
+        assert b.parent_id is None  # second assignment of B skipped
+        assert a.parent_id is None
 
     def test_skips_nonexistent_category_names(
         self,
@@ -255,47 +306,37 @@ class TestAutoGroupApply:
         assert other.parent_id == cat.id
 
 
-# --- Cycle 4: POST /api/categories/auto-group/suggest ---
+# --- POST /api/categories/auto-group/suggest ---
 
 
 class TestAutoGroupSuggest:
     def test_suggest_returns_groups(
         self,
         test_client: TestClient,
+        fake_llm,
         make_category: Callable[..., Category],
     ):
-        """Suggest endpoint calls provider and returns filtered groups."""
+        """Suggest endpoint calls the wrapper and returns filtered groups."""
         make_category(display_name="Technology", slug="technology")
         make_category(display_name="AI", slug="ai")
         make_category(display_name="Machine Learning", slug="machine-learning")
         make_category(display_name="Science", slug="science")
 
         # LLM returns non-canonical casing — response should use DB display_name
-        mock_response = GroupingResponse(
-            groups=[
-                GroupSuggestion(
-                    parent="technology", children=["ai", "machine learning"]
-                ),
-                # This one references non-existent categories — should be filtered out
-                GroupSuggestion(parent="Science", children=["Physics", "Biology"]),
-            ]
+        fake_llm.queue(
+            "grouping",
+            GroupingResponse(
+                groups=[
+                    GroupSuggestion(
+                        parent="technology", children=["ai", "machine learning"]
+                    ),
+                    # References non-existent categories — should be filtered out
+                    GroupSuggestion(parent="Science", children=["Physics", "Biology"]),
+                ]
+            ),
         )
 
-        with (
-            patch(
-                "backend.routers.categories.resolve_task_runtime",
-                return_value=MOCK_RUNTIME,
-            ),
-            patch("backend.routers.categories.get_provider") as mock_get_provider,
-        ):
-            mock_provider = AsyncMock()
-            mock_provider.suggest_groups.return_value = mock_response
-            mock_get_provider.return_value = mock_provider
-
-            response = test_client.post(
-                "/api/categories/auto-group/suggest",
-                json={},
-            )
+        response = test_client.post("/api/categories/auto-group/suggest")
 
         assert response.status_code == 200
         body = response.json()
@@ -303,35 +344,17 @@ class TestAutoGroupSuggest:
         assert len(body["groups"]) == 1
         assert body["groups"][0]["parent"] == "Technology"
         assert body["groups"][0]["children"] == ["AI", "Machine Learning"]
-
-    # --- Cycle 5: <2 categories → 400 ---
+        assert fake_llm.calls[0]["task"] == "grouping"
 
     def test_suggest_rejects_fewer_than_2_categories(
         self,
         test_client: TestClient,
+        fake_llm,
         make_category: Callable[..., Category],
     ):
-        """Need at least 2 non-hidden categories to suggest groups."""
+        """Need at least 2 categories to suggest groups."""
         make_category(display_name="Lonely", slug="lonely")
 
-        response = test_client.post(
-            "/api/categories/auto-group/suggest",
-            json={},
-        )
+        response = test_client.post("/api/categories/auto-group/suggest")
         assert response.status_code == 400
         assert "at least 2" in response.json()["detail"].lower()
-
-    def test_suggest_excludes_hidden_from_count(
-        self,
-        test_client: TestClient,
-        make_category: Callable[..., Category],
-    ):
-        """Hidden categories don't count toward the minimum."""
-        make_category(display_name="Visible", slug="visible")
-        make_category(display_name="Hidden", slug="hidden", is_hidden=True)
-
-        response = test_client.post(
-            "/api/categories/auto-group/suggest",
-            json={},
-        )
-        assert response.status_code == 400

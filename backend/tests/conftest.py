@@ -1,13 +1,24 @@
-from datetime import datetime, timedelta
+import os
 
-import pytest
+# Isolate tests from the repo's config/app.yaml BEFORE any backend import:
+# backend modules call get_settings() at import time, so a fixture is too late.
+# os.devnull parses as an empty YAML document (no settings).
+os.environ["CONFIG_FILE"] = os.devnull
+
+import re  # noqa: E402
+from datetime import datetime, timedelta  # noqa: E402
+
+import pytest  # noqa: E402
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
-from backend.deps import get_session
+from backend.config import LLMTaskConfig
+from backend.deps import TASK_CATEGORIZATION, TASK_SCORING, get_session
+from backend.llm_client import LLMNotConfigured
 from backend.main import app
 from backend.models import Article, Category, Feed
+from backend.prompts.categorization import ArticleCategoryResult
 
 
 @pytest.fixture(name="test_engine")
@@ -92,7 +103,6 @@ def make_category_fixture(test_session: Session):
         defaults = {
             "display_name": f"Category {_counter}",
             "slug": f"category-{_counter}",
-            "is_seen": True,
         }
         defaults.update(overrides)
         category = Category(**defaults)
@@ -102,6 +112,132 @@ def make_category_fixture(test_session: Session):
         return category
 
     return _make
+
+
+@pytest.fixture(name="cat_result")
+def cat_result_fixture():
+    """Builder for per-article categorization results in canned responses."""
+
+    def _make(
+        article_id: int,
+        categories: list[str] | None = None,
+        proposed: str | None = None,
+    ) -> ArticleCategoryResult:
+        return ArticleCategoryResult(
+            article_id=article_id,
+            categories=categories or [],
+            proposed_category=proposed,
+        )
+
+    return _make
+
+
+class FakeLLMClient:
+    """Canned typed responses standing in for the Azure wrapper.
+
+    The wrapper is the single test seam (issue #89): queue an object to
+    return it, queue an exception to raise it. With nothing queued, one
+    plausible result is generated per article id found in the user message.
+
+    Dispatch is keyed on the ``task`` argument ("categorization" vs
+    "scoring"), NOT on the response schema — the categorization schema is
+    built dynamically per batch (ADR-0006), so schema identity is unstable.
+    Canned default results are built by validating plain dicts through the
+    per-batch ``response_schema`` the worker hands us, so every worker test
+    also exercises the real enum.
+    """
+
+    def __init__(self):
+        self.queued: dict[str, list] = {}
+        self.calls: list[dict] = []
+        self.configured = True
+        self.pauses: dict[str, float] = {}
+        self.batch_sizes = {"scoring": 5, "categorization": 10, "grouping": 1}
+
+    def queue(self, task: str, item) -> None:
+        """Queue a canned response (or exception) for the next call of a task."""
+        self.queued.setdefault(task, []).append(item)
+
+    def tasks_invoked(self) -> list[str]:
+        """Tasks that have been called on the wrapper, in call order."""
+        return [call["task"] for call in self.calls]
+
+    # --- wrapper interface ---
+
+    def is_configured(self) -> bool:
+        return self.configured
+
+    def task_config(self, task: str) -> LLMTaskConfig:
+        if task not in self.batch_sizes:
+            raise LLMNotConfigured(f"No llm.tasks entry for task '{task}'")
+        return LLMTaskConfig(
+            deployment=f"{task}-deploy", batch_size=self.batch_sizes[task]
+        )
+
+    def batch_size(self, task: str) -> int:
+        return self.task_config(task).batch_size
+
+    def pause_remaining_for_task(self, task: str) -> float:
+        return self.pauses.get(task, 0.0)
+
+    async def close(self) -> None:
+        pass
+
+    async def complete(self, task, system_prompt, user_message, response_schema):
+        self.calls.append(
+            {
+                "task": task,
+                "system": system_prompt,
+                "user": user_message,
+                "schema": response_schema,
+            }
+        )
+        items = self.queued.get(task)
+        if items:
+            item = items.pop(0)
+            # BaseException covers asyncio.CancelledError too
+            if isinstance(item, BaseException):
+                raise item
+            return item
+
+        ids = [int(m) for m in re.findall(r"<article id:(\d+)>", user_message)]
+
+        # Built-in plausible default per task, validated through the per-batch
+        # schema so the real enum is exercised. The categorization default
+        # proposes "Technology" (no enum assignment) — under the closed
+        # vocabulary a bare enum label the worker doesn't know would be
+        # dropped, so bootstrapping flows through the proposal channel.
+        if task == TASK_CATEGORIZATION:
+            results = [
+                {"article_id": i, "categories": [], "proposed_category": "Technology"}
+                for i in ids
+            ]
+            return response_schema.model_validate({"results": results})
+        if task == TASK_SCORING:
+            results = [
+                {
+                    "article_id": i,
+                    "interest_score": 7,
+                    "quality_score": 8,
+                    "reasoning": "test",
+                }
+                for i in ids
+            ]
+            return response_schema.model_validate({"results": results})
+        raise AssertionError(
+            f"No canned response queued for task '{task}' ({response_schema})"
+        )
+
+
+@pytest.fixture(name="fake_llm")
+def fake_llm_fixture(monkeypatch):
+    """Replace the Azure wrapper singleton with a FakeLLMClient everywhere."""
+    fake = FakeLLMClient()
+    monkeypatch.setattr("backend.scoring_queue.llm_client", fake)
+    monkeypatch.setattr("backend.routers.scoring.llm_client", fake)
+    monkeypatch.setattr("backend.routers.categories.llm_client", fake)
+    monkeypatch.setattr("backend.scheduler.llm_client", fake)
+    return fake
 
 
 @pytest.fixture(name="test_client")
@@ -118,7 +254,7 @@ def test_client_fixture(test_engine, monkeypatch):
     async def _noop_close():
         pass
 
-    monkeypatch.setattr("backend.main.close_all_providers", _noop_close)
+    monkeypatch.setattr("backend.main.llm_client.close", _noop_close)
 
     def get_test_session():
         with Session(test_engine) as session:

@@ -2,24 +2,22 @@
 
 import asyncio
 from datetime import datetime
-from types import SimpleNamespace
 
 import pytest
 from sqlmodel import create_engine
 
 import backend.database as database_module
 import backend.scheduler as scheduler_module
-import backend.scoring_queue as scoring_queue_module
+from backend.deps import TASK_CATEGORIZATION
 from backend.models import Article, Feed
-from backend.scoring import get_categorization_activity
-from backend.scoring_queue import CategorizationWorker
+from backend.scoring_queue import CategorizationWorker, get_activity
 
 
 @pytest.mark.asyncio
 async def test_categorization_requeues_cancelled_article(
     test_session,
     sample_feed: Feed,
-    monkeypatch: pytest.MonkeyPatch,
+    fake_llm,
 ):
     """Cancellation during categorization re-queues the article."""
     article = Article(
@@ -36,29 +34,7 @@ async def test_categorization_requeues_cancelled_article(
     test_session.commit()
     test_session.refresh(article)
 
-    runtime = SimpleNamespace(
-        ready=True,
-        provider="ollama",
-        model="test-model",
-        endpoint="http://localhost:11434",
-        thinking=False,
-        api_key=None,
-    )
-
-    async def fake_readiness(*_args, **_kwargs):
-        return runtime
-
-    class FakeProvider:
-        async def categorize(self, articles, *_args, **_kwargs):
-            raise asyncio.CancelledError()
-
-    monkeypatch.setattr(scoring_queue_module, "evaluate_task_readiness", fake_readiness)
-    monkeypatch.setattr(
-        scoring_queue_module, "get_provider", lambda _name: FakeProvider()
-    )
-    monkeypatch.setattr(
-        scoring_queue_module, "is_categorization_rate_limited", lambda: False
-    )
+    fake_llm.queue("categorization", asyncio.CancelledError())
 
     worker = CategorizationWorker()
     with pytest.raises(asyncio.CancelledError):
@@ -67,12 +43,13 @@ async def test_categorization_requeues_cancelled_article(
     updated = test_session.get(Article, article.id)
     assert updated is not None
     assert updated.categorization_state == "queued"
-    assert get_categorization_activity()["article_id"] is None
+    assert get_activity(TASK_CATEGORIZATION).article_id is None
 
 
 @pytest.mark.asyncio
 async def test_scheduler_handles_cancelled_pipeline_job(
     test_engine,
+    fake_llm,
     monkeypatch: pytest.MonkeyPatch,
 ):
     """CancelledError during pipeline doesn't propagate."""
@@ -103,23 +80,20 @@ def test_create_db_and_tables_recovers_stuck_scoring_every_start(
 ):
     recover_calls: list[object] = []
 
-    monkeypatch.setattr(
-        database_module,
-        "engine",
-        create_engine(
-            "sqlite:///:memory:",
-            connect_args={"check_same_thread": False},
-        ),
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
     )
-    monkeypatch.setattr(
-        database_module,
-        "_get_schema_version",
-        lambda _conn: database_module.CURRENT_SCHEMA_VERSION,
-    )
+    monkeypatch.setattr(database_module, "engine", engine)
     monkeypatch.setattr(
         database_module,
         "_recover_stuck_scoring",
         lambda conn: recover_calls.append(conn),
+    )
+    monkeypatch.setattr(
+        database_module,
+        "_seed_default_categories",
+        lambda conn: None,
     )
     monkeypatch.setattr(database_module, "_run_alembic_migrations", lambda: None)
 

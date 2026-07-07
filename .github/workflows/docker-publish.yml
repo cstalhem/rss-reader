@@ -2,15 +2,36 @@ name: CI
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, dev, v2]
     tags: ["v*.*.*"]
   pull_request:
-    branches: [main, dev]
+    branches: [main, dev, v2]
 
 env:
   REGISTRY: ghcr.io
 
 jobs:
+  verify-hooks:
+    name: "Hooks: Executable bit"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # git silently skips non-executable hooks, so a hook committed without the
+      # exec bit would disable the gate without anyone noticing. Enforce mode 100755
+      # (set with `git add --chmod=+x`).
+      - name: Hook files are executable
+        run: |
+          bad=$(git ls-files -s .githooks | grep -v '^100755 ' || true)
+          if [ -n "$bad" ]; then
+            echo "Files in .githooks/ must be committed with mode 100755 (git add --chmod=+x):" >&2
+            echo "$bad" >&2
+            exit 1
+          fi
+
   lint-and-test-frontend:
     name: "Frontend: Lint, Type Check & Test"
     runs-on: ubuntu-latest
@@ -33,6 +54,10 @@ jobs:
       - name: Lint
         working-directory: frontend
         run: bun run lint
+
+      - name: Format check
+        working-directory: frontend
+        run: bun run format:check
 
       - name: Type check
         working-directory: frontend
@@ -64,6 +89,14 @@ jobs:
       - name: Lint
         working-directory: backend
         run: uv run ruff check .
+
+      - name: Format check
+        working-directory: backend
+        run: uv run ruff format --check .
+
+      - name: Type check
+        working-directory: backend
+        run: uv run pyright
 
       - name: Run tests
         working-directory: backend

@@ -5,8 +5,11 @@ WORKDIR /app
 # Copy package files
 COPY package.json bun.lock ./
 
-# Install dependencies (frozen lockfile for reproducible builds)
-RUN bun install --frozen-lockfile
+# Install dependencies (frozen lockfile for reproducible builds).
+# --ignore-scripts: the `prepare` lifecycle script installs git hooks via
+# ../scripts/install-hooks.sh, which is outside this build context (frontend/
+# only) and irrelevant to the image — running it would fail the build.
+RUN bun install --frozen-lockfile --ignore-scripts
 
 # Copy application code
 COPY . .
@@ -14,11 +17,8 @@ COPY . .
 # Disable telemetry during build
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Set API URL for production (empty = relative URLs, routed by reverse proxy)
-ARG NEXT_PUBLIC_API_URL=""
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-
-# Build the application
+# Build the application (standalone output; API URLs are relative — routed by
+# the reverse proxy in prod, so there is no NEXT_PUBLIC_API_URL to bake in)
 RUN bun run build
 
 # Runtime stage
@@ -45,10 +45,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Switch to non-root user
 USER nextjs
 
-# Expose port
+# Expose port (reverse proxy maps this)
 EXPOSE 3000
 
-# Health check (use wget which comes with alpine)
+# Health check — target 127.0.0.1 explicitly: node:alpine resolves `localhost`
+# to ::1 (IPv6) first, but the server binds IPv4 (0.0.0.0), so a localhost
+# probe fails and Traefik silently skips the "unhealthy" container.
 HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/ || exit 1
 

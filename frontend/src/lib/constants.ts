@@ -1,42 +1,52 @@
-import type { ElementType } from "react";
-import { LuSettings, LuRss, LuHeart, LuTag, LuBot, LuMessageSquare } from "react-icons/lu";
+import {
+  ChevronDown,
+  ChevronUp,
+  ChevronsUp,
+  Minus,
+  ShieldOff,
+  type LucideIcon,
+} from "lucide-react";
 
-/** Sidebar width when collapsed (icons only) */
-export const SIDEBAR_WIDTH_COLLAPSED = "48px";
-/** Sidebar width when expanded (full navigation) */
-export const SIDEBAR_WIDTH_EXPANDED = "240px";
-/** Polling interval for feed and folder unread counts used by article navigation and settings */
+import type { CategoryWeight } from "./types";
+
+/** Polling interval for feed and folder unread counts. */
 export const FEED_STATE_POLL_INTERVAL = 10_000;
-/** Polling interval for new category count badge (used in Header, SettingsSidebar, useCategories) */
-export const NEW_COUNT_POLL_INTERVAL = 30_000;
-/** Score threshold for accent-colored score badge */
-export const HIGH_SCORE_THRESHOLD = 15;
 
-export type SettingsSection =
-  | "general"
-  | "feeds"
-  | "interests"
-  | "categories"
-  | "llm-providers"
-  | "feedback";
+/** Page size for paginated article list queries. */
+export const ARTICLES_PAGE_SIZE = 25;
 
-export interface SettingsSectionItem {
-  id: SettingsSection;
-  href: string;
-  icon: ElementType;
-  label: string;
-}
+/** Ordinal 5-value category weight scale, low → high. Order matters for the segmented control. */
+export const CATEGORY_WEIGHTS = [
+  "block",
+  "reduce",
+  "normal",
+  "boost",
+  "max",
+] as const satisfies readonly CategoryWeight[];
 
-export const SETTINGS_SECTIONS: SettingsSectionItem[] = [
-  { id: "general", href: "/settings/general", icon: LuSettings, label: "General" },
-  { id: "feeds", href: "/settings/feeds", icon: LuRss, label: "Feeds" },
-  { id: "interests", href: "/settings/interests", icon: LuHeart, label: "Interests" },
-  { id: "categories", href: "/settings/categories", icon: LuTag, label: "Categories" },
-  {
-    id: "llm-providers",
-    href: "/settings/llm-providers",
-    icon: LuBot,
-    label: "LLM Providers",
-  },
-  { id: "feedback", href: "/settings/feedback", icon: LuMessageSquare, label: "Feedback" },
-];
+/** Human labels for the category weight vocabulary. */
+export const CATEGORY_WEIGHT_LABEL: Record<CategoryWeight, string> = {
+  block: "Block",
+  reduce: "Reduce",
+  normal: "Normal",
+  boost: "Boost",
+  max: "Max",
+};
+
+/** Leading icon for each category weight vocabulary — pairs with CATEGORY_WEIGHT_LABEL. */
+export const CATEGORY_WEIGHT_ICON: Record<CategoryWeight, LucideIcon> = {
+  block: ShieldOff,
+  reduce: ChevronDown,
+  normal: Minus,
+  boost: ChevronUp,
+  max: ChevronsUp,
+};
+
+/** How long a triage Keep/Block decision stays undoable before the mutation fires. */
+export const TRIAGE_UNDO_DELAY = 5_000;
+
+/** Scoring status poll interval while work is pending (unscored/queued/scoring > 0). */
+export const SCORING_STATUS_POLL_ACTIVE = 3_000;
+
+/** Scoring status poll interval while idle, to catch background-refresh-enqueued work. */
+export const SCORING_STATUS_POLL_IDLE = 10_000;

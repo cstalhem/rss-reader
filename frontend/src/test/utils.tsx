@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ChakraProvider } from "@chakra-ui/react";
 import {
   render,
   renderHook,
@@ -10,9 +9,12 @@ import {
   type RenderOptions,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { system } from "@/theme";
 import { useState, type ReactElement, type ReactNode } from "react";
 
+/**
+ * Fresh QueryClient per test — never the production singleton, which is wired
+ * to sonner via its MutationCache. `retry: false` so error cases resolve fast.
+ */
 export function createTestQueryClient() {
   return new QueryClient({
     defaultOptions: {
@@ -25,9 +27,7 @@ export function createTestQueryClient() {
 function AllProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(createTestQueryClient);
   return (
-    <QueryClientProvider client={queryClient}>
-      <ChakraProvider value={system}>{children}</ChakraProvider>
-    </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 }
 
@@ -38,13 +38,13 @@ export function renderWithProviders(
   return render(ui, { wrapper: AllProviders, ...options });
 }
 
-export function createWrapper() {
-  const queryClient = createTestQueryClient();
+/** Hook-test wrapper. The default argument is evaluated per call, so each test still gets a fresh client; pass your own to spy on or read the cache. */
+export function createWrapper(
+  queryClient: QueryClient = createTestQueryClient(),
+) {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <QueryClientProvider client={queryClient}>
-        <ChakraProvider value={system}>{children}</ChakraProvider>
-      </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     );
   };
 }

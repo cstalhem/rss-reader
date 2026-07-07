@@ -1,5 +1,5 @@
-import { GeneralSection } from "@/components/settings/GeneralSection";
+import { GeneralSettings } from "@/components/general-settings";
 
-export default function GeneralPage() {
-  return <GeneralSection />;
+export default function GeneralSettingsPage() {
+  return <GeneralSettings />;
 }

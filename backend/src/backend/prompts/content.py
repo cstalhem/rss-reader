@@ -1,8 +1,5 @@
 """Content preparation utilities for LLM prompts."""
 
-CATEGORIZATION_MAX_CHARS = 2000
-SCORING_MAX_CHARS = 4000
-
 
 def truncate_at_paragraph(text: str, max_chars: int) -> str:
     """Truncate text at nearest paragraph boundary before max_chars."""

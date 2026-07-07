@@ -1,28 +1,53 @@
-import {
+import type {
   Article,
-  ArticleListItem,
+  ArticleCounts,
+  ArticleListResponse,
+  AutoGroupApplyPayload,
   AutoGroupApplyResponse,
   AutoGroupSuggestResponse,
-  AvailableModel,
   Category,
+  CategoryBulkUpdatePayload,
+  CategoryBulkUpdateResponse,
+  CategoryGroupPayload,
+  CategoryGroupResponse,
+  CategoryMergePayload,
+  CategoryMergeResponse,
+  CategoryUpdatePayload,
   Feed,
+  FeedCreatePayload,
   FeedFolder,
-  FetchArticlesParams,
-  GroupSuggestion,
-  ProviderListItem,
-  RefreshStatus,
-  RescoreResult,
+  FeedFolderCreatePayload,
+  FeedFolderUpdatePayload,
+  FeedSelection,
+  FeedUpdatePayload,
+  Preferences,
+  PreferencesUpdate,
+  ReadFilter,
   ScoringStatus,
-  TaskRoutesResponse,
-  TaskRoutesUpdate,
-  UserPreferences,
 } from "./types";
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8912";
+/**
+ * All API URLs are relative. Dev uses a next.config rewrite that proxies
+ * `/api/*` to the backend; production uses a reverse proxy that routes
+ * `PathPrefix('/api')` to the backend. There is deliberately no base-URL env var.
+ */
+
+/** Carries the HTTP status alongside the message so callers can branch on it (e.g. 409 name-collision). Extends `Error`, so the centralized MutationCache toast (which reads `.message`) is unaffected. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
 
 /** Throw an error with the backend's `detail` message if available, otherwise fall back to a generic message. */
-export async function throwApiError(response: Response, fallback: string): Promise<never> {
+export async function throwApiError(
+  response: Response,
+  fallback: string,
+): Promise<never> {
   const body = await response.json().catch(() => null);
   const detail = body?.detail;
   const message = Array.isArray(detail)
@@ -30,116 +55,11 @@ export async function throwApiError(response: Response, fallback: string): Promi
     : typeof detail === "string"
       ? detail
       : `${fallback}: ${response.statusText}`;
-  throw new Error(message);
-}
-
-export async function fetchArticles(
-  params: FetchArticlesParams = {}
-): Promise<ArticleListItem[]> {
-  const searchParams = new URLSearchParams();
-
-  if (params.skip !== undefined) {
-    searchParams.set("skip", params.skip.toString());
-  }
-  if (params.limit !== undefined) {
-    searchParams.set("limit", params.limit.toString());
-  }
-  if (params.is_read !== undefined) {
-    searchParams.set("is_read", params.is_read.toString());
-  }
-  if (params.feed_id !== undefined) {
-    searchParams.set("feed_id", params.feed_id.toString());
-  }
-  if (params.folder_id !== undefined) {
-    searchParams.set("folder_id", params.folder_id.toString());
-  }
-  if (params.sort_by !== undefined) {
-    searchParams.set("sort_by", params.sort_by);
-  }
-  if (params.order !== undefined) {
-    searchParams.set("order", params.order);
-  }
-  if (params.scoring_state !== undefined) {
-    searchParams.set("scoring_state", params.scoring_state);
-  }
-  if (params.exclude_blocked !== undefined) {
-    searchParams.set("exclude_blocked", params.exclude_blocked.toString());
-  }
-
-  const url = `${API_BASE_URL}/api/articles${
-    searchParams.toString() ? `?${searchParams.toString()}` : ""
-  }`;
-
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    await throwApiError(response, "Failed to fetch articles");
-  }
-
-  return response.json();
-}
-
-export async function fetchArticle(id: number): Promise<Article> {
-  const response = await fetch(`${API_BASE_URL}/api/articles/${id}`);
-
-  if (!response.ok) {
-    await throwApiError(response, "Failed to fetch article");
-  }
-
-  return response.json();
-}
-
-export async function updateArticleReadStatus(
-  id: number,
-  is_read: boolean
-): Promise<Article> {
-  const response = await fetch(`${API_BASE_URL}/api/articles/${id}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ is_read }),
-  });
-
-  if (!response.ok) {
-    await throwApiError(response, "Failed to update article read status");
-  }
-
-  return response.json();
-}
-
-export async function rescoreArticle(
-  articleId: number
-): Promise<{ ok: boolean }> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/articles/${articleId}/rescore`,
-    { method: "POST" }
-  );
-
-  if (!response.ok) {
-    await throwApiError(response, "Failed to rescore article");
-  }
-
-  return response.json();
-}
-
-export async function markAllArticlesRead(): Promise<{
-  ok: boolean;
-  count: number;
-}> {
-  const response = await fetch(`${API_BASE_URL}/api/articles/mark-all-read`, {
-    method: "POST",
-  });
-
-  if (!response.ok) {
-    await throwApiError(response, "Failed to mark all articles read");
-  }
-
-  return response.json();
+  throw new ApiError(message, response.status);
 }
 
 export async function fetchFeeds(): Promise<Feed[]> {
-  const response = await fetch(`${API_BASE_URL}/api/feeds`);
+  const response = await fetch("/api/feeds");
 
   if (!response.ok) {
     await throwApiError(response, "Failed to fetch feeds");
@@ -148,42 +68,28 @@ export async function fetchFeeds(): Promise<Feed[]> {
   return response.json();
 }
 
-export async function createFeed(url: string): Promise<Feed> {
-  const response = await fetch(`${API_BASE_URL}/api/feeds`, {
+export async function addFeed(payload: FeedCreatePayload): Promise<Feed> {
+  const response = await fetch("/api/feeds", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ url }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
-    await throwApiError(response, "Failed to create feed");
+    await throwApiError(response, "Failed to add feed");
   }
 
   return response.json();
 }
 
-export async function deleteFeed(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/feeds/${id}`, {
-    method: "DELETE",
-  });
-
-  if (!response.ok) {
-    await throwApiError(response, "Failed to delete feed");
-  }
-}
-
 export async function updateFeed(
   id: number,
-  data: { title?: string; display_order?: number; folder_id?: number | null }
+  payload: FeedUpdatePayload,
 ): Promise<Feed> {
-  const response = await fetch(`${API_BASE_URL}/api/feeds/${id}`, {
+  const response = await fetch(`/api/feeds/${id}`, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -193,25 +99,16 @@ export async function updateFeed(
   return response.json();
 }
 
-export async function reorderFeeds(
-  feedIds: number[],
-  folderId?: number | null
-): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/feeds/order`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ feed_ids: feedIds, folder_id: folderId ?? null }),
-  });
+export async function deleteFeed(id: number): Promise<void> {
+  const response = await fetch(`/api/feeds/${id}`, { method: "DELETE" });
 
   if (!response.ok) {
-    await throwApiError(response, "Failed to reorder feeds");
+    await throwApiError(response, "Failed to delete feed");
   }
 }
 
 export async function fetchFeedFolders(): Promise<FeedFolder[]> {
-  const response = await fetch(`${API_BASE_URL}/api/feed-folders`);
+  const response = await fetch("/api/feed-folders");
 
   if (!response.ok) {
     await throwApiError(response, "Failed to fetch feed folders");
@@ -220,92 +117,289 @@ export async function fetchFeedFolders(): Promise<FeedFolder[]> {
   return response.json();
 }
 
-export async function createFeedFolder(data: {
-  name: string;
-  feed_ids?: number[];
-}): Promise<FeedFolder> {
-  const response = await fetch(`${API_BASE_URL}/api/feed-folders`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      name: data.name,
-      feed_ids: data.feed_ids ?? [],
-    }),
-  });
-
-  if (!response.ok) {
-    await throwApiError(response, "Failed to create feed folder");
-  }
-
-  return response.json();
-}
-
-export async function updateFeedFolder(
-  id: number,
-  data: { name?: string; display_order?: number }
+export async function createFolder(
+  payload: FeedFolderCreatePayload,
 ): Promise<FeedFolder> {
-  const response = await fetch(`${API_BASE_URL}/api/feed-folders/${id}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
+  const response = await fetch("/api/feed-folders", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
-    await throwApiError(response, "Failed to update feed folder");
+    await throwApiError(response, "Failed to create folder");
   }
 
   return response.json();
 }
 
-export async function reorderFeedFolders(folderIds: number[]): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/feed-folders/order`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ folder_ids: folderIds }),
+export async function updateFolder(
+  id: number,
+  payload: FeedFolderUpdatePayload,
+): Promise<FeedFolder> {
+  const response = await fetch(`/api/feed-folders/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
-    await throwApiError(response, "Failed to reorder feed folders");
+    await throwApiError(response, "Failed to update folder");
   }
+
+  return response.json();
 }
 
-export async function deleteFeedFolder(
+export async function deleteFolder(
   id: number,
-  deleteFeeds: boolean
+  deleteFeeds: boolean = false,
 ): Promise<void> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/feed-folders/${id}?delete_feeds=${deleteFeeds}`,
-    {
-      method: "DELETE",
-    }
-  );
+  const params = new URLSearchParams({ delete_feeds: String(deleteFeeds) });
+  const response = await fetch(`/api/feed-folders/${id}?${params.toString()}`, {
+    method: "DELETE",
+  });
 
   if (!response.ok) {
-    await throwApiError(response, "Failed to delete feed folder");
+    await throwApiError(response, "Failed to delete folder");
   }
 }
 
-export async function markAllFeedRead(feedId: number): Promise<void> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/feeds/${feedId}/mark-read`,
-    {
-      method: "POST",
-    }
-  );
+export async function fetchArticles(
+  selection: FeedSelection,
+  filter: ReadFilter,
+  skip: number,
+  limit: number,
+): Promise<ArticleListResponse> {
+  const params = new URLSearchParams({
+    is_read: filter === "read" ? "true" : "false",
+    skip: String(skip),
+    limit: String(limit),
+  });
+  if (filter === "read") {
+    // Read articles sort by recency; unread keeps the backend's default
+    // composite_score desc ordering.
+    params.set("sort_by", "published_at");
+    params.set("order", "desc");
+  }
+  if (selection.type === "feed") {
+    params.set("feed_id", String(selection.id));
+  } else if (selection.type === "folder") {
+    params.set("folder_id", String(selection.id));
+  }
+
+  const response = await fetch(`/api/articles?${params.toString()}`);
 
   if (!response.ok) {
-    await throwApiError(response, "Failed to mark all feed read");
+    await throwApiError(response, "Failed to fetch articles");
+  }
+
+  return response.json();
+}
+
+export async function fetchBlockedArticles(
+  skip: number,
+  limit: number,
+): Promise<ArticleListResponse> {
+  const params = new URLSearchParams({
+    scoring_state: "blocked",
+    skip: String(skip),
+    limit: String(limit),
+  });
+
+  const response = await fetch(`/api/articles?${params.toString()}`);
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to fetch blocked articles");
+  }
+
+  return response.json();
+}
+
+export async function rescueArticle(id: number): Promise<void> {
+  const response = await fetch(`/api/articles/${id}/rescue`, {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to rescue article");
   }
 }
 
-export async function fetchPreferences(): Promise<UserPreferences> {
-  const response = await fetch(`${API_BASE_URL}/api/preferences`);
+export async function fetchArticle(id: number): Promise<Article> {
+  const response = await fetch(`/api/articles/${id}`);
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to fetch article");
+  }
+
+  return response.json();
+}
+
+export async function updateArticleRead(
+  id: number,
+  isRead: boolean,
+): Promise<Article> {
+  const response = await fetch(`/api/articles/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ is_read: isRead }),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to update article");
+  }
+
+  return response.json();
+}
+
+export async function rateArticle(
+  id: number,
+  value: 1 | -1 | null,
+): Promise<Article> {
+  const response = await fetch(`/api/articles/${id}/rating`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value }),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to rate article");
+  }
+
+  return response.json();
+}
+
+export async function fetchArticleCounts(): Promise<ArticleCounts> {
+  const response = await fetch("/api/articles/counts");
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to fetch article counts");
+  }
+
+  return response.json();
+}
+
+export async function fetchCategories(
+  needsTriage?: boolean,
+): Promise<Category[]> {
+  const params =
+    needsTriage === undefined
+      ? ""
+      : `?${new URLSearchParams({ needs_triage: String(needsTriage) }).toString()}`;
+  const response = await fetch(`/api/categories${params}`);
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to fetch categories");
+  }
+
+  return response.json();
+}
+
+export async function fetchCategoryUnseenCount(): Promise<{ count: number }> {
+  const response = await fetch("/api/categories/unseen-count");
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to fetch category unseen count");
+  }
+
+  return response.json();
+}
+
+export async function updateCategory(
+  id: number,
+  payload: CategoryUpdatePayload,
+): Promise<Category> {
+  const response = await fetch(`/api/categories/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to update category");
+  }
+
+  return response.json();
+}
+
+export async function bulkUpdateCategories(
+  payload: CategoryBulkUpdatePayload,
+): Promise<CategoryBulkUpdateResponse> {
+  const response = await fetch("/api/categories", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to update categories");
+  }
+
+  return response.json();
+}
+
+export async function groupCategories(
+  payload: CategoryGroupPayload,
+): Promise<CategoryGroupResponse> {
+  const response = await fetch("/api/categories/group", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to group categories");
+  }
+
+  return response.json();
+}
+
+export async function mergeCategories(
+  payload: CategoryMergePayload,
+): Promise<CategoryMergeResponse> {
+  const response = await fetch("/api/categories/merge", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to merge categories");
+  }
+
+  return response.json();
+}
+
+export async function autoGroupSuggest(): Promise<AutoGroupSuggestResponse> {
+  const response = await fetch("/api/categories/auto-group/suggest", {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to suggest category groups");
+  }
+
+  return response.json();
+}
+
+export async function autoGroupApply(
+  payload: AutoGroupApplyPayload,
+): Promise<AutoGroupApplyResponse> {
+  const response = await fetch("/api/categories/auto-group/apply", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to apply category groups");
+  }
+
+  return response.json();
+}
+
+export async function fetchPreferences(): Promise<Preferences> {
+  const response = await fetch("/api/preferences");
 
   if (!response.ok) {
     await throwApiError(response, "Failed to fetch preferences");
@@ -315,14 +409,12 @@ export async function fetchPreferences(): Promise<UserPreferences> {
 }
 
 export async function updatePreferences(
-  data: Partial<UserPreferences>
-): Promise<UserPreferences> {
-  const response = await fetch(`${API_BASE_URL}/api/preferences`, {
+  update: PreferencesUpdate,
+): Promise<Preferences> {
+  const response = await fetch("/api/preferences", {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(update),
   });
 
   if (!response.ok) {
@@ -332,242 +424,12 @@ export async function updatePreferences(
   return response.json();
 }
 
-export async function fetchCategories(): Promise<Category[]> {
-  const response = await fetch(`${API_BASE_URL}/api/categories`);
-  if (!response.ok) await throwApiError(response, "Failed to fetch categories");
-  return response.json();
-}
-
-export async function updateCategory(
-  id: number,
-  data: { display_name?: string; parent_id?: number | null; weight?: string | null; is_hidden?: boolean; is_seen?: boolean }
-): Promise<Category> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) await throwApiError(response, "Failed to update category");
-  return response.json();
-}
-
-export async function createCategory(
-  displayName: string,
-  parentId?: number | null
-): Promise<Category> {
-  const response = await fetch(`${API_BASE_URL}/api/categories`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ display_name: displayName, parent_id: parentId }),
-  });
-  if (!response.ok) await throwApiError(response, "Failed to create category");
-  return response.json();
-}
-
-export async function deleteCategory(id: number): Promise<{ ok: boolean }> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
-    method: "DELETE",
-  });
-  if (!response.ok) await throwApiError(response, "Failed to delete category");
-  return response.json();
-}
-
-export async function mergeCategories(
-  sourceId: number,
-  targetId: number
-): Promise<{ ok: boolean; articles_moved: number }> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/merge`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ source_id: sourceId, target_id: targetId }),
-  });
-  if (!response.ok) await throwApiError(response, "Failed to merge categories");
-  return response.json();
-}
-
-export async function hideCategory(id: number): Promise<Category> {
-  return updateCategory(id, { is_hidden: true });
-}
-
-export async function unhideCategory(id: number): Promise<Category> {
-  return updateCategory(id, { is_hidden: false });
-}
-
-export async function fetchNewCategoryCount(): Promise<{ count: number }> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/unseen-count`);
-  if (!response.ok) await throwApiError(response, "Failed to fetch new category count");
-  return response.json();
-}
-
-export async function acknowledgeCategories(categoryIds: number[]): Promise<{ ok: boolean }> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/mark-seen`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ category_ids: categoryIds }),
-  });
-  if (!response.ok) await throwApiError(response, "Failed to acknowledge categories");
-  return response.json();
-}
-
 export async function fetchScoringStatus(): Promise<ScoringStatus> {
-  const response = await fetch(`${API_BASE_URL}/api/scoring/status`);
+  const response = await fetch("/api/scoring/status");
 
   if (!response.ok) {
     await throwApiError(response, "Failed to fetch scoring status");
   }
 
-  return response.json();
-}
-
-// --- Provider API ---
-
-export async function fetchProviders(): Promise<ProviderListItem[]> {
-  const response = await fetch(`${API_BASE_URL}/api/providers`);
-  if (!response.ok) await throwApiError(response, "Failed to fetch providers");
-  return response.json();
-}
-
-export async function disconnectProvider(
-  provider: string
-): Promise<{ ok: boolean }> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/providers/${encodeURIComponent(provider)}`,
-    { method: "DELETE" }
-  );
-  if (!response.ok) await throwApiError(response, "Failed to disconnect provider");
-  return response.json();
-}
-
-export async function saveProviderConfig<T>(
-  provider: string,
-  config: T
-): Promise<T> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/providers/${encodeURIComponent(provider)}/config`,
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(config),
-    }
-  );
-  if (!response.ok) await throwApiError(response, "Failed to save provider config");
-  return response.json();
-}
-
-export async function fetchAvailableModels(): Promise<AvailableModel[]> {
-  const response = await fetch(`${API_BASE_URL}/api/models`);
-  if (!response.ok) await throwApiError(response, "Failed to fetch available models");
-  return response.json();
-}
-
-export async function fetchTaskRoutes(): Promise<TaskRoutesResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/task-routes`);
-  if (!response.ok) await throwApiError(response, "Failed to fetch task routes");
-  return response.json();
-}
-
-export async function saveTaskRoutes(
-  data: TaskRoutesUpdate
-): Promise<{ ok: boolean }> {
-  const response = await fetch(`${API_BASE_URL}/api/task-routes`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) await throwApiError(response, "Failed to save task routes");
-  return response.json();
-}
-
-export async function triggerRescore(): Promise<RescoreResult> {
-  const response = await fetch(`${API_BASE_URL}/api/scoring`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    await throwApiError(response, "Failed to trigger rescore");
-  }
-
-  return response.json();
-}
-
-// --- Batch Category Operations ---
-
-export async function batchMoveCategories(
-  categoryIds: number[],
-  targetParentId: number
-): Promise<{ ok: boolean; updated: number }> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/batch-move`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ category_ids: categoryIds, target_parent_id: targetParentId }),
-  });
-  if (!response.ok) await throwApiError(response, "Failed to move categories");
-  return response.json();
-}
-
-export async function batchHideCategories(
-  categoryIds: number[]
-): Promise<{ ok: boolean; updated: number }> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/batch-hide`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ category_ids: categoryIds }),
-  });
-  if (!response.ok) await throwApiError(response, "Failed to hide categories");
-  return response.json();
-}
-
-export async function batchDeleteCategories(
-  categoryIds: number[]
-): Promise<{ ok: boolean; deleted: number }> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/batch-delete`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ category_ids: categoryIds }),
-  });
-  if (!response.ok) await throwApiError(response, "Failed to delete categories");
-  return response.json();
-}
-
-export async function ungroupParent(
-  categoryId: number
-): Promise<{ ok: boolean; children_ungrouped: number }> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/${categoryId}/ungroup`, {
-    method: "POST",
-  });
-  if (!response.ok) await throwApiError(response, "Failed to ungroup category");
-  return response.json();
-}
-
-export async function autoGroupSuggest(
-  options?: { provider?: string; model?: string }
-): Promise<AutoGroupSuggestResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/auto-group/suggest`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(options ?? {}),
-  });
-  if (!response.ok) await throwApiError(response, "Failed to suggest category groupings");
-  return response.json();
-}
-
-export async function autoGroupApply(
-  groups: GroupSuggestion[]
-): Promise<AutoGroupApplyResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/categories/auto-group/apply`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ groups }),
-  });
-  if (!response.ok) await throwApiError(response, "Failed to apply category groupings");
-  return response.json();
-}
-
-export async function fetchRefreshStatus(): Promise<RefreshStatus> {
-  const response = await fetch(`${API_BASE_URL}/api/feeds/refresh-status`);
-  if (!response.ok) await throwApiError(response, "Failed to fetch refresh status");
   return response.json();
 }

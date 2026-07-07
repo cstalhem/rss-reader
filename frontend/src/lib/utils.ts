@@ -1,78 +1,36 @@
-import { SortOption, TimeUnit } from "./types";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+import type { ScoringStatus } from "./types";
 
-export function formatSize(bytes: number): string {
-  const gb = bytes / (1024 * 1024 * 1024);
-  if (gb >= 1) return `${gb.toFixed(1)} GB`;
-  const mb = bytes / (1024 * 1024);
-  return `${mb.toFixed(0)} MB`;
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
 }
 
-export function parseSortOption(option: SortOption): { sort_by: string; order: string } {
-  switch (option) {
-    case "score_desc": return { sort_by: "composite_score", order: "desc" };
-    case "score_asc": return { sort_by: "composite_score", order: "asc" };
-    case "date_desc": return { sort_by: "published_at", order: "desc" };
-    case "date_asc": return { sort_by: "published_at", order: "asc" };
-  }
+// Pending = the three non-terminal scoring_state counts. Deliberately INCLUDES re-scoring articles (which have an old composite_score), so it diverges from the backend's scoring_pending_condition() which excludes them — editing interests re-queues scored articles and the chip must reflect that drain.
+export function scoringPendingCount(status: ScoringStatus | undefined): number {
+  return (
+    (status?.unscored ?? 0) + (status?.queued ?? 0) + (status?.scoring ?? 0)
+  );
 }
 
-export function formatRelativeDate(dateString: string | null): string {
-  if (!dateString) return "Unknown date";
-
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 60) {
-    return `${diffMins}m ago`;
-  } else if (diffHours < 24) {
-    return `${diffHours}h ago`;
-  } else if (diffDays < 7) {
-    return `${diffDays}d ago`;
-  } else {
-    return date.toLocaleDateString();
-  }
+/**
+ * Backend datetimes are naive UTC serialized WITHOUT a zone suffix
+ * (e.g. "2026-07-05T21:42:49.090779"). `new Date()` parses offset-less
+ * date-time strings as LOCAL time, so append "Z" to force UTC.
+ */
+export function parseServerDate(iso: string): Date {
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(iso);
+  return new Date(hasZone ? iso : `${iso}Z`);
 }
 
-/** Decompose total seconds into the most natural unit. */
-export function decomposeInterval(totalSeconds: number): { value: number; unit: TimeUnit } {
-  if (totalSeconds % 3600 === 0) return { value: totalSeconds / 3600, unit: "hours" };
-  if (totalSeconds % 60 === 0) return { value: totalSeconds / 60, unit: "minutes" };
-  return { value: totalSeconds, unit: "seconds" };
-}
-
-/** Convert value + unit back to total seconds. */
-export function toSeconds(value: number, unit: TimeUnit): number {
-  if (unit === "hours") return value * 3600;
-  if (unit === "minutes") return value * 60;
-  return value;
-}
-
-/** Format seconds as a human-readable string. */
-export function formatInterval(totalSeconds: number): string {
-  const { value, unit } = decomposeInterval(totalSeconds);
-  const label = value === 1 ? unit.slice(0, -1) : unit;
-  return `${value} ${label}`;
-}
-
-/** Format remaining seconds as "Xm Ys" countdown string. */
-export function formatCountdown(remainingSeconds: number): string {
-  if (remainingSeconds <= 0) return "Refreshing now...";
-  const m = Math.floor(remainingSeconds / 60);
-  const s = remainingSeconds % 60;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
-}
-
-/** Normalize a category name into the canonical slug-style matching backend slugify usage. */
-export function normalizeCategoryName(value: string): string {
-  return value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+/** "3m" / "5h" / "2d" — compact relative age for `feed · age` meta lines. Empty for null/invalid. */
+export function formatAge(iso: string | null): string {
+  if (!iso) return "";
+  const time = parseServerDate(iso).getTime();
+  if (Number.isNaN(time)) return "";
+  const minutes = Math.max(1, Math.round((Date.now() - time) / 60_000));
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.round(hours / 24)}d`;
 }

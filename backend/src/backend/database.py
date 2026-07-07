@@ -3,7 +3,7 @@ from pathlib import Path
 
 from slugify import slugify
 from sqlalchemy import event, text
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, create_engine
 
 from backend.config import get_settings
 
@@ -36,6 +36,19 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
     cursor.execute("PRAGMA cache_size=-64000")  # 64MB cache
     cursor.execute("PRAGMA temp_store=MEMORY")
     cursor.close()
+
+
+# Default category hierarchy for new installs (parent -> children)
+DEFAULT_CATEGORY_HIERARCHY: dict[str, list[str]] = {
+    "Technology": ["Cybersecurity", "AI", "Programming"],
+    "Science": ["Climate", "Space"],
+    "Business": ["Finance", "Startups"],
+    "Entertainment": ["Gaming", "Film", "Music"],
+    "Culture": ["Philosophy", "History", "Design"],
+    "Health": [],
+    "Politics": ["Law"],
+    "Education": [],
+}
 
 
 # --- Smart casing helpers ---
@@ -86,28 +99,6 @@ def kebab_to_display(kebab: str) -> str:
     )
 
 
-# --- Schema versioning ---
-
-CURRENT_SCHEMA_VERSION = 2
-
-
-def _get_schema_version(conn) -> int:
-    """Get current schema version, creating table if needed."""
-    conn.execute(
-        text("CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)")
-    )
-    row = conn.execute(text("SELECT version FROM schema_version")).first()
-    if row is None:
-        conn.execute(text("INSERT INTO schema_version (version) VALUES (0)"))
-        return 0
-    return row[0]
-
-
-def _set_schema_version(conn, version: int):
-    """Set schema version to given value."""
-    conn.execute(text("UPDATE schema_version SET version = :v"), {"v": version})
-
-
 def _recover_stuck_scoring(conn):
     """Reset articles orphaned in 'scoring' or 'categorizing' state back to queued."""
     result = conn.execute(
@@ -135,7 +126,6 @@ def _seed_default_categories(conn):
     Only runs on fresh installs (empty categories table).
     """
     from backend.models import Category
-    from backend.prompts import DEFAULT_CATEGORY_HIERARCHY
 
     count = conn.execute(text("SELECT COUNT(*) FROM categories")).scalar()
     if count:
@@ -161,7 +151,7 @@ def _seed_default_categories(conn):
 
     # First pass: create all categories
     for slug in sorted(all_slugs):
-        cat = Category(display_name=kebab_to_display(slug), slug=slug, is_seen=True)
+        cat = Category(display_name=kebab_to_display(slug), slug=slug)
         session.add(cat)
         slug_to_cat[slug] = cat
 
@@ -185,7 +175,7 @@ def _seed_default_categories(conn):
 
 
 def _run_alembic_migrations():
-    """Apply Alembic migrations for schema/data changes after schema_version v2."""
+    """Bring the database to head via the v2 baseline chain (works from empty)."""
     from alembic.config import Config
 
     from alembic import command
@@ -201,83 +191,15 @@ def _run_alembic_migrations():
     command.upgrade(alembic_cfg, "head")
 
 
-def _backfill_content_markdown():
-    """Backfill content_markdown for existing articles that lack it."""
-    from backend.markdown import html_to_markdown
-    from backend.models import Article
-
-    with Session(engine) as session:
-        articles = session.exec(
-            select(Article).where(  # pyright: ignore[reportArgumentType]
-                Article.content_markdown.is_(None),  # pyright: ignore[reportAttributeAccessIssue]
-                (Article.content.is_not(None)) | (Article.summary.is_not(None)),  # pyright: ignore[reportAttributeAccessIssue]
-            )
-        ).all()
-
-        if not articles:
-            return
-
-        converted = 0
-        for i, article in enumerate(articles):
-            raw_html = article.content or article.summary or ""
-            if raw_html:
-                try:
-                    article.content_markdown = html_to_markdown(raw_html)
-                    converted += 1
-                except Exception as e:
-                    logger.warning(
-                        "Backfill markdown failed for article %s: %s", article.id, e
-                    )
-
-            if (i + 1) % 100 == 0:
-                session.commit()
-
-        session.commit()
-        logger.info("Backfilled content_markdown for %d articles", converted)
-
-
 # --- Startup ---
 
 
 def create_db_and_tables():
-    """Initialize database tables and run migrations.
-
-    Note: `schema_version` remains for historical bootstrap (v1/v2 only).
-    New schema/data changes are managed with Alembic.
-    """
-    SQLModel.metadata.create_all(engine)
-
-    with engine.begin() as conn:
-        version = _get_schema_version(conn)
-
-        if version < 1:
-            _seed_default_categories(conn)
-            _set_schema_version(conn, 1)
-
-        if version < 2:
-            # Guard: columns may already exist if create_all() ran on a fresh DB
-            existing = {
-                row[1]
-                for row in conn.execute(text("PRAGMA table_info(user_preferences)"))
-            }
-            # Note: ollama_thinking was added here historically but is now
-            # removed by Alembic migration. Skip adding it on fresh installs.
-            if "feed_refresh_interval" not in existing:
-                conn.execute(
-                    text(
-                        "ALTER TABLE user_preferences "
-                        "ADD COLUMN feed_refresh_interval INTEGER NOT NULL DEFAULT 1800"
-                    )
-                )
-            _set_schema_version(conn, 2)
-
+    """Initialize the database: migrate to head, then seed and recover."""
     _run_alembic_migrations()
 
-    # Recover orphaned "scoring"/"categorizing" rows after migrations,
-    # since the categorization_state column is added by Alembic.
     with engine.begin() as conn:
+        _seed_default_categories(conn)
         _recover_stuck_scoring(conn)
 
-    _backfill_content_markdown()
-
-    logger.info(f"Database ready at schema version {CURRENT_SCHEMA_VERSION}")
+    logger.info("Database ready")

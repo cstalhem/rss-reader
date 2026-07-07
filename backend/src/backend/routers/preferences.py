@@ -12,6 +12,8 @@ router = APIRouter(prefix="/api/preferences", tags=["preferences"])
 
 MIN_REFRESH_INTERVAL = 60  # 1 minute
 MAX_REFRESH_INTERVAL = 14400  # 4 hours
+MIN_DWELL_SECONDS = 1
+MAX_DWELL_SECONDS = 60
 
 
 @router.get("", response_model=PreferencesResponse)
@@ -25,6 +27,7 @@ def get_preferences(
         interests=preferences.interests,
         anti_interests=preferences.anti_interests,
         feed_refresh_interval=preferences.feed_refresh_interval,
+        mark_read_dwell_seconds=preferences.mark_read_dwell_seconds,
         updated_at=preferences.updated_at,
     )
 
@@ -57,6 +60,16 @@ async def update_preferences(
             )
         preferences.feed_refresh_interval = update.feed_refresh_interval
 
+    if update.mark_read_dwell_seconds is not None:
+        if not (
+            MIN_DWELL_SECONDS <= update.mark_read_dwell_seconds <= MAX_DWELL_SECONDS
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail=f"mark_read_dwell_seconds must be between {MIN_DWELL_SECONDS} and {MAX_DWELL_SECONDS} seconds",
+            )
+        preferences.mark_read_dwell_seconds = update.mark_read_dwell_seconds
+
     preferences.updated_at = datetime.now()
 
     session.add(preferences)
@@ -77,5 +90,6 @@ async def update_preferences(
         interests=preferences.interests,
         anti_interests=preferences.anti_interests,
         feed_refresh_interval=preferences.feed_refresh_interval,
+        mark_read_dwell_seconds=preferences.mark_read_dwell_seconds,
         updated_at=preferences.updated_at,
     )

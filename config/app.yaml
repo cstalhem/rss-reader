@@ -1,8 +1,9 @@
 # RSS Reader Configuration
 # Environment variables override these settings (e.g., DATABASE__PATH)
-
-database:
-  path: /data/rss-reader.db
+#
+# This file is loaded automatically in development (defaults put the
+# database at backend/data/). Deployment-specific paths belong in the
+# deployment environment: Docker sets DATABASE__PATH=/data/rss-reader.db.
 
 logging:
   level: INFO
@@ -10,3 +11,39 @@ logging:
 
 scheduler:
   log_job_execution: false
+
+# Category weight multipliers used in composite scoring. Defaults shown
+# below; 'normal' (1.0) and 'block' (article suppressed) are fixed in code.
+# scoring:
+#   weight_multipliers:
+#     reduce: 0.5
+#     boost: 1.5
+#     max: 2.0
+
+# Azure OpenAI task routing (endpoint/key come from env:
+# AZURE_OPENAI_ENDPOINT / AZURE_OPENAI_API_KEY)
+llm:
+  tasks:
+    scoring:
+      deployment: gpt-5.4
+      batch_size: 5
+    categorization:
+      deployment: gpt-5-mini
+      batch_size: 10
+    grouping:
+      deployment: gpt-5.4
+
+# Char budgets for prompt content truncation. Defaults shown below.
+# content:
+#   categorization_max_chars: 4000
+#   scoring_max_chars: 8000
+
+# Outbound fetch policy for aggregator fetch-through (ADR-0011).
+# Defaults shown below.
+# fetch_through:
+#   per_host_interval: 5.0
+#   timeout: 10.0
+#   max_bytes: 20000000
+#   max_redirects: 5
+#   user_agent: "rss-reader/2.0 (+https://github.com/cstalhem/rss-reader)"
+#   min_extract_chars: 50

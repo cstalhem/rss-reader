@@ -250,7 +250,7 @@ def test_articles_can_be_filtered_by_folder(
     )
     assert response.status_code == 200
 
-    data = response.json()
+    data = response.json()["items"]
     assert len(data) == 1
     assert data[0]["id"] == folder_article.id
     assert data[0]["feed_id"] == folder_feed.id

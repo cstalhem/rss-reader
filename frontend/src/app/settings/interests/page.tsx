@@ -1,5 +1,5 @@
-import { InterestsSection } from "@/components/settings/InterestsSection";
+import { InterestsSettings } from "@/components/interests-settings";
 
-export default function InterestsPage() {
-  return <InterestsSection />;
+export default function InterestsSettingsPage() {
+  return <InterestsSettings />;
 }

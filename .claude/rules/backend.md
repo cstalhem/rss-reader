@@ -27,6 +27,8 @@ paths: ["backend/**"]
 ## Dependencies & Background Jobs
 
 - **feedparser** for RSS/Atom parsing. **APScheduler** for background jobs (feed refresh, scoring queue).
+- The Azure wrapper must catch `openai.OpenAIError` as its last handler — `LengthFinishReasonError`/`ContentFilterFinishReasonError` subclass `OpenAIError` directly (not `APIError`) and otherwise escape untyped, stranding queue batches.
+- Queue workers must keep the catch-all `except Exception` that requeues the in-flight batch — a batch committed to 'categorizing'/'scoring' with no handler is stuck until restart.
 - `ollama.AsyncClient` is NOT an async context manager — use `client = AsyncClient(...)` directly, never `async with`.
 - `httpx.Timeout` requires either a positional default or all four params (connect, read, write, pool) — use `httpx.Timeout(default, connect=override)` pattern.
 
@@ -39,6 +41,8 @@ paths: ["backend/**"]
 - Config priority: env vars > `.env` file > YAML config (`CONFIG_FILE`) > defaults in `config.py`.
 - Nested env vars use double-underscore notation (e.g., `OLLAMA__HOST`).
 - Settings cached via `@lru_cache` — requires restart to pick up changes.
+- Values in `.env` populate Settings fields only — they are NEVER visible to `os.getenv()`. Anything read via `os.environ` (like `CONFIG_FILE`) must be a real environment variable.
+- Dev config resolution is source-anchored: `config/app.yaml` and the root `.env` are found via `Path(__file__)`, not the CWD.
 
 ## Testing
 

@@ -2,9 +2,11 @@
 
 ## Project Overview
 
-A personal RSS reader with LLM-powered relevance scoring. Local-first, simple, maintainable.
+A personal RSS reader with LLM-powered relevance scoring. Self-hosted, simple, maintainable.
 
-**Stack:** FastAPI + SQLModel (backend) | Next.js + Chakra UI v3 (frontend) | SQLite | Ollama
+**Stack (v2 target):** FastAPI + SQLModel (backend) | Next.js + shadcn/ui (frontend) | SQLite | Azure AI Foundry
+
+> **v2 rewrite in progress** — plan of record: [issue #87](https://github.com/cstalhem/rss-reader/issues/87). The v1 Chakra frontend has been replaced by the v2 stack (Next.js App Router + Tailwind v4 + shadcn/ui + TanStack Query). v1 is preserved at tag `v1.1.2`.
 
 ---
 
@@ -13,10 +15,10 @@ A personal RSS reader with LLM-powered relevance scoring. Local-first, simple, m
 | Directory            | Contents                                                     |
 | -------------------- | ------------------------------------------------------------ |
 | `backend/`           | Python/FastAPI API server with SQLModel models               |
-| `frontend/`          | Next.js App Router with Chakra UI v3 components              |
+| `frontend/`          | Next.js App Router frontend (v2: shadcn/ui + Tailwind v4 + TanStack Query) |
 | `config/`            | Production YAML configuration (`app.yaml`)                   |
 | `spec/`              | PRD and milestone implementation plans                       |
-| `.planning/`         | GSD workflow: roadmap, phase plans, research, state tracking |
+| `docs/agents/`       | Agent process config: issue tracker, triage labels, domain docs |
 | `.claude/rules/`     | Concise do/don't rules, loaded by file path context          |
 | `.claude/skills/`    | Deep reference: examples, anti-patterns, decision aids       |
 | `.github/workflows/` | CI/CD: Docker image builds pushed to GHCR                    |
@@ -32,23 +34,53 @@ A personal RSS reader with LLM-powered relevance scoring. Local-first, simple, m
 uv run dev                                             # Dev server
 uv run pytest                                          # Tests
 uv run ruff check .                                    # Lint
-uv run ruff format .                                   # Format
+uv run ruff format .                                   # Format (--check to verify only)
+uv run pyright                                         # Type check
 ```
 
 ### Frontend (`cd frontend`)
 
 ```bash
-bun dev --port 3210   # Dev server (uses --webpack, NOT turbopack)
+bun dev               # Dev server (next dev -p 3210 -H 0.0.0.0, Turbopack)
+bun run test          # Vitest
 bun run lint          # ESLint
+bun run format        # Prettier write (format:check to verify only)
+bunx tsc --noEmit     # Type check
 bun run build         # Production build
 ```
+
+---
+
+## Code Quality Gates (Git Hooks + CI)
+
+Quality is enforced at three points. All three run the same checks so a commit can never pass locally yet fail CI.
+
+**Install once per clone/worktree:**
+
+```bash
+bash scripts/install-hooks.sh
+```
+
+This is also run automatically by `bun install` in `frontend/` (its `prepare` script). It sets `core.hooksPath=.githooks` and drops forwarding shims in the shared hooks dir — the shim layer keeps the gate alive even after Conductor/Claude Code worktree creation resets `core.hooksPath` (a known upstream bug).
+
+| Stage | Scope | Backend (if `backend/` changed) | Frontend (if `frontend/` changed) |
+| --- | --- | --- | --- |
+| **pre-commit** (`.githooks/pre-commit`) | staged files, auto-fix | `ruff format` + `ruff check --fix` | `lint-staged`: `eslint --fix` + `prettier --write` |
+| **pre-push** (`.githooks/pre-push`) | whole project, per changed stack | `ruff check` + `ruff format --check` + `pyright` + `pytest` | `lint` + `tsc --noEmit` + `prettier --check` + `vitest` |
+| **CI** (`.github/workflows/docker-publish.yml`) | PR/push gate to `main`/`dev` | same as pre-push | same as pre-push |
+
+Plus two stack-agnostic pre-commit guards: rejects merge-conflict markers / trailing whitespace, and blocks staged files > 1 MB.
+
+**Hook files in `.githooks/` must be committed mode 100755** (`git add --chmod=+x`) — git silently skips non-executable hooks, so CI has a `verify-hooks` job that fails if the exec bit is missing.
+
+Frontend Prettier uses `prettier-plugin-tailwindcss` to auto-sort Tailwind classes — already wired in `.prettierrc`.
 
 ---
 
 ## Design Assumptions
 
 - **Single-user app** — No authentication, no multi-tenancy. One UserPreferences row, one SQLite database.
-- **Local-first** — All data and processing stays on the user's machine. No external APIs or telemetry.
+- **Self-hosted, cloud LLM** — All data lives on the user's machine (SQLite, Docker volume). LLM scoring/categorization calls Azure AI Foundry (v2 decision — supersedes v1's "no external APIs" rule). No telemetry.
 - **Let package managers manage dependency files** — Don't manually edit `pyproject.toml` or `package.json`. Use `uv add`, `bun add`, etc.
 
 ---
@@ -56,7 +88,8 @@ bun run build         # Production build
 ## Branching
 
 - **`main`** — Production. Always deployable. Docker images are built and pushed to GHCR on every push here.
-- **`dev`** — Development. All day-to-day work (GSD phases, bug fixes, features) happens here.
+- **`dev`** — Development. Day-to-day v1 maintenance happens here.
+- **`v2`** — Long-lived rewrite branch (branched from `dev`). All v2 work targets this branch; it merges to `main` when 2.0 reaches parity-plus.
 - Merge `dev` → `main` when ready to deploy. **Always use "Create a merge commit"** (never squash or rebase) to preserve shared history between branches. Pushes to `dev` trigger CI builds (validation only, no image push).
 
 ## Pull Requests
@@ -114,7 +147,7 @@ The frontend image is built with relative API URLs — a reverse proxy routes `P
 4. **Async-first** — Use `pytest-asyncio` for FastAPI endpoints
 5. **Test important paths** — Feed fetching, article display, read/unread state
 6. **Don't over-invest** — Skip exhaustive CRUD unit tests and UI snapshots
-7. **Use the Rodney-cli** — Always verify UI implementations with `uvx rodney --help` interactively
+7. **Verify UI manually** — The user reviews UI changes on the running dev server (phone over LAN via `-H 0.0.0.0`, or Safari responsive mode). No automated UI-verification CLI.
 
 ---
 
@@ -168,5 +201,20 @@ When you discover something worth capturing during work:
 
 ## Available MCP Tools
 
-1. **Chakra UI MCP** — Look up Chakra UI v3 component docs, props, and examples
-2. **Context7 MCP** — Look up documentation for other libraries (TanStack Query, Next.js, etc.)
+1. **Context7 MCP** — Look up documentation for libraries (TanStack Query, Next.js, shadcn/ui, etc.)
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in this repo's GitHub Issues via the `gh` CLI. External PRs are not a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical triage roles map 1:1 to same-named GitHub labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root, created lazily by `/domain-modeling`. See `docs/agents/domain.md`.
