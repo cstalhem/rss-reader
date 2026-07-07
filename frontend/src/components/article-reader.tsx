@@ -89,15 +89,6 @@ export function ArticleReader({
 
   return (
     <div className="bg-background animate-in fade-in md:slide-in-from-right fixed inset-0 z-40 flex flex-col duration-200 md:static md:z-auto md:min-w-0 md:flex-1">
-      {/* Desktop close affordance — top-right of the reader pane. */}
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close"
-        className="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-4 right-4 z-10 hidden size-9 items-center justify-center rounded-full transition-colors md:flex"
-      >
-        <X className="size-5" />
-      </button>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="px-5 pt-10 pb-24">
           <div className="mx-auto max-w-[68ch]">
@@ -115,11 +106,16 @@ export function ArticleReader({
                     needsTriage={category.needs_triage}
                   />
                 ))}
-                <RatingControl
-                  articleId={article.id}
-                  rating={rating}
-                  className="ml-auto"
-                />
+                {/* Desktop close affordance — sits in the overline; mobile uses
+                    the fixed bottom button below. */}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close"
+                  className="text-muted-foreground hover:bg-muted hover:text-foreground ml-auto hidden size-8 shrink-0 items-center justify-center rounded-full transition-colors md:flex"
+                >
+                  <X className="size-4" />
+                </button>
               </div>
 
               <h1 className="font-serif text-3xl leading-tight font-bold">
@@ -130,10 +126,17 @@ export function ArticleReader({
               </p>
 
               <div className="mt-5 space-y-4">
-                <ReaderScores
-                  relevance={article.composite_score}
-                  quality={article.quality_score}
-                />
+                <div className="flex items-center gap-3">
+                  <ReaderScores
+                    relevance={article.composite_score}
+                    quality={article.quality_score}
+                  />
+                  <RatingControl
+                    articleId={article.id}
+                    rating={rating}
+                    className="ml-auto"
+                  />
+                </div>
                 {article.score_reasoning !== null && (
                   <blockquote className="text-muted-foreground border-l-2 pl-3 font-serif text-sm italic">
                     {article.score_reasoning}

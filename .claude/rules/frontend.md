@@ -60,7 +60,7 @@ paths: ["frontend/**"]
 - Opening a Dialog from a `DropdownMenuItem` requires `event.preventDefault()` in `onSelect` — the menu's focus-restore races the dialog's focus trap otherwise.
 - Unread-first default view, sorted by composite score descending.
 - Mark-as-read: dwell-based auto-mark, 3s after the reader's content loads (#94 decision) — never auto-mark unread.
-- Full opacity + accent dot for unread, 0.6 opacity + hollow dot for read.
+- Full opacity + filled accent circle for unread, 0.6 opacity + check-circle (CircleCheckBig) for read. The `ReadDot` token is the single source (list rows + reader overline).
 - **Inter** for UI text (`--font-sans`), **Lora** for reader content and article headlines (#94 decision: list rows + reader titles are serif) (`--font-serif`), via `next/font` + `@theme inline` mapping.
 
 ## Testing

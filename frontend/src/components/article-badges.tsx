@@ -1,3 +1,5 @@
+import { Circle, CircleCheckBig } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -6,17 +8,12 @@ import { Badge } from "@/components/ui/badge";
  * rows and the reader's overline so the two surfaces can never drift apart.
  */
 
-/** Filled accent dot = unread, hollow dot = read (project visual rule). */
+/** Filled accent (orange) circle = unread, check-circle = read (project visual rule). */
 export function ReadDot({ read }: { read: boolean }) {
-  return (
-    <span
-      className={cn(
-        "size-2 rounded-full",
-        read
-          ? "border-muted-foreground/50 border bg-transparent"
-          : "bg-primary",
-      )}
-    />
+  return read ? (
+    <CircleCheckBig className="text-muted-foreground size-3" aria-hidden />
+  ) : (
+    <Circle className="fill-primary text-primary size-2" aria-hidden />
   );
 }
 
