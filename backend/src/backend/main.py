@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import get_settings
 from backend.database import create_db_and_tables
+from backend.fetch_through import close_client
 from backend.llm_client import llm_client
 from backend.routers import (
     articles,
@@ -57,6 +58,7 @@ async def lifespan(app: FastAPI):
 
     shutdown_scheduler()
     await llm_client.close()
+    await close_client()
     logger.info("Shutting down...")
 
 

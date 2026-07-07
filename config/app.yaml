@@ -32,3 +32,18 @@ llm:
       batch_size: 10
     grouping:
       deployment: gpt-5.4
+
+# Char budgets for prompt content truncation. Defaults shown below.
+# content:
+#   categorization_max_chars: 4000
+#   scoring_max_chars: 8000
+
+# Outbound fetch policy for aggregator fetch-through (ADR-0011).
+# Defaults shown below.
+# fetch_through:
+#   per_host_interval: 5.0
+#   timeout: 10.0
+#   max_bytes: 20000000
+#   max_redirects: 5
+#   user_agent: "rss-reader/2.0 (+https://github.com/cstalhem/rss-reader)"
+#   min_extract_chars: 50

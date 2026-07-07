@@ -15,6 +15,7 @@ from slugify import slugify
 from sqlmodel import Session, select
 
 from backend.deps import TASK_CATEGORIZATION, TASK_SCORING
+from backend.fetch_through import load_linked_content_for_batch, reset_fetch_through
 from backend.llm_client import (
     LLMCallFailed,
     LLMNotConfigured,
@@ -174,6 +175,7 @@ class CategorizationWorker:
             else:
                 article.categorization_state = "queued"
                 article.categorization_attempts = 0
+            reset_fetch_through(article)
             session.add(article)
             count += 1
 
@@ -208,6 +210,7 @@ class CategorizationWorker:
             article.categorization_state = "queued"
             article.categorization_attempts = 0
         article.scoring_priority = 1
+        reset_fetch_through(article)
         session.add(article)
         if commit:
             session.commit()
@@ -262,30 +265,6 @@ class CategorizationWorker:
 
         _set_activity(TASK_CATEGORIZATION, next(iter(batch_ids)), "categorizing")
 
-        # Build article dicts
-        article_dicts: list[dict] = []
-        for art in needs_cat_articles:
-            text = art.content_markdown or art.content or art.summary or ""
-            article_dicts.append(
-                {
-                    "id": art.id,
-                    "title": art.title,
-                    "content_markdown": text,
-                }
-            )
-
-        # Build the vocabulary once per batch: the lookup map plus the sorted
-        # display-name list the prompt and per-batch enum schema share.
-        all_categories = load_categories(session)
-        by_display: dict[str, Category] = {c.display_name: c for c in all_categories}
-        display_names = sorted(by_display.keys(), key=str.lower)
-
-        system_prompt, user_message = build_batch_categorization_prompt(
-            article_dicts,
-            display_names,
-        )
-        response_schema = build_categorization_schema(display_names)
-
         def _requeue_batch(count_attempt: bool) -> None:
             for art in needs_cat_articles:
                 if count_attempt:
@@ -298,6 +277,45 @@ class CategorizationWorker:
             session.commit()
 
         try:
+            # Fetch-through: pull the linked article's own content for
+            # aggregator feeds before prompting (ADR-0011). Exception-safe
+            # internally, but the feed-load query and its commit are covered
+            # by this try so an unexpected failure requeues the batch.
+            await load_linked_content_for_batch(session, needs_cat_articles)
+
+            # Build article dicts
+            article_dicts: list[dict] = []
+            for art in needs_cat_articles:
+                text = (
+                    art.linked_content_markdown
+                    or art.content_markdown
+                    or art.content
+                    or art.summary
+                    or ""
+                )
+                article_dicts.append(
+                    {
+                        "id": art.id,
+                        "title": art.title,
+                        "content_markdown": text,
+                    }
+                )
+
+            # Build the vocabulary once per batch: the lookup map plus the
+            # sorted display-name list the prompt and per-batch enum schema
+            # share.
+            all_categories = load_categories(session)
+            by_display: dict[str, Category] = {
+                c.display_name: c for c in all_categories
+            }
+            display_names = sorted(by_display.keys(), key=str.lower)
+
+            system_prompt, user_message = build_batch_categorization_prompt(
+                article_dicts,
+                display_names,
+            )
+            response_schema = build_categorization_schema(display_names)
+
             response = await llm_client.complete(
                 TASK_CATEGORIZATION,
                 system_prompt,
@@ -476,36 +494,6 @@ class ScoringWorker:
 
         _set_activity(TASK_SCORING, next(iter(batch_ids)), "scoring")
 
-        # Build article dicts
-        article_dicts: list[dict] = []
-        for art in articles:
-            text = art.content_markdown or art.content or art.summary or ""
-            article_dicts.append(
-                {
-                    "id": art.id,
-                    "title": art.title,
-                    "content_markdown": text,
-                }
-            )
-
-        # Load categories for the whole batch in one query
-        categories_by_article: dict[int, list[Category]] = {
-            aid: [] for aid in batch_ids
-        }
-        link_rows = session.exec(
-            select(ArticleCategoryLink.article_id, Category)  # pyright: ignore[reportArgumentType]
-            .join(Category, Category.id == ArticleCategoryLink.category_id)  # pyright: ignore[reportArgumentType]
-            .where(ArticleCategoryLink.article_id.in_(batch_ids))  # pyright: ignore[reportAttributeAccessIssue]
-        ).all()
-        for aid, category in link_rows:
-            categories_by_article[aid].append(category)
-
-        system_prompt, user_message = build_batch_scoring_prompt(
-            article_dicts,
-            preferences.interests,
-            preferences.anti_interests,
-        )
-
         def _requeue_batch(count_attempt: bool) -> None:
             for art in articles:
                 if count_attempt:
@@ -518,6 +506,49 @@ class ScoringWorker:
             session.commit()
 
         try:
+            # Fetch-through: pull the linked article's own content for
+            # aggregator feeds before prompting (ADR-0011). Required for the
+            # score_only rescore path, which skips categorization and reaches
+            # only this worker. The feed-load query and its commit are
+            # covered by this try so an unexpected failure requeues the batch.
+            await load_linked_content_for_batch(session, articles)
+
+            # Build article dicts
+            article_dicts: list[dict] = []
+            for art in articles:
+                text = (
+                    art.linked_content_markdown
+                    or art.content_markdown
+                    or art.content
+                    or art.summary
+                    or ""
+                )
+                article_dicts.append(
+                    {
+                        "id": art.id,
+                        "title": art.title,
+                        "content_markdown": text,
+                    }
+                )
+
+            # Load categories for the whole batch in one query
+            categories_by_article: dict[int, list[Category]] = {
+                aid: [] for aid in batch_ids
+            }
+            link_rows = session.exec(
+                select(ArticleCategoryLink.article_id, Category)  # pyright: ignore[reportArgumentType]
+                .join(Category, Category.id == ArticleCategoryLink.category_id)  # pyright: ignore[reportArgumentType]
+                .where(ArticleCategoryLink.article_id.in_(batch_ids))  # pyright: ignore[reportAttributeAccessIssue]
+            ).all()
+            for aid, category in link_rows:
+                categories_by_article[aid].append(category)
+
+            system_prompt, user_message = build_batch_scoring_prompt(
+                article_dicts,
+                preferences.interests,
+                preferences.anti_interests,
+            )
+
             response = await llm_client.complete(
                 TASK_SCORING,
                 system_prompt,

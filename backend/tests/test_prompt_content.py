@@ -1,6 +1,5 @@
+from backend.config import ContentConfig
 from backend.prompts.content import (
-    CATEGORIZATION_MAX_CHARS,
-    SCORING_MAX_CHARS,
     format_articles_block,
     truncate_at_paragraph,
 )
@@ -89,9 +88,10 @@ def test_format_handles_none_content():
     assert "Content: \n" in result
 
 
-# --- constants ---
+# --- config defaults ---
 
 
-def test_constants_exist():
-    assert CATEGORIZATION_MAX_CHARS == 2000
-    assert SCORING_MAX_CHARS == 4000
+def test_content_config_defaults():
+    config = ContentConfig()
+    assert config.categorization_max_chars == 4000
+    assert config.scoring_max_chars == 8000

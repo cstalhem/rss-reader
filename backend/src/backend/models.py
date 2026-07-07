@@ -177,6 +177,8 @@ class Article(SQLModel, table=True):
     summary: str | None = None
     content: str | None = None
     content_markdown: str | None = None
+    linked_content_markdown: str | None = None
+    linked_fetched_at: datetime | None = Field(default=None)
     is_read: bool = Field(default=False)
     rating: int | None = Field(default=None)
 
