@@ -7,7 +7,7 @@ from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, func, select
 
-from backend.deps import get_session
+from backend.deps import get_session, unread_condition
 from backend.models import Article, Feed, FeedFolder
 from backend.schemas import (
     FeedFolderCreate,
@@ -39,9 +39,7 @@ def _folder_unread_count(session: Session, folder_id: int) -> int:
         select(func.count(Article.id))  # pyright: ignore[reportArgumentType]
         .join(Feed, Feed.id == Article.feed_id)  # pyright: ignore[reportArgumentType]
         .where(Feed.folder_id == folder_id)
-        .where(Article.is_read.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
-        .where(Article.scoring_state == "scored")
-        .where(Article.composite_score > 0)  # pyright: ignore[reportOptionalOperand]
+        .where(unread_condition())
     ).one()
 
 
@@ -58,10 +56,7 @@ def list_feed_folders(
         .outerjoin(Feed, Feed.folder_id == FeedFolder.id)  # pyright: ignore[reportArgumentType]
         .outerjoin(
             Article,
-            (Article.feed_id == Feed.id)
-            & (Article.is_read.is_(False))  # pyright: ignore[reportAttributeAccessIssue]
-            & (Article.scoring_state == "scored")
-            & (Article.composite_score > 0),  # pyright: ignore[reportOptionalOperand]
+            (Article.feed_id == Feed.id) & unread_condition(),  # pyright: ignore[reportOperatorIssue]
         )
         .group_by(FeedFolder.id)  # pyright: ignore[reportArgumentType]
         .order_by(FeedFolder.display_order, FeedFolder.id)  # pyright: ignore[reportArgumentType]

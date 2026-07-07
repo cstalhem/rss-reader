@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from backend.models import Article
+from backend.models import Article, Feed
 
 
 def test_root(test_client: TestClient):
@@ -17,7 +17,7 @@ def test_list_articles_empty(test_client: TestClient):
     """Test listing articles when database is empty."""
     response = test_client.get("/api/articles")
     assert response.status_code == 200
-    assert response.json() == []
+    assert response.json() == {"items": [], "has_more": False}
 
 
 def test_list_articles_with_data(test_client: TestClient, sample_articles):
@@ -25,7 +25,9 @@ def test_list_articles_with_data(test_client: TestClient, sample_articles):
     response = test_client.get("/api/articles?sort_by=published_at&order=desc")
     assert response.status_code == 200
 
-    articles = response.json()
+    body = response.json()
+    assert body["has_more"] is False
+    articles = body["items"]
     assert len(articles) == 3
 
     # Check ordering: Recent -> Older -> Read (by published_at desc)
@@ -37,13 +39,18 @@ def test_list_articles_with_data(test_client: TestClient, sample_articles):
     assert articles[0]["is_read"] is False
     assert articles[2]["is_read"] is True
 
+    # feed_title populated via join
+    assert articles[0]["feed_title"] == "Test Feed"
+
 
 def test_list_articles_pagination(test_client: TestClient, sample_articles):
     """Test pagination parameters."""
     # Get first article only
     response = test_client.get("/api/articles?limit=1&sort_by=published_at&order=desc")
     assert response.status_code == 200
-    articles = response.json()
+    body = response.json()
+    assert body["has_more"] is True
+    articles = body["items"]
     assert len(articles) == 1
     assert articles[0]["title"] == "Recent Article"
 
@@ -52,9 +59,21 @@ def test_list_articles_pagination(test_client: TestClient, sample_articles):
         "/api/articles?skip=1&limit=1&sort_by=published_at&order=desc"
     )
     assert response.status_code == 200
-    articles = response.json()
+    body = response.json()
+    assert body["has_more"] is True
+    articles = body["items"]
     assert len(articles) == 1
     assert articles[0]["title"] == "Older Article"
+
+    # Last page: no more rows beyond it
+    response = test_client.get(
+        "/api/articles?skip=2&limit=1&sort_by=published_at&order=desc"
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["has_more"] is False
+    assert len(body["items"]) == 1
+    assert body["items"][0]["title"] == "Read Article"
 
 
 def test_list_articles_filter_unread(test_client: TestClient, sample_articles):
@@ -64,7 +83,7 @@ def test_list_articles_filter_unread(test_client: TestClient, sample_articles):
     )
     assert response.status_code == 200
 
-    articles = response.json()
+    articles = response.json()["items"]
     assert len(articles) == 2
 
     # Should return only unread articles
@@ -79,7 +98,7 @@ def test_list_articles_filter_read(test_client: TestClient, sample_articles):
     response = test_client.get("/api/articles?is_read=true")
     assert response.status_code == 200
 
-    articles = response.json()
+    articles = response.json()["items"]
     assert len(articles) == 1
 
     # Should return only read articles
@@ -92,7 +111,7 @@ def test_list_articles_no_filter(test_client: TestClient, sample_articles):
     response = test_client.get("/api/articles")
     assert response.status_code == 200
 
-    articles = response.json()
+    articles = response.json()["items"]
     assert len(articles) == 3
 
     # Should return all articles
@@ -192,25 +211,31 @@ def test_refresh_feed_no_feeds(test_client: TestClient):
     assert data["new_articles"] == 0
 
 
-def test_create_feed_includes_folder_fields_in_response(
-    test_client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    """Creating a feed should always return folder fields (null for root feeds)."""
+class _StubParsedFeed:
+    bozo = False
+    entries = [{"link": "https://example.com/article-1", "title": "Article 1"}]
 
-    class _ParsedFeed:
-        bozo = False
-        entries = [{"link": "https://example.com/article-1", "title": "Article 1"}]
-        feed = {"title": "Patched Feed"}
+    def __init__(self, title: str):
+        self.feed = {"title": title}
 
+
+def _patch_feed_fetch(monkeypatch: pytest.MonkeyPatch, title: str = "Stub Feed"):
     async def fake_fetch_feed(_url: str):
-        return _ParsedFeed()
+        return _StubParsedFeed(title)
 
     def fake_save_articles(_session, _feed_id: int, _entries: list[dict]):
         return (1, [])
 
     monkeypatch.setattr("backend.routers.feeds.fetch_feed", fake_fetch_feed)
     monkeypatch.setattr("backend.routers.feeds.save_articles", fake_save_articles)
+
+
+def test_create_feed_includes_folder_fields_in_response(
+    test_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Creating a feed should always return folder fields (null for root feeds)."""
+    _patch_feed_fetch(monkeypatch, title="Patched Feed")
 
     response = test_client.post(
         "/api/feeds", json={"url": "https://example.com/patched-feed.xml"}
@@ -221,3 +246,148 @@ def test_create_feed_includes_folder_fields_in_response(
     assert data["title"] == "Patched Feed"
     assert data["folder_id"] is None
     assert data["folder_name"] is None
+
+
+# --- Feed is_aggregator flag ---
+
+
+def test_create_feed_with_is_aggregator_true(
+    test_client: TestClient,
+    test_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """POST with is_aggregator=true persists the flag and returns it."""
+    _patch_feed_fetch(monkeypatch)
+
+    response = test_client.post(
+        "/api/feeds",
+        json={"url": "https://example.com/aggregator.xml", "is_aggregator": True},
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["is_aggregator"] is True
+
+    test_session.expire_all()
+    db_feed = test_session.get(Feed, data["id"])
+    assert db_feed is not None
+    assert db_feed.is_aggregator is True
+
+
+def test_create_feed_defaults_is_aggregator_false(
+    test_client: TestClient,
+    test_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """POST without the field defaults is_aggregator to false."""
+    _patch_feed_fetch(monkeypatch)
+
+    response = test_client.post(
+        "/api/feeds", json={"url": "https://example.com/plain.xml"}
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["is_aggregator"] is False
+
+    test_session.expire_all()
+    db_feed = test_session.get(Feed, data["id"])
+    assert db_feed is not None
+    assert db_feed.is_aggregator is False
+
+
+def test_patch_feed_toggles_is_aggregator(
+    test_client: TestClient,
+    test_session: Session,
+    make_feed,
+):
+    """PATCH toggles the flag both ways; omitting it leaves it unchanged."""
+    feed = make_feed()
+
+    # Toggle on
+    response = test_client.patch(f"/api/feeds/{feed.id}", json={"is_aggregator": True})
+    assert response.status_code == 200
+    assert response.json()["is_aggregator"] is True
+
+    test_session.expire_all()
+    db_feed = test_session.get(Feed, feed.id)
+    assert db_feed.is_aggregator is True
+
+    # PATCH omitting the field leaves it unchanged
+    response = test_client.patch(f"/api/feeds/{feed.id}", json={"title": "Renamed"})
+    assert response.status_code == 200
+    assert response.json()["is_aggregator"] is True
+
+    test_session.expire_all()
+    db_feed = test_session.get(Feed, feed.id)
+    assert db_feed.is_aggregator is True
+
+    # Toggle off
+    response = test_client.patch(f"/api/feeds/{feed.id}", json={"is_aggregator": False})
+    assert response.status_code == 200
+    assert response.json()["is_aggregator"] is False
+
+    test_session.expire_all()
+    db_feed = test_session.get(Feed, feed.id)
+    assert db_feed.is_aggregator is False
+
+
+def test_patch_feed_rejects_whitespace_only_title(
+    test_client: TestClient,
+    test_session: Session,
+    make_feed,
+):
+    """PATCH with a whitespace-only title returns 400 and persists nothing."""
+    feed = make_feed(title="Original")
+
+    response = test_client.patch(f"/api/feeds/{feed.id}", json={"title": "   "})
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Feed title is required"
+
+    test_session.expire_all()
+    db_feed = test_session.get(Feed, feed.id)
+    assert db_feed.title == "Original"
+
+
+def test_patch_feed_strips_title_whitespace(
+    test_client: TestClient,
+    test_session: Session,
+    make_feed,
+):
+    """PATCH with a padded title persists the stripped value."""
+    feed = make_feed(title="Original")
+
+    response = test_client.patch(f"/api/feeds/{feed.id}", json={"title": " ok "})
+    assert response.status_code == 200
+    assert response.json()["title"] == "ok"
+
+    test_session.expire_all()
+    db_feed = test_session.get(Feed, feed.id)
+    assert db_feed.title == "ok"
+
+
+def test_list_feeds_includes_is_aggregator(
+    test_client: TestClient,
+    make_feed,
+):
+    """GET /api/feeds includes the is_aggregator flag."""
+    make_feed(is_aggregator=True)
+    make_feed()
+
+    response = test_client.get("/api/feeds")
+    assert response.status_code == 200
+    feeds = response.json()
+    assert len(feeds) == 2
+    flags = {feed["title"]: feed["is_aggregator"] for feed in feeds}
+    assert set(flags.values()) == {True, False}
+
+
+# --- Category weight updates ---
+
+
+def test_update_category_weight_valid(test_client: TestClient, make_category):
+    """PATCH with a valid weight persists it."""
+    category = make_category()
+    response = test_client.patch(
+        f"/api/categories/{category.id}", json={"weight": "boost"}
+    )
+    assert response.status_code == 200
+    assert response.json()["weight"] == "boost"

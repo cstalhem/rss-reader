@@ -1,15 +1,32 @@
-"""Alembic migration tests for LLM provider schema rollout."""
+"""Alembic migration tests for the v2 baseline chain.
 
-import json
+The v2 schema starts a fresh chain (ADR-0003): a single baseline migration
+must bring an empty database to the full schema.
+"""
+
 import sqlite3
 import tempfile
 from pathlib import Path
 
+import pytest
 from alembic.config import Config
 
 from alembic import command
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
+
+EXPECTED_TABLES = {
+    "feeds",
+    "articles",
+    "categories",
+    "article_category_link",
+    "category_aliases",
+    "feedback_events",
+    "user_preferences",
+    "feed_folders",
+}
+
+V1_TABLES = {"llm_provider_configs", "llm_task_routes"}
 
 
 def _make_alembic_config(db_path: Path) -> Config:
@@ -18,508 +35,122 @@ def _make_alembic_config(db_path: Path) -> Config:
     return config
 
 
-def _create_pre_feature_schema(db_path: Path) -> None:
-    with sqlite3.connect(db_path) as conn:
-        conn.executescript(
-            """
-            CREATE TABLE user_preferences (
-              id INTEGER PRIMARY KEY,
-              interests TEXT NOT NULL DEFAULT '',
-              anti_interests TEXT NOT NULL DEFAULT '',
-              updated_at TIMESTAMP NOT NULL,
-              ollama_categorization_model TEXT,
-              ollama_scoring_model TEXT,
-              ollama_use_separate_models BOOLEAN NOT NULL DEFAULT 0,
-              ollama_thinking BOOLEAN NOT NULL DEFAULT 0,
-              feed_refresh_interval INTEGER NOT NULL DEFAULT 1800
-            );
-
-            INSERT INTO user_preferences (
-              interests,
-              anti_interests,
-              updated_at,
-              ollama_categorization_model,
-              ollama_scoring_model,
-              ollama_use_separate_models,
-              ollama_thinking,
-              feed_refresh_interval
-            ) VALUES (
-              'ai',
-              'crypto',
-              '2026-02-24 00:00:00',
-              'qwen3:4b',
-              'qwen3:8b',
-              1,
-              1,
-              1800
-            );
-
-            """
-        )
-        _create_articles_table(conn)
+def _upgraded_db():
+    """Context manager helper: yields a sqlite3 connection to a freshly migrated DB."""
+    tmp = tempfile.NamedTemporaryFile(suffix=".db")
+    db_path = Path(tmp.name)
+    command.upgrade(_make_alembic_config(db_path), "head")
+    conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA foreign_keys=ON")
+    return tmp, conn
 
 
-def _create_articles_table(conn) -> None:
-    """Create the articles table required by migrations."""
-    conn.executescript(
-        """
-        CREATE TABLE IF NOT EXISTS articles (
-          id INTEGER PRIMARY KEY,
-          feed_id INTEGER NOT NULL,
-          title TEXT NOT NULL,
-          url TEXT NOT NULL UNIQUE,
-          author TEXT,
-          published_at TIMESTAMP,
-          summary TEXT,
-          content TEXT,
-          is_read BOOLEAN NOT NULL DEFAULT 0,
-          interest_score INTEGER,
-          quality_score INTEGER,
-          composite_score FLOAT,
-          score_reasoning TEXT,
-          scoring_state TEXT NOT NULL DEFAULT 'unscored',
-          scored_at TIMESTAMP,
-          scoring_priority INTEGER NOT NULL DEFAULT 0,
-          rescore_mode TEXT
-        );
-        """
+def test_fresh_db_migrates_from_empty():
+    tmp, conn = _upgraded_db()
+    with tmp, conn:
+        tables = {
+            row[0]
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        }
+        assert EXPECTED_TABLES <= tables
+        assert not (V1_TABLES & tables)
+
+        # Exactly one revision in the chain — the baseline
+        versions = conn.execute("SELECT version_num FROM alembic_version").fetchall()
+        assert len(versions) == 1
+
+
+def test_upgrade_is_idempotent_at_head():
+    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
+        db_path = Path(tmp.name)
+        cfg = _make_alembic_config(db_path)
+        command.upgrade(cfg, "head")
+        command.upgrade(cfg, "head")
+
+
+def _insert_feed_and_article(conn) -> int:
+    conn.execute(
+        "INSERT INTO feeds (url, title, display_order, is_aggregator) VALUES ('u', 't', 0, 0)"
     )
+    feed_id = conn.execute("SELECT id FROM feeds").fetchone()[0]
+    conn.execute(
+        "INSERT INTO articles (feed_id, title, url, is_read, scoring_state, "
+        "scoring_priority, categorization_state, categorization_attempts, scoring_attempts) "
+        "VALUES (?, 'a', 'https://example.com/a', 0, 'unscored', 0, 'uncategorized', 0, 0)",
+        (feed_id,),
+    )
+    return conn.execute("SELECT id FROM articles").fetchone()[0]
 
 
-def _create_category_dup_schema_at_dff(db_path: Path) -> None:
-    with sqlite3.connect(db_path) as conn:
-        conn.executescript(
-            """
-            CREATE TABLE categories (
-              id INTEGER PRIMARY KEY,
-              display_name TEXT NOT NULL,
-              slug TEXT NOT NULL,
-              parent_id INTEGER,
-              weight TEXT,
-              is_hidden BOOLEAN NOT NULL DEFAULT 0,
-              is_seen BOOLEAN NOT NULL DEFAULT 0,
-              is_manually_created BOOLEAN NOT NULL DEFAULT 0,
-              created_at TIMESTAMP NOT NULL
-            );
-            CREATE UNIQUE INDEX ix_categories_slug ON categories (slug);
+def test_check_constraints_enforced():
+    tmp, conn = _upgraded_db()
+    with tmp, conn:
+        article_id = _insert_feed_and_article(conn)
 
-            CREATE TABLE article_category_link (
-              article_id INTEGER NOT NULL,
-              category_id INTEGER NOT NULL,
-              PRIMARY KEY (article_id, category_id)
-            );
-
-            CREATE TABLE alembic_version (
-              version_num VARCHAR(32) NOT NULL,
-              CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
-            );
-            INSERT INTO alembic_version (version_num) VALUES ('dff7a4c52b3c');
-            """
-        )
-
-        categories = [
-            # Canonical defaults seeded with title-case slugs.
-            (2, "Business", "Business", None, None, 0, 1, 0, "2026-02-24 00:00:00"),
-            (10, "Finance", "Finance", 2, None, 0, 1, 0, "2026-02-24 00:00:00"),
-            (
-                22,
-                "Technology",
-                "Technology",
-                None,
-                None,
-                0,
-                1,
-                0,
-                "2026-02-24 00:00:00",
-            ),
-            (
-                18,
-                "Programming",
-                "Programming",
-                22,
-                None,
-                0,
-                1,
-                0,
-                "2026-02-24 00:00:00",
-            ),
-            # Duplicates created later with lowercase slugify slugs.
-            (23, "Business", "business", None, "boost", 0, 0, 1, "2026-02-24 00:01:00"),
-            (24, "Finance", "finance", 23, None, 0, 0, 0, "2026-02-24 00:01:00"),
-            (
-                25,
-                "Technology",
-                "technology",
-                None,
-                None,
-                0,
-                0,
-                0,
-                "2026-02-24 00:01:00",
-            ),
-            (
-                34,
-                "Programming",
-                "programming",
-                25,
-                None,
-                0,
-                0,
-                0,
-                "2026-02-24 00:01:00",
-            ),
-        ]
-        conn.executemany(
-            """
-            INSERT INTO categories (
-              id, display_name, slug, parent_id, weight, is_hidden, is_seen,
-              is_manually_created, created_at
+        # weight is a closed vocabulary
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO categories (display_name, slug, weight, needs_triage, created_at) "
+                "VALUES ('X', 'x', 'hidden', 0, CURRENT_TIMESTAMP)"
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            categories,
-        )
 
-        links = [
-            (1, 2),
-            (1, 23),
-            (2, 24),
-            (3, 18),
-            (3, 34),
-        ]
-        conn.executemany(
-            "INSERT INTO article_category_link (article_id, category_id) VALUES (?, ?)",
-            links,
-        )
-
-        _create_articles_table(conn)
-
-
-def _create_schema_at_8c6f_without_feed_folders(db_path: Path) -> None:
-    with sqlite3.connect(db_path) as conn:
-        conn.executescript(
-            """
-            CREATE TABLE feeds (
-              id INTEGER PRIMARY KEY,
-              url TEXT NOT NULL UNIQUE,
-              title TEXT NOT NULL,
-              display_order INTEGER NOT NULL DEFAULT 0,
-              last_fetched_at TIMESTAMP
-            );
-
-            CREATE TABLE alembic_version (
-              version_num VARCHAR(32) NOT NULL,
-              CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
-            );
-            INSERT INTO alembic_version (version_num) VALUES ('8c6f3c9b8f70');
-            """
-        )
-        _create_articles_table(conn)
-
-
-def test_upgrade_head_backfills_provider_and_routes() -> None:
-    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
-        db_path = Path(tmp.name)
-        _create_pre_feature_schema(db_path)
-
-        cfg = _make_alembic_config(db_path)
-        command.upgrade(cfg, "head")
-
-        with sqlite3.connect(db_path) as conn:
-            provider_row = conn.execute(
-                "SELECT provider, enabled, config_json FROM llm_provider_configs "
-                "WHERE provider = 'ollama'"
-            ).fetchone()
-            assert provider_row is not None
-            assert provider_row[0] == "ollama"
-            assert provider_row[1] == 1
-
-            config_json = json.loads(provider_row[2])
-            assert config_json["categorization_model"] == "qwen3:4b"
-            assert config_json["scoring_model"] == "qwen3:8b"
-            assert config_json["use_separate_models"] is True
-            assert config_json["thinking"] is True
-
-            routes = conn.execute(
-                "SELECT task, provider, model FROM llm_task_routes ORDER BY task"
-            ).fetchall()
-            assert routes == [
-                ("categorization", "ollama", "qwen3:4b"),
-                ("scoring", "ollama", "qwen3:8b"),
-            ]
-
-            # Verify legacy columns are removed by the final migration
-            col_names = [
-                row[1] for row in conn.execute("PRAGMA table_info(user_preferences)")
-            ]
-            assert "active_llm_provider" not in col_names
-            assert "ollama_categorization_model" not in col_names
-            assert "ollama_scoring_model" not in col_names
-            assert "ollama_thinking" not in col_names
-            assert "use_separate_models" in col_names
-
-
-def test_upgrade_head_is_idempotent_at_head() -> None:
-    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
-        db_path = Path(tmp.name)
-        _create_pre_feature_schema(db_path)
-
-        cfg = _make_alembic_config(db_path)
-        command.upgrade(cfg, "head")
-        command.upgrade(cfg, "head")
-
-        with sqlite3.connect(db_path) as conn:
-            routes = conn.execute("SELECT COUNT(*) FROM llm_task_routes").fetchone()
-            assert routes == (2,)
-
-            providers = conn.execute(
-                "SELECT COUNT(*) FROM llm_provider_configs WHERE provider = 'ollama'"
-            ).fetchone()
-            assert providers == (1,)
-
-
-def test_upgrade_head_normalizes_and_dedupes_categories() -> None:
-    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
-        db_path = Path(tmp.name)
-        _create_category_dup_schema_at_dff(db_path)
-
-        cfg = _make_alembic_config(db_path)
-        command.upgrade(cfg, "head")
-
-        with sqlite3.connect(db_path) as conn:
-            dupes = conn.execute(
-                """
-                SELECT lower(slug), COUNT(*)
-                FROM categories
-                GROUP BY lower(slug)
-                HAVING COUNT(*) > 1
-                """
-            ).fetchall()
-            assert dupes == []
-
-            non_normalized = conn.execute(
-                "SELECT COUNT(*) FROM categories WHERE slug != lower(slug)"
-            ).fetchone()
-            assert non_normalized == (0,)
-
-            categories = conn.execute(
-                """
-                SELECT id, display_name, slug, parent_id, weight, is_seen, is_manually_created
-                FROM categories
-                ORDER BY id
-                """
-            ).fetchall()
-            assert categories == [
-                (2, "Business", "business", None, "boost", 1, 1),
-                (10, "Finance", "finance", 2, None, 1, 0),
-                (18, "Programming", "programming", 22, None, 1, 0),
-                (22, "Technology", "technology", None, None, 1, 0),
-            ]
-
-            links = conn.execute(
-                """
-                SELECT article_id, category_id
-                FROM article_category_link
-                ORDER BY article_id, category_id
-                """
-            ).fetchall()
-            assert links == [(1, 2), (2, 10), (3, 18)]
-
-
-def test_upgrade_head_adds_feed_folder_schema() -> None:
-    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
-        db_path = Path(tmp.name)
-        _create_schema_at_8c6f_without_feed_folders(db_path)
-
-        cfg = _make_alembic_config(db_path)
-        command.upgrade(cfg, "head")
-
-        with sqlite3.connect(db_path) as conn:
-            tables = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-            ).fetchall()
-            assert ("feed_folders",) in tables
-
-            feed_columns = conn.execute("PRAGMA table_info(feeds)").fetchall()
-            feed_column_names = {column[1] for column in feed_columns}
-            assert "folder_id" in feed_column_names
-
-            indexes = conn.execute(
-                "SELECT name, sql FROM sqlite_master WHERE type='index' ORDER BY name"
-            ).fetchall()
-            index_names = {index[0] for index in indexes}
-            assert "ix_feeds_folder_id" in index_names
-            assert "ix_feeds_folder_id_display_order" in index_names
-            assert "ix_feed_folders_display_order" in index_names
-            assert "ux_feed_folders_name_lower" in index_names
-
-            expression_index_sql = next(
-                index_sql
-                for index_name, index_sql in indexes
-                if index_name == "ux_feed_folders_name_lower"
+        # event_type is a closed vocabulary
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO feedback_events (article_id, event_type, created_at) "
+                f"VALUES ({article_id}, 'clicked', CURRENT_TIMESTAMP)"
             )
-            assert "lower(name)" in (expression_index_sql or "")
 
+        # rating is ±1 only
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(f"UPDATE articles SET rating = 3 WHERE id = {article_id}")
 
-def test_upgrade_head_feed_folder_migration_is_idempotent() -> None:
-    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
-        db_path = Path(tmp.name)
-        _create_schema_at_8c6f_without_feed_folders(db_path)
+        # scoring_state is a closed vocabulary
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                f"UPDATE articles SET scoring_state = 'pending' WHERE id = {article_id}"
+            )
 
-        cfg = _make_alembic_config(db_path)
-        command.upgrade(cfg, "head")
-        command.upgrade(cfg, "head")
-
-        with sqlite3.connect(db_path) as conn:
-            unique_lower_indexes = conn.execute(
-                """
-                SELECT COUNT(*)
-                FROM sqlite_master
-                WHERE type = 'index' AND name = 'ux_feed_folders_name_lower'
-                """
-            ).fetchone()
-            assert unique_lower_indexes == (1,)
-
-
-def _create_schema_at_154075_with_articles(db_path: Path) -> None:
-    """Create schema at revision 154075cd3c1a with test articles in various scoring states."""
-    with sqlite3.connect(db_path) as conn:
-        _create_articles_table(conn)
-
-        conn.executescript(
-            """
-            CREATE TABLE feeds (
-              id INTEGER PRIMARY KEY,
-              url TEXT NOT NULL UNIQUE,
-              title TEXT NOT NULL,
-              display_order INTEGER NOT NULL DEFAULT 0,
-              last_fetched_at TIMESTAMP
-            );
-
-            INSERT INTO feeds (id, url, title) VALUES (1, 'https://example.com/feed.xml', 'Test Feed');
-
-            CREATE TABLE llm_task_routes (
-              id INTEGER PRIMARY KEY,
-              task TEXT NOT NULL UNIQUE,
-              provider TEXT NOT NULL,
-              model TEXT,
-              updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-            );
-
-            CREATE TABLE alembic_version (
-              version_num VARCHAR(32) NOT NULL,
-              CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num)
-            );
-            INSERT INTO alembic_version (version_num) VALUES ('154075cd3c1a');
-            """
+        # valid values pass
+        conn.execute(
+            "INSERT INTO categories (display_name, slug, weight, needs_triage, created_at) "
+            "VALUES ('AI', 'ai', 'normal', 1, CURRENT_TIMESTAMP)"
         )
-
-        articles = [
-            (
-                1,
-                1,
-                "Scored Article",
-                "https://example.com/1",
-                "scored",
-                "2026-03-01 00:00:00",
-            ),
-            (2, 1, "Queued Article", "https://example.com/2", "queued", None),
-            (3, 1, "Scoring Article", "https://example.com/3", "scoring", None),
-            (4, 1, "Unscored Article", "https://example.com/4", "unscored", None),
-            (5, 1, "Failed Article", "https://example.com/5", "failed", None),
-        ]
-        conn.executemany(
-            """
-            INSERT INTO articles (id, feed_id, title, url, scoring_state, scored_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            articles,
+        conn.execute(
+            "INSERT INTO feedback_events (article_id, event_type, value, created_at) "
+            f"VALUES ({article_id}, 'rated', -1, CURRENT_TIMESTAMP)"
         )
+        conn.execute(f"UPDATE articles SET rating = 1 WHERE id = {article_id}")
 
 
-def test_upgrade_adds_categorization_state_and_backfills() -> None:
-    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
-        db_path = Path(tmp.name)
-        _create_schema_at_154075_with_articles(db_path)
-
-        cfg = _make_alembic_config(db_path)
-        command.upgrade(cfg, "head")
-
-        with sqlite3.connect(db_path) as conn:
-            # Verify new columns exist on articles
-            article_cols = {
-                row[1] for row in conn.execute("PRAGMA table_info(articles)")
-            }
-            assert "categorization_state" in article_cols
-            assert "categorization_attempts" in article_cols
-            assert "scoring_attempts" in article_cols
-
-            # Verify batch_size column on llm_task_routes
-            route_cols = {
-                row[1] for row in conn.execute("PRAGMA table_info(llm_task_routes)")
-            }
-            assert "batch_size" in route_cols
-
-            # Verify defaults for new integer columns
-            unscored_row = conn.execute(
-                "SELECT categorization_attempts, scoring_attempts FROM articles WHERE id = 4"
-            ).fetchone()
-            assert unscored_row == (0, 0)
-
-            # Verify backfill: scored → categorized
-            row = conn.execute(
-                "SELECT categorization_state FROM articles WHERE id = 1"
-            ).fetchone()
-            assert row[0] == "categorized"
-
-            # Verify backfill: queued → categorization_state='queued', scoring_state='unscored'
-            row = conn.execute(
-                "SELECT categorization_state, scoring_state FROM articles WHERE id = 2"
-            ).fetchone()
-            assert row == ("queued", "unscored")
-
-            # Verify backfill: scoring → categorization_state='queued', scoring_state='unscored'
-            row = conn.execute(
-                "SELECT categorization_state, scoring_state FROM articles WHERE id = 3"
-            ).fetchone()
-            assert row == ("queued", "unscored")
-
-            # Verify backfill: unscored → uncategorized (default)
-            row = conn.execute(
-                "SELECT categorization_state FROM articles WHERE id = 4"
-            ).fetchone()
-            assert row[0] == "uncategorized"
-
-            # Verify backfill: failed → uncategorized
-            row = conn.execute(
-                "SELECT categorization_state FROM articles WHERE id = 5"
-            ).fetchone()
-            assert row[0] == "uncategorized"
-
-            # Verify index exists on categorization_state
-            indexes = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='index' AND sql LIKE '%categorization_state%'"
-            ).fetchall()
-            assert len(indexes) >= 1
+def test_feedback_events_cascade_on_article_delete():
+    tmp, conn = _upgraded_db()
+    with tmp, conn:
+        article_id = _insert_feed_and_article(conn)
+        conn.execute(
+            "INSERT INTO feedback_events (article_id, event_type, created_at) "
+            f"VALUES ({article_id}, 'opened', CURRENT_TIMESTAMP)"
+        )
+        conn.execute(f"DELETE FROM articles WHERE id = {article_id}")
+        remaining = conn.execute("SELECT COUNT(*) FROM feedback_events").fetchone()
+        assert remaining == (0,)
 
 
-def test_upgrade_preserves_custom_ollama_host_from_env(monkeypatch) -> None:
-    """Migration should read OLLAMA__HOST env var instead of hardcoding localhost."""
-    monkeypatch.setenv("OLLAMA__HOST", "http://ollama-server:11434")
-
-    with tempfile.NamedTemporaryFile(suffix=".db") as tmp:
-        db_path = Path(tmp.name)
-        _create_pre_feature_schema(db_path)
-
-        cfg = _make_alembic_config(db_path)
-        command.upgrade(cfg, "head")
-
-        with sqlite3.connect(db_path) as conn:
-            provider_row = conn.execute(
-                "SELECT config_json FROM llm_provider_configs WHERE provider = 'ollama'"
-            ).fetchone()
-            assert provider_row is not None
-
-            config = json.loads(provider_row[0])
-            assert config["base_url"] == "http://ollama-server"
-            assert config["port"] == 11434
+def test_alias_target_set_null_on_category_delete():
+    """Deleting a target category degrades its aliases into discards (target NULL)."""
+    tmp, conn = _upgraded_db()
+    with tmp, conn:
+        conn.execute(
+            "INSERT INTO categories (display_name, slug, weight, needs_triage, created_at) "
+            "VALUES ('AI', 'ai', 'normal', 0, CURRENT_TIMESTAMP)"
+        )
+        cat_id = conn.execute("SELECT id FROM categories").fetchone()[0]
+        conn.execute(
+            "INSERT INTO category_aliases (alias_slug, target_id, created_at) "
+            f"VALUES ('machine-learning', {cat_id}, CURRENT_TIMESTAMP)"
+        )
+        conn.execute(f"DELETE FROM categories WHERE id = {cat_id}")
+        row = conn.execute(
+            "SELECT alias_slug, target_id FROM category_aliases"
+        ).fetchone()
+        assert row == ("machine-learning", None)

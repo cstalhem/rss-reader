@@ -1,61 +1,53 @@
-import type { QueryClient } from "@tanstack/react-query";
+import type { FeedSelection, ReadFilter } from "./types";
 
+/**
+ * Serialize a `FeedSelection` into a stable, plain-value key segment so the
+ * same scope always produces the same query key regardless of object identity.
+ */
+function selectionKey(selection: FeedSelection): string {
+  switch (selection.type) {
+    case "all":
+      return "all";
+    case "feed":
+      return `feed:${selection.id}`;
+    case "folder":
+      return `folder:${selection.id}`;
+    case "blocked":
+      return "blocked";
+  }
+}
+
+/**
+ * Centralized query key factory. Every query key lives here — no inline
+ * literals elsewhere. `as const` gives exact tuple types and enables prefix
+ * invalidation (`invalidateQueries({ queryKey: queryKeys.feeds.all })` matches
+ * `["feeds"]` and any key prefixed by it).
+ */
 export const queryKeys = {
-  articles: {
-    all: ["articles"] as const,
-    list: (filters: Record<string, unknown>) => ["articles", filters] as const,
-    detail: (id: number) => ["articles", "detail", id] as const,
-  },
   feeds: {
     all: ["feeds"] as const,
-    refreshStatus: ["feeds", "refresh-status"] as const,
   },
   feedFolders: {
     all: ["feed-folders"] as const,
   },
+  articles: {
+    all: ["articles"] as const,
+    list: (selection: FeedSelection, filter: ReadFilter) =>
+      ["articles", "list", selectionKey(selection), filter] as const,
+    detail: (id: number) => ["articles", "detail", id] as const,
+    counts: ["articles", "counts"] as const,
+    blocked: ["articles", "blocked"] as const,
+  },
   categories: {
     all: ["categories"] as const,
-    newCount: ["categories", "new-count"] as const,
+    list: (needsTriage?: boolean) =>
+      ["categories", "list", needsTriage ?? "any"] as const,
+    triageCount: ["categories", "triage-count"] as const,
   },
   preferences: {
-    all: ["preferences"] as const,
+    detail: ["preferences"] as const,
   },
-  scoringStatus: {
-    all: ["scoring-status"] as const,
-  },
-  providers: {
-    all: ["providers"] as const,
-  },
-  models: {
-    available: ["models", "available"] as const,
-  },
-  taskRoutes: {
-    all: ["task-routes"] as const,
-  },
-  google: {
-    config: ["google-config"] as const,
-    availableModels: ["google-models-available"] as const,
-  },
-  ollama: {
-    health: ["ollama-health"] as const,
-    models: ["ollama-models"] as const,
-    config: ["ollama-config"] as const,
-    prompts: ["ollama-prompts"] as const,
-    downloadStatus: ["download-status"] as const,
+  scoring: {
+    status: ["scoring", "status"] as const,
   },
 };
-
-/** Invalidate caches that depend on which models are available.
- *  Call after any mutation that changes provider config, model list, or task routes. */
-export function invalidateModelDependents(queryClient: QueryClient) {
-  queryClient.invalidateQueries({ queryKey: queryKeys.models.available });
-  queryClient.invalidateQueries({ queryKey: queryKeys.taskRoutes.all });
-}
-
-/** Invalidate caches that depend on feed state.
- *  Call after any mutation that changes feeds, folders, or article counts. */
-export function invalidateFeedDependents(queryClient: QueryClient) {
-  queryClient.invalidateQueries({ queryKey: queryKeys.feeds.all });
-  queryClient.invalidateQueries({ queryKey: queryKeys.feedFolders.all });
-  queryClient.invalidateQueries({ queryKey: queryKeys.articles.all });
-}

@@ -2,7 +2,9 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+from backend.models import CategoryWeight
 
 # --- General ---
 
@@ -23,6 +25,18 @@ class ArticleUpdate(BaseModel):
     is_read: bool
 
 
+class RatingUpdate(BaseModel):
+    """Thumbs rating: +1 / -1, or None to clear. Any other int is a 422."""
+
+    value: int | None
+
+    @model_validator(mode="after")
+    def value_in_vocabulary(self):
+        if self.value is not None and self.value not in (1, -1):
+            raise ValueError("value must be 1, -1, or null")
+        return self
+
+
 class ArticleCategoryEmbed(BaseModel):
     """Category embedded in article response."""
 
@@ -31,6 +45,7 @@ class ArticleCategoryEmbed(BaseModel):
     slug: str
     effective_weight: str
     parent_display_name: str | None
+    needs_triage: bool
 
 
 class ArticleListItem(BaseModel):
@@ -38,11 +53,13 @@ class ArticleListItem(BaseModel):
 
     id: int
     feed_id: int
+    feed_title: str
     title: str
     url: str
     author: str | None
     published_at: datetime | None
     is_read: bool
+    rating: int | None
     categories: list[ArticleCategoryEmbed] | None
     interest_score: int | None
     quality_score: int | None
@@ -52,6 +69,22 @@ class ArticleListItem(BaseModel):
     scoring_state: str
     scored_at: datetime | None
     re_evaluating: bool = False
+
+
+class ArticleListResponse(BaseModel):
+    """Envelope for the paginated article list endpoint."""
+
+    items: list[ArticleListItem]
+    has_more: bool
+
+
+class ArticleCountsResponse(BaseModel):
+    """Counts for the four article list views, scoped identically to the list endpoint."""
+
+    unread: int
+    read: int
+    scoring: int
+    blocked: int
 
 
 class ArticleResponse(BaseModel):
@@ -66,6 +99,7 @@ class ArticleResponse(BaseModel):
     summary: str | None
     content: str | None
     is_read: bool
+    rating: int | None
     categories: list[ArticleCategoryEmbed] | None
     interest_score: int | None
     quality_score: int | None
@@ -81,12 +115,14 @@ class ArticleResponse(BaseModel):
 
 class FeedCreate(BaseModel):
     url: str
+    is_aggregator: bool = False
 
 
 class FeedUpdate(BaseModel):
     title: str | None = None
     display_order: int | None = None
     folder_id: int | None = None
+    is_aggregator: bool | None = None
 
 
 class FeedReorder(BaseModel):
@@ -103,6 +139,7 @@ class FeedResponse(BaseModel):
     unread_count: int
     folder_id: int | None = None
     folder_name: str | None = None
+    is_aggregator: bool
 
 
 class FeedFolderCreate(BaseModel):
@@ -138,6 +175,7 @@ class PreferencesResponse(BaseModel):
     interests: str
     anti_interests: str
     feed_refresh_interval: int
+    mark_read_dwell_seconds: int
     updated_at: datetime
 
 
@@ -145,9 +183,18 @@ class PreferencesUpdate(BaseModel):
     interests: str | None = None
     anti_interests: str | None = None
     feed_refresh_interval: int | None = None
+    mark_read_dwell_seconds: int | None = None
 
 
 # --- Categories ---
+
+
+class TriageSampleArticle(BaseModel):
+    """A sample article embedded in the triage list as evidence (issue #98)."""
+
+    id: int
+    title: str
+    feed_title: str
 
 
 class CategoryResponse(BaseModel):
@@ -156,12 +203,12 @@ class CategoryResponse(BaseModel):
     id: int
     display_name: str
     slug: str
-    weight: str | None
+    weight: str
     parent_id: int | None
-    is_hidden: bool
-    is_seen: bool
-    is_manually_created: bool
+    needs_triage: bool
     article_count: int
+    created_at: datetime
+    sample_articles: list[TriageSampleArticle] = Field(default_factory=list)
 
 
 class CategoryCreateRequest(BaseModel):
@@ -172,9 +219,38 @@ class CategoryCreateRequest(BaseModel):
 class CategoryUpdate(BaseModel):
     display_name: str | None = None
     parent_id: int | None = None
-    weight: str | None = None
-    is_hidden: bool | None = None
-    is_seen: bool | None = None
+    weight: CategoryWeight | None = None
+    needs_triage: bool | None = None
+
+
+class CategoryBulkUpdate(BaseModel):
+    """Collection PATCH body — triage gestures compose from these fields."""
+
+    category_ids: list[int]
+    weight: CategoryWeight | None = None
+    needs_triage: bool | None = None
+
+    @model_validator(mode="after")
+    def require_at_least_one_field(self):
+        if self.weight is None and self.needs_triage is None:
+            raise ValueError("Provide at least one of weight or needs_triage")
+        return self
+
+
+class CategoryBulkUpdateResponse(BaseModel):
+    ok: bool
+    updated: int
+    missing_ids: list[int]
+
+
+class CategoryAliasResponse(BaseModel):
+    """Alias row for the read-only listing; target_display_name is None for discards."""
+
+    id: int
+    alias_slug: str
+    target_id: int | None
+    target_display_name: str | None
+    created_at: datetime
 
 
 class CategoryMerge(BaseModel):
@@ -182,65 +258,54 @@ class CategoryMerge(BaseModel):
     target_id: int
 
 
-class CategoryAcknowledgeRequest(BaseModel):
-    category_ids: list[int]
+class MergeChildReleased(BaseModel):
+    id: int
+    display_name: str
 
 
-class CategoryBatchMove(BaseModel):
+class CategoryMergeResponse(BaseModel):
+    ok: bool
+    articles_moved: int
+    children_released: list[MergeChildReleased]
+    aliases_repointed: int
+
+
+class CategoryGroupRequest(BaseModel):
+    """Unified grouping request (ADR-0009).
+
+    Exactly one of the three modes must be given:
+    - target_parent_id: assign members to an existing root shelf
+    - new_parent_name: create the shelf and assign members atomically
+    - ungroup: detach members to root
+
+    Absence of all three (or more than one) is a 422 — a client that forgets
+    a field must never silently detach categories.
+    """
+
     category_ids: list[int]
-    target_parent_id: int
+    target_parent_id: int | None = None
+    new_parent_name: str | None = None
+    ungroup: bool = False
+
+    @model_validator(mode="after")
+    def exactly_one_mode(self):
+        modes = [
+            self.target_parent_id is not None,
+            self.new_parent_name is not None,
+            self.ungroup,
+        ]
+        if sum(modes) != 1:
+            raise ValueError(
+                "Provide exactly one of target_parent_id, new_parent_name, or ungroup"
+            )
+        return self
 
 
 class CategoryBatchAction(BaseModel):
     category_ids: list[int]
 
 
-# --- Providers ---
-
-
-class ProviderListItem(BaseModel):
-    provider: str
-
-
-class AvailableModel(BaseModel):
-    provider: str
-    name: str
-    size: int | None = None
-    parameter_size: str | None = None
-    quantization_level: str | None = None
-    is_loaded: bool | None = None
-
-
-class TaskRouteItem(BaseModel):
-    task: str
-    provider: str
-    model: str | None = None
-    batch_size: int | None = None
-
-
-class TaskRoutesResponse(BaseModel):
-    routes: list[TaskRouteItem]
-    use_separate_models: bool
-
-
-class TaskRouteAssignment(BaseModel):
-    provider: str
-    model: str
-    batch_size: int | None = None
-
-
-class TaskRoutesUpdate(BaseModel):
-    categorization: TaskRouteAssignment
-    scoring: TaskRouteAssignment
-    use_separate_models: bool
-
-
 # --- Auto-Group ---
-
-
-class AutoGroupRequest(BaseModel):
-    provider: str | None = None
-    model: str | None = None
 
 
 class GroupSuggestionItem(BaseModel):

@@ -1,11 +1,32 @@
 import type { NextConfig } from "next";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
-const nextConfig: NextConfig = {
-  output: 'standalone',
-  experimental: {
-    optimizePackageImports: ["@chakra-ui/react"],
-    webpackMemoryOptimizations: true,
-  },
+const baseConfig: NextConfig = {
+  output: "standalone",
 };
 
-export default nextConfig;
+export default function config(phase: string): NextConfig {
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
+    return {
+      ...baseConfig,
+      // Dev-only reverse-proxy emulation: same-origin /api like production
+      // (Traefik routes PathPrefix(/api) to the backend before Next sees it).
+      // Dev-gated deliberately — external rewrites in standalone builds have
+      // known issues, and Next's proxy buffers streaming (matters if SSE ever lands).
+      async rewrites() {
+        return [
+          {
+            source: "/api/:path*",
+            destination: "http://localhost:8912/api/:path*",
+          },
+        ];
+      },
+      allowedDevOrigins: [
+        "192.168.0.62",
+        "m1-mbp.spitz-sailfin.ts.net",
+        "m1-mbp",
+      ],
+    };
+  }
+  return baseConfig;
+}

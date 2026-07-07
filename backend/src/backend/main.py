@@ -5,20 +5,17 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import get_settings
 from backend.database import create_db_and_tables
-from backend.llm_providers.registry import close_all_providers
+from backend.fetch_through import close_client
+from backend.llm_client import llm_client
 from backend.routers import (
     articles,
     categories,
     feed_folders,
     feeds,
-    google,
-    ollama,
     preferences,
-    providers,
     scoring,
 )
 from backend.scheduler import shutdown_scheduler, start_scheduler
@@ -47,12 +44,20 @@ async def lifespan(app: FastAPI):
     # Alembic logging config can raise root level to WARNING during startup.
     # Re-assert app logger level so scoring/categorization INFO logs stay visible.
     logging.getLogger("backend").setLevel(log_level)
+
+    if not llm_client.is_configured():
+        logger.warning(
+            "Azure OpenAI credentials not configured — scoring and categorization "
+            "are disabled. Set AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY."
+        )
+
     start_scheduler()
 
     yield
 
     shutdown_scheduler()
-    await close_all_providers()
+    await llm_client.close()
+    await close_client()
     logger.info("Shutting down...")
 
 
@@ -62,23 +67,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3210", "http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Register routers
 app.include_router(articles.router)
 app.include_router(feeds.router)
 app.include_router(feed_folders.router)
 app.include_router(categories.router)
 app.include_router(preferences.router)
-app.include_router(providers.router)
-app.include_router(ollama.router)
-app.include_router(google.router)
 app.include_router(scoring.router)
 
 

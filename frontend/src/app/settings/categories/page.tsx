@@ -1,5 +1,5 @@
-import { CategoriesSection } from "@/components/settings/CategoriesSection";
+import { CategoriesSection } from "@/components/categories/categories-section";
 
-export default function CategoriesPage() {
+export default function CategoriesSettingsPage() {
   return <CategoriesSection />;
 }

@@ -11,10 +11,12 @@ def test_health(test_client: TestClient):
 
 
 def test_articles_list(test_client: TestClient):
-    """GET /api/articles -> 200, returns list."""
+    """GET /api/articles -> 200, returns envelope with items/has_more."""
     response = test_client.get("/api/articles")
     assert response.status_code == 200
-    assert isinstance(response.json(), list)
+    body = response.json()
+    assert isinstance(body["items"], list)
+    assert isinstance(body["has_more"], bool)
 
 
 def test_feeds_list(test_client: TestClient):
@@ -54,14 +56,6 @@ def test_scoring_status(test_client: TestClient):
     assert "scored" in data
     assert "queued" in data
     assert "phase" in data
-
-
-def test_ollama_health(test_client: TestClient):
-    """GET /api/ollama/health -> 200 (connected=false if Ollama not running)."""
-    response = test_client.get("/api/ollama/health")
-    assert response.status_code == 200
-    data = response.json()
-    assert "connected" in data
 
 
 def test_articles_invalid_sort(test_client: TestClient):

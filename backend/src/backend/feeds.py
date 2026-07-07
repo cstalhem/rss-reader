@@ -142,6 +142,7 @@ async def refresh_feed(session: Session, feed: Feed) -> int:
         session.commit()
 
         # Save articles and enqueue for scoring
+        assert feed.id is not None
         new_count, new_article_ids = save_articles(
             session,
             feed.id,

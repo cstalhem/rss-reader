@@ -1,0 +1,52 @@
+#!/usr/bin/env sh
+# Local commit gate. Installed by scripts/install-hooks.sh, which points
+# core.hooksPath here and drops forwarding shims in the shared hooks dir (see that
+# script for why both layers exist). Hook files here MUST be committed mode 100755
+# or git silently skips them — CI enforces the bit.
+#
+# Scope: fast, staged-file-only auto-fixes. The heavy whole-project gates (types,
+# tests, full lint/format) run on pre-push, not here, so commits stay snappy in
+# this two-stack repo.
+#
+# Each step prints an OK line: a silent, instant commit is the tell that the gate
+# never ran (e.g. core.hooksPath got clobbered), not that everything passed.
+set -e
+
+ok()   { echo "pre-commit: $1 OK"; }
+fail() { echo "pre-commit: $1 ERROR" >&2; exit 1; }
+
+# 1. Hygiene: merge-conflict markers, trailing whitespace, blank lines at EOF.
+git diff --cached --check || fail hygiene
+ok hygiene
+
+# 2. Block staged files larger than 1 MB (data/binaries don't belong in git).
+large=$(git diff --cached --name-only --diff-filter=AM | while IFS= read -r f; do
+  if [ -f "$f" ] && [ "$(wc -c <"$f")" -gt 1048576 ]; then echo "$f"; fi
+done)
+if [ -n "$large" ]; then
+  echo "Refusing to commit files larger than 1 MB:" >&2
+  echo "$large" >&2
+  fail "file size"
+fi
+ok "file size"
+
+# 3. Backend: ruff format + lint-fix on staged Python files, then restage.
+#    Run via `uv run --project backend` from the repo root so repo-relative paths
+#    (backend/src/...) resolve and ruff finds backend/pyproject.toml by walking up.
+#    Partial-stage caveat: a file staged with `git add -p` is fully restaged after
+#    a fix. Acceptable for this single-user repo; re-run `git add -p` if it matters.
+py_files=$(git diff --cached --name-only --diff-filter=ACM -- '*.py')
+if [ -n "$py_files" ]; then
+  printf '%s\n' "$py_files" | tr '\n' '\0' | xargs -0 uv run --project backend ruff format || fail "backend format"
+  printf '%s\n' "$py_files" | tr '\n' '\0' | xargs -0 uv run --project backend ruff check --fix || fail "backend lint"
+  printf '%s\n' "$py_files" | tr '\n' '\0' | xargs -0 git add
+  ok "backend ruff"
+fi
+
+# 4. Frontend: lint-staged (eslint --fix + prettier --write) on staged files only.
+#    Run from frontend/ so lint-staged sees the frontend config and restages for us.
+fe_files=$(git diff --cached --name-only --diff-filter=ACM -- 'frontend/')
+if [ -n "$fe_files" ]; then
+  (cd frontend && bunx lint-staged) || fail "frontend lint-staged"
+  ok "frontend lint-staged"
+fi

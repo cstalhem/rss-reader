@@ -1,73 +1,33 @@
-import { ChakraProvider } from "@chakra-ui/react";
-import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
-import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
-import { API_BASE_URL } from "@/lib/api";
+import { describe, expect, it } from "vitest";
 import { useFeeds } from "@/hooks/useFeeds";
-import { FEED_STATE_POLL_INTERVAL } from "@/lib/constants";
-import { server } from "@/test/mocks/server";
+import { createWrapper, renderHook, waitFor } from "@/test/utils";
 import { mockFeeds } from "@/test/mocks/handlers/feeds";
-import {
-  createTestQueryClient,
-  renderHook,
-  waitFor,
-} from "@/test/utils";
-import { system } from "@/theme";
-
-vi.mock("@/lib/constants", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/constants")>(
-    "@/lib/constants",
-  );
-
-  return {
-    ...actual,
-    FEED_STATE_POLL_INTERVAL: 20,
-  };
-});
-
-function createHookWrapper(queryClient: QueryClient) {
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <ChakraProvider value={system}>{children}</ChakraProvider>
-      </QueryClientProvider>
-    );
-  };
-}
+import { server } from "@/test/mocks/server";
 
 describe("useFeeds", () => {
-  it("fetches and returns feeds", async () => {
-    const queryClient = createTestQueryClient();
+  it("returns feeds from the API", async () => {
     const { result } = renderHook(() => useFeeds(), {
-      wrapper: createHookWrapper(queryClient),
+      wrapper: createWrapper(),
     });
-
-    expect(result.current.isLoading).toBe(true);
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-
-    expect(result.current.data).toHaveLength(mockFeeds.length);
-    expect(result.current.data![0].title).toBe(mockFeeds[0].title);
+    expect(result.current.data).toEqual(mockFeeds);
   });
 
-  it("polls feed state on an interval", async () => {
-    const queryClient = createTestQueryClient();
-    let requestCount = 0;
-
+  it("exposes an error when the request fails", async () => {
     server.use(
-      http.get(`${API_BASE_URL}/api/feeds`, () => {
-        requestCount += 1;
-        return HttpResponse.json(mockFeeds);
-      }),
+      http.get("/api/feeds", () =>
+        HttpResponse.json({ detail: "boom" }, { status: 500 }),
+      ),
     );
 
-    renderHook(() => useFeeds(), {
-      wrapper: createHookWrapper(queryClient),
+    const { result } = renderHook(() => useFeeds(), {
+      wrapper: createWrapper(),
     });
 
-    await waitFor(() => expect(requestCount).toBeGreaterThanOrEqual(2), {
-      timeout: FEED_STATE_POLL_INTERVAL * 10,
-    });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(result.current.error).toBeInstanceOf(Error);
+    expect(result.current.error?.message).toBe("boom");
   });
 });

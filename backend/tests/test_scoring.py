@@ -1,55 +1,20 @@
 """Unit tests for scoring pure functions (no DB needed)."""
 
+import pytest
+
+from backend.config import get_settings
 from backend.models import Category
-from backend.scoring import compute_composite_score, get_effective_weight, is_blocked
+from backend.scoring import compute_composite_score, is_blocked
 
 
-def _make_category(
-    weight: str | None = None,
-    is_hidden: bool = False,
-    parent: Category | None = None,
-) -> Category:
-    """Create a Category object without DB, setting parent relationship manually."""
-    cat = Category(
+def _make_category(weight: str = "normal") -> Category:
+    """Create a Category object without DB."""
+    return Category(
         id=1,
         display_name="test",
         slug="test",
         weight=weight,
-        is_hidden=is_hidden,
-        parent_id=parent.id if parent else None,
     )
-    # Manually set the parent relationship for weight inheritance
-    cat.parent = parent  # type: ignore[assignment]
-    return cat
-
-
-# --- get_effective_weight ---
-
-
-def test_effective_weight_explicit():
-    """Explicit weight on category returns that weight."""
-    cat = _make_category(weight="boost")
-    assert get_effective_weight(cat) == "boost"
-
-
-def test_effective_weight_inherits_parent():
-    """No explicit weight, parent has weight -> returns parent weight."""
-    parent = _make_category(weight="reduce")
-    child = _make_category(parent=parent)
-    assert get_effective_weight(child) == "reduce"
-
-
-def test_effective_weight_no_parent():
-    """No explicit weight, no parent -> returns 'normal'."""
-    cat = _make_category()
-    assert get_effective_weight(cat) == "normal"
-
-
-def test_effective_weight_parent_no_weight():
-    """No explicit weight, parent has no weight -> returns 'normal'."""
-    parent = _make_category(weight=None)
-    child = _make_category(parent=parent)
-    assert get_effective_weight(child) == "normal"
 
 
 # --- compute_composite_score ---
@@ -86,6 +51,14 @@ def test_composite_score_boost_weight():
     assert score == 8 * 1.5 * 1.0
 
 
+def test_composite_score_reduce_weight():
+    """Reduce weight: interest * 0.5 * quality_mult (default multiplier)."""
+    cat = _make_category(weight="reduce")
+    # quality=10 -> quality_mult = 1.0
+    score = compute_composite_score(8, 10, [cat])
+    assert score == 8 * 0.5 * 1.0
+
+
 def test_composite_score_empty_categories():
     """No categories: uses default multiplier 1.0."""
     score = compute_composite_score(8, 7, [])
@@ -102,18 +75,44 @@ def test_composite_score_multiple_categories():
     assert score == 8 * 1.25 * 1.0
 
 
+def test_composite_score_parent_weight_never_inherited():
+    """Groups are display-only (ADR-0001): a child's own weight is what counts."""
+    parent = _make_category(weight="block")
+    child = Category(
+        id=2, display_name="child", slug="child", weight="normal", parent_id=1
+    )
+    child.parent = parent  # type: ignore[assignment]
+    score = compute_composite_score(8, 10, [child])
+    assert score == 8 * 1.0 * 1.0
+
+
+# --- config-driven multipliers ---
+
+
+@pytest.fixture
+def custom_boost_multiplier(monkeypatch: pytest.MonkeyPatch):
+    """Override scoring.weight_multipliers.boost via env, clearing the
+    settings cache so the override is visible and reverted afterwards."""
+    monkeypatch.setenv("SCORING__WEIGHT_MULTIPLIERS__BOOST", "3.0")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+def test_composite_score_uses_config_boost(custom_boost_multiplier):
+    """Boost multiplier comes from config, not a hardcoded table."""
+    cat = _make_category(weight="boost")
+    # quality=10 -> quality_mult = 1.0; boost overridden to 3.0
+    score = compute_composite_score(4, 10, [cat])
+    assert score == 4 * 3.0 * 1.0
+
+
 # --- is_blocked ---
 
 
 def test_is_blocked_block_weight():
     """Category with weight='block' -> True."""
     cat = _make_category(weight="block")
-    assert is_blocked([cat]) is True
-
-
-def test_is_blocked_hidden():
-    """Category with is_hidden=True -> True."""
-    cat = _make_category(is_hidden=True)
     assert is_blocked([cat]) is True
 
 
@@ -133,3 +132,13 @@ def test_is_blocked_mixed():
     normal = _make_category(weight="normal")
     blocked = _make_category(weight="block")
     assert is_blocked([normal, blocked]) is True
+
+
+def test_is_blocked_ignores_parent_weight():
+    """A blocked parent never blocks its children (display-only groups)."""
+    parent = _make_category(weight="block")
+    child = Category(
+        id=2, display_name="child", slug="child", weight="normal", parent_id=1
+    )
+    child.parent = parent  # type: ignore[assignment]
+    assert is_blocked([child]) is False
