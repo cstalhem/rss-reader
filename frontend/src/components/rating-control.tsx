@@ -19,6 +19,18 @@ function valueToRating(value: string): 1 | -1 | null {
   return null;
 }
 
+/**
+ * Prominent selected styling per thumb — a filled, colored fill instead of the
+ * base `data-[state=on]:bg-accent` (which reads as too subtle). Up = primary,
+ * down = destructive; the `hover:` variants pin the color so an active thumb
+ * doesn't revert to the outline hover state. The `data-[state=on]:` prefix
+ * matches the base variant so tailwind-merge dedupes and this wins.
+ */
+const UP_SELECTED =
+  "data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:border-primary data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground data-[state=on]:[&_svg]:fill-current";
+const DOWN_SELECTED =
+  "data-[state=on]:bg-destructive data-[state=on]:text-white data-[state=on]:border-destructive data-[state=on]:hover:bg-destructive data-[state=on]:hover:text-white data-[state=on]:[&_svg]:fill-current";
+
 interface RatingControlProps {
   articleId: number;
   /** The article's current rating projection (`1` / `-1` / `null`). */
@@ -49,10 +61,18 @@ export function RatingControl({
       }
       className={className}
     >
-      <ToggleGroupItem value="up" aria-label="Thumbs up">
+      <ToggleGroupItem
+        value="up"
+        aria-label="Thumbs up"
+        className={UP_SELECTED}
+      >
         <ThumbsUp />
       </ToggleGroupItem>
-      <ToggleGroupItem value="down" aria-label="Thumbs down">
+      <ToggleGroupItem
+        value="down"
+        aria-label="Thumbs down"
+        className={DOWN_SELECTED}
+      >
         <ThumbsDown />
       </ToggleGroupItem>
     </ToggleGroup>

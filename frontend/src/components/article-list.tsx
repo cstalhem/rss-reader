@@ -126,14 +126,18 @@ function ArticleRow({
           />
         ))}
         {/* Rating toggles live inside the clickable row — stop propagation so a
-            thumbs tap rates without also opening the reader. */}
-        <div
-          className="ml-auto"
-          onClick={(e) => e.stopPropagation()}
-          role="presentation"
-        >
-          <RatingControl articleId={article.id} rating={article.rating} />
-        </div>
+            thumbs tap rates without also opening the reader. Hidden while the
+            reader is open (dense): the reader owns the rating control then, so
+            the list shouldn't duplicate it. */}
+        {!dense && (
+          <div
+            className="ml-auto"
+            onClick={(e) => e.stopPropagation()}
+            role="presentation"
+          >
+            <RatingControl articleId={article.id} rating={article.rating} />
+          </div>
+        )}
       </div>
     </article>
   );
