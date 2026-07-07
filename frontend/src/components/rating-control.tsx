@@ -53,6 +53,11 @@ export function RatingControl({
       type="single"
       variant="outline"
       size="sm"
+      // Gap the two thumbs so each keeps its own full border — at the default
+      // spacing=0 the segmented group collapses the shared edge (`border-l-0`
+      // on the right item), leaving a selected right thumb with no left border
+      // to draw in the primary color.
+      spacing={1}
       value={ratingToValue(rating)}
       onValueChange={(value) =>
         rate.mutate({ id: articleId, value: valueToRating(value) })
