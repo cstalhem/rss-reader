@@ -20,16 +20,14 @@ function valueToRating(value: string): 1 | -1 | null {
 }
 
 /**
- * Prominent selected styling per thumb — a filled, colored fill instead of the
- * base `data-[state=on]:bg-accent` (which reads as too subtle). Up = primary,
- * down = destructive; the `hover:` variants pin the color so an active thumb
- * doesn't revert to the outline hover state. The `data-[state=on]:` prefix
- * matches the base variant so tailwind-merge dedupes and this wins.
+ * Selected styling for both thumbs — the primary color on the icon and the
+ * outline, with no background fill (overriding the base
+ * `data-[state=on]:bg-accent`). The `data-[state=on]:hover:` variants pin the
+ * look so an active thumb doesn't revert to the outline hover state, and the
+ * matching `data-[state=on]:` prefix lets tailwind-merge dedupe the base away.
  */
-const UP_SELECTED =
-  "data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:border-primary data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground data-[state=on]:[&_svg]:fill-current";
-const DOWN_SELECTED =
-  "data-[state=on]:bg-destructive data-[state=on]:text-white data-[state=on]:border-destructive data-[state=on]:hover:bg-destructive data-[state=on]:hover:text-white data-[state=on]:[&_svg]:fill-current";
+const SELECTED =
+  "data-[state=on]:bg-transparent data-[state=on]:text-primary data-[state=on]:border-primary data-[state=on]:hover:bg-transparent data-[state=on]:hover:text-primary";
 
 interface RatingControlProps {
   articleId: number;
@@ -61,17 +59,13 @@ export function RatingControl({
       }
       className={className}
     >
-      <ToggleGroupItem
-        value="up"
-        aria-label="Thumbs up"
-        className={UP_SELECTED}
-      >
+      <ToggleGroupItem value="up" aria-label="Thumbs up" className={SELECTED}>
         <ThumbsUp />
       </ToggleGroupItem>
       <ToggleGroupItem
         value="down"
         aria-label="Thumbs down"
-        className={DOWN_SELECTED}
+        className={SELECTED}
       >
         <ThumbsDown />
       </ToggleGroupItem>
