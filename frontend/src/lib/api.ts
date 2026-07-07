@@ -244,6 +244,23 @@ export async function updateArticleRead(
   return response.json();
 }
 
+export async function rateArticle(
+  id: number,
+  value: 1 | -1 | null,
+): Promise<Article> {
+  const response = await fetch(`/api/articles/${id}/rating`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ value }),
+  });
+
+  if (!response.ok) {
+    await throwApiError(response, "Failed to rate article");
+  }
+
+  return response.json();
+}
+
 export async function fetchArticleCounts(): Promise<ArticleCounts> {
   const response = await fetch("/api/articles/counts");
 

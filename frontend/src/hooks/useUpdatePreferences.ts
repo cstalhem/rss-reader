@@ -10,14 +10,21 @@ export function useUpdatePreferences() {
 
   return useMutation({
     mutationFn: (update: PreferencesUpdate) => updatePreferences(update),
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       // Write the authoritative PUT response straight to cache so the interests
       // form's remount-reset (keyed on updated_at) is deterministic and doesn't
-      // hinge on a follow-up refetch that could fail. Interests/anti-interests
-      // changes trigger a server-side rescore, so wake the scoring chip too.
+      // hinge on a follow-up refetch that could fail.
       queryClient.setQueryData(queryKeys.preferences.detail, data);
-      queryClient.invalidateQueries({ queryKey: queryKeys.scoring.status });
+      // Only interests/anti-interests changes trigger a server-side rescore, so
+      // wake the scoring chip only for those — a dwell-only save leaves scoring
+      // untouched and shouldn't refetch it.
+      if (
+        variables.interests !== undefined ||
+        variables.anti_interests !== undefined
+      ) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.scoring.status });
+      }
     },
-    meta: { errorTitle: "Couldn't save your interests" },
+    meta: { errorTitle: "Couldn't save your preferences" },
   });
 }

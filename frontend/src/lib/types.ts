@@ -89,6 +89,8 @@ export interface ArticleListItem {
   scoring_state: string;
   scored_at: string | null;
   re_evaluating: boolean;
+  /** Thumbs rating projection: `1` (up), `-1` (down), or `null` (never rated / cleared). */
+  rating: number | null;
 }
 
 /** Mirrors backend response for `GET /api/articles`. */
@@ -114,6 +116,8 @@ export interface Article {
   scoring_state: string;
   scored_at: string | null;
   re_evaluating: boolean;
+  /** Thumbs rating projection: `1` (up), `-1` (down), or `null` (never rated / cleared). */
+  rating: number | null;
   summary: string | null;
   /** Raw HTML. */
   content: string | null;
@@ -244,6 +248,8 @@ export interface Preferences {
   interests: string;
   anti_interests: string;
   feed_refresh_interval: number;
+  /** Seconds an opened article must be dwelled on before it auto-marks read (1–60). */
+  mark_read_dwell_seconds: number;
   updated_at: string;
 }
 
@@ -252,6 +258,7 @@ export interface PreferencesUpdate {
   interests?: string;
   anti_interests?: string;
   feed_refresh_interval?: number;
+  mark_read_dwell_seconds?: number;
 }
 
 /** Mirrors backend `GET /api/scoring/status` response. Only the top-level scoring_state counts and `phase` are typed precisely — we read those now. Everything else is loosely typed. */

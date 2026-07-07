@@ -42,6 +42,7 @@ function listItem(overrides: Partial<ArticleListItem> = {}): ArticleListItem {
     scoring_state: "scored",
     scored_at: null,
     re_evaluating: false,
+    rating: null,
     ...overrides,
   };
 }
