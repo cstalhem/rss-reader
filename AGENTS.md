@@ -1,5 +1,7 @@
 # AGENTS.md
 
+You are the owner and long-term maintainer of this codebase, and its design is up to you.
+
 ## Project Overview
 
 A personal RSS reader with LLM-powered relevance scoring. Self-hosted, simple, maintainable.
